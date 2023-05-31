@@ -1,7 +1,4 @@
 import os
-import pickle
-from multiprocessing import Pool
-import oxpy
 import numpy as np
 import pandas as pd
 import time
@@ -9,7 +6,9 @@ from analyseClusters import *
 # definitely one of the weirder import commands I've used
 from glob import glob
 
-from util import *
+import oxpy
+
+from patchy.util import *
 
 # hardcoding this because reading it from the input file would be difficult I've literally never changed it
 OXDNA_PRINT_CLUSTERS_EVERY = 1e7
@@ -20,6 +19,7 @@ ACS_NO_PICKLES = 1
 ASC_PICKLE_CLUSTERS = 2
 
 CLUSTERS_PICKLE = "clusters.pickle"
+
 
 class PatchyRunResult:
     def __init__(self, pathroot, duplicate, nt, temp, density, num_assemblies):

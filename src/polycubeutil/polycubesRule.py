@@ -12,6 +12,9 @@ RULE_ORDER = (
     np.array(( 0,  0,  1))
 )
 
+def load_rule():
+    pass
+
 def diridx(a):
     return np.all(np.array(RULE_ORDER) == np.array(list(a))[np.newaxis, :], axis=1).nonzero()[0][0]
 

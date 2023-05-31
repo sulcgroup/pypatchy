@@ -1,0 +1,24 @@
+{
+	"slurm_bash_flags": {
+		"A": "bio210009-gpu",
+		"nodes": "1",
+		"ntasks-per-node": "1",
+		"gpus-per-node": "1",
+		"time": "48:00:00",
+		"p": "gpu"
+	},
+	"slurm_includes": [
+		"module purge",
+		"module load modtree/gpu",
+		"module load cuda"
+	],
+		"input_file_params": {
+		"backend": "CUDA",
+        "backend_precision": "float",
+		"interaction_type": "DetailedPatchySwapInteraction",
+        "plugin_search_path": "/home/x-jevans1/software/oxDNA-lorenzo/contrib/rovigatti"
+	},
+	"oxdna_path": "/home/x-jevans1/software/oxDNA-lorenzo",
+	"patchy_format": "lorenzo"
+}
+}

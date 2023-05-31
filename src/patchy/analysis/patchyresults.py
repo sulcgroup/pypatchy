@@ -1,15 +1,10 @@
 import itertools
-import json
-from polycubesRule import *
-import os
-from os import path
-from analyseClusters import *
-import numpy as np
+
+from IPython.core.display_functions import display
+
+from polycubeutil.polycubesRule import *
 import matplotlib.pyplot as plt
 from matplotlib import cm
-import pandas as pd
-import time
-import oxpy
 
 from patchyrunresult import *
 

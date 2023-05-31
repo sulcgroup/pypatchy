@@ -1,27 +1,40 @@
+import json
 from os import path
 import configparser
 from colorsys import hsv_to_rgb
 
 cfg = configparser.ConfigParser()
-cfg.read(path.join(path.dirname(__file__), 'settings.cfg'))
+cfg.read(path.join(path.dirname(__file__), '..', 'settings.cfg'))
+
+INPUT_FILE_PARAM_GROUPS = []
     
 def sims_root():
-    return cfg['DEFAULT']['simulation_data_dir']
+    return cfg['ANALYSIS']['simulation_data_dir']
 
 def get_sample_every():
-    return int(cfg['DEFAULT']['sample_every'])
+    return int(cfg['ANALYSIS']['sample_every'])
 
 def get_cluster_file_name():
-    return cfg['DEFAULT']['cluster_file']
+    return cfg['ANALYSIS']['cluster_file']
 
 def get_export_setting_file_name():
-    return cfg['DEFAULT']['export_setting_file_name']
+    return cfg['ANALYSIS']['export_setting_file_name']
     
 def get_init_top_file_name():
-    return cfg['DEFAULT']['init_top_file_name']
+    return cfg['ANALYSIS']['init_top_file_name']
 
 def get_analysis_params_file_name():
-    return cfg['DEFAULT']['analysis_params_file_name']
+    return cfg['ANALYSIS']['analysis_params_file_name']
+
+
+def get_server_config():
+    return cfg["SETUP"]["server_config"]
+def get_param_set(filename):
+    return get_spec_json(filename, "input_files")
+
+def get_spec_json(name, folder):
+    with open(f"spec/{folder}/{name}.json") as f:
+        return json.load(f)
 
 class BadSimulationDirException(Exception):
     def __init__(self, p):
