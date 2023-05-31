@@ -1,5 +1,8 @@
-from util import *
-from patchyresults import *
+from IPython.core.display_functions import display
+
+from patchy.util import *
+from patchy.analysis.patchyresults import *
+
 
 def choose_results(sim_name=None):
     if sim_name is None:

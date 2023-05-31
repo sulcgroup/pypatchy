@@ -2,3 +2,5 @@ __pycache__
 slurm_out
 log.txt
 .idea
+input
+output

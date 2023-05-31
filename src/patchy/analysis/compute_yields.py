@@ -1,5 +1,5 @@
-from util import *
-from input_output import *
+from patchy.util import *
+from patchy.analysis.input_output import *
 import argparse
 import re
 

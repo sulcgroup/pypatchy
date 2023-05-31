@@ -1,4 +1,6 @@
-from plotsquares import *
+import pandas as pd
+import itertools
+import altair as alt
 import math
 
 def showPatchyResults(results, target_name, plot_relative=True):
