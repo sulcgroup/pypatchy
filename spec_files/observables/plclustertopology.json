@@ -1,0 +1,13 @@
+{
+	"data_output_1" : {
+		"name": "clusters.txt",
+		"print_every": 1e7,
+		"cols": [
+			{
+				"type": "PLClusterTopology",
+				"show_types": 1
+			}
+		]
+	}
+}
+
