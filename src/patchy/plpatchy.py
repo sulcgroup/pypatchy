@@ -132,12 +132,20 @@ class Patch:
     def get_abs_position(self, r):
         return r + self._position
 
-    def save_to_string(self):
+    def save_to_string(self, extras={}):
         # print self._type,self._type,self._color,1.0,self._position,self._a1,self._a2
 
-        outs = 'patch_%d = {\n  id = %d \n color = %d \n strength = %f \n position = %f,%f,%f  \n a1 = %f,%f,%f \n  a2 = %f,%f,%f \n } \n' % (
+        outs = 'patch_%d = {\n ' \
+               ' id = %d \n' \
+               ' color = %d \n' \
+               ' strength = %f \n' \
+               ' position = %f,%f,%f  \n' \
+               ' a1 = %f,%f,%f \n ' \
+               ' a2 = %f,%f,%f \n'  % (
         self._type, self._type, self._color, self._strength, self._position[0], self._position[1], self._position[2], self._a1[0],
         self._a1[1], self._a1[2], self._a2[0], self._a2[1], self._a2[2])
+        outs += "\n".join([f"{key} = {extras[key]}" for key in extras])
+        outs += "}"
         return outs
 
     def init_from_dps_file(self, fname, line):
@@ -450,13 +458,14 @@ class PLPatchyParticle:
         self.v = np.array([float(x) for x in ls[9:12]])
         self.L = np.array([float(x) for x in ls[12:15]])
 
-    def save_type_to_string(self):
+    def save_type_to_string(self, extras={}):
         outs = 'particle_%d = { \n type = %d \n ' % (self._type, self._type)
         outs = outs + 'patches = '
         for i, p in enumerate(self._patches):
             outs = outs + str(p._type)
             if i < len(self._patches) - 1:
                 outs = outs + ','
+        outs += "\n".join([f"{key} = {extras[key]}" for key in extras])
         outs = outs + ' \n } \n'
         return outs
 
