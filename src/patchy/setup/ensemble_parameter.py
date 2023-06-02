@@ -1,4 +1,8 @@
 import itertools
+import os
+
+import pylab as p
+
 
 class ParameterValue:
     """
@@ -23,14 +27,16 @@ class ParameterValue:
     """
     Return a list of names of parameters which have values specified in this ParameterValue object
     """
+
     def group_params_names(self):
         assert self.is_grouped_params()
         return list(self.value.keys())
-    
+
     """
     Returns a true if this ParameterValue object specifies a value for the parameter
     with name param_name
     """
+
     def has_param(self, param_name):
         if not self.is_grouped_params():
             return self.name == param_name
@@ -38,6 +44,7 @@ class ParameterValue:
             return param_name in self.group_params_names()
 
     def __getitem__(self, key):
+        assert self.is_grouped_params()
         return self.value[key]
 
     def __str__(self):
@@ -51,12 +58,13 @@ class EnsembleParameter:
     def __init__(self, key, paramData):
         self.param_key = key
         self.param_value_set = [ParameterValue(key, val) for val in paramData]
-        names = itertools.chain.from_iterable([p.group_params_names() if p.is_grouped_params() else self.param_key for p in self.param_value_set])
+        names = itertools.chain.from_iterable(
+            [p.group_params_names() if p.is_grouped_params() else self.param_key for p in self.param_value_set])
         self.parameter_names = set(names)
 
     def dir_names(self):
         return [f"{key}_{str(val)}" for key, val in self]
-    
+
     def param_names(self):
         return self.parameter_names
 
@@ -66,3 +74,28 @@ class EnsembleParameter:
 
     def __iter__(self):
         return iter([(self.param_key, val) for val in self.param_value_set])
+
+
+class SimulationSpecification:
+    """
+    parameter_values is a list of (key,value) tuples where the key is a string identifier
+    and the value is a ParameterValue object
+    """
+    def __init__(self, parameter_values):
+        self.param_vals = list(parameter_values)
+        self.parameter_dict = {}
+        for _, val in self.param_vals:
+            if val.is_grouped_param():
+                for param_name in val.group_param_names():
+                    self.parameter_dict[param_name] = val[param_name]
+            else:
+                self.parameter_dict[val.name] = val.value
+
+    def __contains__(self, parameter_name):
+        return parameter_name in self.parameter_dict
+
+    def __getitem__(self, parameter_name):
+        return self.parameter_dict[parameter_name]
+
+    def get_folder_path(self):
+        os.sep.join([f"{key}_{str(val)}" for key, val in self.param_vals])

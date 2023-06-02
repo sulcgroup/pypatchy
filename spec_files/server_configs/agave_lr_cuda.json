@@ -1,0 +1,18 @@
+{
+	"slurm_bash_flags": {
+		"p": "sulccpu1",
+		"q": "sulcgpu1"
+	},
+	"slurm_includes": [
+		"module add cuda/10.2.89",
+		"module add gcc/8.4.0"
+	],
+	"input_file_params": {
+		"backend": "CUDA",
+        "backend_precision": "float",
+		"interaction_type": "PatchyShapeInteraction",
+        "plugin_search_path": "/home/jrevan21/oxDNZ/contrib/rovigatti"
+	},
+	"oxdna_path": "/home/jrevan21/oxDNA",
+	"patchy_format": "lorenzo"
+}

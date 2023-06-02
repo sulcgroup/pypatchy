@@ -10,7 +10,7 @@ import re
 import logging
 
 from patchy.util import get_param_set, sims_root, get_server_config, get_spec_json, get_root
-from patchy.setup.ensemble_parameter import EnsembleParameter
+from patchy.setup.ensemble_parameter import EnsembleParameter, SimulationSpecification
 from polycubeutil.polycubesRule import load_rule
 from patchy.plpatchy import Patch, PLPatchyParticle, export_interaction_matrix
 from patchy.UDtoMDt import convert_multidentate
@@ -92,14 +92,15 @@ class PatchySimulationSetup:
         return len(self.particles)
 
     """
-    do NOT use particle type names
+    Returns the value of the parameter specified by paramname in the 
+    simulation specification sim
+    The program first checks if the parameter exists
     """
     def sim_get_param(self, sim, paramname):
-        # loop params in sim spec, return if applicable
-        for p, v in sim:
-            if v.has_param(paramname):
-                return v
+        if paramname in sim:
+            return sim[paramname]
         # use default
+        assert paramname in self.const_params
         return self.const_params[paramname]
 
     def get_sim_particle_count(self, sim, particle_idx):
@@ -127,11 +128,14 @@ class PatchySimulationSetup:
             ])
         ]
 
+    """
+    Returns a list of lists of tuples,
+    """
     def ensemble(self):
-        return list(itertools.product(*self.ensemble_params))
+        return SimulationSpecification(itertools.product(*self.ensemble_params))
 
     def folder_path(self, sim):
-        return sims_root() + os.sep + self.long_name() + os.sep + os.sep.join([f"{key}_{str(val)}" for key, val in sim])
+        return sims_root() + os.sep + self.long_name() + os.sep + sim.get_folder_path()
     
     def do_setup(self):
         for sim in self.ensemble():
@@ -172,7 +176,6 @@ class PatchySimulationSetup:
             slurm_file.write(f"{server_config['oxdna_path']} input")
 
     def write_input_file(self, ensemble_var_names, sim):
-        folderpath = os.sep.join([f"{key}_{str(val)}" for key, val in sim])
         server_config = get_server_config()
 
         # create input file
@@ -291,7 +294,7 @@ class PatchySimulationSetup:
                 # export_to_lorenzian_patchy_str also writes patches.dat file
                 top_file.writelines([
                     particle.export_to_lorenzian_patchy_str(self.get_sim_particle_count(sim, particle),
-                                                            folderpath + os.sep)
+                                                            self.folder_path(sim) + os.sep)
                     + "\n"
                     for particle in particles])
             export_interaction_matrix(patches)
