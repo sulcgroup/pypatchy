@@ -18,7 +18,7 @@ def load_rule(rule_str):
         {
             "patches": [
                 parse_patch(patch, j)
-                for patch, j in cubeType.split("#") if patch
+                for j,patch in enumerate(cubeType.split("#")) if patch
             ],
             "effects": [],
             "state_size": 13,  # hardcode 13 species
@@ -37,17 +37,17 @@ def parse_patch(patch_str, j):
         "z": RULE_ORDER[j][2]
     }
     alignDir = {
-        "x": RULE_ORDER[patch_components[1]][0],
-        "y": RULE_ORDER[patch_components[1]][1],
-        "z": RULE_ORDER[patch_components[1]][2]
+        "x": RULE_ORDER[int(patch_components[1])][0],
+        "y": RULE_ORDER[int(patch_components[1])][1],
+        "z": RULE_ORDER[int(patch_components[1])][2]
     }
     return {
         "activation_var": patch_components[2] if not static else
-        (j + len(RULE_ORDER) + 1 if patch_components[2].trim() else 0),
+        (j + len(RULE_ORDER) + 1 if patch_components[2].strip() else 0),
         "state_var": patch_components[3] if not static else j + 1,
         "color": patch_components[0],
         "dir": patch_dir,
-        "align_dir": alignDir
+        "alignDir": alignDir
     }
 
 

@@ -67,7 +67,7 @@ class PatchySimulationSetup:
                 # if the name of an observable is provided
                 if isinstance(obs, str):
                     try:
-                        self.observables.append(get_spec_json(obs))
+                        self.observables.append(get_spec_json(obs, "observables"))
                     except FileNotFoundError as e:
                         print(f"No file {obs}!")
                 else:  # assume observable is provided as raw json
@@ -77,6 +77,9 @@ class PatchySimulationSetup:
         # init slurm log dataframe
         self.slurm_log = pd.DataFrame(columns=["slurm_job_id", *[p.param_key for p in self.ensemble_params]])
 
+    def long_name(self):
+        return f"{self.export_name}_{self.current_date.strftime('%Y-%m-%d')}"
+        
     def get_sim_set_root(self):
         return sims_root() + self.export_name
 
@@ -88,11 +91,13 @@ class PatchySimulationSetup:
     def num_particle_types(self):
         return len(self.particles)
 
-    """ do NOT use particle type names """
+    """
+    do NOT use particle type names
+    """
     def sim_get_param(self, sim, paramname):
         # loop params in sim spec, return if applicable
         for p, v in sim:
-            if p == paramname:
+            if v.has_param(paramname):
                 return v
         # use default
         return self.const_params[paramname]
@@ -100,8 +105,7 @@ class PatchySimulationSetup:
     def get_sim_particle_count(self, sim, particle_idx):
         # grab particle name
         particle_name = self.particles[particle_idx]["typeName"]
-        # should always be true but check just in case
-        if particle_name in self.const_params[PARTICLE_TYPE_LVLS_KEY]:
+        if PARTICLE_TYPE_LVLS_KEY in self.const_params and particle_name in self.const_params[PARTICLE_TYPE_LVLS_KEY]:
             particle_lvl = self.const_params[PARTICLE_TYPE_LVLS_KEY][particle_name]
         if has_spec(sim, PARTICLE_TYPE_LVLS_KEY):
             spec = self.sim_get_param(sim, PARTICLE_TYPE_LVLS_KEY)
@@ -126,14 +130,16 @@ class PatchySimulationSetup:
     def ensemble(self):
         return list(itertools.product(*self.ensemble_params))
 
+    def folder_path(self, sim):
+        return sims_root() + os.sep + self.long_name() + os.sep + os.sep.join([f"{key}_{str(val)}" for key, val in sim])
+    
     def do_setup(self):
         for sim in self.ensemble():
             # sim should be a tuple of (string, ParameterValue) tuples
             ensemble_var_names = [varname for varname, _ in sim]
-            folderpath = os.sep.join([f"{key}_{str(val)}" for key, val in sim])
 
             # create nessecary folders
-            Path.mkdir(folderpath, parents=True, exist_ok=True)
+            Path(self.folder_path(sim)).mkdir(parents=True, exist_ok=True)
 
             self.write_input_file(ensemble_var_names, sim)
 
@@ -142,11 +148,10 @@ class PatchySimulationSetup:
             self.write_slurm_script(sim)
 
     def write_slurm_script(self, sim):
-        folderpath = os.sep.join([f"{key}_{str(val)}" for key, val in sim])
         server_config = get_server_config()
 
         # write slurm script
-        with open(folderpath + os.sep + "slurm_script.sh", "w+") as slurm_file:
+        with open(self.folder_path(sim) + os.sep + "slurm_script.sh", "w+") as slurm_file:
             # bash header
             slurm_file.write("#!/bin/bash")
 
@@ -171,7 +176,7 @@ class PatchySimulationSetup:
         server_config = get_server_config()
 
         # create input file
-        with open(folderpath + os.sep + "input", 'w+') as inputfile:
+        with open(self.folder_path(sim) + os.sep + "input", 'w+') as inputfile:
             # write server config spec
             inputfile.write("#" * 32)
             inputfile.write(" SERVER PARAMETERS ".center(32, '#'))
@@ -183,9 +188,10 @@ class PatchySimulationSetup:
             inputfile.write("")
 
             # write default input file stuff
-            for paramgroup in self.default_param_set['input']:
+            for paramgroup_key in self.default_param_set['input']:
+                paramgroup = self.default_param_set['input'][paramgroup_key]
                 inputfile.write("#" * 32)
-                inputfile.write(f" {paramgroup} ".center(32, "#"))
+                inputfile.write(f" {paramgroup_key} ".center(32, "#"))
                 inputfile.write("#" * 32 + "\n")
 
                 # loop parameters
@@ -200,7 +206,7 @@ class PatchySimulationSetup:
                 inputfile.write("patchy_file = patches.txt")
                 inputfile.write("particle_file = particles.txt")
                 inputfile.write(f"particle_types_N = {self.num_particle_types()}")
-                inputfile.write(f"patch_types_N = {self.num_patch_types()}")
+                inputfile.write(f"patch_types_N = {self.num_patch_types(sim)}")
             elif server_config[PATCHY_FILE_FORMAT_KEY] == "lorenzo":
                 inputfile.write("DPS_interaction_matrix_file = interactions.txt")
             else:
@@ -218,7 +224,6 @@ class PatchySimulationSetup:
 
     def write_sim_top_particles_patches(self, sim):
         server_config = get_server_config()
-        folderpath = get_sim_folder_path(sim)
 
         # write top and particles/patches spec files
         # first convert particle json into PLPatchy objects (cf plpatchy.py)
@@ -251,14 +256,14 @@ class PatchySimulationSetup:
         # do any/all valid conversions
         # either josh_lorenzo or josh_flavio
         if server_config[PATCHY_FILE_FORMAT_KEY].find("josh") > -1:
-            with open(folderpath + os.sep + "init.top", "w+") as top_file:
+            with open(self.folder_path(sim) + os.sep + "init.top", "w+") as top_file:
                 # first line of file
                 top_file.write(f"{self.get_sim_total_num_particles(sim)} {len(particles)}")
                 top_file.write(" ".join([
                     f"{i} " * self.get_sim_particle_count(sim, i) for i in range(len(particles))
                 ]))
             all_patches_json = list(itertools.chain.from_iterable([p["patches"] for p in self.particles]))
-            with open(folderpath + os.sep + "patches.txt", "w+") as patches_file:
+            with open(self.folder_path(sim) + os.sep + "patches.txt", "w+") as patches_file:
                 if server_config[PATCHY_FILE_FORMAT_KEY] == "josh_flavio":
                     for i, patch_obj in enumerate(patches):
                         # adjust for patch multiplier from multidentate
@@ -274,14 +279,14 @@ class PatchySimulationSetup:
                                                "state_var": state_var,
                                                "activation_var": activation_var
                                            })
-            with open(folderpath + os.sep + "particles.txt", "w+") as particles_file:
+            with open(self.folder_path(sim) + os.sep + "particles.txt", "w+") as particles_file:
                 for particle_obj, particle_json in zip(particles, self.particles):
                     if server_config[PATCHY_FILE_FORMAT_KEY] == "josh_flavio":
                         particles_file.write(particle.save_type_to_string())
                     else:  # josh/lorenzo
                         particles_file.write(particle.save_type_to_string(), {particle_json["state_size"]})
         else:  # lorenzian
-            with open(folderpath + os.sep + "init.top", "w+") as top_file:
+            with open(self.folder_path(sim) + os.sep + "init.top", "w+") as top_file:
                 top_file.write(f"{self.get_sim_total_num_particles(sim)} {len(particles)}\n")
                 # export_to_lorenzian_patchy_str also writes patches.dat file
                 top_file.writelines([
@@ -293,8 +298,8 @@ class PatchySimulationSetup:
 
     def start_simulations(self):
         for sim in self.ensemble():
-            command = f"{get_sim_folder_path()}"
-            command = f"sbatch {get_sim_folder_path(sim)}/slurm_script.sh"
+            command = f"{self.folder_path()}"
+            command = f"sbatch {self.folder_path(sim)}/slurm_script.sh"
             try:
                 submit_txt = subprocess.check_output(command, shell=True, stderr=subprocess.STDOUT,
                                                      universal_newlines=True)
@@ -312,12 +317,8 @@ class PatchySimulationSetup:
                 return None
 
 
-
-def get_sim_folder_path(sim):
-    return os.sep.join([f"{key}_{str(val)}" for key, val in sim])
-
 def has_spec(sim, paramname):
     for p, v in sim:
-        if p == paramname:
+        if v.has_param(paramname):
             return True
     return False

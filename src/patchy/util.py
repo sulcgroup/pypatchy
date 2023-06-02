@@ -35,7 +35,7 @@ def get_analysis_params_file_name():
 
 
 def get_server_config():
-    return cfg["SETUP"]["server_config"]
+    return get_spec_json(cfg["SETUP"]["server_config"], "server_configs")
 
 
 def get_param_set(filename):
@@ -43,7 +43,7 @@ def get_param_set(filename):
 
 
 def get_spec_json(name, folder):
-    with open(f"spec/{folder}/{name}.json") as f:
+    with open(f"{get_root()}/spec_files/{folder}/{name}.json") as f:
         return json.load(f)
 
 

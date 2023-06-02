@@ -1,6 +1,6 @@
 import math
 import sys
-from plpatchy import *
+from patchy.plpatchy import *
 from scipy.spatial.transform import Rotation as R
 
 def convert_multidentate(particles, dental_radius, num_teeth, followSurf=False):

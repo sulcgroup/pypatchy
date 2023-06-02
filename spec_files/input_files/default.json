@@ -1,11 +1,10 @@
 {
-    "density"
+    "density": 0.1,
     "input": {
         "PROGRAM_PARAMETERS": {
             "ensemble": "NVT",
             "delta_translation": 0.1,
-            "delta_rotation": 0.1,
-            "narrow_type": null
+            "delta_rotation": 0.1
         },
         "SIM_PARAMETERS": {
             "newtonian_steps": 103,
@@ -25,15 +24,10 @@
             "steps": 5e9,
             "check_energy_every": 10000,
             "check_energy_threshold": 0.0001,
-            "T": null,
             "refresh_vel": 1
         },
         "PATCHY_SETUP": {
             "shape": "sphere",
-            "particle_types_N": null,
-            "patch_types_N": null,
-            "patchy_file": null,
-            "particle_file": null,
             "same_type_bonding": 1,
             "use_torsion": 1,
             "interaction_tensor": 0,
