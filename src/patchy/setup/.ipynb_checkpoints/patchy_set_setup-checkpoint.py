@@ -268,7 +268,7 @@ class PatchySimulationSetup:
                 if server_config[PATCHY_FILE_FORMAT_KEY] == "josh_flavio":
                     for i, patch_obj in enumerate(patches):
                         # adjust for patch multiplier from multidentate
-                        allo_conditional = self.particles["conditional"][int(i / self.sim_get_param(sim, NUM_TEETH_KEY))]
+                        allo_conditional = patch_obj["conditional"][int(i / self.sim_get_param(sim, NUM_TEETH_KEY))]
                         patches_file.write(patch_obj.save_to_string(),
                                            {"allostery_conditional": allo_conditional})
                     else:  # josh/lorenzo
