@@ -15,19 +15,29 @@ RULE_ORDER = (
 
 def load_rule(rule_str):
     return [
-        {
-            "patches": [
-                parse_patch(patch, j)
-                for j,patch in enumerate(cubeType.split("#")) if patch
-            ],
-            "effects": [],
-            "state_size": 13,  # hardcode 13 species
-            "typeName": f"CT{i}"
-        }
+        parse_cube_type(cubeType, i)
         for i, cubeType in enumerate(rule_str.split("_"))
     ]
 
-
+def parse_cube_type(particle_type_str, i):
+    
+    cube_type_dict = {
+        "typeName": f"CT{i}",
+        "patches": [],
+        "effects": [],
+        "state_size": 13,  # hardcode 13 states
+    }
+    patch_conditionals = []
+    for j, patch in enumerate(particle_type_str.split("#")):
+        if patch:
+            patch_dict, conditional = parse_patch(patch, j)
+            cube_type_dict["patches"].append(patch_dict)
+            if isinstance(conditional, str): 
+                patch_conditionals.append(conditional)
+    if len(patch_conditionals) > 0:
+        cube_type_dict["conditionals"] = patch_conditionals
+    return cube_type_dict
+    
 def parse_patch(patch_str, j):
     static = patch_str.count(":") == 2
     patch_components = patch_str.split(":")
@@ -41,14 +51,25 @@ def parse_patch(patch_str, j):
         "y": RULE_ORDER[int(patch_components[1])][1],
         "z": RULE_ORDER[int(patch_components[1])][2]
     }
-    return {
-        "activation_var": patch_components[2] if not static else
-        (j + len(RULE_ORDER) + 1 if patch_components[2].strip() else 0),
-        "state_var": patch_components[3] if not static else j + 1,
-        "color": patch_components[0],
-        "dir": patch_dir,
-        "alignDir": alignDir
-    }
+    if not static:
+        return {
+            "activation_var": patch_components[2] if not static else
+            (j + len(RULE_ORDER) + 1 if patch_components[2].strip() else 0),
+            "state_var": patch_components[3] if not static else j + 1,
+            "color": patch_components[0],
+            "dir": patch_dir,
+            "alignDir": alignDir
+        }, False
+    else:
+        return {
+            "activation_var": patch_components[2] if not static else
+            (j + len(RULE_ORDER) + 1 if patch_components[2].strip() else 0),
+            "state_var": patch_components[3] if not static else j + 1,
+            "color": patch_components[0],
+            "dir": patch_dir,
+            "alignDir": alignDir
+        }, patch_components[2]
+    
 
 
 def diridx(a):

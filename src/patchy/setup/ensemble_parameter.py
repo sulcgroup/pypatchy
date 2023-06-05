@@ -85,8 +85,8 @@ class SimulationSpecification:
         self.param_vals = list(parameter_values)
         self.parameter_dict = {}
         for _, val in self.param_vals:
-            if val.is_grouped_param():
-                for param_name in val.group_param_names():
+            if val.is_grouped_params():
+                for param_name in val.group_params_names():
                     self.parameter_dict[param_name] = val[param_name]
             else:
                 self.parameter_dict[val.name] = val.value
@@ -98,4 +98,4 @@ class SimulationSpecification:
         return self.parameter_dict[parameter_name]
 
     def get_folder_path(self):
-        os.sep.join([f"{key}_{str(val)}" for key, val in self.param_vals])
+        return os.sep.join([f"{key}_{str(val)}" for key, val in self.param_vals])
