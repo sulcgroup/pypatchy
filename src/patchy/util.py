@@ -2,13 +2,17 @@ import json
 from os import path
 import configparser
 from colorsys import hsv_to_rgb
+import numpy as np
+import math
 
 
 def get_root():
     return path.dirname(__file__)[:__file__.rfind("pypatchy") + len("pypatchy")]
 
+
 cfg = configparser.ConfigParser()
 cfg.read(path.join(get_root(), 'settings.cfg'))
+
 
 def sims_root():
     return cfg['ANALYSIS']['simulation_data_dir']
@@ -65,3 +69,28 @@ def selectColor(number, saturation=50, value=65, fmt="hex"):
             return f"rgb({r},{g},{b})"
         else:
             return f"#{hex(int(255 * r))[-2:]}{hex(int(255 * g))[-2:]}{hex(int(255 * b))[-2:]}"
+
+
+def rotation_matrix(axis, theta):
+    """
+    Return the rotation matrix associated with counterclockwise rotation about
+    the given axis by theta radians.
+    """
+    axis = np.asarray(axis)
+    theta = np.asarray(theta)
+    axis = axis / math.sqrt(np.dot(axis, axis))
+    a = math.cos(theta / 2)
+    b, c, d = -axis * math.sin(theta / 2)
+    aa, bb, cc, dd = a * a, b * b, c * c, d * d
+    bc, ad, ac, ab, bd, cd = b * c, a * d, a * c, a * b, b * d, c * d
+    return np.array([[aa + bb - cc - dd, 2 * (bc + ad), 2 * (bd - ac)],
+                     [2 * (bc - ad), aa + cc - bb - dd, 2 * (cd + ab)],
+                     [2 * (bd + ac), 2 * (cd - ab), aa + dd - bb - cc]])
+
+
+def to_xyz(vector):
+    return {k: int(v) for k, v in zip(["x", "y", "z"], vector)}
+
+
+def from_xyz(d):
+    return np.array([d[k] for k in ["x", "y", "z"]])

@@ -6,13 +6,12 @@ import numpy as np
 import copy
 import random
 import math
+from patchy.util import rotation_matrix
 
 myepsilon = 0.00001
 
-
 def l2norm(v):
     return np.sqrt(np.dot(v, v))
-
 
 def load_patches(filename, num_patches=0):
     j = 0
@@ -76,6 +75,7 @@ def load_particles(filename, patch_types, num_particles=0):
             j = j + 1
     return particles
 
+
 def export_interaction_matrix(patches, filename="interactions.txt"):
     with open(filename, 'w') as f:
         f.writelines(
@@ -85,24 +85,6 @@ def export_interaction_matrix(patches, filename="interactions.txt"):
                 if p1.color() == p2.color()
             ]
         )
-
-
-def rotation_matrix(axis, theta):
-    """
-    Return the rotation matrix associated with counterclockwise rotation about
-    the given axis by theta radians.
-    """
-    axis = np.asarray(axis)
-    theta = np.asarray(theta)
-    axis = axis / math.sqrt(np.dot(axis, axis))
-    a = math.cos(theta / 2)
-    b, c, d = -axis * math.sin(theta / 2)
-    aa, bb, cc, dd = a * a, b * b, c * c, d * d
-    bc, ad, ac, ab, bd, cd = b * c, a * d, a * c, a * b, b * d, c * d
-    return np.array([[aa + bb - cc - dd, 2 * (bc + ad), 2 * (bd - ac)],
-                     [2 * (bc - ad), aa + cc - bb - dd, 2 * (cd + ab)],
-                     [2 * (bd + ac), 2 * (cd - ab), aa + dd - bb - cc]])
-
 
 class Patch:
 
@@ -141,11 +123,12 @@ class Patch:
                ' strength = %f \n' \
                ' position = %f,%f,%f  \n' \
                ' a1 = %f,%f,%f \n ' \
-               ' a2 = %f,%f,%f \n'  % (
-        self._type, self._type, self._color, self._strength, self._position[0], self._position[1], self._position[2], self._a1[0],
-        self._a1[1], self._a1[2], self._a2[0], self._a2[1], self._a2[2])
+               ' a2 = %f,%f,%f \n' % (
+                   self._type, self._type, self._color, self._strength, self._position[0], self._position[1],
+                   self._position[2], self._a1[0],
+                   self._a1[1], self._a1[2], self._a2[0], self._a2[1], self._a2[2])
         outs += "\n".join([f"{key} = {extras[key]}" for key in extras])
-        outs += "}"
+        outs += "\n}\n"
         return outs
 
     def init_from_dps_file(self, fname, line):
@@ -187,12 +170,12 @@ class Patch:
 class PLPatchyParticle:
     all_letters = ['C', 'H', 'O', 'N', 'P', 'S', 'F', 'K', 'I', 'Y']
 
-    def __init__(self, type=0, index_=0, position=np.array([0., 0., 0.]), radius=0.5):
+    def __init__(self, type_id=0, index_=0, position=np.array([0., 0., 0.]), radius=0.5):
         self.cm_pos = position
         self.index = index_
         self._radius = radius
         self._patches = None
-        self._type = type
+        self._type = type_id
         self._patch_ids = None
         self.v = np.array([0., 0., 0.])
         self.L = np.array([0., 0., 0.])
@@ -313,7 +296,7 @@ class PLPatchyParticle:
                                 test = copy.deepcopy(part2)
                                 test.rotate(rot)
                                 c = self.aligned_with(test)
-                                if c != None:
+                                if c is not None:
                                     # print 'Success! '
                                     xxx = [test.get_patch_position(i) for i in range(len(test._patches))]
                                     # print 'Using rotation \n', rot
@@ -471,8 +454,8 @@ class PLPatchyParticle:
 
     def save_conf_to_string(self):
         str = '%f %f %f %f %f %f %f %f %f %f %f %f %f %f %f' % (
-        self.cm_pos[0], self.cm_pos[1], self.cm_pos[2], self.a1[0], self.a1[1], self.a1[2], self.a3[0], self.a3[1],
-        self.a3[2], self.v[0], self.v[1], self.v[2], self.L[0], self.L[1], self.L[2])
+            self.cm_pos[0], self.cm_pos[1], self.cm_pos[2], self.a1[0], self.a1[1], self.a1[2], self.a3[0], self.a3[1],
+            self.a3[2], self.v[0], self.v[1], self.v[2], self.L[0], self.L[1], self.L[2])
         return str + '\n'
 
     def init_from_dps_file(self, ptype, patchids):
@@ -502,7 +485,7 @@ class PLPatchyParticle:
         if len(self._patches) > 0:
             sout = sout + 'M '
         for i, p in enumerate(self._patches):
-            pos = p._position[0] * self.a1 + p._position[1] * self.a2 + p._position[2] * self.a3
+            pos = p.position()[0] * self.a1 + p.position()[1] * self.a2 + p.position()[2] * self.a3
             pos *= (1.0 + patch_extension)
             # print 'Critical: ',p._type,patch_colors
             g = '%f %f %f %f C[%s] ' % (pos[0], pos[1], pos[2], patch_width, patch_colors[i])
@@ -519,7 +502,7 @@ class PLPatchyParticle:
             orientation = np.array([self.a1, self.a2, self.a3])
             # orientation = np.transpose(orientation)
             pos = np.dot(orientation,
-                         p._position)  # np.array( np.dot(p._position , self.a1) , np.dot(p._position[1] , self.a2), np.dot( p._position[2] * self.a3
+                         p.position())  # np.array( np.dot(p._position , self.a1) , np.dot(p._position[1] , self.a2), np.dot( p._position[2] * self.a3
             pos *= (1.0 + patch_extension)
             # print 'Critical: ',p._type,patch_colors
             g = '%f %f %f %f C[%s] ' % (pos[0], pos[1], pos[2], patch_width, patch_colors[i])
@@ -533,7 +516,8 @@ class PLPatchyParticle:
 
         patches_dat_filename = f"patches_{self.type()}.dat"
         particle_str = f"{ninstances} {self.num_patches()} {','.join([str(pid) for pid in self._patch_ids])} {patches_dat_filename}"
-        patches_dat_filestr = "\n".join([np.array2string(patch.position(), precision=4)[1:-1] for patch in self.patches()])
+        patches_dat_filestr = "\n".join(
+            [np.array2string(patch.position(), precision=4)[1:-1] for patch in self.patches()])
         with open(root + patches_dat_filename, 'w') as f:
             f.write(patches_dat_filestr)
         return particle_str
@@ -544,9 +528,9 @@ class PLPatchyParticle:
 
         return sout
 
-
+# TODO: something with this class
 class PLPSimulation:
-    def __init__(self, seed=88):
+    def __init__(self, seed=69):
         self._topology_file = ''
         self._config_file = ''
         self._input_file = ''
@@ -759,7 +743,7 @@ class PLPSimulation:
     def save_configuration(self, conf_name, t=0.):
         handle = open(conf_name, 'w')
         handle.write('t = %f\nb = %f %f %f\nE = %f %f %f\n' % (
-        t, self._box_size[0], self._box_size[1], self._box_size[2], self._E_pot, self._E_kin, self._E_tot))
+            t, self._box_size[0], self._box_size[1], self._box_size[2], self._E_pot, self._E_kin, self._E_tot))
         for p in self.particles:
             outs = p.save_conf_to_string()
             handle.write(outs)
@@ -933,8 +917,8 @@ class PLPSimulation:
             patch_position_0 = p.cm_pos + p.get_patch_position(0)
             patch_position_1 = p.cm_pos + p.get_patch_position(1)
             line = '%d %f %f %f %f %f %f %f %f %f' % (
-            particle_type, p.cm_pos[0], p.cm_pos[1], p.cm_pos[2], patch_position_0[0], patch_position_0[1],
-            patch_position_0[2], patch_position_1[0], patch_position_1[1], patch_position_1[2])
+                particle_type, p.cm_pos[0], p.cm_pos[1], p.cm_pos[2], patch_position_0[0], patch_position_0[1],
+                patch_position_0[2], patch_position_1[0], patch_position_1[1], patch_position_1[2])
             particle_color = self._get_color(p._type)
             sout = sout + line + '\n'  # p.export_to_lorenzian_mgl(patch_colors,particle_color) + '\n'
             if icosahedron:
