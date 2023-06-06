@@ -19,10 +19,8 @@ RULE_ORDER = (
     np.array((0, 0, 1))
 )
 
-
 def diridx(a):
     return np.all(np.array(RULE_ORDER) == np.array(list(a))[np.newaxis, :], axis=1).nonzero()[0][0]
-
 
 def get_orientation(face_idx, ori_idx):
     zero_rotation = RULE_ORDER[(face_idx + 4) % len(RULE_ORDER)]  # rotation is rule order offset by + 4
