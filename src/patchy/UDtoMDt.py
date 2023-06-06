@@ -49,7 +49,7 @@ def convert_multidentate(particles, dental_radius, num_teeth, followSurf=False):
                 patch_counter += 1
             # add all teeth
             new_particle_patches += teeth
-        new_particles[i_particle] = PLPatchyParticle(type=particle.type(), index_=i_particle, radius=particle.radius())
+        new_particles[i_particle] = PLPatchyParticle(type_id=particle.type(), index_=i_particle, radius=particle.radius())
         new_particles[i_particle].set_patches(new_particle_patches)
         new_patches += new_particle_patches
     return [new_particles, new_patches]
