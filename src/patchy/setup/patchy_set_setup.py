@@ -88,7 +88,7 @@ class PatchySimulationSetup:
     num_particle_types should be constant across all simulations. some particle
     types may have 0 instances but hopefully oxDNA should tolerate this
     """
-
+    
     def num_particle_types(self):
         return len(self.rule)
 
@@ -109,7 +109,7 @@ class PatchySimulationSetup:
         particle_name = self.rule.particle(particle_idx).name()
         if PARTICLE_TYPE_LVLS_KEY in self.const_params and particle_name in self.const_params[PARTICLE_TYPE_LVLS_KEY]:
             particle_lvl = self.const_params[PARTICLE_TYPE_LVLS_KEY][particle_name]
-        if has_spec(sim, PARTICLE_TYPE_LVLS_KEY):
+        if PARTICLE_TYPE_LVLS_KEY in sim:
             spec = self.sim_get_param(sim, PARTICLE_TYPE_LVLS_KEY)
             if particle_name in spec:
                 particle_lvl = spec[particle_name]
@@ -135,18 +135,18 @@ class PatchySimulationSetup:
     def ensemble(self):
         return [SimulationSpecification(e) for e in itertools.product(*self.ensemble_params)]
 
+
     def folder_path(self, sim):
         return sims_root() + os.sep + self.long_name() + os.sep + sim.get_folder_path()
     
     def do_setup(self):
         for sim in self.ensemble():
             # sim should be a tuple of (string, ParameterValue) tuples
-            ensemble_var_names = sim.var_names()
 
             # create nessecary folders
             Path(self.folder_path(sim)).mkdir(parents=True, exist_ok=True)
 
-            self.write_input_file(ensemble_var_names, sim)
+            self.write_input_file(sim)
 
             self.write_sim_top_particles_patches(sim)
 
@@ -176,7 +176,7 @@ class PatchySimulationSetup:
             # run oxDNA!!!
             slurm_file.write(f"{server_config['oxdna_path']} input")
 
-    def write_input_file(self, ensemble_var_names, sim):
+    def write_input_file(self, sim):
         server_config = get_server_config()
 
         # create input file
@@ -201,8 +201,9 @@ class PatchySimulationSetup:
                 # loop parameters
                 for paramname in paramgroup:
                     # skip parameters which are specified elsewhere
-                    if paramname not in ensemble_var_names and paramname not in self.const_params:
-                        inputfile.write(f"{paramname} = {paramgroup[paramname]}" + "\n")
+
+                    if paramname not in sim and paramname not in self.const_params:
+                        inputfile.write(f"{paramname} = {paramgroup[paramname]}")
 
             # write things specific to rule
             # if josh_flavio or josh_lorenzo
@@ -218,9 +219,12 @@ class PatchySimulationSetup:
                 pass
 
             # write more parameters
+            ensemble_var_names = sim.var_names()
+
             for param in ["T", "narrow_type"]:
                 if param in ensemble_var_names:
                     inputfile.write(f"{param} = {self.sim_get_param(sim, param)}" + "\n")
+
 
             # write external observables file
             if len(self.observables) > 0:
@@ -260,7 +264,6 @@ class PatchySimulationSetup:
                     for i, patch_obj in enumerate(particle_patchy.patches()):
                         # we have to be VERY careful here with indexing to account for multidentate simulations
                         # adjust for patch multiplier from multidentate
-
                         polycube_patch_idx = int(i / self.sim_get_param(sim, NUM_TEETH_KEY))
 
                         extradict = {}
@@ -278,6 +281,7 @@ class PatchySimulationSetup:
                                 "activation_var": activation_var
                             }
                         patches_file.write(patch_obj.save_to_string(extradict))
+
                     if server_config[PATCHY_FILE_FORMAT_KEY] == "josh_flavio":
                         particles_file.write(particle_patchy.save_type_to_string())
                     else:  # josh/lorenzo
@@ -313,10 +317,3 @@ class PatchySimulationSetup:
                 # If the command returns a non-zero exit status, you can handle the error here
                 print(f"Error executing command: {e}")
                 return None
-
-
-def has_spec(sim, paramname):
-    for p, v in sim:
-        if v.has_param(paramname):
-            return True
-    return False

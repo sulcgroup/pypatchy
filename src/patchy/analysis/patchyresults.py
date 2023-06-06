@@ -6,7 +6,7 @@ from polycubeutil.polycubesRule import *
 import matplotlib.pyplot as plt
 from matplotlib import cm
 
-from patchyrunresult import *
+from patchy.analysis.patchyrunresult import *
 
 class PatchyRunSet:
     def __init__(self, froot, analysisparams):

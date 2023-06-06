@@ -2,7 +2,7 @@ import os
 import numpy as np
 import pandas as pd
 import time
-from analyseClusters import *
+from patchy.analysis.analyseClusters import *
 # definitely one of the weirder import commands I've used
 from glob import glob
 
@@ -228,14 +228,13 @@ class PatchyRunResult:
         '''
         if sample_every == -1:
             sample_every = get_sample_every()
-        cluster_yields_file = self.get_path() + f"cluster_yields_{target_name}_C{cutoff}_O{overreach}.pickle"
-        # if os.path.isfile(cluster_yields_file):
-        #     if verbose:
-        #         print(f"Fetching yield data from file {cluster_yields_file}...")
-        #     with open(cluster_yields_file, 'rb') as f:
-        #         data = pickle.load(f)
-        # else:
-        if True:
+        cluster_yields_file = self.get_path() + f"cluster_yields_{target_name}_C{cutoff}_O_{overreach}.pickle"
+        if os.path.isfile(cluster_yields_file):
+            if verbose:
+                print(f"Fetching yield data from file {cluster_yields_file}...")
+            with open(cluster_yields_file, 'rb') as f:
+                data = pickle.load(f)
+        else:
             tstart = time.perf_counter()
             if verbose:
                 print(f"Computing yields of {self.print_descriptors()} with target={target_name}, overreach={overreach}, cutoff={cutoff}...")
