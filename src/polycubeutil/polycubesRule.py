@@ -8,7 +8,6 @@ import re
 from patchy.plpatchy import Patch, PLPatchyParticle
 from patchy.util import rotation_matrix, from_xyz
 
-
 FACE_NAMES = ("left", "right", "bottom", "top", "back", "front")
 RULE_ORDER = (
     np.array((-1, 0, 0)),
@@ -19,12 +18,15 @@ RULE_ORDER = (
     np.array((0, 0, 1))
 )
 
+
 def diridx(a):
     return np.all(np.array(RULE_ORDER) == np.array(list(a))[np.newaxis, :], axis=1).nonzero()[0][0]
+
 
 def get_orientation(face_idx, ori_idx):
     zero_rotation = RULE_ORDER[(face_idx + 4) % len(RULE_ORDER)]  # rotation is rule order offset by + 4
     return zero_rotation * rotation_matrix(RULE_ORDER[face_idx], ori_idx * math.pi / 2)
+
 
 # TODO: make this extend some kind of generic klossar / patchy particle rule class
 class PolycubesRule:
@@ -170,6 +172,10 @@ class PolycubesRule:
     def particles(self):
         return self._cubeTypeList
 
+    def particle(self, i):
+        assert -1 < i < self.numCubeTypes()
+        return self._cubeTypeList[i]
+
     def __len__(self):
         return self.numCubeTypes()
 
@@ -247,7 +253,6 @@ class PolycubesPatch:
         return Patch(self._id, self._color, relPosition, self.direction(), self.alignDir())
 
 
-
 # TODO: integrate with C++ TLM / Polycubes
 class Effect:
     def __init__(self, target):
@@ -267,6 +272,8 @@ class StringConditionalEffect(Effect):
 
     def setStr(self, newStr):
         self._conditional = newStr
+
+
 class DynamicEffect(Effect):
     def __init__(self, vars, target):
         super().__init__(target)
