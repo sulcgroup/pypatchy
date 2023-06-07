@@ -3,13 +3,12 @@ import os
 import itertools
 import sys
 from pathlib import Path
-import numpy as np
 import pandas as pd
 import subprocess
 import re
 import logging
 
-from patchy.util import get_param_set, sims_root, get_server_config, get_spec_json, get_root
+from util import get_param_set, sims_root, get_server_config, get_spec_json, get_root
 from patchy.setup.ensemble_parameter import EnsembleParameter, SimulationSpecification
 from patchy.plpatchy import PLPatchyParticle, export_interaction_matrix
 from patchy.UDtoMDt import convert_multidentate

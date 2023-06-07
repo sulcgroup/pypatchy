@@ -1,6 +1,3 @@
-from IPython.core.display_functions import display
-
-from patchy.util import *
 from patchy.analysis.patchyresults import *
 
 

@@ -8,6 +8,7 @@ from polycubesRule import *
 import networkx as nx
 from collections import defaultdict
 
+
 def cycles_by_size(graph):
     """
     Fair warning: this code written by chatGPT
@@ -43,7 +44,9 @@ class AllosteryDesigner:
         self.rule = rule
         # read structure
         self.cubeMap = {}
-        self.graph = nx.Graph()
+        # nodes in the graph are cube uids
+        # edges attrs are FACE INDEXES IN RULE_ORDER, IN THE CUBE TYPE
+        self.graph = nx.DiGraph()
         self.cubeList = []
         for cube_idx, cube in enumerate(structure):
             # extract cube position and rotation
@@ -71,12 +74,55 @@ class AllosteryDesigner:
                     self.graph.add_edge(cube1.get_id(), cube2.get_id())
 
     def add_allostery(self):
+        """
+        Adds allosteric controls one step at a time
+        """
         cycles = cycles_by_size(self.graph)
         for cycle_size in cycles:
             cycle_list = cycles[cycle_size]
-            common_nodes = get_nodes_overlap(cycle_list) # get list of nodes with same cubes (same uid)
-            # starting from common nodes, add allostery to particles, where
-            # the patch closer to the common nodes activates the one farther
+            # i believe this was a rejected name for dykes on bikes
+            # ok but seriously: check for cycles that contain the same cube type
+            # and same connection faces on types
+            # in the same pattern. we should be able to design allostery for the cycles
+            for homocycles in homologous_cycles(cycle_list):
+
+                # get list of nodes with same cubes (same uid)
+                common_nodes = get_nodes_overlap(homocycles)
+
+                # starting from common nodes, add allostery to particles, where
+                # the patch closer to the common nodes activates the one farther
+
+                cycle = homocycles[0]  # at this point the homologous cycles are functionally indistinguishable
+
+                # create a set for nodes we've already done in this step
+
+                allo_nodes_this_step = set()
+                # "head" nodes are the nodes we're currently processing
+                head_nodes = common_nodes
+                # this while loop is a time bomb
+                while len(allo_nodes_this_step) < cycle_size:
+                    next_head_nodes = []
+
+                    # loop head nodes
+                    for head_node in head_nodes:
+                        if head_node not in allo_nodes_this_step:
+                            # move to next node
+                            # advance the head to a node which is in the cycle that is not in allo_nodes_this_step,
+                            # and find indexes in RULE_ORDER of faces on cube type that are responsible
+                            # for joining our new head_node to the previous and next nodes in the cycle
+                            face_conn_prev, head_node, face_conn_next = next_node_in_cycle(head_node,
+                                                                                           cycle,
+                                                                                           allo_nodes_this_step)
+                            head_node.get_type().add_allostery
+                            # add to set of nodes we've processed
+                            allo_nodes_this_step.add(head_node)
+                            # add our new head node to the list of head nodes for the next step
+                            next_head_nodes.add(head_node)
+                    head_nodes = next_head_nodes
+
+    def cubeAtPosition(self, v):
+        return self.cubeMap[v.tobytes()]
+
 
 class PolycubesStructureCube:
     def __init__(self, uid, cube_position, cube_rotation, cube_type):

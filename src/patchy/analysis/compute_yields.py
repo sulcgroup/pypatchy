@@ -1,6 +1,5 @@
 import sys
 sys.path.append('../src')
-from patchy.util import *
 from patchy.analysis.input_output import *
 import argparse
 import re

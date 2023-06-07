@@ -1,5 +1,4 @@
 import os
-import numpy as np
 import pandas as pd
 import time
 from patchy.analysis.analyseClusters import *
@@ -8,7 +7,7 @@ from glob import glob
 
 import oxpy
 
-from patchy.util import *
+from util import *
 
 # hardcoding this because reading it from the input file would be difficult I've literally never changed it
 OXDNA_PRINT_CLUSTERS_EVERY = 1e7

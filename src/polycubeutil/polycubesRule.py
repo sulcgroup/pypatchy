@@ -5,8 +5,8 @@ import pandas as pd
 from itertools import chain
 import re
 
-from patchy.plpatchy import Patch, PLPatchyParticle
-from patchy.util import rotation_matrix, from_xyz
+from patchy.plpatchy import Patch
+from util import rotation_matrix, from_xyz
 
 FACE_NAMES = ("left", "right", "bottom", "top", "back", "front")
 RULE_ORDER = (
@@ -211,11 +211,17 @@ class PolycubeRuleCubeType:
     def get_patch_by_diridx(self, dirIdx):
         return [p for p in self._patches if p.dirIdx() == dirIdx][0]
 
+    def diridxs(self):
+        return {p.dirIdx() for p in self._patches}
+
     def get_patch_by_idx(self, i):
         return self._patches[i]
 
     def patches(self):
         return self._patches
+
+    def num_patches(self):
+        return len(self._patches)
 
     def effectsTargeting(self, activation_var):
         return [e for e in self._effects if e.target() == activation_var]
@@ -277,7 +283,7 @@ class StringConditionalEffect(Effect):
 class DynamicEffect(Effect):
     def __init__(self, vars, target):
         super().__init__(target)
-        self._vars = target
+        self._vars = vars
 
     def conditional(self):
         return "&".join([f"v" if v > 0 else f"!{-v}" for v in self._vars])
