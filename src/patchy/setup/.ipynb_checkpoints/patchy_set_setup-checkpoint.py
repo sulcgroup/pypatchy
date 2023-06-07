@@ -9,7 +9,7 @@ import subprocess
 import re
 import logging
 
-from patchy.util import get_param_set, sims_root, get_server_config, get_spec_json, get_root
+from util import get_param_set, sims_root, get_server_config, get_spec_json, get_root
 from patchy.setup.ensemble_parameter import EnsembleParameter, SimulationSpecification
 from polycubeutil.polycubesRule import load_rule
 from patchy.plpatchy import Patch, PLPatchyParticle, export_interaction_matrix
