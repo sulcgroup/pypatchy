@@ -268,13 +268,13 @@ class PatchySimulationSetup:
                         extradict = {}
                         # if this is the "classic" format
                         if server_config[PATCHY_FILE_FORMAT_KEY] == "josh_flavio":
-                            allo_conditional = cube_type.patchConditional(cube_type.get_patch_by_idx(polycube_patch_idx))
+                            allo_conditional = cube_type.patch_conditional(cube_type.get_patch_by_idx(polycube_patch_idx))
                             # allosteric conditional should be "true" for non-allosterically-controlled patches
                             extradict = {"allostery_conditional": allo_conditional if allo_conditional else "true"}
                         else:  # josh/lorenzo
                             # adjust for patch multiplier from multidentate
-                            state_var = cube_type.get_patch_by_diridx(polycube_patch_idx).stateVar()
-                            activation_var = cube_type.get_patch_by_diridx(polycube_patch_idx).activationVar()
+                            state_var = cube_type.get_patch_by_diridx(polycube_patch_idx).state_var()
+                            activation_var = cube_type.get_patch_by_diridx(polycube_patch_idx).activation_var()
                             extradict = {
                                 "state_var": state_var,
                                 "activation_var": activation_var
@@ -284,7 +284,7 @@ class PatchySimulationSetup:
                     if server_config[PATCHY_FILE_FORMAT_KEY] == "josh_flavio":
                         particles_file.write(particle_patchy.save_type_to_string())
                     else:  # josh/lorenzo
-                        particles_file.write(particle_patchy.save_type_to_string({"state_size": cube_type.stateSize()}))
+                        particles_file.write(particle_patchy.save_type_to_string({"state_size": cube_type.state_size()}))
 
         else:  # lorenzian
             with open(self.folder_path(sim) + os.sep + "init.top", "w+") as top_file:
