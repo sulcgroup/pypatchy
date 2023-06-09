@@ -6,7 +6,7 @@ from itertools import chain
 import re
 
 from patchy.plpatchy import Patch
-from util import rotation_matrix, from_xyz
+from util import rotation_matrix, from_xyz, to_xyz
 
 FACE_NAMES = ("left", "right", "bottom", "top", "back", "front")
 RULE_ORDER = (
@@ -18,14 +18,20 @@ RULE_ORDER = (
     np.array((0, 0, 1))
 )
 
+# old diridx - bad/buggy
+# def diridx(a):
+#     return np.all(np.array(RULE_ORDER) == np.array(list(a))[np.newaxis, :], axis=1).nonzero()[0][0]
 
+# new diridx - written by chatgpt
 def diridx(a):
-    return np.all(np.array(RULE_ORDER) == np.array(list(a))[np.newaxis, :], axis=1).nonzero()[0][0]
-
+    for idx, rule in enumerate(RULE_ORDER):
+        if np.array_equal(a, rule):
+            return idx
+    assert False, f"{a} is not in RULE_ORDER"
 
 def get_orientation(face_idx, ori_idx):
     zero_rotation = RULE_ORDER[(face_idx + 4) % len(RULE_ORDER)]  # rotation is rule order offset by + 4
-    return zero_rotation * rotation_matrix(RULE_ORDER[face_idx], ori_idx * math.pi / 2)
+    return np.matmul(rotation_matrix(RULE_ORDER[face_idx], ori_idx * math.pi / 2), zero_rotation).round()
 
 
 # TODO: make this extend some kind of generic klossar / patchy particle rule class
@@ -51,14 +57,15 @@ class PolycubesRule:
                     # ignore empty faces
                     if len(patch_str.strip()) == 0:
                         continue
-                    oriIdx = 0
+                    patchRotation = 0
 
                     patch_components = patch_str.split(":")
                     color = int(patch_components[0])
                     stateVar = j
                     activationVar = 0
                     if len(patch_components) > 1:
-                        oriIdx = int(patch_components[1])
+                        patchRotation = int(patch_components[1])
+                        patch_ori = get_orientation(j, patchRotation)
                         if len(patch_components) == 3 and patch_components[2]:
                             conditionalStr = patch_components[2]
                             activationVar = len(vars_set)
@@ -71,7 +78,8 @@ class PolycubesRule:
                     vars_set.add(activationVar)
 
                     # patch position is determined by order of rule str
-                    patch = PolycubesPatch(self.numPatches(), color, j, oriIdx, stateVar, activationVar)
+                    patch = PolycubesPatch(self.numPatches(), color, j, diridx(patch_ori), stateVar, activationVar)
+                    patch.check_valid()
                     patches_list.append(patch)
                     self._patchList.append(patch)
 
@@ -151,6 +159,21 @@ class PolycubesRule:
                                                                name))
                 self._patchList += patches
 
+    def toJSON(self):
+        return [{
+            "typeName": ct.name(),
+            "patches": [{
+                "dir": to_xyz(p.direction()),
+                "alignDir": to_xyz(p.alignDir()),
+                "color": p.color(),
+                "state_var": p.state_var(),
+                "activation_var": p.activation_var()
+            } for p in ct.patches()],
+            "effects": [e.toJSON() for e in ct.effects()],
+            "state_size": ct.state_size()
+        }
+        for ct in self.particles()]
+
     def particle(self, i):
         return self._cubeTypeList[i]
 
@@ -172,6 +195,13 @@ class PolycubesRule:
     def particles(self):
         return self._cubeTypeList
 
+    def remove_cube_type(self, cubeType):
+        # remove cube type from cube type lists
+        self._cubeTypeList = [ct for ct in self.particles() if ct.getID() != cubeType.getID()]
+        # remove patches that are no longer needed
+        self._patchList = [p for p in self.patches() if any([p in ct.patches() for ct in self.particles()])]
+        # TODO: handle particle and patch IDs!!!
+
     def particle(self, i):
         assert -1 < i < self.numCubeTypes()
         return self._cubeTypeList[i]
@@ -192,7 +222,7 @@ class PolycubeRuleCubeType:
             if isinstance(effect, StringConditionalEffect):
                 if effect.conditional() != "(true)":
                     effect.setStr(re.sub(r'b\[(\d+)]',
-                                         lambda match: str(self.get_patch_by_diridx(int(match.group(1))).stateVar()),
+                                         lambda match: str(self.get_patch_by_diridx(int(match.group(1))).state_var()),
                                          effect.conditional())
                                   )
                 else:
@@ -205,7 +235,14 @@ class PolycubeRuleCubeType:
     def getID(self):
         return self._id
 
-    def stateSize(self):
+    def set_state_size(self, newVal):
+        self._stateSize = newVal
+
+    def state_size(self):
+        return self._stateSize
+
+    def add_state_var(self):
+        self._stateSize += 1
         return self._stateSize
 
     def get_patch_by_diridx(self, dirIdx):
@@ -220,14 +257,23 @@ class PolycubeRuleCubeType:
     def patches(self):
         return self._patches
 
+    def add_patch(self, patch):
+        self._patches.append(patch)
+
     def num_patches(self):
         return len(self._patches)
 
-    def effectsTargeting(self, activation_var):
+    def effects(self):
+        return self._effects
+
+    def effects_targeting(self, activation_var):
         return [e for e in self._effects if e.target() == activation_var]
 
-    def patchConditional(self, patch):
-        return "|".join(f"({e.conditional()})" for e in self.effectsTargeting(patch.activationVar()))
+    def add_effect(self, e):
+        self._effects.append(e)
+
+    def patch_conditional(self, patch):
+        return "|".join(f"({e.conditional()})" for e in self.effects_targeting(patch.activation_var()))
 
 
 class PolycubesPatch:
@@ -239,6 +285,15 @@ class PolycubesPatch:
         self._stateVar = stateVar
         self._activationVar = activationVar
 
+    def color(self):
+        return self._color
+
+    def set_state_var(self, newVal):
+        self._stateVar = newVal
+
+    def set_activation_var(self, newVal):
+        self._activationVar = newVal
+
     def dirIdx(self):
         return self._dirIdx
 
@@ -248,15 +303,35 @@ class PolycubesPatch:
     def alignDir(self):
         return RULE_ORDER[self._oriIdx]
 
-    def stateVar(self):
+    def state_var(self):
         return self._stateVar
 
-    def activationVar(self):
+    def set_state_var(self, val):
+        self._stateVar = val
+
+    def activation_var(self):
         return self._activationVar
+
+    def set_activation_var(self, val):
+        self._activationVar = val
 
     def to_pl_patch(self):
         relPosition = self.direction() / 2
         return Patch(self._id, self._color, relPosition, self.direction(), self.alignDir())
+
+    def rotate(self, rotation):
+        p = PolycubesPatch(self._id,
+                              self._color,
+                              np.matmul(rotation, self.direction()).round(),
+                              np.matmul(rotation, self.alignDir()).round(),
+                              self.state_var(),
+                              self.activation_var())
+        p.check_valid()
+        return p
+
+    def check_valid(self):
+        assert self.color()
+        assert np.dot(self.direction(), self.alignDir()) == 0
 
 
 # TODO: integrate with C++ TLM / Polycubes
@@ -266,6 +341,11 @@ class Effect:
 
     def target(self):
         return self._target
+
+    def toJSON(self):
+        return {
+            "target": self.target()
+        }
 
 
 class StringConditionalEffect(Effect):
@@ -279,6 +359,12 @@ class StringConditionalEffect(Effect):
     def setStr(self, newStr):
         self._conditional = newStr
 
+    def toJSON(self):
+        return {
+            **super(StringConditionalEffect, self).toJSON(),
+            "conditional": self.target()
+        }
+
 
 class DynamicEffect(Effect):
     def __init__(self, vars, target):
@@ -288,6 +374,11 @@ class DynamicEffect(Effect):
     def conditional(self):
         return "&".join([f"v" if v > 0 else f"!{-v}" for v in self._vars])
 
+    def toJSON(self):
+        return {
+            **super(DynamicEffect, self).toJSON(),
+            "sources": self._vars
+        }
 
 def rule_from_string(rule_str):
     """
