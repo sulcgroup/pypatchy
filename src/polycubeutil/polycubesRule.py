@@ -29,9 +29,12 @@ def diridx(a):
             return idx
     assert False, f"{a} is not in RULE_ORDER"
 
+
 def get_orientation(face_idx, ori_idx):
-    zero_rotation = RULE_ORDER[(face_idx + 4) % len(RULE_ORDER)]  # rotation is rule order offset by + 4
-    return np.matmul(rotation_matrix(RULE_ORDER[face_idx], ori_idx * math.pi / 2), zero_rotation).round()
+    zero_rot_idx = (face_idx + 2) % len(RULE_ORDER)  # feels like it should be +4 but trust me bro
+    zero_rotation = RULE_ORDER[zero_rot_idx]
+    rot_mat = rotation_matrix(RULE_ORDER[face_idx], ori_idx * math.pi / 2)
+    return (rot_mat @ zero_rotation).round()
 
 
 # TODO: make this extend some kind of generic klossar / patchy particle rule class
@@ -65,7 +68,6 @@ class PolycubesRule:
                     activationVar = 0
                     if len(patch_components) > 1:
                         patchRotation = int(patch_components[1])
-                        patch_ori = get_orientation(j, patchRotation)
                         if len(patch_components) == 3 and patch_components[2]:
                             conditionalStr = patch_components[2]
                             activationVar = len(vars_set)
@@ -76,6 +78,8 @@ class PolycubesRule:
                             activationVar = int(patch_components[3])
                     vars_set.add(stateVar)  # if stateVar is already in the set this is fine
                     vars_set.add(activationVar)
+
+                    patch_ori = get_orientation(j, patchRotation)
 
                     # patch position is determined by order of rule str
                     patch = PolycubesPatch(self.numPatches(), color, j, diridx(patch_ori), stateVar, activationVar)
@@ -243,7 +247,7 @@ class PolycubeRuleCubeType:
 
     def add_state_var(self):
         self._stateSize += 1
-        return self._stateSize
+        return self._stateSize - 1
 
     def get_patch_by_diridx(self, dirIdx):
         return [p for p in self._patches if p.dirIdx() == dirIdx][0]
