@@ -10,7 +10,11 @@ from polycubeutil.polycubesRule import diridx, PolycubesRule, DynamicEffect
 
 
 class RuleReducer:
-    def __init__(self, rule):
+    def __init__(self, rule, **kwargs):
+        if "singlevars" in kwargs and kwargs["singlevars"]:
+            self.singlevars = True
+        else:
+            self.singlevars = False
         self.rule = rule
         for ct in rule.particles():
             ct.set_state_size(1)
@@ -38,31 +42,56 @@ class RuleReducer:
                 state_any_ct1 = ct2.add_state_var()
                 state_any_ct2 = ct2.add_state_var()
 
-                for patch in ct2.patches():
-                    # assign state variables for new patch
-                    patch.set_state_var(ct2.add_state_var())
-                    # add activation variable
-                    patch.set_activation_var(-ct2.add_state_var())
-                    # new dynamic effect to set state var any ct1 to true when patch is bound
-                    ct2.add_effect(DynamicEffect([patch.state_var()], state_any_ct1))
-                    # new dynamic effect to set activation var when c2 var functionality goes off
-                    ct2.add_effect(DynamicEffect([state_any_ct2], patch.activation_var()))
+                if self.singlevars:
+                    # loop existing ct2 patches
+                    for patch in ct2.patches():
+                        # assign state variables for new patch
+                        patch.set_state_var(ct2.add_state_var())
+                        # add activation variable. make it repressable
+                        patch.set_activation_var(-ct2.add_state_var())
+                        # new dynamic effect to set state var any ct2 to true when patch is bound
+                        ct2.add_effect(DynamicEffect([patch.state_var()], state_any_ct2))
+                        # new dynamic effect to set activation var when c2 var functionality goes off
+                        ct2.add_effect(DynamicEffect([state_any_ct1], -patch.activation_var()))
 
-                # reassign patches from ct1 new state/activation vars
-                for p in ct1.patches():
-                    # rotate patch
-                    patch = p.rotate(r)
-                    # assign state variables for new patch
-                    patch.set_state_var(ct2.add_state_var())
-                    # add activation variable
-                    patch.set_activation_var(-ct2.add_state_var())
-                    # new dynamic effect to set state var any ct1 to true when patch is bound
-                    ct2.add_effect(DynamicEffect([patch.state_var()], state_any_ct1))
-                    # new dynamic effect to set activation var when c2 var functionality goes off
-                    ct2.add_effect(DynamicEffect([state_any_ct2], patch.activation_var()))
+                    # reassign patches from ct1 new state/activation vars
+                    for p in ct1.patches():
+                        # rotate patch
+                        patch = p.rotate(r)
+                        # assign state variables for new patch
+                        patch.set_state_var(ct2.add_state_var())
+                        # add activation variable
+                        patch.set_activation_var(-ct2.add_state_var())
+                        # new dynamic effect to set state var any ct1 to true when patch is bound
+                        ct2.add_effect(DynamicEffect([patch.state_var()], state_any_ct1))
+                        # new dynamic effect to set activation var when c2 var functionality goes off
+                        ct2.add_effect(DynamicEffect([state_any_ct2], -patch.activation_var()))
 
-                    # add patch
-                    ct2.add_patch(patch)
+                        # add patch
+                        ct2.add_patch(patch)
+                else:
+                    # loop existing ct2 patches
+                    for patch in ct2.patches():
+                        # assign state variables for new patch
+                        patch.set_state_var(ct2.add_state_var())
+                        # add activation variable. make it repressable
+                        patch.set_activation_var(-state_any_ct1)
+                        # new dynamic effect to set state var any ct2 to true when patch is bound
+                        ct2.add_effect(DynamicEffect([patch.state_var()], state_any_ct2))
+
+                    # reassign patches from ct1 new state/activation vars
+                    for p in ct1.patches():
+                        # rotate patch
+                        patch = p.rotate(r)
+                        # assign state variables for new patch
+                        patch.set_state_var(ct2.add_state_var())
+                        # add activation variable
+                        patch.set_activation_var(-state_any_ct2)
+                        # new dynamic effect to set state var any ct1 to true when patch is bound
+                        ct2.add_effect(DynamicEffect([patch.state_var()], state_any_ct1))
+                        # add patch
+                        ct2.add_patch(patch)
+
                 self.rule.remove_cube_type(ct1)
                 yield copy.deepcopy(self.rule)
                 self.minimize()
@@ -93,6 +122,7 @@ def no_overlap_rotation(ct1, ct2):
 if __name__ == "__main__":
     rule = PolycubesRule(rule_str=sys.argv[1])
     reducer = RuleReducer(rule)
+    print(json.dumps(rule.toJSON()))
     for r in reducer.minimize():
         newRule = r.toJSON()
         print(json.dumps(newRule))
