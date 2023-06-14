@@ -6,7 +6,7 @@ from itertools import chain
 import re
 
 from patchy.plpatchy import Patch
-from util import rotation_matrix, from_xyz, to_xyz
+from util import rotation_matrix, from_xyz, to_xyz, getSignedAngle
 
 FACE_NAMES = ("left", "right", "bottom", "top", "back", "front")
 RULE_ORDER = (
@@ -17,6 +17,7 @@ RULE_ORDER = (
     np.array((0, 0, -1)),
     np.array((0, 0, 1))
 )
+
 
 # old diridx - bad/buggy
 # def diridx(a):
@@ -42,19 +43,41 @@ class PolycubesRule:
     def __init__(self, **kwargs):
         self._cubeTypeList = []
         self._patchList = []
+        # WARNING: I actually have no idea if this code will always behave correctly if given
+        # static formulation strings!! for this reason you should play it safe and Not Do That
         if "rule_str" in kwargs:
             rule_str = kwargs["rule_str"]
 
             for i, particle_type_str in enumerate(rule_str.split("_")):
-                if re.match("^([^|]*\|){5}[^|]*$", particle_type_str):
-                    patch_strs = particle_type_str.split("|")
-                else:
-                    patch_strs = particle_type_str.split("#")
-
-                patches_list = []
+                vars_set = {0}
                 effects = []
-                activationVarCounter = 0
-                vars_set = {*range(len(patch_strs) + 1)}
+                # if this rule string has effects
+                if particle_type_str.find("@") > -1:
+                    # seperate patches and effects
+                    patches_str, effects_str = particle_type_str.split("@")
+                    # loop effects
+                    for effect_str in effects_str.split(";"):
+                        # split sources, target
+                        sources, target = effect_str.split(">")
+                        # parse sources
+                        sources = [int(match) for match in re.finditer("-?\d+", sources)]
+                        # parse target
+                        target = int(target)
+                        # append to effects
+                        effects.append(DynamicEffect(sources, target))
+                        # add vars to vars set
+                        vars_set = vars_set.union({target, *[abs(i) for i in sources]})
+                else:
+                    patches_str = particle_type_str
+                if re.match("^([^|]*\|){5}[^|]*$", particle_type_str):
+                    patch_strs = patches_str.split("|")
+                else:
+                    patch_strs = patches_str.split("#")
+
+                # PLEASE for the LOVE of GOD do NOT combine static and dynamic patches in the same rule string!!!!!
+                cube_type = PolycubeRuleCubeType(i, [], max(vars_set), effects)
+
+                string_effects = []
 
                 for j, patch_str in enumerate(patch_strs):
                     # ignore empty faces
@@ -64,33 +87,36 @@ class PolycubesRule:
 
                     patch_components = patch_str.split(":")
                     color = int(patch_components[0])
-                    stateVar = j
+                    stateVar = 0
                     activationVar = 0
                     if len(patch_components) > 1:
                         patchRotation = int(patch_components[1])
                         if len(patch_components) == 3 and patch_components[2]:
                             conditionalStr = patch_components[2]
-                            activationVar = len(vars_set)
-                            effects.append(StringConditionalEffect(conditionalStr, activationVar))
+                            activationVar = cube_type.add_state_var()
+                            e = StringConditionalEffect(conditionalStr, activationVar)
+                            cube_type.add_effect(e)
                         elif len(patch_components) == 4:
                             # NOTE: avoid mixing static and dynamic formulations in a single cube type!
                             stateVar = int(patch_components[2])
                             activationVar = int(patch_components[3])
                     vars_set.add(stateVar)  # if stateVar is already in the set this is fine
-                    vars_set.add(activationVar)
+                    vars_set.add(activationVar)  # ditto for activationVar
+                    cube_type.set_state_size(max(cube_type.state_size(), stateVar+1, abs(activationVar) + 1))
 
                     patch_ori = get_orientation(j, patchRotation)
 
                     # patch position is determined by order of rule str
                     patch = PolycubesPatch(self.numPatches(), color, j, diridx(patch_ori), stateVar, activationVar)
                     patch.check_valid()
-                    patches_list.append(patch)
+                    cube_type.add_patch(patch)
                     self._patchList.append(patch)
 
-                self._cubeTypeList.append(PolycubeRuleCubeType(i,
-                                                               patches_list,
-                                                               len(vars_set),
-                                                               effects))
+                # self._cubeTypeList.append(PolycubeRuleCubeType(i,
+                #                                                patches_list,
+                #                                                len(vars_set),
+                #                                                effects))
+                self._cubeTypeList.append(cube_type)
 
         # TODO: pull tag info from C++ to maintain consistancy?
         elif "rule_json" in kwargs:
@@ -176,7 +202,7 @@ class PolycubesRule:
             "effects": [e.toJSON() for e in ct.effects()],
             "state_size": ct.state_size()
         }
-        for ct in self.particles()]
+            for ct in self.particles()]
 
     def particle(self, i):
         return self._cubeTypeList[i]
@@ -213,6 +239,9 @@ class PolycubesRule:
     def __len__(self):
         return self.numCubeTypes()
 
+    def __str__(self):
+        return "_".join(str(ct) for ct in self.particles())
+
 
 class PolycubeRuleCubeType:
     def __init__(self, id, patches, stateSize=1, effects=[], name=""):
@@ -220,18 +249,11 @@ class PolycubeRuleCubeType:
         self._patches = patches
         self._name = name if name else f"CT{id}"
         self._stateSize = stateSize
-        # handle potential issues with improperly-indexed string conditionals
 
+        self._effects = []
+        # handle potential issues with improperly-indexed string conditionals
         for effect in effects:
-            if isinstance(effect, StringConditionalEffect):
-                if effect.conditional() != "(true)":
-                    effect.setStr(re.sub(r'b\[(\d+)]',
-                                         lambda match: str(self.get_patch_by_diridx(int(match.group(1))).state_var()),
-                                         effect.conditional())
-                                  )
-                else:
-                    effect.setStr("0")
-        self._effects = effects
+            self.add_effect(effect)
 
     def name(self):
         return self._name
@@ -267,18 +289,49 @@ class PolycubeRuleCubeType:
     def num_patches(self):
         return len(self._patches)
 
+    def get_patch_state_var(self, key, make_if_0=False):
+        idx = key if isinstance(key, int) else int(key) if isinstance(key, str) else diridx(key)
+        if make_if_0 and self.get_patch_by_idx(idx).state_var() == 0:
+            self.get_patch_by_idx(idx).set_state_var(self.add_state_var())
+        return self.get_patch_by_idx(idx).state_var()
+
     def effects(self):
         return self._effects
 
     def effects_targeting(self, activation_var):
         return [e for e in self._effects if e.target() == activation_var]
 
-    def add_effect(self, e):
-        self._effects.append(e)
+    def add_effect(self, effect):
+        if isinstance(effect, StringConditionalEffect):
+            if effect.conditional() != "(true)":
+                effect.setStr(re.sub(r'b\[(\d+)]',
+                                     # lambda match: str(self.get_patch_by_diridx(int(match.group(1))).state_var()),
+                                     lambda match: str(self.get_patch_state_var(int(match.group(1)), True)),
+                                     effect.conditional())
+                              )
+            else:
+                effect.setStr("0")
+        self._effects.append(effect)
 
     def patch_conditional(self, patch):
         return "|".join(f"({e.conditional()})" for e in self.effects_targeting(patch.activation_var()))
 
+    def __str__(self):
+        return self.to_string()
+
+    def to_string(self, force_static=False):
+        if force_static or any([isinstance(e, StringConditionalEffect) for e in self.effects()]):
+            sz = "#".join([f"{p.color()}:{p.get_align_rot_num()}:{self.patch_conditional(p)}" for p in self.patches()])
+        else:
+            # lmao
+            sz = "|".join([
+                f"{p.color()}" if (p.get_align_rot_num() == 0 and p.state_var() == 0 and p.activation_var() == 0)
+                else f"{p.color()}:{p.get_align_rot_num()}" if (p.state_var() == 0 and p.activation_var() == 0)
+                else f"{p.color()}:{p.get_align_rot_num()}:{p.state_var()}:{p.activation_var()}"
+                for p in self.patches()])
+            if len(self.effects()) > 0:
+                sz += "@" + ";".join([str(e) for e in self.effects()])
+        return sz
 
 class PolycubesPatch:
     def __init__(self, id, color, direction, orientation, stateVar, activationVar):
@@ -307,6 +360,13 @@ class PolycubesPatch:
     def alignDir(self):
         return RULE_ORDER[self._oriIdx]
 
+    def get_align_rot_num(self):
+        face_dir = self.direction()
+        face_align_dir = self.alignDir()
+        face_align_zero = RULE_ORDER[(self.dirIdx() + 2) % 6]
+        angleFromTo = getSignedAngle(face_align_zero, face_align_dir, face_dir)
+        return int(4 * angleFromTo / (math.pi * 2))
+
     def state_var(self):
         return self._stateVar
 
@@ -325,11 +385,11 @@ class PolycubesPatch:
 
     def rotate(self, rotation):
         p = PolycubesPatch(self._id,
-                              self._color,
-                              np.matmul(rotation, self.direction()).round(),
-                              np.matmul(rotation, self.alignDir()).round(),
-                              self.state_var(),
-                              self.activation_var())
+                           self._color,
+                           np.matmul(rotation, self.direction()).round(),
+                           np.matmul(rotation, self.alignDir()).round(),
+                           self.state_var(),
+                           self.activation_var())
         p.check_valid()
         return p
 
@@ -378,11 +438,18 @@ class DynamicEffect(Effect):
     def conditional(self):
         return "&".join([f"v" if v > 0 else f"!{-v}" for v in self._vars])
 
+    def sources(self):
+        return self._vars
+
+    def __str__(self):
+        return f"[{','.join([str(s) for s in self.sources()])}]>{str(self.target())}"
+
     def toJSON(self):
         return {
             **super(DynamicEffect, self).toJSON(),
             "sources": self._vars
         }
+
 
 def rule_from_string(rule_str):
     """
