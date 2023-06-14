@@ -129,3 +129,12 @@ def getRotations(ndim=3):
             np.array([[0, 0, 1], [-1, 0, 0], [0, -1, 0]])
         ]
     return rots
+
+
+def getSignedAngle(v1, v2, axis):
+    s = np.cross(v1, v2)
+    c = v1.dot(v2)
+    a = np.arctan2(np.linalg.norm(s), c)
+    if not np.array_equal(s, axis):
+        a *= -1
+    return a
