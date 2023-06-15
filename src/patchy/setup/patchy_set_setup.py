@@ -174,7 +174,6 @@ class PatchySimulationSetup:
             # skip confGenerator call because we will invoke it directly later
 
             # run oxDNA!!!
-            slurm_file.write(f"{server_config['oxdna_path']} input\n")
 
     def write_input_file(self, sim):
         server_config = get_server_config()
@@ -302,22 +301,39 @@ class PatchySimulationSetup:
             with open(self.folder_path(sim) + os.sep + "observables.json", "w+") as f:
                 json.dump({f"data_output_{i+1}": obs for i, obs in enumerate(self.observables)}, f)
 
+    def gen_confs(self):
+        for sim in self.ensemble():
+            self.bash_exec(f"cd {self.folder_path(sim)}")
+            cgpath = f"{get_server_config()['oxdna_path']}/build/confGenerator"
+            self.bash_exec(f"{cgpath} input {self.sim_get_param('density')}")
+            self.bash_exec("cd -")
+
+
+    def dump_slurm_log_file(self):
+        pass
+
     def start_simulations(self):
         for sim in self.ensemble():
-            command = f"{self.folder_path()}"
             command = f"sbatch {self.folder_path(sim)}/slurm_script.sh"
-            try:
-                submit_txt = subprocess.check_output(command, shell=True, stderr=subprocess.STDOUT,
-                                                     universal_newlines=True)
-                pattern = r"Submitted slurm job (\d+)"
-                jobid = int(re.search(pattern, submit_txt).group(1))
-                self.slurm_log.append({
-                    "slurm_job_id": jobid,
-                    **{
-                        key: value for key, value in sim
-                    }
-                })
-            except subprocess.CalledProcessError as e:
-                # If the command returns a non-zero exit status, you can handle the error here
-                print(f"Error executing command: {e}")
-                return None
+            submit_txt = self.bash_exec(command)
+            pattern = r"Submitted slurm job (\d+)"
+            jobid = int(re.search(pattern, submit_txt).group(1))
+            self.slurm_log.append({
+                "slurm_job_id": jobid,
+                **{
+                    key: value for key, value in sim
+                }
+            })
+
+
+    def bash_exec(self, command):
+        try:
+            self.logger.info(f">`{command}`")
+            response = subprocess.check_output(command, shell=True, stderr=subprocess.STDOUT,
+                                               universal_newlines=True)
+            self.logger.info(f"`{response}`")
+            return response
+        except subprocess.CalledProcessError as e:
+            # If the command returns a non-zero exit status, you can handle the error here
+            self.logger.error(f"Error executing command: `{e}`")
+            return None
