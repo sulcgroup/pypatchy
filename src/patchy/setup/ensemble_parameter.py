@@ -100,6 +100,9 @@ class SimulationSpecification:
     def var_names(self):
         return list(self.parameter_dict.keys())
 
+    def __str__(self):
+        return "_".join([f"{key}-{self[key]}" for key in self.var_names()])
+
     def __iter__(self):
         return iter(self.param_vals)
 
