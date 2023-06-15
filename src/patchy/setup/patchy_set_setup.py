@@ -1,4 +1,5 @@
 import datetime
+import json
 import os
 import itertools
 import sys
@@ -58,6 +59,7 @@ class PatchySimulationSetup:
             json[DEFAULT_PARAM_SET_KEY] if DEFAULT_PARAM_SET_KEY in json else "default")
         self.const_params = json[CONST_PARAMS_KEY] if CONST_PARAMS_KEY in json else {}
         self.ensemble_params = [EnsembleParameter(*p) for p in json[ENSEMBLE_PARAMS_KEY]]
+
         # observables are optional
         # TODO: integrate oxpy
         self.observables = []
@@ -134,22 +136,21 @@ class PatchySimulationSetup:
     def ensemble(self):
         return [SimulationSpecification(e) for e in itertools.product(*self.ensemble_params)]
 
-
     def folder_path(self, sim):
         return sims_root() + os.sep + self.long_name() + os.sep + sim.get_folder_path()
     
     def do_setup(self):
         for sim in self.ensemble():
-            # sim should be a tuple of (string, ParameterValue) tuples
-
             # create nessecary folders
             Path(self.folder_path(sim)).mkdir(parents=True, exist_ok=True)
-
+            # write input file
             self.write_input_file(sim)
-
+            # write requisite top, patches, particles files
             self.write_sim_top_particles_patches(sim)
-
+            # write .sh script
             self.write_slurm_script(sim)
+            # write observables.json if applicble
+            self.write_sim_observables(sim)
 
     def write_slurm_script(self, sim):
         server_config = get_server_config()
@@ -157,23 +158,23 @@ class PatchySimulationSetup:
         # write slurm script
         with open(self.folder_path(sim) + os.sep + "slurm_script.sh", "w+") as slurm_file:
             # bash header
-            slurm_file.write("#!/bin/bash")
+            slurm_file.write("#!/bin/bash\n")
 
             # slurm flags
             for flag_key in server_config["slurm_bash_flags"]:
                 if len(flag_key) > 1:
-                    slurm_file.write(f"#SBATCH --{flag_key}=\"{server_config['slurm_bash_flags'][flag_key]}\"")
+                    slurm_file.write(f"#SBATCH --{flag_key}=\"{server_config['slurm_bash_flags'][flag_key]}\"\n")
                 else:
-                    slurm_file.write(f"#SBATCH -{flag_key} {server_config['slurm_bash_flags'][flag_key]}")
+                    slurm_file.write(f"#SBATCH -{flag_key} {server_config['slurm_bash_flags'][flag_key]}\n")
 
             # slurm includes ("module load xyz" and the like)
             for line in server_config["slurm_includes"]:
-                slurm_file.write(line)
+                slurm_file.write(line + "\n")
 
             # skip confGenerator call because we will invoke it directly later
 
             # run oxDNA!!!
-            slurm_file.write(f"{server_config['oxdna_path']} input")
+            slurm_file.write(f"{server_config['oxdna_path']} input\n")
 
     def write_input_file(self, sim):
         server_config = get_server_config()
@@ -202,7 +203,7 @@ class PatchySimulationSetup:
                     # skip parameters which are specified elsewhere
 
                     if paramname not in sim and paramname not in self.const_params:
-                        inputfile.write(f"{paramname} = {paramgroup[paramname]}")
+                        inputfile.write(f"{paramname} = {paramgroup[paramname]}\n")
 
             # write things specific to rule
             # if josh_flavio or josh_lorenzo
@@ -224,8 +225,7 @@ class PatchySimulationSetup:
                 if param in ensemble_var_names:
                     inputfile.write(f"{param} = {self.sim_get_param(sim, param)}" + "\n")
 
-
-            # write external observables file
+            # write external observables file path
             if len(self.observables) > 0:
                 inputfile.write(f"observables_file = observables.json" + "\n")
 
@@ -296,6 +296,11 @@ class PatchySimulationSetup:
                     + "\n"
                     for particle in particles])
             export_interaction_matrix(patches)
+
+    def write_sim_observables(self, sim):
+        if len(self.observables) > 0:
+            with open(self.folder_path(sim) + os.sep + "observables.json", "w+") as f:
+                json.dump({f"data_output_{i+1}": obs for i, obs in enumerate(self.observables)}, f)
 
     def start_simulations(self):
         for sim in self.ensemble():

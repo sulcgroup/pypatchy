@@ -95,7 +95,7 @@ class PolycubesRule:
                             conditionalStr = patch_components[2]
                             activationVar = cube_type.add_state_var()
                             e = StringConditionalEffect(conditionalStr, activationVar)
-                            cube_type.add_effect(e)
+                            string_effects.append(e)
                         elif len(patch_components) == 4:
                             # NOTE: avoid mixing static and dynamic formulations in a single cube type!
                             stateVar = int(patch_components[2])
@@ -111,6 +111,9 @@ class PolycubesRule:
                     patch.check_valid()
                     cube_type.add_patch(patch)
                     self._patchList.append(patch)
+
+                for e in string_effects:
+                    cube_type.add_effect(e)
 
                 # self._cubeTypeList.append(PolycubeRuleCubeType(i,
                 #                                                patches_list,
