@@ -167,6 +167,10 @@ class PatchySimulationSetup:
                 else:
                     slurm_file.write(f"#SBATCH -{flag_key} {server_config['slurm_bash_flags'][flag_key]}\n")
 
+            slurm_file.write(f"#SBATCH --job_name=\"{EXPORT_NAME_KEY}\"\n")
+            slurm_file.write(f"#SBATCH -o {EXPORT_NAME_KEY}_{str(sim)}.out\n")
+            slurm_file.write(f"#SBATCH -e {EXPORT_NAME_KEY}_{str(sim)}.err\n")
+
             # slurm includes ("module load xyz" and the like)
             for line in server_config["slurm_includes"]:
                 slurm_file.write(line + "\n")
