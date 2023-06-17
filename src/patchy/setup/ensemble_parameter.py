@@ -108,3 +108,6 @@ class SimulationSpecification:
 
     def get_folder_path(self):
         return os.sep.join([f"{key}_{str(val)}" for key, val in self.param_vals])
+
+    def __repr__(self):
+        return ", ".join([f"{key}={self[key]}" for key in self.var_names()])

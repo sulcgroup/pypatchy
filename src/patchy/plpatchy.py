@@ -10,8 +10,10 @@ from util import rotation_matrix
 
 myepsilon = 0.00001
 
+
 def l2norm(v):
     return np.sqrt(np.dot(v, v))
+
 
 def load_patches(filename, num_patches=0):
     j = 0
@@ -86,8 +88,8 @@ def export_interaction_matrix(patches, filename="interactions.txt"):
             ]
         )
 
-class Patch:
 
+class Patch:
     def __init__(self, type=None, color=None, relposition=None, a1=None, a2=None, strength=1.0):
         self._position = relposition
         self._a1 = a1
@@ -527,6 +529,7 @@ class PLPatchyParticle:
         sout = '%s %f %f %f ' % (letter, self.cm_pos[0], self.cm_pos[1], self.cm_pos[2])
 
         return sout
+
 
 # TODO: something with this class
 class PLPSimulation:
