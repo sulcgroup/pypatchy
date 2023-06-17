@@ -153,7 +153,7 @@ class PatchySimulationSetup:
         for sim in self.ensemble():
             self.logger.info(f"Setting up folder / file structure for {repr(sim)}...")
             # create nessecary folders
-            if not os.path.isfolder(self.folder_path(sim)):
+            if not os.path.isdir(self.folder_path(sim)):
                 self.logger.info(f"Creating folder {self.folder_path(sim)}")
                 Path(self.folder_path(sim)).mkdir(parents=True)
             else:
@@ -176,6 +176,7 @@ class PatchySimulationSetup:
         with open(self.get_run_confgen_sh(sim), "w+") as confgen_file:
             self.write_sbatch_params(sim, confgen_file)
             confgen_file.write(f"{get_server_config()['oxdna_path']}/build/bin/confGenerator input ")
+        self.bash_exec(f"chmod u+x {self.get_run_confgen_sh(sim)}")
 
     def write_run_script(self, sim):
         server_config = get_server_config()
@@ -188,6 +189,8 @@ class PatchySimulationSetup:
 
             # skip confGenerator call because we will invoke it directly later
             slurm_file.write(f"{server_config['oxdna_path']}/build/bin/oxDNA input")
+            
+        self.bash_exec(f"chmod u+x {self.folder_path(sim)}/slurm_script.sh")
 
     def write_sbatch_params(self, sim, slurm_file):
         server_config = get_server_config()
@@ -353,7 +356,7 @@ class PatchySimulationSetup:
             self.start_simulation(sim)
 
     def start_simulation(self, sim):
-        command = f"sbatch {self.get_run_confgen_sh()}"
+        command = "sbatch slurm_script.sh"
 
         if not os.path.isfile(self.get_conf_file(sim)):
             confgen_slurm_jobid = self.run_confgen(sim)
