@@ -4,6 +4,8 @@ import os
 import itertools
 import sys
 from pathlib import Path
+
+import numpy as np
 import pandas as pd
 import subprocess
 import re
@@ -28,6 +30,8 @@ NUM_TEETH_KEY = "num_teeth"
 DENTAL_RADIUS_KEY = "dental_radius"
 
 PATCHY_FILE_FORMAT_KEY = "patchy_format"
+
+SUBMIT_SLURM_PATTERN = r"Submitted slurm job (\d+)"
 
 
 class PatchySimulationSetup:
@@ -81,7 +85,7 @@ class PatchySimulationSetup:
 
     def long_name(self):
         return f"{self.export_name}_{self.current_date.strftime('%Y-%m-%d')}"
-        
+
     def get_sim_set_root(self):
         return sims_root() + self.export_name
 
@@ -89,7 +93,7 @@ class PatchySimulationSetup:
     num_particle_types should be constant across all simulations. some particle
     types may have 0 instances but hopefully oxDNA should tolerate this
     """
-    
+
     def num_particle_types(self):
         return len(self.rule)
 
@@ -98,6 +102,7 @@ class PatchySimulationSetup:
     simulation specification sim
     The program first checks if the parameter exists
     """
+
     def sim_get_param(self, sim, paramname):
         if paramname in sim:
             return sim[paramname]
@@ -133,51 +138,76 @@ class PatchySimulationSetup:
     """
     Returns a list of lists of tuples,
     """
+
     def ensemble(self):
         return [SimulationSpecification(e) for e in itertools.product(*self.ensemble_params)]
 
+    def tld(self):
+        return sims_root() + os.sep + self.long_name();
+
     def folder_path(self, sim):
-        return sims_root() + os.sep + self.long_name() + os.sep + sim.get_folder_path()
-    
+        return self.tld() + os.sep + sim.get_folder_path()
+
     def do_setup(self):
+        self.logger.info("Setting up folder / file structure...")
         for sim in self.ensemble():
+            self.logger.info(f"Setting up folder / file structure for {repr(sim)}...")
             # create nessecary folders
-            Path(self.folder_path(sim)).mkdir(parents=True, exist_ok=True)
+            if not os.path.isfolder(self.folder_path(sim)):
+                self.logger.info(f"Creating folder {self.folder_path(sim)}")
+                Path(self.folder_path(sim)).mkdir(parents=True)
+            else:
+                self.logger.info(f"Folder {self.folder_path(sim)} already exists. Continuing...")
             # write input file
+            self.logger.info("Writing input files...")
             self.write_input_file(sim)
             # write requisite top, patches, particles files
+            self.logger.info("Writing .top, .txt, etc. files...")
             self.write_sim_top_particles_patches(sim)
-            # write .sh script
-            self.write_slurm_script(sim)
             # write observables.json if applicble
+            self.logger.info("Writing observable json, as nessecary...")
             self.write_sim_observables(sim)
+            # write .sh script
+            self.logger.info("Writing sbatch scripts...")
+            self.write_confgen_script(sim)
+            self.write_run_script(sim)
 
-    def write_slurm_script(self, sim):
+    def write_confgen_script(self, sim):
+        with open(self.get_run_confgen_sh(sim), "w+") as confgen_file:
+            self.write_sbatch_params(sim, confgen_file)
+            confgen_file.write(f"{get_server_config()['oxdna_path']}/build/bin/confGenerator input ")
+
+    def write_run_script(self, sim):
         server_config = get_server_config()
 
         # write slurm script
         with open(self.folder_path(sim) + os.sep + "slurm_script.sh", "w+") as slurm_file:
             # bash header
-            slurm_file.write("#!/bin/bash\n")
 
-            # slurm flags
-            for flag_key in server_config["slurm_bash_flags"]:
-                if len(flag_key) > 1:
-                    slurm_file.write(f"#SBATCH --{flag_key}=\"{server_config['slurm_bash_flags'][flag_key]}\"\n")
-                else:
-                    slurm_file.write(f"#SBATCH -{flag_key} {server_config['slurm_bash_flags'][flag_key]}\n")
-
-            slurm_file.write(f"#SBATCH --job_name=\"{EXPORT_NAME_KEY}\"\n")
-            slurm_file.write(f"#SBATCH -o {EXPORT_NAME_KEY}_{str(sim)}.out\n")
-            slurm_file.write(f"#SBATCH -e {EXPORT_NAME_KEY}_{str(sim)}.err\n")
-
-            # slurm includes ("module load xyz" and the like)
-            for line in server_config["slurm_includes"]:
-                slurm_file.write(line + "\n")
+            self.write_sbatch_params(sim, slurm_file)
 
             # skip confGenerator call because we will invoke it directly later
+            slurm_file.write(f"{server_config['oxdna_path']}/build/bin/oxDNA input")
 
-            # run oxDNA!!!
+    def write_sbatch_params(self, sim, slurm_file):
+        server_config = get_server_config()
+
+        slurm_file.write("#!/bin/bash\n")
+
+        # slurm flags
+        for flag_key in server_config["slurm_bash_flags"]:
+            if len(flag_key) > 1:
+                slurm_file.write(f"#SBATCH --{flag_key}=\"{server_config['slurm_bash_flags'][flag_key]}\"\n")
+            else:
+                slurm_file.write(f"#SBATCH -{flag_key} {server_config['slurm_bash_flags'][flag_key]}\n")
+
+        slurm_file.write(f"#SBATCH --job_name=\"{EXPORT_NAME_KEY}\"\n")
+        slurm_file.write(f"#SBATCH -o {EXPORT_NAME_KEY}_{str(sim)}.out\n")
+        slurm_file.write(f"#SBATCH -e {EXPORT_NAME_KEY}_{str(sim)}.err\n")
+
+        # slurm includes ("module load xyz" and the like)
+        for line in server_config["slurm_includes"]:
+            slurm_file.write(line + "\n")
 
     def write_input_file(self, sim):
         server_config = get_server_config()
@@ -258,9 +288,10 @@ class PatchySimulationSetup:
                 top_file.write(f"{self.get_sim_total_num_particles(sim)} {len(particles)}\n")
                 top_file.write(" ".join([
                     f"{i} " * self.get_sim_particle_count(sim, i) for i in range(len(particles))
-                ]) )
+                ]))
             # write patches.txt and particles.txt
-            with open(self.folder_path(sim) + os.sep + "patches.txt", "w+") as patches_file, open(self.folder_path(sim) + os.sep + "particles.txt", "w+") as particles_file:
+            with open(self.folder_path(sim) + os.sep + "patches.txt", "w+") as patches_file, open(
+                    self.folder_path(sim) + os.sep + "particles.txt", "w+") as particles_file:
                 for particle_patchy, cube_type in zip(particles, self.rule.particles()):
                     # handle writing particles file
                     for i, patch_obj in enumerate(particle_patchy.patches()):
@@ -271,7 +302,8 @@ class PatchySimulationSetup:
                         extradict = {}
                         # if this is the "classic" format
                         if server_config[PATCHY_FILE_FORMAT_KEY] == "josh_flavio":
-                            allo_conditional = cube_type.patch_conditional(cube_type.get_patch_by_idx(polycube_patch_idx))
+                            allo_conditional = cube_type.patch_conditional(
+                                cube_type.get_patch_by_idx(polycube_patch_idx))
                             # allosteric conditional should be "true" for non-allosterically-controlled patches
                             extradict = {"allostery_conditional": allo_conditional if allo_conditional else "true"}
                         else:  # josh/lorenzo
@@ -287,7 +319,8 @@ class PatchySimulationSetup:
                     if server_config[PATCHY_FILE_FORMAT_KEY] == "josh_flavio":
                         particles_file.write(particle_patchy.save_type_to_string())
                     else:  # josh/lorenzo
-                        particles_file.write(particle_patchy.save_type_to_string({"state_size": cube_type.state_size()}))
+                        particles_file.write(
+                            particle_patchy.save_type_to_string({"state_size": cube_type.state_size()}))
 
         else:  # lorenzian
             with open(self.folder_path(sim) + os.sep + "init.top", "w+") as top_file:
@@ -303,32 +336,54 @@ class PatchySimulationSetup:
     def write_sim_observables(self, sim):
         if len(self.observables) > 0:
             with open(self.folder_path(sim) + os.sep + "observables.json", "w+") as f:
-                json.dump({f"data_output_{i+1}": obs for i, obs in enumerate(self.observables)}, f)
+                json.dump({f"data_output_{i + 1}": obs for i, obs in enumerate(self.observables)}, f)
 
     def gen_confs(self):
         for sim in self.ensemble():
             self.bash_exec(f"cd {self.folder_path(sim)}")
             cgpath = f"{get_server_config()['oxdna_path']}/build/confGenerator"
-            self.bash_exec(f"{cgpath} input {self.sim_get_param('density')}")
+            self.bash_exec(f"{cgpath} input ")
             self.bash_exec("cd -")
 
-
     def dump_slurm_log_file(self):
-        pass
+        np.savetxt(f"{self.tld()}/slurm_log.csv", self.slurm_log, delimiter=",")
 
     def start_simulations(self):
         for sim in self.ensemble():
-            command = f"sbatch {self.folder_path(sim)}/slurm_script.sh"
-            submit_txt = self.bash_exec(command)
-            pattern = r"Submitted slurm job (\d+)"
-            jobid = int(re.search(pattern, submit_txt).group(1))
-            self.slurm_log.append({
-                "slurm_job_id": jobid,
-                **{
-                    key: value for key, value in sim
-                }
-            })
+            self.start_simulation(sim)
 
+    def start_simulation(self, sim):
+        command = f"sbatch {self.get_run_confgen_sh()}"
+
+        if not os.path.isfile(self.get_conf_file(sim)):
+            confgen_slurm_jobid = self.run_confgen(sim)
+            command += f" --dependency=afterok:{confgen_slurm_jobid}"
+        self.bash_exec(f"cd {self.folder_path(sim)}")
+        submit_txt = self.bash_exec(command)
+        jobid = int(re.search(SUBMIT_SLURM_PATTERN, submit_txt).group(1))
+        self.slurm_log.append({
+            "slurm_job_id": jobid,
+            **{
+                key: value for key, value in sim
+            }
+        })
+        self.bash_exec("cd -")
+
+    def get_run_oxdna_sh(self, sim):
+        return f"{self.folder_path(sim)}/slurm_script.sh"
+
+    def get_run_confgen_sh(self, sim):
+        return self.folder_path(sim) + os.sep + "gen_conf.sh"
+
+    def run_confgen(self, sim):
+        self.bash_exec(f"cd {self.folder_path(sim)}")
+        response = self.bash_exec("sbatch gen_conf.sh")
+        self.bash_exec("cf -")
+        jobid = int(re.search(SUBMIT_SLURM_PATTERN, response).group(1))
+        return jobid
+
+    def get_conf_file(self, sim):
+        return self.folder_path(sim) + os.sep + "init.conf"
 
     def bash_exec(self, command):
         try:
