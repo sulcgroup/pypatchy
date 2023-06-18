@@ -369,7 +369,7 @@ class PatchySimulationSetup:
             **{
                 key: value for key, value in sim
             }
-        }, )
+        }, ignore_index=True)
         os.chdir(self.tld())
 
     def get_run_oxdna_sh(self, sim):
