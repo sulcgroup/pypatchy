@@ -31,7 +31,7 @@ DENTAL_RADIUS_KEY = "dental_radius"
 
 PATCHY_FILE_FORMAT_KEY = "patchy_format"
 
-SUBMIT_SLURM_PATTERN = r"Submitted slurm job (\d+)"
+SUBMIT_SLURM_PATTERN = r"Submitted batch job (\d+)"
 
 
 class PatchySimulationSetup:
@@ -175,7 +175,7 @@ class PatchySimulationSetup:
     def write_confgen_script(self, sim):
         with open(self.get_run_confgen_sh(sim), "w+") as confgen_file:
             self.write_sbatch_params(sim, confgen_file)
-            confgen_file.write(f"{get_server_config()['oxdna_path']}/build/bin/confGenerator input ")
+            confgen_file.write(f"{get_server_config()['oxdna_path']}/build/bin/confGenerator input {self.sim_get_param(sim, 'density')}\n")
         self.bash_exec(f"chmod u+x {self.get_run_confgen_sh(sim)}")
 
     def write_run_script(self, sim):
@@ -188,7 +188,7 @@ class PatchySimulationSetup:
             self.write_sbatch_params(sim, slurm_file)
 
             # skip confGenerator call because we will invoke it directly later
-            slurm_file.write(f"{server_config['oxdna_path']}/build/bin/oxDNA input")
+            slurm_file.write(f"{server_config['oxdna_path']}/build/bin/oxDNA input\n")
             
         self.bash_exec(f"chmod u+x {self.folder_path(sim)}/slurm_script.sh")
 
@@ -203,10 +203,10 @@ class PatchySimulationSetup:
                 slurm_file.write(f"#SBATCH --{flag_key}=\"{server_config['slurm_bash_flags'][flag_key]}\"\n")
             else:
                 slurm_file.write(f"#SBATCH -{flag_key} {server_config['slurm_bash_flags'][flag_key]}\n")
-
-        slurm_file.write(f"#SBATCH --job_name=\"{EXPORT_NAME_KEY}\"\n")
-        slurm_file.write(f"#SBATCH -o {EXPORT_NAME_KEY}_{str(sim)}.out\n")
-        slurm_file.write(f"#SBATCH -e {EXPORT_NAME_KEY}_{str(sim)}.err\n")
+        run_oxdna_counter = 1
+        slurm_file.write(f"#SBATCH --job-name=\"{EXPORT_NAME_KEY}\"\n")
+        slurm_file.write(f"#SBATCH -o run{run_oxdna_counter}_%j.out\n")
+        slurm_file.write(f"#SBATCH -e run{run_oxdna_counter}_%j.err\n")
 
         # slurm includes ("module load xyz" and the like)
         for line in server_config["slurm_includes"]:
@@ -225,7 +225,7 @@ class PatchySimulationSetup:
                 inputfile.write(f"{key} = {server_config['input_file_params'][key]}" + "\n")
 
             # newline
-            inputfile.write("")
+            inputfile.write("\n")
 
             # write default input file stuff
             for paramgroup_key in self.default_param_set['input']:
@@ -343,10 +343,10 @@ class PatchySimulationSetup:
 
     def gen_confs(self):
         for sim in self.ensemble():
-            self.bash_exec(f"cd {self.folder_path(sim)}")
+            os.chdir(self.folder_path(sim))
             cgpath = f"{get_server_config()['oxdna_path']}/build/confGenerator"
-            self.bash_exec(f"{cgpath} input ")
-            self.bash_exec("cd -")
+            self.bash_exec(f"{cgpath} input")
+            os.chdir(self.tld())
 
     def dump_slurm_log_file(self):
         np.savetxt(f"{self.tld()}/slurm_log.csv", self.slurm_log, delimiter=",")
@@ -361,7 +361,7 @@ class PatchySimulationSetup:
         if not os.path.isfile(self.get_conf_file(sim)):
             confgen_slurm_jobid = self.run_confgen(sim)
             command += f" --dependency=afterok:{confgen_slurm_jobid}"
-        self.bash_exec(f"cd {self.folder_path(sim)}")
+        os.chdir(self.folder_path(sim))
         submit_txt = self.bash_exec(command)
         jobid = int(re.search(SUBMIT_SLURM_PATTERN, submit_txt).group(1))
         self.slurm_log.append({
@@ -369,8 +369,8 @@ class PatchySimulationSetup:
             **{
                 key: value for key, value in sim
             }
-        })
-        self.bash_exec("cd -")
+        }, )
+        os.chdir(self.tld())
 
     def get_run_oxdna_sh(self, sim):
         return f"{self.folder_path(sim)}/slurm_script.sh"
@@ -379,9 +379,9 @@ class PatchySimulationSetup:
         return self.folder_path(sim) + os.sep + "gen_conf.sh"
 
     def run_confgen(self, sim):
-        self.bash_exec(f"cd {self.folder_path(sim)}")
+        os.chdir(self.folder_path(sim))
         response = self.bash_exec("sbatch gen_conf.sh")
-        self.bash_exec("cf -")
+        os.chdir(self.tld())
         jobid = int(re.search(SUBMIT_SLURM_PATTERN, response).group(1))
         return jobid
 
@@ -389,13 +389,10 @@ class PatchySimulationSetup:
         return self.folder_path(sim) + os.sep + "init.conf"
 
     def bash_exec(self, command):
-        try:
-            self.logger.info(f">`{command}`")
-            response = subprocess.check_output(command, shell=True, stderr=subprocess.STDOUT,
-                                               universal_newlines=True)
-            self.logger.info(f"`{response}`")
-            return response
-        except subprocess.CalledProcessError as e:
-            # If the command returns a non-zero exit status, you can handle the error here
-            self.logger.error(f"Error executing command: `{e}`")
-            return None
+        self.logger.info(f">`{command}`")
+        response = subprocess.run(command, shell=True,
+                                  capture_output=True, text=True, check=False)
+        # response = subprocess.check_output(command, shell=True, stderr=subprocess.STDOUT, check=False,
+                                           # universal_newlines=True)
+        self.logger.info(f"`{response.stdout}`")
+        return response.stdout
