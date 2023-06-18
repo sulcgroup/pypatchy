@@ -236,11 +236,12 @@ class PatchySimulationSetup:
 
                 # loop parameters
                 for paramname in paramgroup:
-                    # skip parameters which are specified elsewhere
-
+                    # if no override
                     if paramname not in sim and paramname not in self.const_params:
                         inputfile.write(f"{paramname} = {paramgroup[paramname]}\n")
-
+                    
+                    else:
+                        inputfile.write(f"{paramname} = {self.sim_get_param(sim, paramname)}\n")
             # write things specific to rule
             # if josh_flavio or josh_lorenzo
             if server_config[PATCHY_FILE_FORMAT_KEY].find("josh") > -1:
@@ -349,7 +350,7 @@ class PatchySimulationSetup:
             os.chdir(self.tld())
 
     def dump_slurm_log_file(self):
-        np.savetxt(f"{self.tld()}/slurm_log.csv", self.slurm_log, delimiter=",")
+        self.slurm_log.to_csv(f"{self.tld()}/slurm_log.csv")
 
     def start_simulations(self):
         for sim in self.ensemble():
@@ -364,12 +365,12 @@ class PatchySimulationSetup:
         os.chdir(self.folder_path(sim))
         submit_txt = self.bash_exec(command)
         jobid = int(re.search(SUBMIT_SLURM_PATTERN, submit_txt).group(1))
-        self.slurm_log.append({
+        self.slurm_log.loc[len(self.slurm_log.index)] = {
             "slurm_job_id": jobid,
             **{
                 key: value for key, value in sim
             }
-        }, ignore_index=True)
+        }
         os.chdir(self.tld())
 
     def get_run_oxdna_sh(self, sim):
