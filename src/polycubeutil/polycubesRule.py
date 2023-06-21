@@ -285,7 +285,10 @@ class PolycubeRuleCubeType:
             return any([(RULE_ORDER[p.dirIdx()] == arg).all() for p in self._patches])
 
     def patch(self, direction):
-        return [p for p in self._patches if (RULE_ORDER[p.dirIdx()] == direction).all()][0]
+        if isinstance(direction, int):
+            return self.get_patch_by_diridx(direction)
+        else:
+            return [p for p in self._patches if (RULE_ORDER[p.dirIdx()] == direction).all()][0]
 
     def diridxs(self):
         return {p.dirIdx() for p in self._patches}
@@ -352,13 +355,16 @@ class PolycubeRuleCubeType:
             return ""
 
 class PolycubesPatch:
-    def __init__(self, id, color, direction, orientation, stateVar, activationVar):
-        self._id = id
+    def __init__(self, uid, color, direction, orientation, stateVar, activationVar):
+        self._id = uid
         self._color = color
         self._dirIdx = direction if isinstance(direction, int) else diridx(direction)
         self._oriIdx = orientation if isinstance(orientation, int) else (diridx(orientation))
         self._stateVar = stateVar
         self._activationVar = activationVar
+
+    def get_id(self):
+        return self._id
 
     def color(self):
         return self._color
