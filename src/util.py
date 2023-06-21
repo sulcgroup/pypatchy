@@ -138,3 +138,13 @@ def getSignedAngle(v1, v2, axis):
     if not np.array_equal(s, axis):
         a *= -1
     return a
+
+# function written by ChatGPT
+def inverse_quaternion(q):
+    w, x, y, z = q
+    norm = np.linalg.norm(q)
+    if norm == 0:
+        raise ValueError("Quaternion norm is zero, can't calculate inverse.")
+    q_conjugate = np.array([w, -x, -y, -z])
+    q_inverse = q_conjugate / norm**2
+    return q_inverse
