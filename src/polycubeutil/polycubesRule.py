@@ -124,7 +124,6 @@ class PolycubesRule:
         # TODO: pull tag info from C++ to maintain consistancy?
         elif "rule_json" in kwargs:
             for i, ct_dict in enumerate(kwargs["rule_json"]):
-                conditionals = ct_dict['conditionals']
                 if "name" in ct_dict:
                     name = ct_dict['name']
                 elif "typeName" in ct_dict:
@@ -150,19 +149,20 @@ class PolycubesRule:
                         vars_set.add(activation_var)
                         vars_set.add(state_var)
                         color = patch_json["color"]
-                        alignDir = dirIdx(from_xyz(patch_json["alignDir"]))
-                        # add patch
-                        patches.append(PolycubesPatch(self.numPatches(),
-                                                      color,
-                                                      dirIdx,
-                                                      alignDir,
-                                                      state_var,
-                                                      activation_var))
-                        # handle conditionals
-                        if "conditionals" in ct_dict and ct_dict["conditionals"][dirIdx]:
-                            # if conditionals are inluded alongside a patch list, they'll be indexed by RULE_ORDER
-                            # corresponding to the patch_list
-                            effects.append(StringConditionalEffect(ct_dict["conditionals"][j], activation_var))
+                        if color:
+                            alignDir = diridx(from_xyz(patch_json["alignDir"]))
+                            # add patch
+                            patches.append(PolycubesPatch(self.numPatches(),
+                                                          color,
+                                                          dirIdx,
+                                                          alignDir,
+                                                          state_var,
+                                                          activation_var))
+                            # handle conditionals
+                            if "conditionals" in ct_dict and ct_dict["conditionals"][dirIdx]:
+                                # if conditionals are inluded alongside a patch list, they'll be indexed by RULE_ORDER
+                                # corresponding to the patch_list
+                                effects.append(StringConditionalEffect(ct_dict["conditionals"][j], activation_var))
                 else:
                     # shittiest version. should always be len(RULE_ORDER) of these
                     activationVarCounter = 0
@@ -247,10 +247,10 @@ class PolycubesRule:
 
 
 class PolycubeRuleCubeType:
-    def __init__(self, id, patches, stateSize=1, effects=[], name=""):
-        self._id = id
+    def __init__(self, ct_id, patches, stateSize=1, effects=[], name=""):
+        self._id = ct_id
         self._patches = patches
-        self._name = name if name else f"CT{id}"
+        self._name = name if name else f"CT{ct_id}"
         self._stateSize = stateSize
 
         self._effects = []
@@ -277,6 +277,16 @@ class PolycubeRuleCubeType:
     def get_patch_by_diridx(self, dirIdx):
         return [p for p in self._patches if p.dirIdx() == dirIdx][0]
 
+    def has_patch(self, arg):
+        if isinstance(arg, int):  # direction index
+            return any([p.dirIdx() == arg for p in self._patches])
+        else:
+            assert isinstance(arg, np.ndarray)
+            return any([(RULE_ORDER[p.dirIdx()] == arg).all() for p in self._patches])
+
+    def patch(self, direction):
+        return [p for p in self._patches if (RULE_ORDER[p.dirIdx()] == direction).all()][0]
+
     def diridxs(self):
         return {p.dirIdx() for p in self._patches}
 
@@ -294,9 +304,9 @@ class PolycubeRuleCubeType:
 
     def get_patch_state_var(self, key, make_if_0=False):
         idx = key if isinstance(key, int) else int(key) if isinstance(key, str) else diridx(key)
-        if make_if_0 and self.get_patch_by_idx(idx).state_var() == 0:
-            self.get_patch_by_idx(idx).set_state_var(self.add_state_var())
-        return self.get_patch_by_idx(idx).state_var()
+        if make_if_0 and self.get_patch_by_diridx(idx).state_var() == 0:
+            self.get_patch_by_diridx(idx).set_state_var(self.add_state_var())
+        return self.get_patch_by_diridx(idx).state_var()
 
     def effects(self):
         return self._effects
@@ -324,17 +334,22 @@ class PolycubeRuleCubeType:
 
     def to_string(self, force_static=False):
         if force_static or any([isinstance(e, StringConditionalEffect) for e in self.effects()]):
-            sz = "#".join([f"{p.color()}:{p.get_align_rot_num()}:{self.patch_conditional(p)}" for p in self.patches()])
+            sz = "#".join([self.patch_string_static(idx) for (idx, _) in enumerate(RULE_ORDER)])
         else:
             # lmao
             sz = "|".join([
-                f"{p.color()}" if (p.get_align_rot_num() == 0 and p.state_var() == 0 and p.activation_var() == 0)
-                else f"{p.color()}:{p.get_align_rot_num()}" if (p.state_var() == 0 and p.activation_var() == 0)
-                else f"{p.color()}:{p.get_align_rot_num()}:{p.state_var()}:{p.activation_var()}"
-                for p in self.patches()])
+                    self.get_patch_by_diridx(i).to_string() if self.has_patch(i) else ""
+                    for (i, _) in enumerate(RULE_ORDER)])
             if len(self.effects()) > 0:
                 sz += "@" + ";".join([str(e) for e in self.effects()])
         return sz
+
+    def patch_string_static(self, patch_dir_idx):
+        if self.has_patch(patch_dir_idx):
+            p = self.get_patch_by_diridx()
+            return f"{p.color()}:{p.get_align_rot_num()}:{self.patch_conditional(p)}"
+        else:
+            return ""
 
 class PolycubesPatch:
     def __init__(self, id, color, direction, orientation, stateVar, activationVar):
@@ -395,6 +410,15 @@ class PolycubesPatch:
                            self.activation_var())
         p.check_valid()
         return p
+
+
+    def to_string(self):
+        if self.get_align_rot_num() == 0 and self.state_var() == 0 and self.activation_var() == 0:
+            return f"{self.color()}"
+        elif self.state_var() == 0 and self.activation_var() == 0:
+            return f"{self.color()}:{self.get_align_rot_num()}"
+        else:
+            return f"{self.color()}:{self.get_align_rot_num()}:{self.state_var()}:{self.activation_var()}"
 
     def check_valid(self):
         assert self.color()
