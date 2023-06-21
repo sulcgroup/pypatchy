@@ -32,6 +32,11 @@ class YieldAllosteryDesigner(PolycubeStructure):
 
                 for prev_node, node, next_node in triplets(nodes_to_design):
                     ct = self.cubeList[node].get_type()
+
+                    # safeguard: don't add allostery to patches that already start on
+                    # TODO: potentially, modify this to allow for existing allsotery to be modified
+                    if ct.count_start_on_patches() == 1:
+                        continue
                     if not ct.getID() in types_processed:
                         types_processed.add(ct.getID())
 
