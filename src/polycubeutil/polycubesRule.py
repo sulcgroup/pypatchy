@@ -354,6 +354,9 @@ class PolycubeRuleCubeType:
         else:
             return ""
 
+    def count_start_on_patches(self):
+        return len([p for p in self.patches() if p.state_var() <= 0])
+
 class PolycubesPatch:
     def __init__(self, uid, color, direction, orientation, stateVar, activationVar):
         self._id = uid
