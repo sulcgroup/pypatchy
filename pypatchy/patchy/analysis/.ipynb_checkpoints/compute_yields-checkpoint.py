@@ -1,5 +1,5 @@
 import sys
-sys.path.append('../src')
+sys.path.append('../pypatchy')
 from patchy.analysis.input_output import *
 import argparse
 import re
