@@ -41,7 +41,7 @@ class YieldAllosteryDesigner(PolycubeStructure):
                         types_processed.add(ct.getID())
 
                         # get patch that will activate this node's cube
-                        origin_patch = ct.patch(self.get_arrow_diridx(node, prev_node))
+                        origin_patch = ct.patch(self.get_arrow_local_diridx(node, prev_node))
                         # if the origin patch doesn't already have a state variable, make one
                         if not origin_patch.state_var():
                             # add a state variable to the current node
@@ -50,7 +50,7 @@ class YieldAllosteryDesigner(PolycubeStructure):
                             self.ct_allo_vars[ct.getID()].add(origin_state)
 
                         # add an activator
-                        target_patch = ct.patch(self.get_arrow_diridx(node, next_node))
+                        target_patch = ct.patch(self.get_arrow_local_diridx(node, next_node))
                         # target patch should not already be allosterically controlled
                         if target_patch.activation_var():
                             continue
@@ -158,12 +158,12 @@ class YieldAllosteryDesigner(PolycubeStructure):
             # the cube type at the origin of the design path can't occur anywhere else in the path
             if self.cubeList[curr_node].get_type().getID() == self.cubeList[p[0]].get_type().getID():
                 return False
-            curr_prev_edge = self.graph.get_edge_data(curr_node, prev_node)["dirIdx"]
-            curr_next_edge = self.graph.get_edge_data(curr_node, next_node)["dirIdx"]
+            curr_prev_edge = self.get_arrow_local_diridx(curr_node, prev_node)
+            curr_next_edge = self.get_arrow_local_diridx(curr_node, next_node)
             # "back" and "front" here are meant not in a physical sense but in the sense of the cycle
             # synonyms to "next" and "prev" kinda
-            back_patch_id = self.cubeList[curr_node].get_type().get_patch_by_diridx(curr_prev_edge)
-            front_patch_id = self.cubeList[curr_node].get_type().get_patch_by_diridx(curr_next_edge)
+            back_patch_id = self.cubeList[curr_node].get_type().patch(curr_prev_edge)
+            front_patch_id = self.cubeList[curr_node].get_type().patch(curr_next_edge)
 
             behavior = (back_patch_id,
                         self.cubeList[curr_node].get_type().getID(),
