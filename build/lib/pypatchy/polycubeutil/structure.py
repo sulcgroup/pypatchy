@@ -1,5 +1,5 @@
 import itertools
-from typing import Union, TypeVar
+from typing import Union
 
 from scipy.spatial.transform import Rotation
 
@@ -10,12 +10,8 @@ from collections import defaultdict
 
 from util import getRotations, enumerateRotations
 
-TCommonComponent = TypeVar("TCommonComponent", bound="CommonComponent")
-TStructuralHomomorphism = TypeVar("TStructuralHomomorphism", bound="StructuralHomomorphism")
-TStructure = TypeVar("TStructure", bound="Structure")
 
-
-def get_nodes_overlap(homocycles: list[list[int]]) -> set[int]:
+def get_nodes_overlap(homocycles):
     """
     Get the list of nodes that are common to all cycles in the list.
 
@@ -60,7 +56,7 @@ class Structure:
         # if bindings aren't provided, the object is initialized empty
         # (useful for calls from subconstructor, see below)
 
-    def is_common_component(self, structures: Union[list, tuple]) -> Union[TCommonComponent, bool]:
+    def is_common_component(self, structures: Union[list, tuple]):
         """
         Checks if self is a common component (see doc: "Computational Design of Allostery")
         of the provided structures
@@ -82,17 +78,19 @@ class Structure:
         else:
             return False
 
-    def cycles_by_size(self) -> dict[int: list[int]]:
+    def cycles_by_size(self):
         """
         Code partially written by ChatGPT
         Construct a list of unique cycles in the graph,
         where each second-level list is composed of cycles of the same size,
         and each cycle visits each node at most once.
 
+        Parameters:
+        graph (networkx.classes.graph.Graph): The graph
+
         Returns:
         dict: dictionary where keys are cycle sizes and values are lists of unique cycles
         """
-
         # Use simple_cycles to get all cycles in the graph
         all_cycles = list(nx.simple_cycles(self.graph))
 
@@ -115,7 +113,7 @@ class Structure:
 
         return unique_cycles_by_size
 
-    def homomorphism(self, structure: TStructure) -> Union[bool, TStructuralHomomorphism]:
+    def homomorphism(self, structure):
         """
         Constructs the graph injective homomorphism of self.graph -> structure.graph
         Parameters:
@@ -182,15 +180,15 @@ class Structure:
                                                   reverse_mapping)
         return False
 
-    def edge_exists(self, v: int, delta: int) -> bool:
+    def edge_exists(self, v, delta):
         return len([d for a, b, d in self.graph.out_edges(v, "dirIdx") if d == delta])
 
-    def __contains__(self, item: Union[int]) -> bool:
+    def __contains__(self, item):
         if isinstance(item, int):
             # item is assumed to be a node index
             return item in list(self.graph.nodes)
 
-    def __len__(self) -> int:
+    def __len__(self):
         return len(self.graph.nodes)
 
 
@@ -200,7 +198,7 @@ class CommonComponent(Structure):
         self.full_structures = full_structures
         self.homomorphisms = homomorphisms
 
-    def is_superimposition_point(self, v: int) -> bool:
+    def is_superimposition_point(self, v):
         """
         See defn. of a superimposition point in the doc "Computational Design of Allostery"
         """
@@ -213,7 +211,7 @@ class CommonComponent(Structure):
             if len([i for i in range(self.nstructures()) if self.homomorphism_contains(i, v, delta)]) > 1:
                 return False
 
-    def is_crucial_point(self, v: int) -> bool:
+    def is_crucial_point(self, v):
         """
         See defn. of a crucial point in the doc "Computational Design of Allostery"
         """
@@ -238,7 +236,7 @@ class CommonComponent(Structure):
                             return False
         return True
 
-    def is_pivot_point(self, v: int) -> bool:
+    def is_pivot_point(self, v):
         """
         See defn. of a pivot point in the doc "Computational Design of Allostery"
         """
@@ -249,7 +247,7 @@ class CommonComponent(Structure):
                 return False
         return True
 
-    def is_macguffin(self) -> int:
+    def is_macguffin(self):
         """
         Tests if this common component is a macguffin,
         Returns:
@@ -261,31 +259,27 @@ class CommonComponent(Structure):
         else:
             return -1
 
-    def nstructures(self) -> int:
+    def nstructures(self):
         return len(self.full_structures)
 
-    def homomorphism_contains(self, i: int, v: int, delta: int) -> bool:
+    def homomorphism_contains(self, i, v, delta):
         assert i < self.nstructures()
         return self.full_structures[i].edge_exists(self.homomorphisms[i].map_location(v),
                                                    self.homomorphisms[i].map_direction(delta))
 
 
-def get_common_components(*args: Structure) -> list[CommonComponent]:
+def get_common_components(*args):
     """
     Parameters:
          args: Structure objects
     """
     s0 = args[0]
     common_components = []
-    for n in range(1, len(s0) + 1):
-        for nodes in itertools.combinations(s0.graph, n):
-            subgraph = s0.graph.subgraph(nodes)
-            if nx.algorithms.components.is_strongly_connected(subgraph):
-                component = Structure(graph=subgraph)
-                component = component.is_common_component(args)
-                if component:
-                    # TODO: check for redundency? somehow
-                    common_components.append(component)
+    for c in nx.connected_components(s0.graph):
+        component = Structure(graph=s0.graph.subgraph(c))
+        if component.is_common_component(args):
+            # TODO: check for redundency? somehow
+            common_components.append(component)
     return common_components
 
 
@@ -302,11 +296,11 @@ class StructuralHomomorphism:
         self.lmap = location_mapping
         self.rlmap = reverse_location_mapping
 
-    def map_location(self, i: int) -> int:
-        assert i in self.lmap
-        return self.lmap[i]
+    def map_location(self, l):
+        assert l in self.lmap
+        return self.lmap[l]
 
-    def map_direction(self, d: Union[int, np.ndarray]) -> int:
+    def map_direction(self, d):
         if isinstance(d, np.ndarray):
             d = diridx(d)
         assert d > -1
@@ -317,9 +311,6 @@ class StructuralHomomorphism:
     #     if isinstance(d, int):
     #         d = RULE_ORDER[d]
     #     return enumerateRotations()[self._rmapidx] ....
-
-
-TPolycubesStructureCube = TypeVar("TPolycubesStructureCube", bound="PolycubesStructureCube")
 
 
 class PolycubeStructure(Structure):
@@ -382,7 +373,7 @@ class PolycubeStructure(Structure):
                                 self.graph.add_edge(cube1.get_id(), cube2.get_id(), dirIdx=diridx(d1))
                                 self.graph.add_edge(cube2.get_id(), cube1.get_id(), dirIdx=diridx(d2))
 
-    def homologous_cycles(self, cycle_list: list[list[int]]) -> list:
+    def homologous_cycles(self, cycle_list):
         """
         Warning: ChatGPT produced this
         Group cycles in the list that contain the same cube type
@@ -408,7 +399,7 @@ class PolycubeStructure(Structure):
         # Return the cycles grouped by their pattern
         return list(cycles_by_pattern.values())
 
-    def next_node_in_cycle(self, n: int, cycle: list[int], processed_nodes: list[int]) -> tuple[int, int, int]:
+    def next_node_in_cycle(self, n, cycle, processed_nodes):
         """
         Find the next node in the cycle that is not in the set of processed nodes.
 
@@ -431,47 +422,42 @@ class PolycubeStructure(Structure):
                 next_node,
                 self.get_arrow_local_diridx(n, next_node))
 
-    def cubeAtPosition(self, v) -> TPolycubesStructureCube:
+    def cubeAtPosition(self, v):
         return self.cubeMap[v.tobytes()]
 
-    def get_arrow_diridx(self, node: int, adj: int) -> int:
+    def get_arrow_diridx(self, node, adj):
         return self.graph.get_edge_data(node, adj)["dirIdx"]
 
-    def get_arrow_local_diridx(self, n: int, adj: int) -> int:
+    def get_arrow_local_diridx(self, n, adj):
         return self.cubeList[n].typedir(self.get_arrow_diridx(n, adj))
 
 
 class PolycubesStructureCube:
-    def __init__(self,
-                 uid: int,
-                 cube_position: np.ndarray,
-                 cube_rotation: Union[np.ndarray, int],
-                 cube_type: PolycubeRuleCubeType,
-                 state: list[bool] = [True]):
+    def __init__(self, uid, cube_position, cube_rotation, cube_type, state=[True]):
         self._uid = uid
         self._pos = cube_position
         if isinstance(cube_rotation, np.ndarray) and len(cube_rotation) == 4:
             self._rot = Rotation.from_quat(cube_rotation)
         elif isinstance(cube_rotation, int):
-            self._rot = Rotation.from_matrix(getRotations()[cube_rotation])
+            self._rot = cube_rotation
         else:
             assert False, "Rotation matrices or whatever not supported yet."
         self._type = cube_type
         self._state = state
 
-    def get_id(self) -> int:
+    def get_id(self):
         return self._uid
 
-    def get_position(self) -> np.ndarray:
+    def get_position(self):
         return self._pos
 
-    def get_rotation(self) -> Rotation:
+    def get_rotation(self):
         return self._rot
 
-    def get_type(self) -> PolycubeRuleCubeType:
+    def get_type(self):
         return self._type
 
-    def typedir(self, direction: Union[int, np.ndarray]) -> np.ndarray:
+    def typedir(self, direction):
         """
         Converts the global-space direction into a local-space direction
         """
@@ -479,10 +465,10 @@ class PolycubesStructureCube:
             direction = RULE_ORDER[direction]
         return self.get_rotation().inv().apply(direction).round()
 
-    def has_patch(self, direction: Union[int, np.ndarray]) -> bool:
+    def has_patch(self, direction):
         return self.get_type().has_patch(self.typedir(direction))
 
-    def get_patch(self, direction: Union[int, np.ndarray]) -> PolycubesPatch:
+    def get_patch(self, direction):
         return self.get_type().patch(self.typedir(direction))
 
     def state(self, i=None):
