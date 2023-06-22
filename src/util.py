@@ -96,10 +96,16 @@ def from_xyz(d):
     return np.array([d[k] for k in ["x", "y", "z"]])
 
 
+# TODO: test if getRotations and enumerateRotations have the same order!!!!
+
 def getRotations(ndim=3):
+    """
+    Returns a list of rotation matrices for all possible
+
+    """
     rots = [
         # 2D rotations
-        #np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]]),
+        np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]]),
         np.array([[0, -1, 0], [1, 0, 0], [0, 0, 1]]),
         np.array([[-1, 0, 0], [0, -1, 0], [0, 0, 1]]),
         np.array([[0, 1, 0], [-1, 0, 0], [0, 0, 1]]),
@@ -131,6 +137,41 @@ def getRotations(ndim=3):
     return rots
 
 
+def enumerateRotations():
+    """
+    Returns:
+        a list of mappings of direction indexes, representing all possible octahedral rotational
+        symmetries (google it)
+
+    """
+    return {
+        0: {0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 5},
+        1: {0: 0, 1: 1, 2: 3, 3: 2, 4: 5, 5: 4},
+        2: {0: 0, 1: 1, 2: 4, 3: 5, 4: 3, 5: 2},
+        3: {0: 0, 1: 1, 2: 5, 3: 4, 4: 2, 5: 3},
+        4: {0: 1, 1: 0, 2: 2, 3: 3, 4: 5, 5: 4},
+        5: {0: 1, 1: 0, 2: 3, 3: 2, 4: 4, 5: 5},
+        6: {0: 1, 1: 0, 2: 4, 3: 5, 4: 2, 5: 3},
+        7: {0: 1, 1: 0, 2: 5, 3: 4, 4: 3, 5: 2},
+        8: {0: 2, 1: 3, 2: 0, 3: 1, 4: 5, 5: 4},
+        9: {0: 2, 1: 3, 2: 1, 3: 0, 4: 4, 5: 5},
+        10: {0: 2, 1: 3, 2: 4, 3: 5, 4: 0, 5: 1},
+        11: {0: 2, 1: 3, 2: 5, 3: 4, 4: 1, 5: 0},
+        12: {0: 3, 1: 2, 2: 0, 3: 1, 4: 4, 5: 5},
+        13: {0: 3, 1: 2, 2: 1, 3: 0, 4: 5, 5: 4},
+        14: {0: 3, 1: 2, 2: 4, 3: 5, 4: 1, 5: 0},
+        15: {0: 3, 1: 2, 2: 5, 3: 4, 4: 0, 5: 1},
+        16: {0: 4, 1: 5, 2: 0, 3: 1, 4: 2, 5: 3},
+        17: {0: 4, 1: 5, 2: 1, 3: 0, 4: 3, 5: 2},
+        18: {0: 4, 1: 5, 2: 2, 3: 3, 4: 1, 5: 0},
+        19: {0: 4, 1: 5, 2: 3, 3: 2, 4: 0, 5: 1},
+        20: {0: 5, 1: 4, 2: 0, 3: 1, 4: 3, 5: 2},
+        21: {0: 5, 1: 4, 2: 1, 3: 0, 4: 2, 5: 3},
+        22: {0: 5, 1: 4, 2: 2, 3: 3, 4: 0, 5: 1},
+        23: {0: 5, 1: 4, 2: 3, 3: 2, 4: 1, 5: 0}
+    }
+
+
 def getSignedAngle(v1, v2, axis):
     s = np.cross(v1, v2)
     c = v1.dot(v2)
@@ -139,6 +180,7 @@ def getSignedAngle(v1, v2, axis):
         a *= -1
     return a
 
+
 # function written by ChatGPT
 def inverse_quaternion(q):
     w, x, y, z = q
@@ -146,5 +188,5 @@ def inverse_quaternion(q):
     if norm == 0:
         raise ValueError("Quaternion norm is zero, can't calculate inverse.")
     q_conjugate = np.array([w, -x, -y, -z])
-    q_inverse = q_conjugate / norm**2
+    q_inverse = q_conjugate / norm ** 2
     return q_inverse
