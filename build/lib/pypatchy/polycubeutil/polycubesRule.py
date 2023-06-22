@@ -5,8 +5,8 @@ import pandas as pd
 from itertools import chain
 import re
 
-from patchy.plpatchy import Patch
-from util import rotation_matrix, from_xyz, to_xyz, getSignedAngle
+from ..patchy.plpatchy import Patch
+from ..util import rotation_matrix, from_xyz, to_xyz, getSignedAngle
 
 FACE_NAMES = ("left", "right", "bottom", "top", "back", "front")
 RULE_ORDER = (
@@ -36,6 +36,194 @@ def get_orientation(face_idx, ori_idx):
     zero_rotation = RULE_ORDER[zero_rot_idx]
     rot_mat = rotation_matrix(RULE_ORDER[face_idx], ori_idx * math.pi / 2)
     return (rot_mat @ zero_rotation).round()
+
+
+class PolycubesPatch:
+    def __init__(self, uid, color, direction, orientation, stateVar, activationVar):
+        self._id = uid
+        self._color = color
+        self._dirIdx = direction if isinstance(direction, int) else diridx(direction)
+        self._oriIdx = orientation if isinstance(orientation, int) else (diridx(orientation))
+        self._stateVar = stateVar
+        self._activationVar = activationVar
+
+    def get_id(self):
+        return self._id
+
+    def color(self):
+        return self._color
+
+    def set_state_var(self, newVal):
+        self._stateVar = newVal
+
+    def set_activation_var(self, newVal):
+        self._activationVar = newVal
+
+    def dirIdx(self):
+        return self._dirIdx
+
+    def direction(self):
+        return RULE_ORDER[self.dirIdx()]
+
+    def alignDir(self):
+        return RULE_ORDER[self._oriIdx]
+
+    def get_align_rot_num(self):
+        face_dir = self.direction()
+        face_align_dir = self.alignDir()
+        face_align_zero = RULE_ORDER[(self.dirIdx() + 2) % 6]
+        angleFromTo = getSignedAngle(face_align_zero, face_align_dir, face_dir)
+        return int(4 * angleFromTo / (math.pi * 2))
+
+    def state_var(self):
+        return self._stateVar
+
+    def set_state_var(self, val):
+        self._stateVar = val
+
+    def activation_var(self):
+        return self._activationVar
+
+    def set_activation_var(self, val):
+        self._activationVar = val
+
+    def to_pl_patch(self):
+        relPosition = self.direction() / 2
+        return Patch(self._id, self._color, relPosition, self.direction(), self.alignDir())
+
+    def rotate(self, rotation):
+        p = PolycubesPatch(self._id,
+                           self._color,
+                           np.matmul(rotation, self.direction()).round(),
+                           np.matmul(rotation, self.alignDir()).round(),
+                           self.state_var(),
+                           self.activation_var())
+        p.check_valid()
+        return p
+
+
+    def to_string(self):
+        if self.get_align_rot_num() == 0 and self.state_var() == 0 and self.activation_var() == 0:
+            return f"{self.color()}"
+        elif self.state_var() == 0 and self.activation_var() == 0:
+            return f"{self.color()}:{self.get_align_rot_num()}"
+        else:
+            return f"{self.color()}:{self.get_align_rot_num()}:{self.state_var()}:{self.activation_var()}"
+
+    def check_valid(self):
+        assert self.color()
+        assert np.dot(self.direction(), self.alignDir()) == 0
+
+class PolycubeRuleCubeType:
+    def __init__(self, ct_id, patches, stateSize=1, effects=[], name=""):
+        self._id = ct_id
+        self._patches = patches
+        self._name = name if name else f"CT{ct_id}"
+        self._stateSize = stateSize
+
+        self._effects = []
+        # handle potential issues with improperly-indexed string conditionals
+        for effect in effects:
+            self.add_effect(effect)
+
+    def name(self):
+        return self._name
+
+    def getID(self):
+        return self._id
+
+    def set_state_size(self, newVal):
+        self._stateSize = newVal
+
+    def state_size(self):
+        return self._stateSize
+
+    def add_state_var(self):
+        self._stateSize += 1
+        return self._stateSize - 1
+
+    def get_patch_by_diridx(self, dirIdx) -> PolycubesPatch:
+        return [p for p in self._patches if p.dirIdx() == dirIdx][0]
+
+    def has_patch(self, arg):
+        if isinstance(arg, int):  # direction index
+            return any([p.dirIdx() == arg for p in self._patches])
+        else:
+            assert isinstance(arg, np.ndarray)
+            return any([(RULE_ORDER[p.dirIdx()] == arg).all() for p in self._patches])
+
+    def patch(self, direction):
+        if isinstance(direction, int):
+            return self.get_patch_by_diridx(direction)
+        else:
+            return [p for p in self._patches if (RULE_ORDER[p.dirIdx()] == direction).all()][0]
+
+    def diridxs(self):
+        return {p.dirIdx() for p in self._patches}
+
+    def get_patch_by_idx(self, i):
+        return self._patches[i]
+
+    def patches(self):
+        return self._patches
+
+    def add_patch(self, patch):
+        self._patches.append(patch)
+
+    def num_patches(self):
+        return len(self._patches)
+
+    def get_patch_state_var(self, key, make_if_0=False):
+        idx = key if isinstance(key, int) else int(key) if isinstance(key, str) else diridx(key)
+        if make_if_0 and self.get_patch_by_diridx(idx).state_var() == 0:
+            self.get_patch_by_diridx(idx).set_state_var(self.add_state_var())
+        return self.get_patch_by_diridx(idx).state_var()
+
+    def effects(self):
+        return self._effects
+
+    def effects_targeting(self, activation_var):
+        return [e for e in self._effects if e.target() == activation_var]
+
+    def add_effect(self, effect):
+        if isinstance(effect, StringConditionalEffect):
+            if effect.conditional() != "(true)":
+                effect.setStr(re.sub(r'b\[(\d+)]',
+                                     # lambda match: str(self.get_patch_by_diridx(int(match.group(1))).state_var()),
+                                     lambda match: str(self.get_patch_state_var(int(match.group(1)), True)),
+                                     effect.conditional())
+                              )
+            else:
+                effect.setStr("0")
+        self._effects.append(effect)
+
+    def patch_conditional(self, patch):
+        return "|".join(f"({e.conditional()})" for e in self.effects_targeting(patch.activation_var()))
+
+    def __str__(self):
+        return self.to_string()
+
+    def to_string(self, force_static=False):
+        if force_static or any([isinstance(e, StringConditionalEffect) for e in self.effects()]):
+            sz = "#".join([self.patch_string_static(idx) for (idx, _) in enumerate(RULE_ORDER)])
+        else:
+            # lmao
+            sz = "|".join([
+                    self.get_patch_by_diridx(i).to_string() if self.has_patch(i) else ""
+                    for (i, _) in enumerate(RULE_ORDER)])
+            if len(self.effects()) > 0:
+                sz += "@" + ";".join([str(e) for e in self.effects()])
+        return sz
+
+    def patch_string_static(self, patch_dir_idx):
+        if self.has_patch(patch_dir_idx):
+            p = self.get_patch_by_diridx()
+            return f"{p.color()}:{p.get_align_rot_num()}:{self.patch_conditional(p)}"
+        else:
+            return ""
+
+    def count_start_on_patches(self):
+        return len([p for p in self.patches() if p.state_var() <= 0])
 
 
 # TODO: make this extend some kind of generic klossar / patchy particle rule class
@@ -192,7 +380,7 @@ class PolycubesRule:
                                                                name))
                 self._patchList += patches
 
-    def toJSON(self):
+    def toJSON(self) -> list:
         return [{
             "typeName": ct.name(),
             "patches": [{
@@ -207,231 +395,41 @@ class PolycubesRule:
         }
             for ct in self.particles()]
 
-    def particle(self, i):
+    def particle(self, i) -> PolycubeRuleCubeType:
         return self._cubeTypeList[i]
 
-    def patch(self, i):
+    def patch(self, i) -> PolycubesPatch:
         return self._patchList[i]
 
-    def numPatches(self):
+    def numPatches(self) -> int:
         return len(self._patchList)
 
-    def numCubeTypes(self):
+    def numCubeTypes(self) -> int:
         return len(self._cubeTypeList)
 
-    def cubeTypes(self):
+    def cubeTypes(self) -> list[PolycubeRuleCubeType]:
         return self._cubeTypeList
 
-    def patches(self):
+    def patches(self) -> list[PolycubesPatch]:
         return self._patchList
 
-    def particles(self):
-        return self._cubeTypeList
+    def particles(self) -> list[PolycubeRuleCubeType]:
+        return self.cubeTypes()
 
-    def remove_cube_type(self, cubeType):
+    def remove_cube_type(self, cubeType) -> None:
         # remove cube type from cube type lists
         self._cubeTypeList = [ct for ct in self.particles() if ct.getID() != cubeType.getID()]
         # remove patches that are no longer needed
         self._patchList = [p for p in self.patches() if any([p in ct.patches() for ct in self.particles()])]
         # TODO: handle particle and patch IDs!!!
 
-    def particle(self, i):
-        assert -1 < i < self.numCubeTypes()
-        return self._cubeTypeList[i]
-
-    def __len__(self):
+    def __len__(self) -> int:
         return self.numCubeTypes()
 
-    def __str__(self):
+    def __str__(self) -> str:
         return "_".join(str(ct) for ct in self.particles())
 
 
-class PolycubeRuleCubeType:
-    def __init__(self, ct_id, patches, stateSize=1, effects=[], name=""):
-        self._id = ct_id
-        self._patches = patches
-        self._name = name if name else f"CT{ct_id}"
-        self._stateSize = stateSize
-
-        self._effects = []
-        # handle potential issues with improperly-indexed string conditionals
-        for effect in effects:
-            self.add_effect(effect)
-
-    def name(self):
-        return self._name
-
-    def getID(self):
-        return self._id
-
-    def set_state_size(self, newVal):
-        self._stateSize = newVal
-
-    def state_size(self):
-        return self._stateSize
-
-    def add_state_var(self):
-        self._stateSize += 1
-        return self._stateSize - 1
-
-    def get_patch_by_diridx(self, dirIdx):
-        return [p for p in self._patches if p.dirIdx() == dirIdx][0]
-
-    def has_patch(self, arg):
-        if isinstance(arg, int):  # direction index
-            return any([p.dirIdx() == arg for p in self._patches])
-        else:
-            assert isinstance(arg, np.ndarray)
-            return any([(RULE_ORDER[p.dirIdx()] == arg).all() for p in self._patches])
-
-    def patch(self, direction):
-        if isinstance(direction, int):
-            return self.get_patch_by_diridx(direction)
-        else:
-            return [p for p in self._patches if (RULE_ORDER[p.dirIdx()] == direction).all()][0]
-
-    def diridxs(self):
-        return {p.dirIdx() for p in self._patches}
-
-    def get_patch_by_idx(self, i):
-        return self._patches[i]
-
-    def patches(self):
-        return self._patches
-
-    def add_patch(self, patch):
-        self._patches.append(patch)
-
-    def num_patches(self):
-        return len(self._patches)
-
-    def get_patch_state_var(self, key, make_if_0=False):
-        idx = key if isinstance(key, int) else int(key) if isinstance(key, str) else diridx(key)
-        if make_if_0 and self.get_patch_by_diridx(idx).state_var() == 0:
-            self.get_patch_by_diridx(idx).set_state_var(self.add_state_var())
-        return self.get_patch_by_diridx(idx).state_var()
-
-    def effects(self):
-        return self._effects
-
-    def effects_targeting(self, activation_var):
-        return [e for e in self._effects if e.target() == activation_var]
-
-    def add_effect(self, effect):
-        if isinstance(effect, StringConditionalEffect):
-            if effect.conditional() != "(true)":
-                effect.setStr(re.sub(r'b\[(\d+)]',
-                                     # lambda match: str(self.get_patch_by_diridx(int(match.group(1))).state_var()),
-                                     lambda match: str(self.get_patch_state_var(int(match.group(1)), True)),
-                                     effect.conditional())
-                              )
-            else:
-                effect.setStr("0")
-        self._effects.append(effect)
-
-    def patch_conditional(self, patch):
-        return "|".join(f"({e.conditional()})" for e in self.effects_targeting(patch.activation_var()))
-
-    def __str__(self):
-        return self.to_string()
-
-    def to_string(self, force_static=False):
-        if force_static or any([isinstance(e, StringConditionalEffect) for e in self.effects()]):
-            sz = "#".join([self.patch_string_static(idx) for (idx, _) in enumerate(RULE_ORDER)])
-        else:
-            # lmao
-            sz = "|".join([
-                    self.get_patch_by_diridx(i).to_string() if self.has_patch(i) else ""
-                    for (i, _) in enumerate(RULE_ORDER)])
-            if len(self.effects()) > 0:
-                sz += "@" + ";".join([str(e) for e in self.effects()])
-        return sz
-
-    def patch_string_static(self, patch_dir_idx):
-        if self.has_patch(patch_dir_idx):
-            p = self.get_patch_by_diridx()
-            return f"{p.color()}:{p.get_align_rot_num()}:{self.patch_conditional(p)}"
-        else:
-            return ""
-
-    def count_start_on_patches(self):
-        return len([p for p in self.patches() if p.state_var() <= 0])
-
-class PolycubesPatch:
-    def __init__(self, uid, color, direction, orientation, stateVar, activationVar):
-        self._id = uid
-        self._color = color
-        self._dirIdx = direction if isinstance(direction, int) else diridx(direction)
-        self._oriIdx = orientation if isinstance(orientation, int) else (diridx(orientation))
-        self._stateVar = stateVar
-        self._activationVar = activationVar
-
-    def get_id(self):
-        return self._id
-
-    def color(self):
-        return self._color
-
-    def set_state_var(self, newVal):
-        self._stateVar = newVal
-
-    def set_activation_var(self, newVal):
-        self._activationVar = newVal
-
-    def dirIdx(self):
-        return self._dirIdx
-
-    def direction(self):
-        return RULE_ORDER[self.dirIdx()]
-
-    def alignDir(self):
-        return RULE_ORDER[self._oriIdx]
-
-    def get_align_rot_num(self):
-        face_dir = self.direction()
-        face_align_dir = self.alignDir()
-        face_align_zero = RULE_ORDER[(self.dirIdx() + 2) % 6]
-        angleFromTo = getSignedAngle(face_align_zero, face_align_dir, face_dir)
-        return int(4 * angleFromTo / (math.pi * 2))
-
-    def state_var(self):
-        return self._stateVar
-
-    def set_state_var(self, val):
-        self._stateVar = val
-
-    def activation_var(self):
-        return self._activationVar
-
-    def set_activation_var(self, val):
-        self._activationVar = val
-
-    def to_pl_patch(self):
-        relPosition = self.direction() / 2
-        return Patch(self._id, self._color, relPosition, self.direction(), self.alignDir())
-
-    def rotate(self, rotation):
-        p = PolycubesPatch(self._id,
-                           self._color,
-                           np.matmul(rotation, self.direction()).round(),
-                           np.matmul(rotation, self.alignDir()).round(),
-                           self.state_var(),
-                           self.activation_var())
-        p.check_valid()
-        return p
-
-
-    def to_string(self):
-        if self.get_align_rot_num() == 0 and self.state_var() == 0 and self.activation_var() == 0:
-            return f"{self.color()}"
-        elif self.state_var() == 0 and self.activation_var() == 0:
-            return f"{self.color()}:{self.get_align_rot_num()}"
-        else:
-            return f"{self.color()}:{self.get_align_rot_num()}:{self.state_var()}:{self.activation_var()}"
-
-    def check_valid(self):
-        assert self.color()
-        assert np.dot(self.direction(), self.alignDir()) == 0
 
 
 # TODO: integrate with C++ TLM / Polycubes

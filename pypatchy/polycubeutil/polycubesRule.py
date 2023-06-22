@@ -5,8 +5,8 @@ import pandas as pd
 from itertools import chain
 import re
 
-from patchy.plpatchy import Patch
-from util import rotation_matrix, from_xyz, to_xyz, getSignedAngle
+from ..patchy.plpatchy import Patch
+from ..util import rotation_matrix, from_xyz, to_xyz, getSignedAngle
 
 FACE_NAMES = ("left", "right", "bottom", "top", "back", "front")
 RULE_ORDER = (

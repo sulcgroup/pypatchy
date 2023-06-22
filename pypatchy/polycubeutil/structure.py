@@ -1,14 +1,17 @@
+from __future__ import annotations
+
 import itertools
 from typing import Union, TypeVar
 
+import numpy as np
 from scipy.spatial.transform import Rotation
-
-from polycubesRule import *
 
 import networkx as nx
 from collections import defaultdict
 
-from util import getRotations, enumerateRotations
+from ..util import getRotations, enumerateRotations
+
+from polycubesRule import *
 
 TCommonComponent = TypeVar("TCommonComponent", bound="CommonComponent")
 TStructuralHomomorphism = TypeVar("TStructuralHomomorphism", bound="StructuralHomomorphism")
@@ -42,20 +45,18 @@ class Structure:
     """
 
     def __init__(self, **kwargs):
-        graph: nx.DiGraph
-
-        self.graph = nx.DiGraph()
+        self.graph: nx.DiGraph = nx.DiGraph()
 
         if "bindings" in kwargs:
             for n1, d1, n2, d2 in kwargs["bindings"]:
                 if n1 not in self.graph:
-                    graph.add_node(n1)
+                    self.graph.add_node(n1)
                 if n2 not in self.graph:
-                    graph.add_node(n2)
+                    self.graph.add_node(n2)
                 self.graph.add_edge(n1, n2, dirIdx=d1)
                 self.graph.add_edge(n2, n1, dirIdx=d2)
         if "graph" in kwargs:
-            self.graph = graph
+            self.graph = kwargs["graph"]
 
         # if bindings aren't provided, the object is initialized empty
         # (useful for calls from subconstructor, see below)
@@ -73,7 +74,7 @@ class Structure:
              for st in the provided list of structures
         """
 
-        if not nx.components.is_connected(self.graph):
+        if not nx.components.is_strongly_connected(self.graph):
             return False
 
         homomorphisms = [self.homomorphism(s) for s in structures]
@@ -130,11 +131,12 @@ class Structure:
         assert len(structure) >= len(self)
 
         # for now, brute-force this
-        for rmapidx, rotation_mapping in enumerate(enumerateRotations()):
+        for rmapidx, rotation_mapping in enumerateRotations().items():
             # Ben would say rotation_mapping is a symmetry group of a cube or something
             for node_list_target in itertools.permutations(structure.graph.nodes, r=len(self.graph.nodes)):
                 # node lists aren't nessecarily indexed from 0
                 # sometimes they are but it's not a safe assumption
+                node_list_src = list(self.graph.nodes)
 
                 node_list_mapping = {n1: n2 for n1, n2 in zip(node_list_src, node_list_target)}
                 reverse_mapping = {n2: n1 for n1, n2 in zip(node_list_src, node_list_target)}
@@ -142,21 +144,24 @@ class Structure:
                 homomorphism_is_valid = True
 
                 # list of source node IDs
-                node_list_src = list(self.graph.nodes)
 
                 # loop pairs of nodes in this mapping
                 for n1, n2 in zip(node_list_src, node_list_target):
                     # loop outgoing edges for this node
-                    if len(self.graph.out_edges(n1)) != len(self.graph.out_edges(n2)):
+                    if len(self.graph.out_edges(n1)) != len(structure.graph.out_edges(n2)):
                         homomorphism_is_valid = False
                     else:
                         # for any e1 in self.graph.out_edges(n1), an e2 exists
                         # in structure.graph.out_edges(n2) such that
                         # rotation_mapping[e1["dirIdx"]] == e2["dirIdx"]
-                        for _, v1, d1 in self.graph.out_edges(n1).data("dirIdx"):
+                        for u1, v1, d1 in self.graph.out_edges.data("dirIdx"):
+                            if u1 != n1:
+                                continue
                             # drop first element of tuple b/c it equals n1
                             found_homologous_edge = False
-                            for _, v2, d2 in structure.graph.out_edges(n2).data("dirIdx"):
+                            for u2, v2, d2 in structure.graph.out_edges.data("dirIdx"):
+                                if u2 != n2:
+                                    continue
                                 # drop first element of tuple b/c it equals n2
 
                                 # edges match if the direction indexes map onto each other
@@ -277,7 +282,7 @@ def get_common_components(*args: Structure) -> list[CommonComponent]:
     """
     s0 = args[0]
     common_components = []
-    for n in range(1, len(s0) + 1):
+    for n in range(2, len(s0) + 1):
         for nodes in itertools.combinations(s0.graph, n):
             subgraph = s0.graph.subgraph(nodes)
             if nx.algorithms.components.is_strongly_connected(subgraph):
