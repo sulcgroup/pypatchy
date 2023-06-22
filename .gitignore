@@ -6,3 +6,6 @@ input
 output
 */.ipynb_checkpoints
 src/patchy/.ipynb_checkpoints
+pypatchy.egg-info
+build
+dist
