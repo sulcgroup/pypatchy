@@ -11,8 +11,8 @@ import subprocess
 import re
 import logging
 
-from ...util import get_param_set, sims_root, get_server_config, get_spec_json, get_log_dir
-from ensemble_parameter import EnsembleParameter, SimulationSpecification
+from ...util import get_param_set, simulation_run_dir, get_server_config, get_spec_json, get_log_dir, get_input_dir
+from .ensemble_parameter import EnsembleParameter, SimulationSpecification
 from ..plpatchy import PLPatchyParticle, export_interaction_matrix
 from ..UDtoMDt import convert_multidentate
 from ...polycubeutil.polycubesRule import PolycubesRule
@@ -35,20 +35,33 @@ SUBMIT_SLURM_PATTERN = r"Submitted batch job (\d+)"
 
 
 class PatchySimulationSetup:
-    def __init__(self, sim_cfg: dict):
+    def __init__(self, **kwargs):
+        if "cfg_file_name" in kwargs:
+            with open(get_input_dir() / "wereflamingo_X2_scaling.json") as f:
+                sim_cfg = json.load(f)
+        else:
+            assert "sim_cfg" in kwargs
+            sim_cfg = kwargs["sim_cfg"]
+        
+        if "sim_date" in kwargs:
+            self.sim_date = kwargs["sim_date"]
+            if isinstance(self.sim_date, str):
+                self.sim_date = datetime.datetime.strptime(self.sim_date, "%Y-%m-%d")
+        else:
+            # save current date
+            self.sim_date: datetime.datetime = datetime.datetime.now()
         # assume standard file format json
 
         # name of simulation set
         self.export_name: str = sim_cfg[EXPORT_NAME_KEY]
 
-        # save current date
-        self.current_date: datetime.datetime = datetime.datetime.now()
+
 
         # configure logging
         self.logger: logging.Logger = logging.getLogger(self.export_name)
         self.logger.setLevel(logging.INFO)
         self.logger.addHandler(logging.FileHandler(get_log_dir() /
-                                                   f"log_{self.export_name}_{self.current_date.strftime('%Y-%m-%d')}"))
+                                                   f"log_{self.export_name}_{self.sim_date.strftime('%Y-%m-%d')}"))
         self.logger.addHandler(logging.StreamHandler(sys.stdout))
 
         # load particles
@@ -83,10 +96,10 @@ class PatchySimulationSetup:
         self.slurm_log = pd.DataFrame(columns=["slurm_job_id", *[p.param_key for p in self.ensemble_params]])
 
     def long_name(self) -> str:
-        return f"{self.export_name}_{self.current_date.strftime('%Y-%m-%d')}"
+        return f"{self.export_name}_{self.sim_date.strftime('%Y-%m-%d')}"
 
     def get_sim_set_root(self) -> Path:
-        return sims_root() / self.export_name
+        return simulation_run_dir() / self.export_name
 
     """
     num_particle_types should be constant across all simulations. some particle
@@ -144,7 +157,7 @@ class PatchySimulationSetup:
         return [SimulationSpecification(e) for e in itertools.product(*self.ensemble_params)]
 
     def tld(self) -> Path:
-        return sims_root() / self.long_name()
+        return simulation_run_dir() / self.long_name()
 
     def folder_path(self, sim: SimulationSpecification) -> Path:
         return self.tld() / sim.get_folder_path()

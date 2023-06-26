@@ -1,5 +1,5 @@
 import sys
-from plpatchy import *
+from .plpatchy import *
 from scipy.spatial.transform import Rotation as R
 
 
