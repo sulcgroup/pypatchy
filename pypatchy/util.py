@@ -1,6 +1,6 @@
 import json
 import os.path
-import pathlib
+from pathlib import Path
 from os import path
 import configparser
 from colorsys import hsv_to_rgb
@@ -8,28 +8,29 @@ import numpy as np
 import math
 
 
-def get_local_dir() -> pathlib.Path:
-    return pathlib.Path("~/.pypatchy/")
+def get_local_dir() -> Path:
+    return Path.home() / ".pypatchy/"
 
 
-def get_input_dir() -> pathlib.Path:
+def get_input_dir() -> Path:
     return get_local_dir() / "input"
 
 
-def get_output_dir() -> pathlib.Path:
+def get_output_dir() -> Path:
     return get_local_dir() / "output"
 
 
-def get_log_dir() -> pathlib.Path:
+def get_log_dir() -> Path:
     return get_output_dir() / "logs"
 
 
 cfg = configparser.ConfigParser()
+assert (get_local_dir() / "settings.cfg").exists()
 cfg.read(get_local_dir() / 'settings.cfg')
 
 
-def sims_root() -> pathlib.Path:
-    return pathlib.Path(cfg['ANALYSIS']['simulation_data_dir'])
+def sims_root() -> Path:
+    return Path(cfg['ANALYSIS']['simulation_data_dir'])
 
 
 def get_sample_every() -> int:
