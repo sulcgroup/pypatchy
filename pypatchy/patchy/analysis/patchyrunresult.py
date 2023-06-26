@@ -206,7 +206,7 @@ class PatchyRunResult:
                         print(f"Missing timepoint at timepoint {i}. Calculating...")
                     # loop graphs at timepoint
                     for graph in graphs:
-                        new_cluster_cats.append(categorizeCluster(i, self, graph, target_graph))
+                        new_cluster_cats.append(self.categorizeCluster(i, graph, target_graph))
                     # register processing at timepoint
                     tidxs_processed.add(i)
             cluster_categories = pd.concat([cluster_categories, pd.DataFrame(new_cluster_cats)])
@@ -223,6 +223,28 @@ class PatchyRunResult:
 
         # return clusters at requested interval
         return cluster_categories.loc[cluster_categories['tidx'] % sample_every == 0]
+
+    def categorizeCluster(self, tidx: int,
+                          g: nx.Graph, target):
+        sizeFrac = len(g) / len(target)
+        if isomorphism.GraphMatcher(nx.line_graph(target), nx.line_graph(g)).subgraph_is_isomorphic():
+            if sizeFrac == 1:
+                cat = ClusterCategory.MATCH
+            else:
+                cat = ClusterCategory.SUBSET
+        else:
+            if sizeFrac < 1:
+                cat = ClusterCategory.SMALLER_NOT_SUB
+            else:
+                cat = ClusterCategory.OVER
+        return {
+            "nt": self.narrow_type_number,
+            "temp": self.temperature,
+            "duplicate": self.duplicate_number,
+            "tidx": tidx,
+            "clustercategory": cat,
+            "sizeratio": sizeFrac
+        }
 
     def analyseClusterYield(self, target_name, target_graph, cutoff=1, overreach=False, verbose=False, parallel=False,
                             sample_every=-1):
