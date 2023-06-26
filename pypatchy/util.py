@@ -27,9 +27,11 @@ assert (get_local_dir() / "settings.cfg").exists()
 cfg.read(get_local_dir() / 'settings.cfg')
 
 
-def sims_root() -> Path:
+def simulation_run_dir() -> Path:
     return Path(cfg['ANALYSIS']['simulation_data_dir'])
 
+def simulation_analysis_dir() -> Path:
+    return Path(cfg['ANALYSIS']["analysis_data_dir"])
 
 def get_sample_every() -> int:
     return int(cfg['ANALYSIS']['sample_every'])
