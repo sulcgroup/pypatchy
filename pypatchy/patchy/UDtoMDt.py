@@ -1,7 +1,7 @@
-import math
 import sys
 from plpatchy import *
 from scipy.spatial.transform import Rotation as R
+
 
 def convert_multidentate(particles, dental_radius, num_teeth, followSurf=False):
     new_particles = [None for _ in particles]
@@ -45,11 +45,12 @@ def convert_multidentate(particles, dental_radius, num_teeth, followSurf=False):
                 # using torsional multidentate patches is HIGHLY discouraged but
                 # this functionality is included for compatibility reasons
                 a2 = r.apply(a2)
-                teeth[tooth] = Patch(patch_counter, c, position, a1, a2, 1.0/num_teeth)
+                teeth[tooth] = Patch(patch_counter, c, position, a1, a2, 1.0 / num_teeth)
                 patch_counter += 1
             # add all teeth
             new_particle_patches += teeth
-        new_particles[i_particle] = PLPatchyParticle(type_id=particle.type(), index_=i_particle, radius=particle.radius())
+        new_particles[i_particle] = PLPatchyParticle(type_id=particle.type(), index_=i_particle,
+                                                     radius=particle.radius())
         new_particles[i_particle].set_patches(new_particle_patches)
         new_patches += new_particle_patches
     return [new_particles, new_patches]
@@ -72,6 +73,7 @@ def convert_udt_files_to_mdt(_, patches_file, particles_file, dental_radius="0.5
     with open(new_patches_fn, 'w') as f:
         for p in new_patches:
             f.write(p.save_to_string())
+
 
 # usage: UDtoMDt [patch file] [particle file] [ [dental radius] [num teeth] [follow surface]]
 if __name__ == "__main__":

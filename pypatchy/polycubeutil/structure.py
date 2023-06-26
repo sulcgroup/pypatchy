@@ -8,7 +8,7 @@ from scipy.spatial.transform import Rotation
 import networkx as nx
 from collections import defaultdict
 
-from src.pypatchy.util import getRotations, enumerateRotations
+from ..util import getRotations, enumerateRotations
 
 from polycubesRule import *
 

@@ -1,7 +1,5 @@
 import json
-import os.path
 from pathlib import Path
-from os import path
 import configparser
 from colorsys import hsv_to_rgb
 import numpy as np
@@ -75,9 +73,9 @@ class BadSimulationDirException(Exception):
 
 
 def selectColor(number: int, saturation=50, value=65, fmt="hex") -> str:
-    hue = number * 137.508;  # use golden angle approximation
+    hue = number * 137.508  # use golden angle approximation
     if fmt == "hsv":
-        return f"hsv({hue},{saturation}%,{value}%)";
+        return f"hsv({hue},{saturation}%,{value}%)"
     else:
         r, g, b = hsv_to_rgb(hue / 255, saturation / 100, value / 100)
         if fmt == "rgb":
