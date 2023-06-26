@@ -1,23 +1,23 @@
 from .patchyresults import *
-from ...util import sims_root, get_analysis_params_file_name
+from ...util import simulation_run_dir, get_analysis_params_file_name, simulation_analysis_dir
 
 
 def choose_results(sim_name=None) -> PatchyRunSet:
     if sim_name is None:
-        print("Available datasets:\n\t" + ',\n\t'.join(os.listdir(sims_root())))
+        print("Available datasets:\n\t" + ',\n\t'.join(os.listdir(simulation_analysis_dir())))
         sim_name = input("Enter simulation name: ")
 
-    if not os.path.isdir(sims_root() / sim_name):
-        print(f"No simulation folder at {sims_root() / sim_name}. Exiting.")
+    if not os.path.isdir(simulation_analysis_dir() / sim_name):
+        print(f"No simulation folder at {simulation_analysis_dir() / sim_name}. Exiting.")
         exit(0)
 
     analysis_params = {}
     try:
-        with open(sims_root() / sim_name / get_analysis_params_file_name(), 'r') as f:
+        with open(simulation_analysis_dir() / sim_name / get_analysis_params_file_name(), 'r') as f:
             analysis_params = json.load(f)
     except FileNotFoundError:
         print("No analysis params file found. Continuing with default analysis params...")
-        dir_files = os.listdir(sims_root() / sim_name)
+        dir_files = os.listdir(simulation_analysis_dir() / sim_name)
         analysis_params['targets'] = []
         for target_file in dir_files:
             m = re.match('target_(.+)\.json', target_file)
@@ -29,7 +29,7 @@ def choose_results(sim_name=None) -> PatchyRunSet:
         print("No valid topology files to use to analyze yields. Exiting.")
         exit(0)
 
-    results = PatchyRunSet(sims_root() / sim_name, analysis_params)
+    results = PatchyRunSet(simulation_analysis_dir() / sim_name, analysis_params)
 
     return results
 
@@ -54,8 +54,8 @@ def choose_results_and_target():
 
 
 def print_all_results_status():
-    dirs = os.listdir(sims_root())
-    datasets_dirs = list(filter(lambda r: is_results_directory(sims_root() / r + os.sep), dirs))
+    dirs = os.listdir(simulation_analysis_dir())
+    datasets_dirs = list(filter(lambda r: is_results_directory(simulation_analysis_dir() / r + os.sep), dirs))
     datasets = [choose_results(ds) for ds in datasets_dirs]
     datasets_info = pd.DataFrame({
         "Directory Name": list(datasets_dirs),

@@ -17,6 +17,7 @@ def create_default_config():
     # Add some default values
     config['ANALYSIS'] = {
         "simulation_data_dir": "/scratch/jrevan21/patchysimulations",
+        "analysis_data_dir": "/scratch/jrevan21/analysis_space",
         "sample_every": 10,
         "cluster_file": "clusters.txt",
         "export_setting_file_name": "patchy_export_setup.json",

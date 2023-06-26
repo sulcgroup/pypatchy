@@ -11,7 +11,7 @@ import subprocess
 import re
 import logging
 
-from ...util import get_param_set, sims_root, get_server_config, get_spec_json, get_log_dir
+from ...util import get_param_set, simulation_run_dir, get_server_config, get_spec_json, get_log_dir
 from ensemble_parameter import EnsembleParameter, SimulationSpecification
 from ..plpatchy import PLPatchyParticle, export_interaction_matrix
 from ..UDtoMDt import convert_multidentate
@@ -86,7 +86,7 @@ class PatchySimulationSetup:
         return f"{self.export_name}_{self.current_date.strftime('%Y-%m-%d')}"
 
     def get_sim_set_root(self) -> Path:
-        return sims_root() / self.export_name
+        return simulation_run_dir() / self.export_name
 
     """
     num_particle_types should be constant across all simulations. some particle
@@ -144,7 +144,7 @@ class PatchySimulationSetup:
         return [SimulationSpecification(e) for e in itertools.product(*self.ensemble_params)]
 
     def tld(self) -> Path:
-        return sims_root() / self.long_name()
+        return simulation_run_dir() / self.long_name()
 
     def folder_path(self, sim: SimulationSpecification) -> Path:
         return self.tld() / sim.get_folder_path()
