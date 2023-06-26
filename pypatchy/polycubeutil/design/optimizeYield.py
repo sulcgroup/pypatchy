@@ -2,7 +2,7 @@ import copy
 import itertools
 import sys
 import json
-from polycubeutil.structure import *
+from ..structure import *
 
 
 class YieldAllosteryDesigner(PolycubeStructure):
