@@ -9,7 +9,7 @@ import pickle
 from pathlib import Path
 from enum import Enum
 
-from src.patchy.analysis.patchyrunresult import PatchyRunResult
+from src.pypatchy.patchy.analysis.patchyrunresult import PatchyRunResult
 
 
 # commenting out because it turns out it's not actually helpful

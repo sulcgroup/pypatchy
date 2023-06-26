@@ -7,7 +7,7 @@ import numpy as np
 import copy
 import random
 import math
-from ..util import rotation_matrix
+from src.pypatchy.util import rotation_matrix
 
 myepsilon = 0.00001
 
@@ -514,7 +514,7 @@ class PLPatchyParticle:
 
     def export_to_lorenzian_patchy_str(self,
                                        ninstances: int,
-                                       root: Path = Path("./")) -> str:
+                                       root: Path = Path("/")) -> str:
         """
 
         """

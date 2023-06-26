@@ -50,8 +50,8 @@ def create_default_config():
     for sub_dir in sub_dirs:
         files_in_sub_dir = pkg_resources.resource_listdir('pypatchy', spec_files_source_dir + '/' + sub_dir)
         for file in files_in_sub_dir:
-            file_path_str = os.sep.join(["pypatchy", spec_files_source_dir, sub_dir, file])
-            source_file_path = pkg_resources.resource_filename(file_path_str)
+            file_path_str = os.sep.join([spec_files_source_dir, sub_dir, file])
+            source_file_path = pkg_resources.resource_filename('pypatchy', file_path_str)
             target_file_dir = spec_files_target_dir / sub_dir
             target_file_path = target_file_dir / file
             os.makedirs(target_file_dir, exist_ok=True)
