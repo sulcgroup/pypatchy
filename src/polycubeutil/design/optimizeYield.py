@@ -1,5 +1,4 @@
 import copy
-import itertools
 import sys
 import json
 from ..structure import *

@@ -1,4 +1,6 @@
 import json
+import os.path
+import pathlib
 from os import path
 import configparser
 from colorsys import hsv_to_rgb
@@ -6,48 +8,60 @@ import numpy as np
 import math
 
 
-def get_root():
-    return path.dirname(__file__)[:__file__.rfind("pypatchy") + len("pypatchy")]
+def get_local_dir():
+    return "~/.pypatchy/"
+
+
+def get_input_dir() -> pathlib.Path:
+    return get_local_dir() / "input"
+
+
+def get_output_dir() -> pathlib.Path:
+    return get_local_dir() / "output"
+
+
+def get_log_dir() -> pathlib.Path:
+    return get_output_dir() / "logs"
 
 
 cfg = configparser.ConfigParser()
-cfg.read(path.join(get_root(), 'settings.cfg'))
+cfg.read(path.join(get_local_dir(), 'settings.cfg'))
 
 
-def sims_root():
-    return cfg['ANALYSIS']['simulation_data_dir']
+def sims_root() -> pathlib.Path:
+    return pathlib.Path(cfg['ANALYSIS']['simulation_data_dir'])
 
 
-def get_sample_every():
+def get_sample_every() -> int:
     return int(cfg['ANALYSIS']['sample_every'])
 
 
-def get_cluster_file_name():
+def get_cluster_file_name() -> str:
     return cfg['ANALYSIS']['cluster_file']
 
 
-def get_export_setting_file_name():
+def get_export_setting_file_name() -> str:
     return cfg['ANALYSIS']['export_setting_file_name']
 
 
-def get_init_top_file_name():
+def get_init_top_file_name() -> str:
     return cfg['ANALYSIS']['init_top_file_name']
 
 
-def get_analysis_params_file_name():
+def get_analysis_params_file_name() -> str:
     return cfg['ANALYSIS']['analysis_params_file_name']
 
 
-def get_server_config():
+def get_server_config() -> dict:
     return get_spec_json(cfg["SETUP"]["server_config"], "server_configs")
 
 
-def get_param_set(filename):
+def get_param_set(filename) -> dict:
     return get_spec_json(filename, "input_files")
 
 
-def get_spec_json(name, folder):
-    with open(f"{get_root()}/spec_files/{folder}/{name}.json") as f:
+def get_spec_json(name, folder) -> dict:
+    with open(f"{get_local_dir()}/spec_files/{folder}/{name}.json") as f:
         return json.load(f)
 
 
@@ -55,11 +69,11 @@ class BadSimulationDirException(Exception):
     def __init__(self, p):
         self.p = p
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"Path {self.p} does not have expected format for the patch to a patchy particles trial simulation"
 
 
-def selectColor(number, saturation=50, value=65, fmt="hex"):
+def selectColor(number: int, saturation=50, value=65, fmt="hex") -> str:
     hue = number * 137.508;  # use golden angle approximation
     if fmt == "hsv":
         return f"hsv({hue},{saturation}%,{value}%)";
@@ -71,7 +85,7 @@ def selectColor(number, saturation=50, value=65, fmt="hex"):
             return f"#{hex(int(255 * r))[-2:]}{hex(int(255 * g))[-2:]}{hex(int(255 * b))[-2:]}"
 
 
-def rotation_matrix(axis, theta):
+def rotation_matrix(axis: np.ndarray, theta: float) -> np.ndarray:
     """
     Return the rotation matrix associated with counterclockwise rotation about
     the given axis by theta radians.
@@ -88,17 +102,17 @@ def rotation_matrix(axis, theta):
                      [2 * (bd + ac), 2 * (cd - ab), aa + dd - bb - cc]])
 
 
-def to_xyz(vector):
+def to_xyz(vector: np.ndarray) -> dict[str: int]:
     return {k: int(v) for k, v in zip(["x", "y", "z"], vector)}
 
 
-def from_xyz(d):
+def from_xyz(d: dict[str: int]) -> np.ndarray:
     return np.array([d[k] for k in ["x", "y", "z"]])
 
 
 # TODO: test if getRotations and enumerateRotations have the same order!!!!
 
-def getRotations(ndim=3):
+def getRotations(ndim=3) -> list[np.ndarray]:
     """
     Returns a list of rotation matrices for all possible
 
@@ -137,7 +151,7 @@ def getRotations(ndim=3):
     return rots
 
 
-def enumerateRotations():
+def enumerateRotations() -> dict[int: dict[int: int]]:
     """
     Returns:
         a list of mappings of direction indexes, representing all possible octahedral rotational
@@ -172,7 +186,7 @@ def enumerateRotations():
     }
 
 
-def getSignedAngle(v1, v2, axis):
+def getSignedAngle(v1: np.ndarray, v2: np.ndarray, axis: np.ndarray) -> float:
     s = np.cross(v1, v2)
     c = v1.dot(v2)
     a = np.arctan2(np.linalg.norm(s), c)
@@ -182,7 +196,7 @@ def getSignedAngle(v1, v2, axis):
 
 
 # function written by ChatGPT
-def inverse_quaternion(q):
+def inverse_quaternion(q: np.ndarray) -> np.ndarray:
     w, x, y, z = q
     norm = np.linalg.norm(q)
     if norm == 0:

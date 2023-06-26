@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import re
 import sys
 import networkx as nx
@@ -7,14 +9,18 @@ import pickle
 from pathlib import Path
 from enum import Enum
 
+from src.patchy.analysis.patchyrunresult import PatchyRunResult
+
+
 # commenting out because it turns out it's not actually helpful
 # import cugraph as cnx
 
 class ClusterCategory(Enum):
-        OVER = 0
-        SMALLER_NOT_SUB = 1
-        SUBSET = 2
-        MATCH = 3
+    OVER = 0
+    SMALLER_NOT_SUB = 1
+    SUBSET = 2
+    MATCH = 3
+
 
 def graphShape(shapePath):
     with open(shapePath, 'r') as f:
@@ -26,7 +32,7 @@ def graphShape(shapePath):
     return G
 
 
-def graphsFromClusters(line):
+def graphsFromClusters(line: str) -> list[nx.Graph]:
     clusterGraphs = []
     clusters = re.finditer('\[.+?\]', line)
 
@@ -43,21 +49,32 @@ def graphsFromClusters(line):
     return clusterGraphs
 
 
-def getGraphOverlap(g1, g2, cutoff=1, include_overreach=False):
-    sizeFrac = len(g2)/len(g1)
+def getGraphOverlap(g1: nx.Graph,
+                    g2: nx.Graph,
+                    cutoff=1.0,
+                    include_overreach=False) -> float:
+    sizeFrac = len(g2) / len(g1)
     if not include_overreach or sizeFrac <= 1:
-        return sizeFrac if sizeFrac <= 1 and sizeFrac >= cutoff and isomorphism.GraphMatcher(
+        return sizeFrac if 1 >= sizeFrac >= cutoff and isomorphism.GraphMatcher(
             nx.line_graph(g1), nx.line_graph(g2)
         ).subgraph_is_isomorphic() else 0
     else:
-        isomorphic_subgraphs = list(isomorphism.GraphMatcher(nx.line_graph(g2), nx.line_graph(g1)).subgraph_isomorphisms_iter())
+        isomorphic_subgraphs = list(
+            isomorphism.GraphMatcher(nx.line_graph(g2), nx.line_graph(g1)).subgraph_isomorphisms_iter())
         return len(isomorphic_subgraphs)
 
-def getClusterYield(line, refGraph, cutoff, overreach):
+
+def getClusterYield(line: str,
+                    refGraph: nx.Graph,
+                    cutoff: float,
+                    overreach: bool):
     return sum(getGraphOverlap(refGraph, g, cutoff, overreach) for g in graphsFromClusters(line))
 
-def categorizeCluster(tidx, sim, g, target):
-    sizeFrac = len(g)/len(target)
+
+def categorizeCluster(tidx: int,
+                      sim: PatchyRunResult,
+                      g: nx.Graph, target):
+    sizeFrac = len(g) / len(target)
     if isomorphism.GraphMatcher(nx.line_graph(target), nx.line_graph(g)).subgraph_is_isomorphic():
         if sizeFrac == 1:
             cat = ClusterCategory.MATCH
@@ -77,25 +94,34 @@ def categorizeCluster(tidx, sim, g, target):
         "sizeratio": sizeFrac
     }
 
-def readClusters(clustersPath, shapePath, cutoff, nSamples=float("inf")):
+
+def readClusters(clustersPath: str,
+                 shapePath,
+                 cutoff: float,
+                 nSamples=float("inf")) -> list[float]:
     refGraph = graphShape(shapePath)
     with open(clustersPath) as f:
         lines = [line for line in f]
         nLines = len(lines)
         nSamples = min(nSamples, nLines)
-        sampleEvery = round(nLines/nSamples)
-        clusters = [getClusterYield(line, refGraph, cutoff) for i, line in enumerate(lines) if i%sampleEvery == 0]
+        sampleEvery = round(nLines / nSamples)
+        clusters = [getClusterYield(line, refGraph, cutoff) for i, line in enumerate(lines) if i % sampleEvery == 0]
     return clusters
 
 
-def getVal(path, key):
+def getVal(path: str,
+           key: str) -> float:
     with open(path, 'r') as f:
         for line in f:
             if key in line:
-                return float(line.split('=')[-1]) 
+                return float(line.split('=')[-1])
 
 
-def analyse(clusterPath, shapeDir, cutoff, nSamplePoints, clusterPrintEvery = 2e6):
+def analyse(clusterPath: str,
+            shapeDir,
+            cutoff: float,
+            nSamplePoints: int,
+            clusterPrintEvery=2e6):
     clusterPath = str(Path(clusterPath).absolute())
     if 'duplicate' in clusterPath:
         try:
@@ -109,27 +135,27 @@ def analyse(clusterPath, shapeDir, cutoff, nSamplePoints, clusterPrintEvery = 2e
         duplicate = 0
 
     temp = float(tempStr.strip('T_'))
-    
+
     t = shape.rsplit('_', 1)
-    
+
     if t[-1] == 'full' or t[-1] == 'inter':
         shapeType = t[-1]
         shape = t[0]
     else:
         shapeType = 'minimal'
-        
+
     maxTimeStep = getVal(Path(clusterPath).parent.absolute() / "last_conf.dat", 't = ')
     dt = getVal(Path(clusterPath).parent.absolute() / "input", 'dt = ')
 
     clusters = readClusters(
         clusterPath,
-        shapeDir+'/{}.json'.format(shape),
+        shapeDir + '/{}.json'.format(shape),
         cutoff,
         nSamplePoints
     )
-    
+
     timeFactor = dt * maxTimeStep / len(clusters)
-    
+
     data = []
     maxYield = 0
     for t, clusterYield in enumerate(clusters):
@@ -147,14 +173,13 @@ def analyse(clusterPath, shapeDir, cutoff, nSamplePoints, clusterPrintEvery = 2e
 
     with open(Path(clusterPath).parent.absolute() / "clusters.pickle", 'wb') as f:
         pickle.dump(data, f)
-    
+
     return data
 
 
 if __name__ == '__main__':
     if len(sys.argv) != 5:
-        print("Incorrect number of arguments (need 4 not {}):".format(len(sys.argv)-1))
-        print(sys.argv[0]+ " clusterPath shapeDir cutoff nSamplePoints")
+        print("Incorrect number of arguments (need 4 not {}):".format(len(sys.argv) - 1))
+        print(sys.argv[0] + " clusterPath shapeDir cutoff nSamplePoints")
     else:
-        analyse(sys.argv[1], sys.argv[2], float(sys.argv[3]), int(sys.argv[4]), clusterPrintEvery = 2e6)
-
+        analyse(sys.argv[1], sys.argv[2], float(sys.argv[3]), int(sys.argv[4]), clusterPrintEvery=2e6)

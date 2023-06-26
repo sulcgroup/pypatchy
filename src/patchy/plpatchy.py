@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import itertools
+from pathlib import Path
 
 # This file loads patchy particle file from topology and Configuration
 import numpy as np
@@ -511,7 +512,9 @@ class PLPatchyParticle:
             sout = sout + g
         return sout
 
-    def export_to_lorenzian_patchy_str(self, ninstances, root="./"):
+    def export_to_lorenzian_patchy_str(self,
+                                       ninstances: int,
+                                       root: Path = Path("./")) -> str:
         """
 
         """
@@ -520,7 +523,7 @@ class PLPatchyParticle:
         particle_str = f"{ninstances} {self.num_patches()} {','.join([str(pid) for pid in self._patch_ids])} {patches_dat_filename}"
         patches_dat_filestr = "\n".join(
             [np.array2string(patch.position(), precision=4)[1:-1] for patch in self.patches()])
-        with open(root + patches_dat_filename, 'w') as f:
+        with open(root / patches_dat_filename, 'w') as f:
             f.write(patches_dat_filestr)
         return particle_str
 
