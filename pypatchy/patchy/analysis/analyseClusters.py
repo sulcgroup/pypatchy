@@ -11,8 +11,6 @@ import pickle
 from pathlib import Path
 from enum import Enum
 
-from patchyrunresult import PatchyRunResult
-
 
 # commenting out because it turns out it's not actually helpful
 # import cugraph as cnx
@@ -71,30 +69,6 @@ def getClusterYield(line: str,
                     cutoff: float,
                     overreach: bool):
     return sum(getGraphOverlap(refGraph, g, cutoff, overreach) for g in graphsFromClusters(line))
-
-
-def categorizeCluster(tidx: int,
-                      sim: PatchyRunResult,
-                      g: nx.Graph, target):
-    sizeFrac = len(g) / len(target)
-    if isomorphism.GraphMatcher(nx.line_graph(target), nx.line_graph(g)).subgraph_is_isomorphic():
-        if sizeFrac == 1:
-            cat = ClusterCategory.MATCH
-        else:
-            cat = ClusterCategory.SUBSET
-    else:
-        if sizeFrac < 1:
-            cat = ClusterCategory.SMALLER_NOT_SUB
-        else:
-            cat = ClusterCategory.OVER
-    return {
-        "nt": sim.narrow_type_number,
-        "temp": sim.temperature,
-        "duplicate": sim.duplicate_number,
-        "tidx": tidx,
-        "clustercategory": cat,
-        "sizeratio": sizeFrac
-    }
 
 
 def readClusters(clustersPath: str,
