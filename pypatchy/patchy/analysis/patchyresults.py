@@ -1,4 +1,5 @@
 import itertools
+from os import path
 
 from IPython.core.display_functions import display
 
@@ -8,6 +9,7 @@ from matplotlib import cm
 from pypatchy.polycubeutil.polycubesRule import *
 
 from pypatchy.patchy.analysis.patchyrunresult import *
+from pypatchy.util import get_export_setting_file_name
 
 
 class PatchyRunSet:

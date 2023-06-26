@@ -2,6 +2,8 @@ from input_output import *
 import argparse
 import re
 
+from pypatchy.util import BadSimulationDirException
+
 if __name__ == '__main__':
         # set up argument parser
     parser = argparse.ArgumentParser(prog="ComputeYields", description="Analyzes clusters.txt files produced by oxDNA's PLClusterTopology observable during execution of PatchShapeInteraction, producing pickled graph files. The graph files are in turn processed to produce yield data.")
