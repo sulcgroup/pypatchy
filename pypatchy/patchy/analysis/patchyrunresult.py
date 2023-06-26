@@ -1,13 +1,15 @@
 import os
+
+import numpy as np
 import pandas as pd
 import time
-from patchy.analysis.analyseClusters import *
+from pypatchy.patchy.analysis.analyseClusters import *
 # definitely one of the weirder import commands I've used
 from glob import glob
 
 import oxpy
 
-from util import *
+from pypatchy.util import get_cluster_file_name, get_init_top_file_name, get_sample_every
 
 # hardcoding this because reading it from the input file would be difficult I've literally never changed it
 OXDNA_PRINT_CLUSTERS_EVERY = 1e7
@@ -83,14 +85,14 @@ class PatchyRunResult:
         return self.get_path() + "cluster_cats_metadata.pickle"
     
     def has_cluster_cats_file(self, target_name):
-        return path.isfile(self.get_cluster_cats_file(target_name))
+        return os.path.isfile(self.get_cluster_cats_file(target_name))
     
     def get_cluster_cats(self, target_name):
         with open(self.get_cluster_cats_file(target_name), 'rb') as f:
             return pickle.load(f)
         
     def get_num_cluster_cat_timepoints(self, target_name):
-        if not path.isfile(self.get_cluster_cats_metadata_file()):
+        if not os.path.isfile(self.get_cluster_cats_metadata_file()):
             return 0
         with open(self.get_cluster_cats_metadata_file(), 'rb') as f:
             metadata = pickle.load(f)

@@ -6,7 +6,7 @@ import numpy as np
 import copy
 import random
 import math
-from ..util import rotation_matrix
+from util import rotation_matrix
 
 myepsilon = 0.00001
 
