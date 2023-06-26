@@ -8,8 +8,8 @@ import numpy as np
 import math
 
 
-def get_local_dir():
-    return "~/.pypatchy/"
+def get_local_dir() -> pathlib.Path:
+    return pathlib.Path("~/.pypatchy/")
 
 
 def get_input_dir() -> pathlib.Path:
@@ -25,7 +25,7 @@ def get_log_dir() -> pathlib.Path:
 
 
 cfg = configparser.ConfigParser()
-cfg.read(path.join(get_local_dir(), 'settings.cfg'))
+cfg.read(get_local_dir() / 'settings.cfg')
 
 
 def sims_root() -> pathlib.Path:
