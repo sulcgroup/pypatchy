@@ -6,8 +6,8 @@ import sys
 
 import numpy as np
 
-import util
-from polycubeutil.polycubesRule import diridx, PolycubesRule, DynamicEffect
+from pypatchy import util
+from pypatchy.polycubeutil.polycubesRule import diridx, PolycubesRule, DynamicEffect
 
 
 class RuleReducer:

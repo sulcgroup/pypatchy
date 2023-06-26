@@ -1,4 +1,6 @@
-from patchy.analysis.patchyresults import *
+
+from .patchyresults import *
+from ...util import sims_root, get_analysis_params_file_name
 
 
 def choose_results(sim_name=None):
