@@ -1,24 +1,23 @@
-
 from .patchyresults import *
-from src.pypatchy.util import sims_root, get_analysis_params_file_name
+from ...util import sims_root, get_analysis_params_file_name
 
 
-def choose_results(sim_name=None):
+def choose_results(sim_name=None) -> PatchyRunSet:
     if sim_name is None:
         print("Available datasets:\n\t" + ',\n\t'.join(os.listdir(sims_root())))
         sim_name = input("Enter simulation name: ")
 
-    if not os.path.isdir(sims_root() + sim_name):
-        print(f"No simulation folder at {sims_root() + sim_name}. Exiting.")
+    if not os.path.isdir(sims_root() / sim_name):
+        print(f"No simulation folder at {sims_root() / sim_name}. Exiting.")
         exit(0)
 
     analysis_params = {}
     try:
-        with open(sims_root() + sim_name + os.sep + get_analysis_params_file_name(), 'r') as f:
+        with open(sims_root() / sim_name / get_analysis_params_file_name(), 'r') as f:
             analysis_params = json.load(f)
     except FileNotFoundError:
         print("No analysis params file found. Continuing with default analysis params...")
-        dir_files = os.listdir(sims_root() + sim_name)
+        dir_files = os.listdir(sims_root() / sim_name)
         analysis_params['targets'] = []
         for target_file in dir_files:
             m = re.match('target_(.+)\.json', target_file)
@@ -30,14 +29,16 @@ def choose_results(sim_name=None):
         print("No valid topology files to use to analyze yields. Exiting.")
         exit(0)
 
-    results = PatchyRunSet(sims_root() + sim_name, analysis_params)
+    results = PatchyRunSet(sims_root() / sim_name, analysis_params)
 
     return results
 
-def choose_target(results):
+
+def choose_target(results: PatchyRunSet):
     target_name = ""
     while target_name == "":
-        target_name = input(f"Select target topology for {results.export_name} (options are: {','.join(results.targets)}):")
+        target_name = input(
+            f"Select target topology for {results.export_name} (options are: {','.join(results.targets)}):")
         if target_name not in results.targets:
             target_name = ""  # reset target name to empty so loop will continue until user inputs a valid target name
     return target_name
@@ -51,14 +52,16 @@ def choose_results_and_target():
     target = results.targets[target_name]
     return results.export_name, results, target_name, target
 
+
 def print_all_results_status():
     dirs = os.listdir(sims_root())
-    datasets_dirs = list(filter(lambda r: is_results_directory(sims_root() + r + os.sep), dirs))
+    datasets_dirs = list(filter(lambda r: is_results_directory(sims_root() / r + os.sep), dirs))
     datasets = [choose_results(ds) for ds in datasets_dirs]
     datasets_info = pd.DataFrame({
         "Directory Name": list(datasets_dirs),
         "Export Name": [ds.name() for ds in datasets],
-        "Has Analysis Params": [os.path.isfile(ds.root_dir + os.sep + get_analysis_params_file_name()) for ds in datasets],
+        "Has Analysis Params": [os.path.isfile(ds.root_dir + os.sep + get_analysis_params_file_name()) for ds in
+                                datasets],
         "Num. Targets": [ds.num_targets() for ds in datasets],
         "Target Names": [",".join([t["name"] for t in ds.targets.values()]) for ds in datasets],
         "Narrrow Types": [",".join([f"{nt}" for nt in ds.get_narrow_types()]) for ds in datasets],

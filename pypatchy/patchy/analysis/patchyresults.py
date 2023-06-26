@@ -67,7 +67,7 @@ class PatchyRunSet:
     def print_short(self, textwidth=64):
         print("Name:", self.export_name.rjust(textwidth - len("Name:")))
         print("Rule:")
-        display(ruleToDataframe(self.rule))
+        display(self.rule.to_dataframe())
         print("Num Export Groups:" + f"{len(self.export_group_names)}".rjust(textwidth - len("Num Export Groups:")))
 
     def print_status(self):

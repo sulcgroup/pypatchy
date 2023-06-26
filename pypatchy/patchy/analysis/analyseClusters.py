@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import re
 import sys
+from typing import Union
+
 import networkx as nx
 from networkx.algorithms import isomorphism
 import json
@@ -9,7 +11,7 @@ import pickle
 from pathlib import Path
 from enum import Enum
 
-from src.pypatchy.patchy.analysis.patchyrunresult import PatchyRunResult
+from patchyrunresult import PatchyRunResult
 
 
 # commenting out because it turns out it's not actually helpful
@@ -109,7 +111,7 @@ def readClusters(clustersPath: str,
     return clusters
 
 
-def getVal(path: str,
+def getVal(path: Union[Path, str],
            key: str) -> float:
     with open(path, 'r') as f:
         for line in f:
@@ -177,9 +179,9 @@ def analyse(clusterPath: str,
     return data
 
 
-if __name__ == '__main__':
-    if len(sys.argv) != 5:
-        print("Incorrect number of arguments (need 4 not {}):".format(len(sys.argv) - 1))
-        print(sys.argv[0] + " clusterPath shapeDir cutoff nSamplePoints")
-    else:
-        analyse(sys.argv[1], sys.argv[2], float(sys.argv[3]), int(sys.argv[4]), clusterPrintEvery=2e6)
+# if __name__ == '__main__':
+#     if len(sys.argv) != 5:
+#         print("Incorrect number of arguments (need 4 not {}):".format(len(sys.argv) - 1))
+#         print(sys.argv[0] + " clusterPath shapeDir cutoff nSamplePoints")
+#     else:
+#         analyse(sys.argv[1], sys.argv[2], float(sys.argv[3]), int(sys.argv[4]), clusterPrintEvery=2e6)
