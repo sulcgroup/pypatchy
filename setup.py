@@ -6,9 +6,6 @@ setup(
     packages=["pypatchy"],
     author="Joshua Evans",
     author_email="jrevan21@asu.edu",
-    package_dir={
-        "pypatchy": "src"
-    },
     package_data={
         "pypatchy": ["spec_files/*/*.json"]
     }

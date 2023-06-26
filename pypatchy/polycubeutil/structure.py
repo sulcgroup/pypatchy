@@ -1,15 +1,14 @@
 from __future__ import annotations
 
 import itertools
-from typing import Union, TypeVar
+from typing import TypeVar
 
-import numpy as np
 from scipy.spatial.transform import Rotation
 
 import networkx as nx
 from collections import defaultdict
 
-from ..util import getRotations, enumerateRotations
+from src.pypatchy.util import getRotations, enumerateRotations
 
 from polycubesRule import *
 

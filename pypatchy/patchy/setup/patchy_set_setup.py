@@ -11,7 +11,7 @@ import subprocess
 import re
 import logging
 
-from ...util import get_param_set, sims_root, get_server_config, get_spec_json, get_log_dir
+from src.pypatchy.util import get_param_set, sims_root, get_server_config, get_spec_json, get_log_dir
 from ensemble_parameter import EnsembleParameter, SimulationSpecification
 from ..plpatchy import PLPatchyParticle, export_interaction_matrix
 from ..UDtoMDt import convert_multidentate
