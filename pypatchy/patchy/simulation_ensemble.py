@@ -13,7 +13,7 @@ import logging
 
 from ..util import get_param_set, simulation_run_dir, get_server_config, get_spec_json, get_log_dir, get_input_dir
 from .ensemble_parameter import EnsembleParameter, ParameterValue
-from .simulation_specification import PatchySimulationData
+from .simulation_specification import PatchySimulationSpec
 from .plpatchy import PLPatchyParticle, export_interaction_matrix
 from .UDtoMDt import convert_multidentate
 from ..polycubeutil.polycubesRule import PolycubesRule
@@ -101,12 +101,12 @@ class PatchySimulationEnsemble:
         self.slurm_log = pd.DataFrame(columns=["slurm_job_id", *[p.param_key for p in self.ensemble_params]])
 
 # --------------- Accessors and Mutators -------------------------- #
-    def get_simulation(self, *args: list[ParameterValue]) -> PatchySimulationData:
+    def get_simulation(self, *args: list[ParameterValue]) -> PatchySimulationSpec:
         """
         TODO: idk
         given a list of parameter values, returns a PatchySimulation object
         """
-        return PatchySimulationData(args)
+        return PatchySimulationSpec(args)
 
     def long_name(self) -> str:
         return f"{self.export_name}_{self.sim_date.strftime('%Y-%m-%d')}"
@@ -128,7 +128,7 @@ class PatchySimulationEnsemble:
     The program first checks if the parameter exists
     """
 
-    def sim_get_param(self, sim: PatchySimulationData,
+    def sim_get_param(self, sim: PatchySimulationSpec,
                       paramname: str) -> Any:
         if paramname in sim:
             return sim[paramname]
@@ -136,7 +136,7 @@ class PatchySimulationEnsemble:
         assert paramname in self.const_params
         return self.const_params[paramname]
 
-    def get_sim_particle_count(self, sim: PatchySimulationData,
+    def get_sim_particle_count(self, sim: PatchySimulationSpec,
                                particle_idx: int) -> int:
         # grab particle name
         particle_name = self.rule.particle(particle_idx).name()
@@ -148,10 +148,10 @@ class PatchySimulationEnsemble:
                 particle_lvl = spec[particle_name]
         return particle_lvl * self.sim_get_param(sim, NUM_ASSEMBLIES_KEY)
 
-    def get_sim_total_num_particles(self, sim: PatchySimulationData) -> int:
+    def get_sim_total_num_particles(self, sim: PatchySimulationSpec) -> int:
         return sum([self.get_sim_particle_count(sim, i) for i in range(self.num_particle_types())])
 
-    def num_patch_types(self, sim: PatchySimulationData) -> int:
+    def num_patch_types(self, sim: PatchySimulationSpec) -> int:
         return self.rule.numPatches() * self.sim_get_param(sim, NUM_TEETH_KEY)
 
     def paths_list(self) -> list[str]:
@@ -166,13 +166,13 @@ class PatchySimulationEnsemble:
     Returns a list of lists of tuples,
     """
 
-    def ensemble(self) -> list[PatchySimulationData]:
-        return [PatchySimulationData(e) for e in itertools.product(*self.ensemble_params)]
+    def ensemble(self) -> list[PatchySimulationSpec]:
+        return [PatchySimulationSpec(e) for e in itertools.product(*self.ensemble_params)]
 
     def tld(self) -> Path:
         return simulation_run_dir() / self.long_name()
 
-    def folder_path(self, sim: PatchySimulationData) -> Path:
+    def folder_path(self, sim: PatchySimulationSpec) -> Path:
         return self.tld() / sim.get_folder_path()
 
 # ------------------------ Status-Type Stuff --------------------------------#
@@ -203,13 +203,13 @@ class PatchySimulationEnsemble:
             self.write_confgen_script(sim)
             self.write_run_script(sim)
 
-    def write_confgen_script(self, sim: PatchySimulationData):
+    def write_confgen_script(self, sim: PatchySimulationSpec):
         with open(self.get_run_confgen_sh(sim), "w+") as confgen_file:
             self.write_sbatch_params(sim, confgen_file)
             confgen_file.write(f"{get_server_config()['oxdna_path']}/build/bin/confGenerator input {self.sim_get_param(sim, 'density')}\n")
         self.bash_exec(f"chmod u+x {self.get_run_confgen_sh(sim)}")
 
-    def write_run_script(self, sim: PatchySimulationData, input_file="input"):
+    def write_run_script(self, sim: PatchySimulationSpec, input_file="input"):
         server_config = get_server_config()
 
         # write slurm script
@@ -235,7 +235,7 @@ class PatchySimulationEnsemble:
             else:
                 slurm_file.write(f"#SBATCH -{flag_key} {server_config['slurm_bash_flags'][flag_key]}\n")
         run_oxdna_counter = 1
-        slurm_file.write(f"#SBATCH --job-name=\"{EXPORT_NAME_KEY}\"\n")
+        slurm_file.write(f"#SBATCH --job-name=\"{self.export_name}\"\n")
         slurm_file.write(f"#SBATCH -o run{run_oxdna_counter}_%j.out\n")
         slurm_file.write(f"#SBATCH -e run{run_oxdna_counter}_%j.err\n")
 
@@ -243,17 +243,29 @@ class PatchySimulationEnsemble:
         for line in server_config["slurm_includes"]:
             slurm_file.write(line + "\n")
 
-    def write_input_file(self, sim: PatchySimulationData):
+    def write_input_file(self,
+                         sim: PatchySimulationSpec,
+                         file_name: str = "input",
+                         replacer_dict=None):
+        """
+        Writes an input file
+        """
+        if replacer_dict is None:
+            replacer_dict = {}
         server_config = get_server_config()
 
         # create input file
-        with open(self.folder_path(sim) / "input", 'w+') as inputfile:
+        with open(self.folder_path(sim) / file_name, 'w+') as inputfile:
             # write server config spec
             inputfile.write("#" * 32 + "\n")
             inputfile.write(" SERVER PARAMETERS ".center(32, '#') + "\n")
             inputfile.write("#" * 32 + "\n")
             for key in server_config["input_file_params"]:
-                inputfile.write(f"{key} = {server_config['input_file_params'][key]}" + "\n")
+                if key in replacer_dict:
+                    val = replacer_dict[key]
+                else:
+                    val = server_config['input_file_params'][key]
+                inputfile.write(f"{key} = {val}\n")
 
             # newline
             inputfile.write("\n")
@@ -263,25 +275,37 @@ class PatchySimulationEnsemble:
                 paramgroup = self.default_param_set['input'][paramgroup_key]
                 inputfile.write("#" * 32 + "\n")
                 inputfile.write(f" {paramgroup_key} ".center(32, "#") + "\n")
-                inputfile.write("#" * 32 + "\n" + "\n")
+                inputfile.write("#" * 32 + "\n\n")
 
                 # loop parameters
                 for paramname in paramgroup:
                     # if no override
                     if paramname not in sim and paramname not in self.const_params:
-                        inputfile.write(f"{paramname} = {paramgroup[paramname]}\n")
-
+                        val = paramgroup[paramname]
+                    elif key in replacer_dict:
+                        val = replacer_dict[key]
                     else:
-                        inputfile.write(f"{paramname} = {self.sim_get_param(sim, paramname)}\n")
+                        val = self.sim_get_param(sim, paramname)
+                    inputfile.write(f"{key} = {val}\n")
             # write things specific to rule
             # if josh_flavio or josh_lorenzo
             if server_config[PATCHY_FILE_FORMAT_KEY].find("josh") > -1:
-                inputfile.write("patchy_file = patches.txt" + "\n")
-                inputfile.write("particle_file = particles.txt" + "\n")
-                inputfile.write(f"particle_types_N = {self.num_particle_types()}" + "\n")
-                inputfile.write(f"patch_types_N = {self.num_patch_types(sim)}" + "\n")
+                patch_file_info = [
+                    ("patchy_file", "patches.txt"),
+                    ("particles_file", "particles.txt"),
+                    ("particle_types_N", self.num_particle_types()),
+                    ("patch_types_N", self.num_patch_types(sim))
+                ]
+                for key, val in patch_file_info:
+                    if key in replacer_dict:
+                        val = replacer_dict[key]
+                    inputfile.write(f"{key} = {val}\n")
             elif server_config[PATCHY_FILE_FORMAT_KEY] == "lorenzo":
-                inputfile.write("DPS_interaction_matrix_file = interactions.txt" + "\n")
+                key = "DPS_interaction_matrix_file"
+                val = "interactions.txt"
+                if key in replacer_dict:
+                    val = replacer_dict[key]
+                inputfile.write(f"{key} = {val}\n")
             else:
                 # todo: throw exception
                 pass
@@ -297,7 +321,7 @@ class PatchySimulationEnsemble:
             if len(self.observables) > 0:
                 inputfile.write(f"observables_file = observables.json" + "\n")
 
-    def write_sim_top_particles_patches(self, sim: PatchySimulationData):
+    def write_sim_top_particles_patches(self, sim: PatchySimulationSpec):
         server_config = get_server_config()
 
         # write top and particles/patches spec files
@@ -368,16 +392,29 @@ class PatchySimulationEnsemble:
                     for particle in particles])
             export_interaction_matrix(patches)
 
-    def write_sim_observables(self, sim: PatchySimulationData):
+    def write_sim_observables(self, sim: PatchySimulationSpec):
         if len(self.observables) > 0:
             with open(self.folder_path(sim) / "observables.json", "w+") as f:
                 json.dump({f"data_output_{i + 1}": obs for i, obs in enumerate(self.observables)}, f)
 
-    def write_continue_files(self, sim: PatchySimulationData):
+    def write_continue_files(self, sim: PatchySimulationSpec, counter: int = 2):
         """
         writes input file and shell script to continue running the simulation after
         completion of first oxDNA execution
         """
+
+        # construct an input file for the continuation execution
+        # using previous conf as starting conf, adding new traj, writing new last_conf
+        self.write_input_file(sim,
+                              file_name=f"input_{counter}",
+                              replacer_dict={
+                                    "trajectory_file": f"trajectory_{counter}.dat",
+                                    "conf_file": "last_conf.dat" if counter == 2 else f"last_conf_{counter-1}.dat",
+                                    "lastconf_file": f"last_conf_{counter}.dat"
+                              })
+        self.write_run_script(sim, input_file=f"input_{counter}")
+
+    def exec_continue(self, sim: PatchySimulationSpec, counter: int = 2):
         pass
 
     def gen_confs(self):
@@ -394,8 +431,10 @@ class PatchySimulationEnsemble:
         for sim in self.ensemble():
             self.start_simulation(sim)
 
-    def start_simulation(self, sim: PatchySimulationData):
-        command = "sbatch slurm_script.sh"
+    def start_simulation(self,
+                         sim: PatchySimulationSpec,
+                         script_name: str = "slurm_script.sh"):
+        command = f"sbatch {script_name}"
 
         if not os.path.isfile(self.get_conf_file(sim)):
             confgen_slurm_jobid = self.run_confgen(sim)
@@ -411,20 +450,20 @@ class PatchySimulationEnsemble:
         }
         os.chdir(self.tld())
 
-    def get_run_oxdna_sh(self, sim: PatchySimulationData) -> Path:
+    def get_run_oxdna_sh(self, sim: PatchySimulationSpec) -> Path:
         return self.folder_path(sim) / "slurm_script.sh"
 
-    def get_run_confgen_sh(self, sim: PatchySimulationData) -> Path:
+    def get_run_confgen_sh(self, sim: PatchySimulationSpec) -> Path:
         return self.folder_path(sim) / "gen_conf.sh"
 
-    def run_confgen(self, sim: PatchySimulationData) -> int:
+    def run_confgen(self, sim: PatchySimulationSpec) -> int:
         os.chdir(self.folder_path(sim))
         response = self.bash_exec("sbatch gen_conf.sh")
         os.chdir(self.tld())
         jobid = int(re.search(SUBMIT_SLURM_PATTERN, response).group(1))
         return jobid
 
-    def get_conf_file(self, sim: PatchySimulationData) -> Path:
+    def get_conf_file(self, sim: PatchySimulationSpec) -> Path:
         return self.folder_path(sim) / "init.conf"
 
     def bash_exec(self, command: str):

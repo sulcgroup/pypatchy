@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 from .ensemble_parameter import ParameterValue
-class PatchySimulationData:
+class PatchySimulationSpec:
     """
     Specifies a execution of a Patchy Particle simulation run with the specific set of parameters
 
