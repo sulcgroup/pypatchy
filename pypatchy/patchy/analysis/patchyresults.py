@@ -1,3 +1,5 @@
+import warnings
+
 import itertools
 from os import path
 
@@ -14,6 +16,7 @@ from pypatchy.util import get_export_setting_file_name
 
 class PatchyRunSet:
     def __init__(self, froot, analysisparams):
+        warnings.warn("PatchyRunSet is deprecated, use PatchySimulationEnsemble instead")
         fpath = path.join(froot, get_export_setting_file_name())
         self.root_dir = froot
         with open(fpath, 'r') as f:

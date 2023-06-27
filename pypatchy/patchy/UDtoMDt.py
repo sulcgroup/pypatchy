@@ -1,10 +1,15 @@
 import sys
+from typing import Union
+
 from .plpatchy import *
 from scipy.spatial.transform import Rotation as R
 
 
-def convert_multidentate(particles, dental_radius, num_teeth, followSurf=False):
-    new_particles = [None for _ in particles]
+def convert_multidentate(particles: list[PLPatchyParticle],
+                         dental_radius: float,
+                         num_teeth: int,
+                         followSurf=False) -> tuple[list[PLPatchyParticle], list[Patch]]:
+    new_particles: list[PLPatchyParticle] = [None for _ in particles]
     patch_counter = 0
     new_patches = []
     for i_particle, particle in enumerate(particles):
@@ -53,10 +58,15 @@ def convert_multidentate(particles, dental_radius, num_teeth, followSurf=False):
                                                      radius=particle.radius())
         new_particles[i_particle].set_patches(new_particle_patches)
         new_patches += new_particle_patches
-    return [new_particles, new_patches]
+    return new_particles, new_patches
 
 
-def convert_udt_files_to_mdt(_, patches_file, particles_file, dental_radius="0.5", num_teeth="4", follow_surf="false"):
+def convert_udt_files_to_mdt(_,
+                             patches_file: str,
+                             particles_file: str,
+                             dental_radius: Union[float, str] = "0.5",
+                             num_teeth: Union[int, str] = "4",
+                             follow_surf: Union[str, bool] = "false"):
     dental_radius = float(dental_radius)
     num_teeth = int(num_teeth)
     follow_surf = follow_surf.lower() == "true"

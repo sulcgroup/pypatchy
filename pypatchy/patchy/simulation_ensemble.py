@@ -1,19 +1,25 @@
+from __future__ import annotations
+
 import datetime
 import json
 import os
 import itertools
 import sys
+import tempfile
 from pathlib import Path
-from typing import Any
+from typing import Any, Union
 
+import networkx as nx
 import pandas as pd
 import subprocess
 import re
 import logging
 
-from ..util import get_param_set, simulation_run_dir, get_server_config, get_spec_json, get_log_dir, get_input_dir
+from .analysis_pipeline_step import AnalysisPipelineStep, PipelineDataType
+from .patchy_sim_observable import PatchySimObservable, observable_from_file
+from ..util import get_param_set, simulation_run_dir, get_server_config, get_log_dir, get_input_dir
 from .ensemble_parameter import EnsembleParameter, ParameterValue
-from .simulation_specification import PatchySimulationSpec
+from .simulation_specification import PatchySimulation
 from .plpatchy import PLPatchyParticle, export_interaction_matrix
 from .UDtoMDt import convert_multidentate
 from ..polycubeutil.polycubesRule import PolycubesRule
@@ -34,6 +40,16 @@ PATCHY_FILE_FORMAT_KEY = "patchy_format"
 
 SUBMIT_SLURM_PATTERN = r"Submitted batch job (\d+)"
 
+METADATA_FILE_KEY = "sim_metadata_file"
+
+
+def describe_param_vals(*args) -> str:
+    return "_".join([str(v) for v in args])
+
+
+def analysis_step_idx(step: Union[int, AnalysisPipelineStep]) -> int:
+    return step if isinstance(step, int) else step.idx
+
 
 class PatchySimulationEnsemble:
     """
@@ -42,21 +58,82 @@ class PatchySimulationEnsemble:
     `PatchyResults` and `PatchyRunResult` in as well with the aim of eventually deprecating those
     preferably sooner tather than later
     """
-    def __init__(self, **kwargs):
-        if "cfg_file_name" in kwargs:
-            with open(get_input_dir() / "wereflamingo_X2_scaling.json") as f:
-                sim_cfg = json.load(f)
-        else:
-            assert "sim_cfg" in kwargs
-            sim_cfg = kwargs["sim_cfg"]
 
-        if "sim_date" in kwargs:
-            self.sim_date = kwargs["sim_date"]
-            if isinstance(self.sim_date, str):
-                self.sim_date = datetime.datetime.strptime(self.sim_date, "%Y-%m-%d")
+    # --------------- GENERAL MEMBER VARS -------------- #
+
+    # metadata regarding execution and analysis (TBD)
+    metadata: dict[Any]
+
+    # list of parameters that will be varied across this ensemble
+    # the set of simulations constituting this ensemble is the cartesian
+    # product of all possible values of each ensemble param
+    # each simulation is defined by a list of ParameterValue objects where each
+    # ParameterValue object corresponds to a value in a different EnsembleParameter
+    # object in this list
+    # TODO: some sort of "skip" list for
+    ensemble_params: list[EnsembleParameter]
+
+    # set of cube types that are used in this ensemble
+    rule: PolycubesRule
+
+    # logging
+    logger: logging.Logger
+
+    observables: dict[str: PatchySimObservable]
+
+    # ------------ SETUP STUFF -------------#
+
+    # simulation parameters which are constant over the entire ensemble
+    const_params: dict
+
+    # parameter values to use if not specified in `const_params` or in the
+    # simulation specification params
+    # load from `spec_files/input_files/[name].json`
+    default_param_set: dict[str: Union[dict, Any]]
+
+    # -------------- STUFF SPECIFIC TO ANALYSIS ------------- #
+
+    # each "node" of the analysis pipeline graph is a step in the analysis pipeline
+    analysis_pipeline: nx.DiGraph
+    pipeline_steps: list[AnalysisPipelineStep]
+
+    # dict to store loaded analysis data
+    analysis_data: dict[tuple[int, str]: PipelineDataType]
+
+    def __init__(self, **kwargs):
+        assert "cfg_file_name" in kwargs or METADATA_FILE_KEY in kwargs
+
+        # if an exec metadata file was provided
+        if METADATA_FILE_KEY in kwargs:
+            self.metadata_file = get_input_dir() / kwargs[METADATA_FILE_KEY]
+            with open(self.metadata_file) as f:
+                self.metadata: dict = json.load(f)
+                sim_cfg = self.metadata["ensemble_config"]
+
         else:
-            # save current date
-            self.sim_date: datetime.datetime = datetime.datetime.now()
+            self.metadata = {}
+            # if a cfg file name was provided
+            cfg_file_name = kwargs["cfg_file_name"]
+
+            # if a date string was provided
+            if "sim_date" in kwargs:
+                self.sim_init_date = kwargs["sim_date"]
+                if isinstance(self.sim_init_date, str):
+                    self.sim_init_date = datetime.datetime.strptime(self.sim_init_date, "%Y-%m-%d")
+
+            else:
+                # save current date
+                self.sim_init_date: datetime.datetime = datetime.datetime.now()
+
+            datestr = self.sim_init_date.strftime("%Y-%m-%d")
+            self.metadata["setup_date"] = datestr
+
+            with open(get_input_dir() / cfg_file_name) as f:
+                sim_cfg = json.load(f)
+                self.metadata["ensemble_config"] = sim_cfg
+
+            self.metadata_file = get_input_dir() / f"{sim_cfg[EXPORT_NAME_KEY]}_{datestr}.json"
+
         # assume standard file format json
 
         # name of simulation set
@@ -66,7 +143,7 @@ class PatchySimulationEnsemble:
         self.logger: logging.Logger = logging.getLogger(self.export_name)
         self.logger.setLevel(logging.INFO)
         self.logger.addHandler(logging.FileHandler(get_log_dir() /
-                                                   f"log_{self.export_name}_{self.sim_date.strftime('%Y-%m-%d')}"))
+                                                   f"log_{self.export_name}_{self.sim_init_date.strftime('%Y-%m-%d')}"))
         self.logger.addHandler(logging.StreamHandler(sys.stdout))
 
         # load particles
@@ -83,33 +160,37 @@ class PatchySimulationEnsemble:
 
         # observables are optional
         # TODO: integrate oxpy
-        self.observables: list[dict] = []
+        self.observables: dict[str: PatchySimObservable] = []
 
         if OBSERABLES_KEY in sim_cfg:
-            for obs in sim_cfg[OBSERABLES_KEY]:
+            for obs_specifier in sim_cfg[OBSERABLES_KEY]:
                 # if the name of an observable is provided
-                if isinstance(obs, str):
+                if isinstance(obs_specifier, str):
                     try:
-                        self.observables.append(get_spec_json(obs, "observables"))
+                        obs = observable_from_file(obs_specifier)
                     except FileNotFoundError as e:
-                        print(f"No file {obs}!")
+                        print(f"No file {obs_specifier}!")
                 else:  # assume observable is provided as raw json
-                    self.observables.append(obs)
+                    obs = PatchySimObservable(**obs_specifier)
+                self.observables[obs.name] = obs
         # handle potential weird stuff
 
         # init slurm log dataframe
         self.slurm_log = pd.DataFrame(columns=["slurm_job_id", *[p.param_key for p in self.ensemble_params]])
 
-# --------------- Accessors and Mutators -------------------------- #
-    def get_simulation(self, *args: list[ParameterValue]) -> PatchySimulationSpec:
+    # --------------- Accessors and Mutators -------------------------- #
+    def get_simulation(self, *args: list[ParameterValue]) -> PatchySimulation:
         """
         TODO: idk
         given a list of parameter values, returns a PatchySimulation object
         """
-        return PatchySimulationSpec(args)
+        return PatchySimulation(args)
 
     def long_name(self) -> str:
-        return f"{self.export_name}_{self.sim_date.strftime('%Y-%m-%d')}"
+        return f"{self.export_name}_{self.sim_init_date.strftime('%Y-%m-%d')}"
+
+    def is_do_analysis_parallel(self) -> bool:
+        return self.metadata["parallel"]
 
     def get_sim_set_root(self) -> Path:
         return simulation_run_dir() / self.export_name
@@ -128,7 +209,7 @@ class PatchySimulationEnsemble:
     The program first checks if the parameter exists
     """
 
-    def sim_get_param(self, sim: PatchySimulationSpec,
+    def sim_get_param(self, sim: PatchySimulation,
                       paramname: str) -> Any:
         if paramname in sim:
             return sim[paramname]
@@ -136,7 +217,7 @@ class PatchySimulationEnsemble:
         assert paramname in self.const_params
         return self.const_params[paramname]
 
-    def get_sim_particle_count(self, sim: PatchySimulationSpec,
+    def get_sim_particle_count(self, sim: PatchySimulation,
                                particle_idx: int) -> int:
         # grab particle name
         particle_name = self.rule.particle(particle_idx).name()
@@ -148,10 +229,10 @@ class PatchySimulationEnsemble:
                 particle_lvl = spec[particle_name]
         return particle_lvl * self.sim_get_param(sim, NUM_ASSEMBLIES_KEY)
 
-    def get_sim_total_num_particles(self, sim: PatchySimulationSpec) -> int:
+    def get_sim_total_num_particles(self, sim: PatchySimulation) -> int:
         return sum([self.get_sim_particle_count(sim, i) for i in range(self.num_particle_types())])
 
-    def num_patch_types(self, sim: PatchySimulationSpec) -> int:
+    def num_patch_types(self, sim: PatchySimulation) -> int:
         return self.rule.numPatches() * self.sim_get_param(sim, NUM_TEETH_KEY)
 
     def paths_list(self) -> list[str]:
@@ -166,19 +247,21 @@ class PatchySimulationEnsemble:
     Returns a list of lists of tuples,
     """
 
-    def ensemble(self) -> list[PatchySimulationSpec]:
-        return [PatchySimulationSpec(e) for e in itertools.product(*self.ensemble_params)]
+    def ensemble(self) -> list[PatchySimulation]:
+        return [PatchySimulation(e) for e in itertools.product(*self.ensemble_params)]
 
     def tld(self) -> Path:
         return simulation_run_dir() / self.long_name()
 
-    def folder_path(self, sim: PatchySimulationSpec) -> Path:
+    def folder_path(self, sim: PatchySimulation) -> Path:
         return self.tld() / sim.get_folder_path()
 
-# ------------------------ Status-Type Stuff --------------------------------#
+    def get_pipeline_step(self, step: Union[int, AnalysisPipelineStep]) -> AnalysisPipelineStep:
+        return step if isinstance(step, AnalysisPipelineStep) else self.pipeline_steps[step]
 
+    # ------------------------ Status-Type Stuff --------------------------------#
 
-# ----------------------- Setup Methods ----------------------------------- #
+    # ----------------------- Setup Methods ----------------------------------- #
     def do_setup(self):
         self.logger.info("Setting up folder / file structure...")
         for sim in self.ensemble():
@@ -203,13 +286,14 @@ class PatchySimulationEnsemble:
             self.write_confgen_script(sim)
             self.write_run_script(sim)
 
-    def write_confgen_script(self, sim: PatchySimulationSpec):
+    def write_confgen_script(self, sim: PatchySimulation):
         with open(self.get_run_confgen_sh(sim), "w+") as confgen_file:
             self.write_sbatch_params(sim, confgen_file)
-            confgen_file.write(f"{get_server_config()['oxdna_path']}/build/bin/confGenerator input {self.sim_get_param(sim, 'density')}\n")
+            confgen_file.write(
+                f"{get_server_config()['oxdna_path']}/build/bin/confGenerator input {self.sim_get_param(sim, 'density')}\n")
         self.bash_exec(f"chmod u+x {self.get_run_confgen_sh(sim)}")
 
-    def write_run_script(self, sim: PatchySimulationSpec, input_file="input"):
+    def write_run_script(self, sim: PatchySimulation, input_file="input"):
         server_config = get_server_config()
 
         # write slurm script
@@ -244,7 +328,7 @@ class PatchySimulationEnsemble:
             slurm_file.write(line + "\n")
 
     def write_input_file(self,
-                         sim: PatchySimulationSpec,
+                         sim: PatchySimulation,
                          file_name: str = "input",
                          replacer_dict=None):
         """
@@ -321,7 +405,7 @@ class PatchySimulationEnsemble:
             if len(self.observables) > 0:
                 inputfile.write(f"observables_file = observables.json" + "\n")
 
-    def write_sim_top_particles_patches(self, sim: PatchySimulationSpec):
+    def write_sim_top_particles_patches(self, sim: PatchySimulation):
         server_config = get_server_config()
 
         # write top and particles/patches spec files
@@ -338,6 +422,8 @@ class PatchySimulationEnsemble:
             particles, patches = convert_multidentate(particles,
                                                       self.sim_get_param(sim, DENTAL_RADIUS_KEY),
                                                       self.sim_get_param(sim, NUM_TEETH_KEY))
+        else:
+            patches = particle_patches
         # do any/all valid conversions
         # either josh_lorenzo or josh_flavio
         if server_config[PATCHY_FILE_FORMAT_KEY].find("josh") > -1:
@@ -392,12 +478,12 @@ class PatchySimulationEnsemble:
                     for particle in particles])
             export_interaction_matrix(patches)
 
-    def write_sim_observables(self, sim: PatchySimulationSpec):
+    def write_sim_observables(self, sim: PatchySimulation):
         if len(self.observables) > 0:
             with open(self.folder_path(sim) / "observables.json", "w+") as f:
-                json.dump({f"data_output_{i + 1}": obs for i, obs in enumerate(self.observables)}, f)
+                json.dump({f"data_output_{i + 1}": obs.to_dict() for i, obs in enumerate(self.observables.values())}, f)
 
-    def write_continue_files(self, sim: PatchySimulationSpec, counter: int = 2):
+    def write_continue_files(self, sim: PatchySimulation, counter: int = 2):
         """
         writes input file and shell script to continue running the simulation after
         completion of first oxDNA execution
@@ -408,13 +494,13 @@ class PatchySimulationEnsemble:
         self.write_input_file(sim,
                               file_name=f"input_{counter}",
                               replacer_dict={
-                                    "trajectory_file": f"trajectory_{counter}.dat",
-                                    "conf_file": "last_conf.dat" if counter == 2 else f"last_conf_{counter-1}.dat",
-                                    "lastconf_file": f"last_conf_{counter}.dat"
+                                  "trajectory_file": f"trajectory_{counter}.dat",
+                                  "conf_file": "last_conf.dat" if counter == 2 else f"last_conf_{counter - 1}.dat",
+                                  "lastconf_file": f"last_conf_{counter}.dat"
                               })
         self.write_run_script(sim, input_file=f"input_{counter}")
 
-    def exec_continue(self, sim: PatchySimulationSpec, counter: int = 2):
+    def exec_continue(self, sim: PatchySimulation, counter: int = 2):
         pass
 
     def gen_confs(self):
@@ -432,7 +518,7 @@ class PatchySimulationEnsemble:
             self.start_simulation(sim)
 
     def start_simulation(self,
-                         sim: PatchySimulationSpec,
+                         sim: PatchySimulation,
                          script_name: str = "slurm_script.sh"):
         command = f"sbatch {script_name}"
 
@@ -450,28 +536,93 @@ class PatchySimulationEnsemble:
         }
         os.chdir(self.tld())
 
-    def get_run_oxdna_sh(self, sim: PatchySimulationSpec) -> Path:
+    def get_run_oxdna_sh(self, sim: PatchySimulation) -> Path:
         return self.folder_path(sim) / "slurm_script.sh"
 
-    def get_run_confgen_sh(self, sim: PatchySimulationSpec) -> Path:
+    def get_run_confgen_sh(self, sim: PatchySimulation) -> Path:
         return self.folder_path(sim) / "gen_conf.sh"
 
-    def run_confgen(self, sim: PatchySimulationSpec) -> int:
+    def run_confgen(self, sim: PatchySimulation) -> int:
         os.chdir(self.folder_path(sim))
         response = self.bash_exec("sbatch gen_conf.sh")
         os.chdir(self.tld())
         jobid = int(re.search(SUBMIT_SLURM_PATTERN, response).group(1))
         return jobid
 
-    def get_conf_file(self, sim: PatchySimulationSpec) -> Path:
+    def get_conf_file(self, sim: PatchySimulation) -> Path:
         return self.folder_path(sim) / "init.conf"
+
+    # ------------- ANALYSIS FUNCTIONS --------------------- #
+
+    def has_data_for_analysis_step(self,
+                                   step: Union[int, AnalysisPipelineStep],
+                                   sim: Union[tuple[ParameterValue], PatchySimulation],
+                                   time_steps: range = None) -> bool:
+        sim_key = str(sim) if isinstance(sim, PatchySimulation) else describe_param_vals(*sim)
+        if not self.get_cache_file(step, sim).exists():
+            return False
+        else:
+            # all read types are plain-text except
+            read_type = "rb" if step.get_input_data_type() == PipelineDataType.PIPELINE_DATATYPE_GRAPH else "r"
+            with open(self.get_cache_file(step, sim), read_type) as f:
+                self.analysis_data[(analysis_step_idx(step), sim_key)] = step.load_cached_files(f)
+                return step.data_matches_trange(self.analysis_data[(analysis_step_idx(step), sim_key)], time_steps)
+
+    def get_data(self,
+                 step: Union[int, AnalysisPipelineStep],
+                 sim: Union[tuple[ParameterValue], PatchySimulation],
+                 time_steps: range = None) -> PipelineDataType:
+        step = self.get_pipeline_step(step)
+
+        # compute data for previous steps
+        data_in = [
+            self.get_data(prev_step,
+                          sim,
+                          time_steps)
+            for prev_step in step.previous_steps
+        ]
+
+        if self.is_do_analysis_parallel() and step.can_parallelize():
+            server_cfg = get_server_config()
+            data_sources = [
+                self.get_cache_file(data_source, sim)
+                for data_source in step.previous_steps
+            ]
+            with tempfile.TemporaryDirectory() as temp_dir:
+                jobid = step.exec_step_slurm(temp_dir,
+                                             server_cfg["slurm_bash_flags"],
+                                             server_cfg["slurm_includes"],
+                                             data_sources,
+                                             self.get_cache_file(step, sim))
+                read_type = "rb" if step.get_input_data_type() == PipelineDataType.PIPELINE_DATATYPE_GRAPH else "r"
+
+                with open(self.get_cache_file(step, sim), read_type) as f:
+                    data = step.load_cached_files(f)
+
+        else:
+            # TODO: make sure this can handle the amount of args we're feeding in here
+            data = step.exec(*data_in)
+
+        sim_key = str(sim) if isinstance(sim, PatchySimulation) else describe_param_vals(*sim)
+        self.analysis_data[(step.idx, sim_key)] = data
+        return data
+
+
+    def get_cache_file(self,
+                       step: Union[int, AnalysisPipelineStep],
+                       sim: Union[tuple[ParameterValue], PatchySimulation]) -> Path:
+        if isinstance(step, int):
+            step = self.pipeline_steps[step]
+        if isinstance(sim, PatchySimulation):
+            return self.folder_path(sim) / step.get_cache_file_name()
+        else:
+            return self.tld() / describe_param_vals(*sim) / step.get_cache_file_name()
 
     def bash_exec(self, command: str):
         self.logger.info(f">`{command}`")
         response = subprocess.run(command, shell=True,
                                   capture_output=True, text=True, check=False)
         # response = subprocess.check_output(command, shell=True, stderr=subprocess.STDOUT, check=False,
-                                           # universal_newlines=True)
+        # universal_newlines=True)
         self.logger.info(f"`{response.stdout}`")
         return response.stdout
-
