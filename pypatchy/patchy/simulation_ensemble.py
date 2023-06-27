@@ -11,11 +11,12 @@ import subprocess
 import re
 import logging
 
-from ...util import get_param_set, simulation_run_dir, get_server_config, get_spec_json, get_log_dir, get_input_dir
-from .ensemble_parameter import EnsembleParameter, SimulationSpecification
-from ..plpatchy import PLPatchyParticle, export_interaction_matrix
-from ..UDtoMDt import convert_multidentate
-from ...polycubeutil.polycubesRule import PolycubesRule
+from ..util import get_param_set, simulation_run_dir, get_server_config, get_spec_json, get_log_dir, get_input_dir
+from .ensemble_parameter import EnsembleParameter, ParameterValue
+from .simulation_specification import PatchySimulationData
+from .plpatchy import PLPatchyParticle, export_interaction_matrix
+from .UDtoMDt import convert_multidentate
+from ..polycubeutil.polycubesRule import PolycubesRule
 
 EXPORT_NAME_KEY = "export_name"
 PARTICLES_KEY = "particles"
@@ -34,7 +35,13 @@ PATCHY_FILE_FORMAT_KEY = "patchy_format"
 SUBMIT_SLURM_PATTERN = r"Submitted batch job (\d+)"
 
 
-class PatchySimulationSetup:
+class PatchySimulationEnsemble:
+    """
+    Stores data for a group of related simulation
+    class was originally written for setup but I've been folding analysis stuff from
+    `PatchyResults` and `PatchyRunResult` in as well with the aim of eventually deprecating those
+    preferably sooner tather than later
+    """
     def __init__(self, **kwargs):
         if "cfg_file_name" in kwargs:
             with open(get_input_dir() / "wereflamingo_X2_scaling.json") as f:
@@ -42,7 +49,7 @@ class PatchySimulationSetup:
         else:
             assert "sim_cfg" in kwargs
             sim_cfg = kwargs["sim_cfg"]
-        
+
         if "sim_date" in kwargs:
             self.sim_date = kwargs["sim_date"]
             if isinstance(self.sim_date, str):
@@ -54,8 +61,6 @@ class PatchySimulationSetup:
 
         # name of simulation set
         self.export_name: str = sim_cfg[EXPORT_NAME_KEY]
-
-
 
         # configure logging
         self.logger: logging.Logger = logging.getLogger(self.export_name)
@@ -95,6 +100,14 @@ class PatchySimulationSetup:
         # init slurm log dataframe
         self.slurm_log = pd.DataFrame(columns=["slurm_job_id", *[p.param_key for p in self.ensemble_params]])
 
+# --------------- Accessors and Mutators -------------------------- #
+    def get_simulation(self, *args: list[ParameterValue]) -> PatchySimulationData:
+        """
+        TODO: idk
+        given a list of parameter values, returns a PatchySimulation object
+        """
+        return PatchySimulationData(args)
+
     def long_name(self) -> str:
         return f"{self.export_name}_{self.sim_date.strftime('%Y-%m-%d')}"
 
@@ -115,7 +128,7 @@ class PatchySimulationSetup:
     The program first checks if the parameter exists
     """
 
-    def sim_get_param(self, sim: SimulationSpecification,
+    def sim_get_param(self, sim: PatchySimulationData,
                       paramname: str) -> Any:
         if paramname in sim:
             return sim[paramname]
@@ -123,7 +136,7 @@ class PatchySimulationSetup:
         assert paramname in self.const_params
         return self.const_params[paramname]
 
-    def get_sim_particle_count(self, sim: SimulationSpecification,
+    def get_sim_particle_count(self, sim: PatchySimulationData,
                                particle_idx: int) -> int:
         # grab particle name
         particle_name = self.rule.particle(particle_idx).name()
@@ -135,10 +148,10 @@ class PatchySimulationSetup:
                 particle_lvl = spec[particle_name]
         return particle_lvl * self.sim_get_param(sim, NUM_ASSEMBLIES_KEY)
 
-    def get_sim_total_num_particles(self, sim: SimulationSpecification) -> int:
+    def get_sim_total_num_particles(self, sim: PatchySimulationData) -> int:
         return sum([self.get_sim_particle_count(sim, i) for i in range(self.num_particle_types())])
 
-    def num_patch_types(self, sim: SimulationSpecification) -> int:
+    def num_patch_types(self, sim: PatchySimulationData) -> int:
         return self.rule.numPatches() * self.sim_get_param(sim, NUM_TEETH_KEY)
 
     def paths_list(self) -> list[str]:
@@ -153,15 +166,19 @@ class PatchySimulationSetup:
     Returns a list of lists of tuples,
     """
 
-    def ensemble(self) -> list[SimulationSpecification]:
-        return [SimulationSpecification(e) for e in itertools.product(*self.ensemble_params)]
+    def ensemble(self) -> list[PatchySimulationData]:
+        return [PatchySimulationData(e) for e in itertools.product(*self.ensemble_params)]
 
     def tld(self) -> Path:
         return simulation_run_dir() / self.long_name()
 
-    def folder_path(self, sim: SimulationSpecification) -> Path:
+    def folder_path(self, sim: PatchySimulationData) -> Path:
         return self.tld() / sim.get_folder_path()
 
+# ------------------------ Status-Type Stuff --------------------------------#
+
+
+# ----------------------- Setup Methods ----------------------------------- #
     def do_setup(self):
         self.logger.info("Setting up folder / file structure...")
         for sim in self.ensemble():
@@ -186,13 +203,13 @@ class PatchySimulationSetup:
             self.write_confgen_script(sim)
             self.write_run_script(sim)
 
-    def write_confgen_script(self, sim: SimulationSpecification):
+    def write_confgen_script(self, sim: PatchySimulationData):
         with open(self.get_run_confgen_sh(sim), "w+") as confgen_file:
             self.write_sbatch_params(sim, confgen_file)
             confgen_file.write(f"{get_server_config()['oxdna_path']}/build/bin/confGenerator input {self.sim_get_param(sim, 'density')}\n")
         self.bash_exec(f"chmod u+x {self.get_run_confgen_sh(sim)}")
 
-    def write_run_script(self, sim: SimulationSpecification, input_file="input"):
+    def write_run_script(self, sim: PatchySimulationData, input_file="input"):
         server_config = get_server_config()
 
         # write slurm script
@@ -203,7 +220,7 @@ class PatchySimulationSetup:
 
             # skip confGenerator call because we will invoke it directly later
             slurm_file.write(f"{server_config['oxdna_path']}/build/bin/oxDNA {input_file}\n")
-            
+
         self.bash_exec(f"chmod u+x {self.folder_path(sim)}/slurm_script.sh")
 
     def write_sbatch_params(self, sim, slurm_file):
@@ -226,7 +243,7 @@ class PatchySimulationSetup:
         for line in server_config["slurm_includes"]:
             slurm_file.write(line + "\n")
 
-    def write_input_file(self, sim: SimulationSpecification):
+    def write_input_file(self, sim: PatchySimulationData):
         server_config = get_server_config()
 
         # create input file
@@ -253,7 +270,7 @@ class PatchySimulationSetup:
                     # if no override
                     if paramname not in sim and paramname not in self.const_params:
                         inputfile.write(f"{paramname} = {paramgroup[paramname]}\n")
-                    
+
                     else:
                         inputfile.write(f"{paramname} = {self.sim_get_param(sim, paramname)}\n")
             # write things specific to rule
@@ -280,7 +297,7 @@ class PatchySimulationSetup:
             if len(self.observables) > 0:
                 inputfile.write(f"observables_file = observables.json" + "\n")
 
-    def write_sim_top_particles_patches(self, sim: SimulationSpecification):
+    def write_sim_top_particles_patches(self, sim: PatchySimulationData):
         server_config = get_server_config()
 
         # write top and particles/patches spec files
@@ -351,12 +368,12 @@ class PatchySimulationSetup:
                     for particle in particles])
             export_interaction_matrix(patches)
 
-    def write_sim_observables(self, sim: SimulationSpecification):
+    def write_sim_observables(self, sim: PatchySimulationData):
         if len(self.observables) > 0:
             with open(self.folder_path(sim) / "observables.json", "w+") as f:
                 json.dump({f"data_output_{i + 1}": obs for i, obs in enumerate(self.observables)}, f)
 
-    def write_continue_files(self, sim: SimulationSpecification):
+    def write_continue_files(self, sim: PatchySimulationData):
         """
         writes input file and shell script to continue running the simulation after
         completion of first oxDNA execution
@@ -377,7 +394,7 @@ class PatchySimulationSetup:
         for sim in self.ensemble():
             self.start_simulation(sim)
 
-    def start_simulation(self, sim: SimulationSpecification):
+    def start_simulation(self, sim: PatchySimulationData):
         command = "sbatch slurm_script.sh"
 
         if not os.path.isfile(self.get_conf_file(sim)):
@@ -394,20 +411,20 @@ class PatchySimulationSetup:
         }
         os.chdir(self.tld())
 
-    def get_run_oxdna_sh(self, sim: SimulationSpecification) -> Path:
+    def get_run_oxdna_sh(self, sim: PatchySimulationData) -> Path:
         return self.folder_path(sim) / "slurm_script.sh"
 
-    def get_run_confgen_sh(self, sim: SimulationSpecification) -> Path:
+    def get_run_confgen_sh(self, sim: PatchySimulationData) -> Path:
         return self.folder_path(sim) / "gen_conf.sh"
 
-    def run_confgen(self, sim: SimulationSpecification) -> int:
+    def run_confgen(self, sim: PatchySimulationData) -> int:
         os.chdir(self.folder_path(sim))
         response = self.bash_exec("sbatch gen_conf.sh")
         os.chdir(self.tld())
         jobid = int(re.search(SUBMIT_SLURM_PATTERN, response).group(1))
         return jobid
 
-    def get_conf_file(self, sim) -> Path:
+    def get_conf_file(self, sim: PatchySimulationData) -> Path:
         return self.folder_path(sim) / "init.conf"
 
     def bash_exec(self, command: str):
@@ -418,3 +435,4 @@ class PatchySimulationSetup:
                                            # universal_newlines=True)
         self.logger.info(f"`{response.stdout}`")
         return response.stdout
+
