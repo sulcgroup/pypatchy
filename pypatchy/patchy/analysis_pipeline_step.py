@@ -47,13 +47,12 @@ class AnalysisPipelineStep(ABC):
     output_tstep: int
 
     def __init__(self,
-                 idx: int,
                  step_name: str,
                  input_tstep: int,
                  output_tstep: int,
                  previous_steps: tuple[AnalysisPipelineStep]):
-        self.name = step_name
-        self.idx = idx
+        self.name = step_name  # unique name, not class name
+        self.idx = -1
         self.input_tstep = input_tstep
         self.output_tstep = output_tstep
         self.previous_steps = previous_steps

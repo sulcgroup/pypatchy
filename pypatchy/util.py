@@ -1,4 +1,5 @@
 import json
+from itertools import groupby
 from pathlib import Path
 import configparser
 from colorsys import hsv_to_rgb
@@ -30,8 +31,10 @@ cfg.read(get_local_dir() / 'settings.cfg')
 def simulation_run_dir() -> Path:
     return Path(cfg['ANALYSIS']['simulation_data_dir'])
 
+
 def simulation_analysis_dir() -> Path:
     return Path(cfg['ANALYSIS']["analysis_data_dir"])
+
 
 def get_sample_every() -> int:
     return int(cfg['ANALYSIS']['sample_every'])
@@ -205,3 +208,9 @@ def inverse_quaternion(q: np.ndarray) -> np.ndarray:
     q_conjugate = np.array([w, -x, -y, -z])
     q_inverse = q_conjugate / norm ** 2
     return q_inverse
+
+
+# shamelessly pilfered from https://stackoverflow.com/questions/3844801/check-if-all-elements-in-a-list-are-identical
+def all_equal(iterable):
+    g = groupby(iterable)
+    return next(g, True) and not next(g, False)
