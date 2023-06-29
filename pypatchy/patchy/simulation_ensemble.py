@@ -4,6 +4,7 @@ import datetime
 import json
 import os
 import itertools
+import pickle
 import sys
 import tempfile
 from pathlib import Path
@@ -15,14 +16,16 @@ import subprocess
 import re
 import logging
 
+from .analysis.analysis_pipeline import AnalysisPipeline
 from .analysis_pipeline_step import AnalysisPipelineStep, PipelineDataType
 from .patchy_sim_observable import PatchySimObservable, observable_from_file
-from ..util import get_param_set, simulation_run_dir, get_server_config, get_log_dir, get_input_dir
+from ..util import get_param_set, simulation_run_dir, get_server_config, get_log_dir, get_input_dir, all_equal
 from .ensemble_parameter import EnsembleParameter, ParameterValue
 from .simulation_specification import PatchySimulation
 from .plpatchy import PLPatchyParticle, export_interaction_matrix
 from .UDtoMDt import convert_multidentate
 from ..polycubeutil.polycubesRule import PolycubesRule
+from oxDNA_analysis_tools.UTILS.oxview import from_path
 
 EXPORT_NAME_KEY = "export_name"
 PARTICLES_KEY = "particles"
@@ -45,10 +48,6 @@ METADATA_FILE_KEY = "sim_metadata_file"
 
 def describe_param_vals(*args) -> str:
     return "_".join([str(v) for v in args])
-
-
-def analysis_step_idx(step: Union[int, AnalysisPipelineStep]) -> int:
-    return step if isinstance(step, int) else step.idx
 
 
 class PatchySimulationEnsemble:
@@ -94,26 +93,30 @@ class PatchySimulationEnsemble:
     # -------------- STUFF SPECIFIC TO ANALYSIS ------------- #
 
     # each "node" of the analysis pipeline graph is a step in the analysis pipeline
-    analysis_pipeline: nx.DiGraph
-    pipeline_steps: list[AnalysisPipelineStep]
+    analysis_pipeline: AnalysisPipeline
 
     # dict to store loaded analysis data
     analysis_data: dict[tuple[int, str]: PipelineDataType]
 
     def __init__(self, **kwargs):
-        assert "cfg_file_name" in kwargs or METADATA_FILE_KEY in kwargs
+        assert "cfg_file_name" in kwargs or METADATA_FILE_KEY in kwargs or "cfg_dict" in kwargs
+
+        self.metadata: dict = {}
 
         # if an exec metadata file was provided
         if METADATA_FILE_KEY in kwargs:
             self.metadata_file = get_input_dir() / kwargs[METADATA_FILE_KEY]
             with open(self.metadata_file) as f:
-                self.metadata: dict = json.load(f)
+                self.metadata.update(json.load(f))
                 sim_cfg = self.metadata["ensemble_config"]
 
-        else:
-            self.metadata = {}
+        elif "cfg_file_name" in kwargs:
             # if a cfg file name was provided
             cfg_file_name = kwargs["cfg_file_name"]
+            with open(get_input_dir() / cfg_file_name) as f:
+                sim_cfg = json.load(f)
+        else:
+            sim_cfg = kwargs["cfg_dict"]
 
             # if a date string was provided
             if "sim_date" in kwargs:
@@ -128,9 +131,7 @@ class PatchySimulationEnsemble:
             datestr = self.sim_init_date.strftime("%Y-%m-%d")
             self.metadata["setup_date"] = datestr
 
-            with open(get_input_dir() / cfg_file_name) as f:
-                sim_cfg = json.load(f)
-                self.metadata["ensemble_config"] = sim_cfg
+            self.metadata["ensemble_config"] = sim_cfg
 
             self.metadata_file = get_input_dir() / f"{sim_cfg[EXPORT_NAME_KEY]}_{datestr}.json"
 
@@ -150,7 +151,10 @@ class PatchySimulationEnsemble:
         if "rule" not in sim_cfg:
             self.rule: PolycubesRule = PolycubesRule(rule_json=sim_cfg[PARTICLES_KEY])
         else:
-            self.rule: PolycubesRule = PolycubesRule(rule_str=sim_cfg["rule"])
+            if isinstance(sim_cfg["rule"], PolycubesRule):
+                self.rule: PolycubesRule = sim_cfg["rule"]
+            else:
+                self.rule: PolycubesRule = PolycubesRule(rule_str=sim_cfg["rule"])
 
         # default simulation parameters
         self.default_param_set = get_param_set(
@@ -173,7 +177,16 @@ class PatchySimulationEnsemble:
                 else:  # assume observable is provided as raw json
                     obs = PatchySimObservable(**obs_specifier)
                 self.observables[obs.name] = obs
-        # handle potential weird stuff
+        # handle potential weird stuff??
+
+        # load analysis pipeline
+        self.analysis_pipeline = AnalysisPipeline(self.tld() / "analysis_pipeline.pickle")
+
+        if "analysis_file" in self.metadata:
+            file_path = self.metadata["analysis_file"]
+            self.analysis_pipeline = self.analysis_pipeline + pickle.load(file_path)
+        else:
+            self.metadata["analysis_file"] = self.analysis_pipeline.file_path
 
         # init slurm log dataframe
         self.slurm_log = pd.DataFrame(columns=["slurm_job_id", *[p.param_key for p in self.ensemble_params]])
@@ -256,10 +269,17 @@ class PatchySimulationEnsemble:
     def folder_path(self, sim: PatchySimulation) -> Path:
         return self.tld() / sim.get_folder_path()
 
-    def get_pipeline_step(self, step: Union[int, AnalysisPipelineStep]) -> AnalysisPipelineStep:
-        return step if isinstance(step, AnalysisPipelineStep) else self.pipeline_steps[step]
 
     # ------------------------ Status-Type Stuff --------------------------------#
+
+    def show_pipeline_graph(self):
+        nx.draw(self.analysis_pipeline)
+
+    def show_last_conf(self, sim: PatchySimulation):
+        from_path(self.folder_path(sim) / "last_conf.dat",
+                  self.folder_path(sim) / "init.top",
+                  self.folder_path(sim) / "particles.txt",
+                  self.folder_path(sim) / "patches.txt")
 
     # ----------------------- Setup Methods ----------------------------------- #
     def do_setup(self):
@@ -398,8 +418,7 @@ class PatchySimulationEnsemble:
             ensemble_var_names = sim.var_names()
 
             for param in ["T", "narrow_type"]:
-                if param in ensemble_var_names:
-                    inputfile.write(f"{param} = {self.sim_get_param(sim, param)}" + "\n")
+                inputfile.write(f"{param} = {self.sim_get_param(sim, param)}" + "\n")
 
             # write external observables file path
             if len(self.observables) > 0:
@@ -607,7 +626,6 @@ class PatchySimulationEnsemble:
         self.analysis_data[(step.idx, sim_key)] = data
         return data
 
-
     def get_cache_file(self,
                        step: Union[int, AnalysisPipelineStep],
                        sim: Union[tuple[ParameterValue], PatchySimulation]) -> Path:
@@ -626,3 +644,74 @@ class PatchySimulationEnsemble:
         # universal_newlines=True)
         self.logger.info(f"`{response.stdout}`")
         return response.stdout
+
+
+def ensemble_from_export_settings(export_settings_file_path: Union[Path, str],
+                                  targets_file_path: Union[Path, str]) -> PatchySimulationEnsemble:
+    """
+    Constructs a PatchySimulationEnsemble object from the `patchy_export_settings.json` format
+    """
+    with open(export_settings_file_path, "r") as f:
+        export_setup_dict = json.load(f)
+
+    # Grab list of narrow types
+    narrow_types = export_setup_dict['narrow_types']
+    # grab list of temperatures
+    temperatures = export_setup_dict['temperatures']
+
+    rule = PolycubesRule(rule_str=export_setup_dict["rule_json"])
+
+    # make sure that all export groups have the same set of narrow types, duplicates,
+    # densities, and temperatures
+    assert all([
+        all_equal([
+            export_group[key]
+            for export_group in export_setup_dict['export_groups']
+        ])
+        for key in ["temperatures", "num_duplicates", "particle_density", "narrow_types"]
+    ])
+
+    particle_type_level_groups_list = [
+        {
+            "name": export_group["exportGroupName"],
+            "value": {
+                "particle_type_levels": {
+                    p.name(): export_group["particle_type_levels"]
+                    for p in rule.particles()
+                }
+            }
+        }
+        for export_group in export_setup_dict['export_groups']
+    ]
+
+    cfg_dict = {
+        EXPORT_NAME_KEY: export_setup_dict['export_name'],
+        PARTICLES_KEY: rule,
+        DEFAULT_PARAM_SET_KEY: "default.json",
+        OBSERABLES_KEY: ["plclustertopology"],
+        CONST_PARAMS_KEY: {
+            DENSITY_KEY: export_setup_dict["particle_density"] if "particle_density" else 0.1,
+            DENTAL_RADIUS_KEY: 0,
+            NUM_TEETH_KEY: 1,
+            "torsion": True
+        },
+        ENSEMBLE_PARAMS_KEY: [
+            (
+                "T",
+                temperatures
+            ),
+            (
+                "narrow_type",
+                narrow_types
+            ),
+            (
+                "type_level_group",
+                particle_type_level_groups_list
+            ),
+            (
+                "duplicate",
+
+            )
+        ],
+    }
+    return PatchySimulationEnsemble(cfg_dict=cfg_dict)

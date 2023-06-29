@@ -30,11 +30,11 @@ class GraphsFromClusterTxt(AnalysisPipelineStep):
     source_observable: PatchySimObservable
 
     def __init__(self,
-                 idx: int,
+                 name: str,
                  input_tstep: int,
                  output_tstep: int,
                  source: PatchySimObservable):
-        super().__init__(idx, "GraphsFromClustersTxt", input_tstep, output_tstep, ())
+        super().__init__(name, input_tstep, output_tstep, ())
         assert input_tstep >= source.print_every
         self.source_observable = source
 
@@ -114,13 +114,13 @@ class ClassifyClusters(AnalysisPipelineStep):
     target_graph: nx.Graph
 
     def __init__(self,
-                 idx: int,
+                 name: str,
                  input_tstep: int,
                  output_tstep: int,
                  previous_steps: tuple[AnalysisPipelineStep],
                  target_name: str,
                  target_graph: nx.Graph):
-        super().__init__(idx, "ClassifyClusters", input_tstep, output_tstep, previous_steps)
+        super().__init__(name, input_tstep, output_tstep, previous_steps)
         self.target_name = target_name
         self.target_graph = target_graph
 
@@ -191,14 +191,15 @@ class ComputeClusterYield(AnalysisPipelineStep):
     overreach: bool
     target_name: str
 
-    def __init__(self, idx: int,
+    def __init__(self,
+                 name: str,
                  input_tstep: int,
                  output_tstep: int,
                  previous_steps: tuple[AnalysisPipelineStep],
                  cutoff: float,
                  overreach: bool,
                  target_name: str):
-        super().__init__(idx, "ComputeClusterYield", input_tstep, output_tstep, previous_steps)
+        super().__init__(name, input_tstep, output_tstep, previous_steps)
         self.cutoff = cutoff
         self.overreach = overreach
         self.target_name = target_name
@@ -266,12 +267,12 @@ class ComputeClusterSizeData(AnalysisPipelineStep):
     STDEV_KEY = "size_stdev"
 
     def __init__(self,
-                 idx: int,
+                 name: str,
                  input_tstep: int,
                  output_tstep: int,
                  previous_steps: tuple[AnalysisPipelineStep],
                  minsize=0):
-        super().__init__(idx, "ComputeClusterSizeData", input_tstep, output_tstep, previous_steps)
+        super().__init__(name, input_tstep, output_tstep, previous_steps)
         self.minsize = minsize
 
     def load_cached_files(self, f: IO):
@@ -338,17 +339,6 @@ class ComputeSpecGroupClusterYield(ComputeClusterYield):
     MAX_KEY = "yield_max"
     AVG_KEY = "yield_avg"
     STD_KEY = "yield_std"
-
-    def __init__(self,
-                 idx: int,
-                 input_tstep: int,
-                 output_tstep: int,
-                 previous_steps: tuple[AnalysisPipelineStep],
-                 cutoff: float,
-                 overreach: bool,
-                 target_name: str):
-        super().__init__(idx, input_tstep, output_tstep, previous_steps, cutoff, overreach, target_name)
-        self.name = "ComputeSpecGroupClusterYield"
 
     def load_cached_files(self, f: IO):
         return pd.read_csv(f)
