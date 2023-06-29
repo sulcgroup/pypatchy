@@ -99,7 +99,8 @@ class PolycubesPatch:
 
     def to_pl_patch(self) -> Patch:
         relPosition = self.direction() / 2
-        return Patch(self._id, self._color, relPosition, self.direction(), self.alignDir())
+        pl_color = self.color() - 20 if self.color() < 0 else self.color() + 20
+        return Patch(self._id, pl_color, relPosition, self.direction(), self.alignDir())
 
     def rotate(self, rotation: np.ndarray) -> PolycubesPatch:
         p = PolycubesPatch(self._id,
