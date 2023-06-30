@@ -578,7 +578,7 @@ class PatchySimulationEnsemble:
         return self.folder_path(sim) / "gen_conf.sh"
 
     def run_confgen(self, sim: PatchySimulation) -> int:
-        response = self.bash_exec(f"sbatch --chdir {self.folder_path()} {self.folder_path(sim)}/gen_conf.sh")
+        response = self.bash_exec(f"sbatch --chdir={self.folder_path(sim)} {self.folder_path(sim)}/gen_conf.sh")
         jobid = int(re.search(SUBMIT_SLURM_PATTERN, response).group(1))
         return jobid
 
