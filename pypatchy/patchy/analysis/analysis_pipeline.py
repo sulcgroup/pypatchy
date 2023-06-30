@@ -26,10 +26,24 @@ class AnalysisPipeline:
         self.file_path = path
 
     def add_step(self, new_step: AnalysisPipelineStep):
+        """
+        Adds a step to this analysis pipeline
+        """
+        new_step.idx = len(self.pipeline_steps)
         self.pipeline_graph.add_node(new_step.idx)
         self.pipeline_steps.append(new_step)
 
+    def add_step_dependant(self,
+                           step: Union[int, AnalysisPipelineStep],
+                           dependant_step: Union[int, AnalysisPipelineStep]):
+        self.pipeline_graph.add_edge(analysis_step_idx(dependant_step), analysis_step_idx(step))
+        self.get_pipeline_step(step).previous_steps.append(dependant_step)
+
     def num_pipeline_steps(self) -> int:
+        """
+        Returns the total number of analysis steps in this pipeline.
+
+        """
         return len(self.pipeline_steps)
 
     def get_pipeline_step(self, step: Union[int, AnalysisPipelineStep]) -> AnalysisPipelineStep:

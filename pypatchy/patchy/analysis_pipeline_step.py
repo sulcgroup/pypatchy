@@ -38,7 +38,7 @@ class AnalysisPipelineStep(ABC):
     output_data: PipelineDataTypeEnum
 
     # steps immediately feeding into this step
-    previous_steps: tuple[AnalysisPipelineStep]
+    previous_steps: list[AnalysisPipelineStep]
 
     # interval in timesteps between input data points
     input_tstep: int
@@ -46,16 +46,12 @@ class AnalysisPipelineStep(ABC):
     # interval in timesteps between input data points
     output_tstep: int
 
-    def __init__(self,
-                 step_name: str,
-                 input_tstep: int,
-                 output_tstep: int,
-                 previous_steps: tuple[AnalysisPipelineStep]):
+    def __init__(self, step_name: str, input_tstep: int, output_tstep: int):
         self.name = step_name  # unique name, not class name
         self.idx = -1
         self.input_tstep = input_tstep
         self.output_tstep = output_tstep
-        self.previous_steps = previous_steps
+        self.previous_steps = []
 
     @abstractmethod
     def load_cached_files(self, f: IO) -> PipelineDataType:
@@ -70,6 +66,16 @@ class AnalysisPipelineStep(ABC):
                         slurm_includes: list[str],
                         data_sources: Union[tuple[Path], list[Path]],
                         cache_file: Path) -> int:
+        """
+        executes this step in the analysis pipeline,
+        using slurm
+        Parameters:
+            :param script_dir_path a directory to put a temporary bash script (
+            :param slurm_bash_flags
+            :param slurm_includes
+            :param data_sources
+            :param cache_file
+        """
         assert script_dir_path.exists()
         script_path = script_dir_path / f"{self.name}.sh"
         with open(script_path, "w") as f:

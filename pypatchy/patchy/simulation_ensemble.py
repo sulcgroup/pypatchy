@@ -16,7 +16,7 @@ import subprocess
 import re
 import logging
 
-from .analysis.analysis_pipeline import AnalysisPipeline
+from .analysis.analysis_pipeline import AnalysisPipeline, analysis_step_idx
 from .analysis_pipeline_step import AnalysisPipelineStep, PipelineDataType
 from .patchy_sim_observable import PatchySimObservable, observable_from_file
 from ..util import get_param_set, simulation_run_dir, get_server_config, get_log_dir, get_input_dir, all_equal
@@ -232,6 +232,7 @@ class PatchySimulationEnsemble:
 
     def get_sim_particle_count(self, sim: PatchySimulation,
                                particle_idx: int) -> int:
+        particle_lvl = 1  # mainly to shut up my IDE
         # grab particle name
         particle_name = self.rule.particle(particle_idx).name()
         if PARTICLE_TYPE_LVLS_KEY in self.const_params and particle_name in self.const_params[PARTICLE_TYPE_LVLS_KEY]:
@@ -269,6 +270,8 @@ class PatchySimulationEnsemble:
     def folder_path(self, sim: PatchySimulation) -> Path:
         return self.tld() / sim.get_folder_path()
 
+    def get_pipeline_step(self, step: Union[int, AnalysisPipelineStep]) -> AnalysisPipelineStep:
+        return self.analysis_pipeline.get_pipeline_step(step)
 
     # ------------------------ Status-Type Stuff --------------------------------#
 
@@ -306,6 +309,8 @@ class PatchySimulationEnsemble:
             self.write_confgen_script(sim)
             self.write_run_script(sim)
 
+
+
     def write_confgen_script(self, sim: PatchySimulation):
         with open(self.get_run_confgen_sh(sim), "w+") as confgen_file:
             self.write_sbatch_params(sim, confgen_file)
@@ -326,6 +331,7 @@ class PatchySimulationEnsemble:
             slurm_file.write(f"{server_config['oxdna_path']}/build/bin/oxDNA {input_file}\n")
 
         self.bash_exec(f"chmod u+x {self.folder_path(sim)}/slurm_script.sh")
+
 
     def write_sbatch_params(self, sim, slurm_file):
         server_config = get_server_config()
@@ -432,7 +438,7 @@ class PatchySimulationEnsemble:
         particles = []
         for particle in self.rule.particles():
             particle_patches = [patch.to_pl_patch() for patch in particle.patches()]
-            particle = PLPatchyParticle(type_id=particle.getID(), index_=particle.getID())
+            particle = PLPatchyParticle(type_id=particle.get_id(), index_=particle.get_id())
             particle.set_patches(particle_patches)
 
             particles.append(particle)
@@ -524,10 +530,7 @@ class PatchySimulationEnsemble:
 
     def gen_confs(self):
         for sim in self.ensemble():
-            os.chdir(self.folder_path(sim))
-            cgpath = f"{get_server_config()['oxdna_path']}/build/confGenerator"
-            self.bash_exec(f"{cgpath} input")
-            os.chdir(self.tld())
+            self.run_confgen(sim)
 
     def dump_slurm_log_file(self):
         self.slurm_log.to_csv(f"{self.tld()}/slurm_log.csv")
@@ -539,13 +542,14 @@ class PatchySimulationEnsemble:
     def start_simulation(self,
                          sim: PatchySimulation,
                          script_name: str = "slurm_script.sh"):
-        command = f"sbatch {script_name}"
+        command = f"sbatch --chdir={self.folder_path(sim)}"
 
         if not os.path.isfile(self.get_conf_file(sim)):
             confgen_slurm_jobid = self.run_confgen(sim)
             command += f" --dependency=afterok:{confgen_slurm_jobid}"
-        os.chdir(self.folder_path(sim))
+        command += f" {script_name}"
         submit_txt = self.bash_exec(command)
+
         jobid = int(re.search(SUBMIT_SLURM_PATTERN, submit_txt).group(1))
         self.slurm_log.loc[len(self.slurm_log.index)] = {
             "slurm_job_id": jobid,
@@ -562,9 +566,7 @@ class PatchySimulationEnsemble:
         return self.folder_path(sim) / "gen_conf.sh"
 
     def run_confgen(self, sim: PatchySimulation) -> int:
-        os.chdir(self.folder_path(sim))
-        response = self.bash_exec("sbatch gen_conf.sh")
-        os.chdir(self.tld())
+        response = self.bash_exec(f"sbatch --chdir {self.folder_path()} {self.folder_path(sim)}/gen_conf.sh")
         jobid = int(re.search(SUBMIT_SLURM_PATTERN, response).group(1))
         return jobid
 
@@ -577,6 +579,14 @@ class PatchySimulationEnsemble:
                                    step: Union[int, AnalysisPipelineStep],
                                    sim: Union[tuple[ParameterValue], PatchySimulation],
                                    time_steps: range = None) -> bool:
+        """
+        Checks if the system has data for the given analysis step and simulation within the given
+        timepoints
+        Parameters:
+            :param step
+            :param sim
+            :param time_steps
+        """
         sim_key = str(sim) if isinstance(sim, PatchySimulation) else describe_param_vals(*sim)
         if not self.get_cache_file(step, sim).exists():
             return False
@@ -585,12 +595,20 @@ class PatchySimulationEnsemble:
             read_type = "rb" if step.get_input_data_type() == PipelineDataType.PIPELINE_DATATYPE_GRAPH else "r"
             with open(self.get_cache_file(step, sim), read_type) as f:
                 self.analysis_data[(analysis_step_idx(step), sim_key)] = step.load_cached_files(f)
-                return step.data_matches_trange(self.analysis_data[(analysis_step_idx(step), sim_key)], time_steps)
+                return step.data_matches_trange(self.analysis_data[(analysis_step_idx(step), sim_key)],
+                                                time_steps)
 
     def get_data(self,
                  step: Union[int, AnalysisPipelineStep],
                  sim: Union[tuple[ParameterValue], PatchySimulation],
                  time_steps: range = None) -> PipelineDataType:
+        """
+        Returns data for a step, doing any/all required calculations
+        Parameters:
+            :param step
+            :param sim
+            :param time_steps
+        """
         step = self.get_pipeline_step(step)
 
         # compute data for previous steps
@@ -629,8 +647,7 @@ class PatchySimulationEnsemble:
     def get_cache_file(self,
                        step: Union[int, AnalysisPipelineStep],
                        sim: Union[tuple[ParameterValue], PatchySimulation]) -> Path:
-        if isinstance(step, int):
-            step = self.pipeline_steps[step]
+        step = self.get_pipeline_step(step)
         if isinstance(sim, PatchySimulation):
             return self.folder_path(sim) / step.get_cache_file_name()
         else:
