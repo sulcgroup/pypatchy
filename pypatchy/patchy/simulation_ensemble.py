@@ -99,40 +99,52 @@ class PatchySimulationEnsemble:
     analysis_data: dict[tuple[int, str]: PipelineDataType]
 
     def __init__(self, **kwargs):
+        """
+        Very flexable constructor
+        Options are:
+            PatchySimulationEnsemble(cfg_file_name="input_file_name.json")
+            PatchySimulationEnsemble(sim_metadata_file="metadata_file.json)
+            PatchySimulationEnsemble(export_name="a-simulation-name", particles=[{.....)
+        """
         assert "cfg_file_name" in kwargs or METADATA_FILE_KEY in kwargs or "cfg_dict" in kwargs
 
         self.metadata: dict = {}
+        sim_cfg = {}
+        if METADATA_FILE_KEY in kwargs or "cfg_file_name" in kwargs:
+            # if an exec metadata file was provided
+            if METADATA_FILE_KEY in kwargs:
+                self.metadata_file = get_input_dir() / kwargs[METADATA_FILE_KEY]
+                with open(self.metadata_file) as f:
+                    self.metadata.update(json.load(f))
+                    sim_cfg = self.metadata["ensemble_config"]
 
-        # if an exec metadata file was provided
-        if METADATA_FILE_KEY in kwargs:
-            self.metadata_file = get_input_dir() / kwargs[METADATA_FILE_KEY]
-            with open(self.metadata_file) as f:
-                self.metadata.update(json.load(f))
-                sim_cfg = self.metadata["ensemble_config"]
+            # if a config file name was provided
+            elif "cfg_file_name" in kwargs:
+                # if a cfg file name was provided
+                cfg_file_name = kwargs["cfg_file_name"]
+                with open(get_input_dir() / cfg_file_name) as f:
+                    sim_cfg = json.load(f)
 
-        elif "cfg_file_name" in kwargs:
-            # if a cfg file name was provided
-            cfg_file_name = kwargs["cfg_file_name"]
-            with open(get_input_dir() / cfg_file_name) as f:
-                sim_cfg = json.load(f)
+        # if no file key was provided, use function arg dict as setup dict
         else:
-            sim_cfg = kwargs["cfg_dict"]
+            sim_cfg = kwargs
 
-            # if a date string was provided
-            if "sim_date" in kwargs:
-                self.sim_init_date = kwargs["sim_date"]
-                if isinstance(self.sim_init_date, str):
-                    self.sim_init_date = datetime.datetime.strptime(self.sim_init_date, "%Y-%m-%d")
+        # if a date string was provided
+        if "sim_date" in sim_cfg:
+            self.sim_init_date = sim_cfg["sim_date"]
+            if isinstance(self.sim_init_date, str):
+                self.sim_init_date = datetime.datetime.strptime(self.sim_init_date, "%Y-%m-%d")
 
-            else:
-                # save current date
-                self.sim_init_date: datetime.datetime = datetime.datetime.now()
+        else:
+            # save current date
+            self.sim_init_date: datetime.datetime = datetime.datetime.now()
 
-            datestr = self.sim_init_date.strftime("%Y-%m-%d")
+        datestr = self.sim_init_date.strftime("%Y-%m-%d")
+
+        if METADATA_FILE_KEY not in kwargs:
             self.metadata["setup_date"] = datestr
 
             self.metadata["ensemble_config"] = sim_cfg
-
             self.metadata_file = get_input_dir() / f"{sim_cfg[EXPORT_NAME_KEY]}_{datestr}.json"
 
         # assume standard file format json

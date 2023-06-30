@@ -473,6 +473,9 @@ class PolycubesRule:
             patch.set_id(self.numPatches())
         self._patchList.append(patch)
 
+    def sort_by_num_patches(self):
+        self._cubeTypeList.sort(key=lambda ct: ct.num_patches())
+
     def particle(self, i: int) -> PolycubeRuleCubeType:
         return self._cubeTypeList[i]
 
