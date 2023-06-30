@@ -176,7 +176,7 @@ class PatchySimulationEnsemble:
 
         # observables are optional
         # TODO: integrate oxpy
-        self.observables: dict[str: PatchySimObservable] = []
+        self.observables: dict[str: PatchySimObservable] = {}
 
         if OBSERABLES_KEY in sim_cfg:
             for obs_specifier in sim_cfg[OBSERABLES_KEY]:
