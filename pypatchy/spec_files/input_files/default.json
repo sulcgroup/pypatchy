@@ -1,5 +1,7 @@
 {
     "density": 0.1,
+    "dental_radius": 0,
+    "num_teeth": 1,
     "input": {
         "PROGRAM_PARAMETERS": {
             "ensemble": "NVT",

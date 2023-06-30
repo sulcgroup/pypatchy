@@ -4,8 +4,7 @@ import math
 from typing import Union
 
 import numpy as np
-import pandas as pd
-from itertools import chain
+from ..util import rotAroundAxis
 import re
 
 from pypatchy.patchy.plpatchy import Patch
@@ -13,12 +12,12 @@ from pypatchy.util import rotation_matrix, from_xyz, to_xyz, getSignedAngle
 
 FACE_NAMES = ("left", "right", "bottom", "top", "back", "front")
 RULE_ORDER = (
-    np.array((-1, 0, 0)),
-    np.array((1, 0, 0)),
-    np.array((0, -1, 0)),
-    np.array((0, 1, 0)),
-    np.array((0, 0, -1)),
-    np.array((0, 0, 1))
+    np.array((-1,  0,  0)),
+    np.array(( 1,  0,  0)),
+    np.array(( 0, -1,  0)),
+    np.array(( 0,  1,  0)),
+    np.array(( 0,  0, -1)),
+    np.array(( 0,  0,  1))
 )
 
 
@@ -42,14 +41,15 @@ def get_orientation(face_idx: int,
     return (rot_mat @ zero_rotation).round()
 
 
+# TODO: inherit from a klossar-type patch class and/or PL Patch
 class PolycubesPatch:
     def __init__(self,
-                 uid: int,
+                 uid: Union[int, None],
                  color: int,
                  direction: Union[int, np.ndarray],
                  orientation: Union[int, np.ndarray],
-                 stateVar: int,
-                 activationVar: int):
+                 stateVar: int = 0,
+                 activationVar: int = 0):
         self._id = uid
         self._color = color
         self._dirIdx = direction if isinstance(direction, int) else diridx(direction)
@@ -59,6 +59,14 @@ class PolycubesPatch:
 
     def get_id(self) -> int:
         return self._id
+
+    def set_id(self, new_id: int):
+        """
+        Sets patch ID.
+        Use with caution! Problems will arise if the patch's ID
+        doesn't match its index in a PolycubesRule object!!!
+        """
+        self._id = new_id
 
     def color(self) -> int:
         return self._color
@@ -84,6 +92,18 @@ class PolycubesPatch:
         face_align_zero = RULE_ORDER[(self.dirIdx() + 2) % 6]
         angleFromTo = getSignedAngle(face_align_zero, face_align_dir, face_dir)
         return int(4 * angleFromTo / (math.pi * 2))
+
+    def set_align_rot(self, new_align: int):
+        """
+        See above method get_align_rot_num
+        Parameters:
+            :param new_align an integer from 0 to 4 specifiying a rotation from the default patch orientation
+        """
+        face_dir = self.direction()
+        face_align_zero = RULE_ORDER[(self.dirIdx() + 2) % 6]
+        rot_radians = new_align * math.pi * 2 / 4
+        face_new_align_dir = rotAroundAxis(face_align_zero, face_dir, rot_radians).round()
+        self._oriIdx = diridx(face_new_align_dir)
 
     def state_var(self) -> int:
         return self._stateVar
@@ -147,8 +167,14 @@ class PolycubeRuleCubeType:
     def name(self) -> str:
         return self._name
 
-    def getID(self) -> int:
+    def get_id(self) -> int:
         return self._id
+
+    def set_id(self, new_id: int):
+        """
+        use with caution!
+        """
+        self._id = new_id
 
     def set_state_size(self, newVal: int):
         self._stateSize = newVal
@@ -255,8 +281,8 @@ class PolycubeRuleCubeType:
 # TODO: make this extend some kind of generic klossar / patchy particle rule class
 class PolycubesRule:
     def __init__(self, **kwargs):
-        self._cubeTypeList = []
-        self._patchList = []
+        self._cubeTypeList: list[PolycubeRuleCubeType] = []
+        self._patchList: list[PolycubesPatch] = []
         # WARNING: I actually have no idea if this code will always behave correctly if given
         # static formulation strings!! for this reason you should play it safe and Not Do That
         if "rule_str" in kwargs:
@@ -405,6 +431,10 @@ class PolycubesRule:
                                                                effects,
                                                                name))
                 self._patchList += patches
+        elif "nS" in kwargs:
+            # if a number of species is provided, initialize an empty rule
+            for i in range(kwargs["nS"]):
+                self._cubeTypeList.append(PolycubeRuleCubeType(i, []))
 
     def toJSON(self) -> list:
         return [{
@@ -420,6 +450,28 @@ class PolycubesRule:
             "state_size": ct.state_size()
         }
             for ct in self.particles()]
+
+    def add_particle(self, particle: PolycubeRuleCubeType):
+        if particle.get_id() is not None and particle.get_id() != -1:
+            assert particle.get_id() == self.numCubeTypes()
+        else:
+            particle.set_id(self.numCubeTypes())
+        self._cubeTypeList.append(particle)
+        for patch in particle.patches():
+            self.add_patch(patch)
+
+    def add_particle_patch(self, particle: Union[int], patch: PolycubesPatch):
+        if isinstance(particle, int):
+            particle = self.particle(particle)
+        self.add_patch(patch)
+        particle.add_patch(patch)
+
+    def add_patch(self, patch):
+        if patch.get_id() is not None and patch.get_id() != -1:
+            assert patch.get_id() == self.numPatches()
+        else:
+            patch.set_id(self.numPatches())
+        self._patchList.append(patch)
 
     def particle(self, i: int) -> PolycubeRuleCubeType:
         return self._cubeTypeList[i]
@@ -444,7 +496,7 @@ class PolycubesRule:
 
     def remove_cube_type(self, cubeType: PolycubeRuleCubeType):
         # remove cube type from cube type lists
-        self._cubeTypeList = [ct for ct in self.particles() if ct.getID() != cubeType.getID()]
+        self._cubeTypeList = [ct for ct in self.particles() if ct.get_id() != cubeType.get_id()]
         # remove patches that are no longer needed
         self._patchList = [p for p in self.patches() if any([p in ct.patches() for ct in self.particles()])]
         # TODO: handle particle and patch IDs!!!

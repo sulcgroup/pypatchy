@@ -404,7 +404,7 @@ class PolycubeStructure(Structure):
         # Iterate over the cycles
         for cycle in cycle_list:
             # Convert each cycle to a tuple of node types (cube types)
-            pattern = tuple(sorted(self.cubeList[node].get_type().getID() for node in cycle))
+            pattern = tuple(sorted(self.cubeList[node].get_type().get_id() for node in cycle))
 
             # Append the cycle to the list of cycles of the same pattern
             cycles_by_pattern[pattern].append(cycle)

@@ -1,4 +1,5 @@
 import json
+from scipy.spatial.transform import Rotation as R
 from itertools import groupby
 from pathlib import Path
 import configparser
@@ -106,6 +107,10 @@ def rotation_matrix(axis: np.ndarray, theta: float) -> np.ndarray:
                      [2 * (bd + ac), 2 * (cd - ab), aa + dd - bb - cc]])
 
 
+def rotAroundAxis(patchPos, axis, angle):
+    r = R.from_rotvec(angle * axis)
+    return r.apply(patchPos)
+
 def to_xyz(vector: np.ndarray) -> dict[str: int]:
     return {k: int(v) for k, v in zip(["x", "y", "z"], vector)}
 
@@ -163,16 +168,16 @@ def enumerateRotations() -> dict[int: dict[int: int]]:
 
     """
     return {
-        0: {0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 5},
-        1: {0: 0, 1: 1, 2: 3, 3: 2, 4: 5, 5: 4},
-        2: {0: 0, 1: 1, 2: 4, 3: 5, 4: 3, 5: 2},
-        3: {0: 0, 1: 1, 2: 5, 3: 4, 4: 2, 5: 3},
-        4: {0: 1, 1: 0, 2: 2, 3: 3, 4: 5, 5: 4},
-        5: {0: 1, 1: 0, 2: 3, 3: 2, 4: 4, 5: 5},
-        6: {0: 1, 1: 0, 2: 4, 3: 5, 4: 2, 5: 3},
-        7: {0: 1, 1: 0, 2: 5, 3: 4, 4: 3, 5: 2},
-        8: {0: 2, 1: 3, 2: 0, 3: 1, 4: 5, 5: 4},
-        9: {0: 2, 1: 3, 2: 1, 3: 0, 4: 4, 5: 5},
+        0:  {0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 5},
+        1:  {0: 0, 1: 1, 2: 3, 3: 2, 4: 5, 5: 4},
+        2:  {0: 0, 1: 1, 2: 4, 3: 5, 4: 3, 5: 2},
+        3:  {0: 0, 1: 1, 2: 5, 3: 4, 4: 2, 5: 3},
+        4:  {0: 1, 1: 0, 2: 2, 3: 3, 4: 5, 5: 4},
+        5:  {0: 1, 1: 0, 2: 3, 3: 2, 4: 4, 5: 5},
+        6:  {0: 1, 1: 0, 2: 4, 3: 5, 4: 2, 5: 3},
+        7:  {0: 1, 1: 0, 2: 5, 3: 4, 4: 3, 5: 2},
+        8:  {0: 2, 1: 3, 2: 0, 3: 1, 4: 5, 5: 4},
+        9:  {0: 2, 1: 3, 2: 1, 3: 0, 4: 4, 5: 5},
         10: {0: 2, 1: 3, 2: 4, 3: 5, 4: 0, 5: 1},
         11: {0: 2, 1: 3, 2: 5, 3: 4, 4: 1, 5: 0},
         12: {0: 3, 1: 2, 2: 0, 3: 1, 4: 4, 5: 5},

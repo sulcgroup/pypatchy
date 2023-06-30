@@ -31,11 +31,9 @@ class GraphsFromClusterTxt(AnalysisPipelineStep):
 
     def __init__(self,
                  name: str,
-                 input_tstep: int,
                  output_tstep: int,
                  source: PatchySimObservable):
-        super().__init__(name, input_tstep, output_tstep, ())
-        assert input_tstep >= source.print_every
+        super().__init__(name, self.input_tstep, output_tstep)
         self.source_observable = source
 
     def load_cached_files(self, f: IO):
@@ -117,10 +115,9 @@ class ClassifyClusters(AnalysisPipelineStep):
                  name: str,
                  input_tstep: int,
                  output_tstep: int,
-                 previous_steps: tuple[AnalysisPipelineStep],
                  target_name: str,
                  target_graph: nx.Graph):
-        super().__init__(name, input_tstep, output_tstep, previous_steps)
+        super().__init__(name, input_tstep, output_tstep)
         self.target_name = target_name
         self.target_graph = target_graph
 
@@ -195,11 +192,10 @@ class ComputeClusterYield(AnalysisPipelineStep):
                  name: str,
                  input_tstep: int,
                  output_tstep: int,
-                 previous_steps: tuple[AnalysisPipelineStep],
                  cutoff: float,
                  overreach: bool,
                  target_name: str):
-        super().__init__(name, input_tstep, output_tstep, previous_steps)
+        super().__init__(name, input_tstep, output_tstep)
         self.cutoff = cutoff
         self.overreach = overreach
         self.target_name = target_name
@@ -272,7 +268,7 @@ class ComputeClusterSizeData(AnalysisPipelineStep):
                  output_tstep: int,
                  previous_steps: tuple[AnalysisPipelineStep],
                  minsize=0):
-        super().__init__(name, input_tstep, output_tstep, previous_steps)
+        super().__init__(name, input_tstep, output_tstep)
         self.minsize = minsize
 
     def load_cached_files(self, f: IO):

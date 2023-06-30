@@ -36,8 +36,8 @@ class YieldAllosteryDesigner(PolycubeStructure):
                     # TODO: potentially, modify this to allow for existing allsotery to be modified
                     if ct.count_start_on_patches() == 1:
                         continue
-                    if not ct.getID() in types_processed:
-                        types_processed.add(ct.getID())
+                    if not ct.get_id() in types_processed:
+                        types_processed.add(ct.get_id())
 
                         # get patch that will activate this node's cube
                         origin_patch = ct.patch(self.get_arrow_local_diridx(node, prev_node))
@@ -46,7 +46,7 @@ class YieldAllosteryDesigner(PolycubeStructure):
                             # add a state variable to the current node
                             origin_state = ct.add_state_var()
                             origin_patch.set_state_var(origin_state)
-                            self.ct_allo_vars[ct.getID()].add(origin_state)
+                            self.ct_allo_vars[ct.get_id()].add(origin_state)
 
                         # add an activator
                         target_patch = ct.patch(self.get_arrow_local_diridx(node, next_node))
@@ -57,7 +57,7 @@ class YieldAllosteryDesigner(PolycubeStructure):
                         target_patch.set_activation_var(new_activation_state)
 
                         # make all cycle control states that this type has required for activating the connection
-                        ct.add_effect(DynamicEffect(self.ct_allo_vars[ct.getID()], new_activation_state))
+                        ct.add_effect(DynamicEffect(self.ct_allo_vars[ct.get_id()], new_activation_state))
 
                         yield copy.deepcopy(self.rule)
 
@@ -155,7 +155,7 @@ class YieldAllosteryDesigner(PolycubeStructure):
         behavior_set = set()
         for prev_node, curr_node, next_node in triplets(p):
             # the cube type at the origin of the design path can't occur anywhere else in the path
-            if self.cubeList[curr_node].get_type().getID() == self.cubeList[p[0]].get_type().getID():
+            if self.cubeList[curr_node].get_type().get_id() == self.cubeList[p[0]].get_type().get_id():
                 return False
             curr_prev_edge = self.get_arrow_local_diridx(curr_node, prev_node)
             curr_next_edge = self.get_arrow_local_diridx(curr_node, next_node)
@@ -165,7 +165,7 @@ class YieldAllosteryDesigner(PolycubeStructure):
             front_patch_id = self.cubeList[curr_node].get_type().patch(curr_next_edge)
 
             behavior = (back_patch_id,
-                        self.cubeList[curr_node].get_type().getID(),
+                        self.cubeList[curr_node].get_type().get_id(),
                         front_patch_id)
 
             if behavior in behavior_set:
