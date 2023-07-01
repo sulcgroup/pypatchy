@@ -414,7 +414,7 @@ class PatchySimulationEnsemble:
             if server_config[PATCHY_FILE_FORMAT_KEY].find("josh") > -1:
                 patch_file_info = [
                     ("patchy_file", "patches.txt"),
-                    ("particles_file", "particles.txt"),
+                    ("particle_file", "particles.txt"),
                     ("particle_types_N", self.num_particle_types()),
                     ("patch_types_N", self.num_patch_types(sim))
                 ]
