@@ -404,11 +404,11 @@ class PatchySimulationEnsemble:
                     # if no override
                     if paramname not in sim and paramname not in self.const_params:
                         val = paramgroup[paramname]
-                    elif key in replacer_dict:
-                        val = replacer_dict[key]
+                    elif paramgroup_key in replacer_dict:
+                        val = replacer_dict[paramgroup_key]
                     else:
                         val = self.sim_get_param(sim, paramname)
-                    inputfile.write(f"{key} = {val}\n")
+                    inputfile.write(f"{paramgroup_key} = {val}\n")
             # write things specific to rule
             # if josh_flavio or josh_lorenzo
             if server_config[PATCHY_FILE_FORMAT_KEY].find("josh") > -1:
