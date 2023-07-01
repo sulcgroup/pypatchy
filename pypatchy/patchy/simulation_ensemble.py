@@ -399,16 +399,16 @@ class PatchySimulationEnsemble:
                 inputfile.write(f" {paramgroup_key} ".center(32, "#") + "\n")
                 inputfile.write("#" * 32 + "\n\n")
 
-                # loop parameters
+                # loop parameters in group
                 for paramname in paramgroup:
                     # if no override
                     if paramname not in sim and paramname not in self.const_params:
                         val = paramgroup[paramname]
-                    elif paramgroup_key in replacer_dict:
-                        val = replacer_dict[paramgroup_key]
+                    elif paramname in replacer_dict:
+                        val = replacer_dict[paramname]
                     else:
                         val = self.sim_get_param(sim, paramname)
-                    inputfile.write(f"{paramgroup_key} = {val}\n")
+                    inputfile.write(f"{paramname} = {val}\n")
             # write things specific to rule
             # if josh_flavio or josh_lorenzo
             if server_config[PATCHY_FILE_FORMAT_KEY].find("josh") > -1:
