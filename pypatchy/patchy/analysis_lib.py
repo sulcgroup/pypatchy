@@ -3,11 +3,11 @@ import re
 import networkx as nx
 import numpy as np
 
-from analysis_pipeline_step import *
-from pypatchy.patchy.patchy_sim_observable import PatchySimObservable
-from pypatchy.patchy.yield_analysis_target import ClusterCategory
+from .analysis_pipeline_step import *
+from .patchy_sim_observable import PatchySimObservable
+from .yield_analysis_target import ClusterCategory
 
-from pypatchy.patchy.yield_analysis_target import YieldAnalysisTarget
+from .yield_analysis_target import YieldAnalysisTarget
 
 TIMEPOINT_KEY = "timepoint"
 

@@ -10,7 +10,6 @@ from typing import Union, IO, Any
 import pandas as pd
 
 from .ensemble_parameter import EnsembleParameter
-from .simulation_specification import PatchySimulation
 
 
 class PipelineDataTypeEnum(Enum):
