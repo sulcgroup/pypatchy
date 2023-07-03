@@ -122,9 +122,11 @@ class AnalysisPipelineStep(ABC):
     def exec(self, din: Union[PipelineDataType, AnalysisPipelineStep]) -> PipelineDataType:
         pass
 
-    @abstractmethod
     def get_cache_file_name(self) -> str:
-        pass
+        if self.get_output_data_type() == PipelineDataTypeEnum.PIPELINE_DATATYPE_GRAPH:
+            return f"{self.name}.pickle"
+        else:
+            return f"{self.name}.csv"
 
     def cache_data(self, data: PipelineDataType, file_path: Path):
         if self.get_output_data_type() == PipelineDataTypeEnum.PIPELINE_DATATYPE_DATAFRAME:
@@ -142,3 +144,17 @@ class AnalysisPipelineStep(ABC):
     @abstractmethod
     def get_output_data_type(self) -> PipelineDataTypeEnum:
         pass
+
+
+class AggregateAnalysisPipelineStep(AnalysisPipelineStep, ABC):
+    """
+    Class for analysis pipeline steps that aggregate data from multiple
+    simulations, e.g. average yield over duplicates
+    """
+
+    def __init__(self, step_name: str,
+                 input_tstep: int,
+                 output_tstep: int,
+                 aggregate_over: tuple[EnsembleParameter, ...]):
+        super().__init__(step_name, input_tstep, output_tstep)
+        self.param_aggregate_over = aggregate_over

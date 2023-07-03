@@ -21,6 +21,9 @@ class GraphsFromClusterTxt(AnalysisPipelineStep):
     values are the list of cluster graphs at each of those timepoints
     """
 
+    def can_parallelize(self):
+        return True
+
     source_observable: PatchySimObservable
 
     def __init__(self,
@@ -70,9 +73,6 @@ class GraphsFromClusterTxt(AnalysisPipelineStep):
                 stepcounter += self.source_observable.print_every
         return graphs
 
-    def get_cache_file_name(self) -> str:
-        return "cluster_graphs.pickle"
-
     def get_input_data_type(self) -> PipelineDataTypeEnum:
         return PipelineDataTypeEnum.PIPELINE_DATATYPE_OBSERVABLE
 
@@ -80,13 +80,13 @@ class GraphsFromClusterTxt(AnalysisPipelineStep):
         return PipelineDataTypeEnum.PIPELINE_DATATYPE_GRAPH
 
     def get_py_steps_slurm(self,
-                          data_sources: tuple[Path],
-                          cache_file: Path):
-        return  "from pypatchy.patchy.analysis_lib import GraphsFromClusterTxt\n" \
-                f"obs = PatchySimObservable(**{self.source_observable.to_dict()})\n" \
-                f"step = GraphsFromClusterTxt(0, {self.input_tstep}, {self.output_tstep}, obs)\n" \
-                f"data = step.exec(Path(\"{data_sources[0]}\")\n)" \
-                f"step.cache_data(data, {str(cache_file)})\n"
+                           data_sources: tuple[Path],
+                           cache_file: Path):
+        return "from pypatchy.patchy.analysis_lib import GraphsFromClusterTxt\n" \
+               f"obs = PatchySimObservable(**{self.source_observable.to_dict()})\n" \
+               f"step = GraphsFromClusterTxt(0, {self.input_tstep}, {self.output_tstep}, obs)\n" \
+               f"data = step.exec(Path(\"{data_sources[0]}\")\n)" \
+               f"step.cache_data(data, {str(cache_file)})\n"
 
 
 class ClassifyClusters(AnalysisPipelineStep):
@@ -100,6 +100,9 @@ class ClassifyClusters(AnalysisPipelineStep):
         size ratio (size of graph / size of target)
         category (see ClusterCategory enum at the top of this file)
     """
+
+    def can_parallelize(self):
+        return True
 
     target_name: YieldAnalysisTarget
 
@@ -140,9 +143,6 @@ class ClassifyClusters(AnalysisPipelineStep):
                 cluster_cats_data[self.SIZE_RATIO_KEY].append(sizeFrac)
         return pd.DataFrame.from_dict(data=cluster_cats_data)
 
-    def get_cache_file_name(self) -> str:
-        return "cluster_cats.csv"
-
     def get_input_data_type(self) -> PipelineDataTypeEnum:
         return PipelineDataTypeEnum.PIPELINE_DATATYPE_GRAPH
 
@@ -152,14 +152,16 @@ class ClassifyClusters(AnalysisPipelineStep):
     def get_py_steps_slurm(self, data_sources: tuple[Path], cache_file: Path) -> str:
         return "import networkx as nx\n" \
                "from pypatchy.patchy.analysis_lib import ClassifyClusters\n" \
-                f"target = YieldAnalysisTarget({self.target.name})\n" \
-                f"step = ClassifyClusters(0,{self.input_tstep},{self.output_tstep},(),{self.target_name},target_graph)\n" \
-                f"data = step.exec(Path(\"{data_sources[0]}\")\n)" \
-                f"step.cache_data(data, {str(cache_file)})\n"
-
+               f"target = YieldAnalysisTarget({self.target.name})\n" \
+               f"step = ClassifyClusters(0,{self.input_tstep},{self.output_tstep},(),{self.target_name},target_graph)\n" \
+               f"data = step.exec(Path(\"{data_sources[0]}\")\n)" \
+               f"step.cache_data(data, {str(cache_file)})\n"
 
 
 class ComputeClusterYield(AnalysisPipelineStep):
+    def can_parallelize(self):
+        return True
+
     YIELD_KEY = "yield"
 
     cutoff: float
@@ -212,9 +214,6 @@ class ComputeClusterYield(AnalysisPipelineStep):
         data = data.loc[data[TIMEPOINT_KEY] % self.output_tstep == 0]
         return data
 
-    def get_cache_file_name(self) -> str:
-        return f"yield_data_Ctf{self.cutoff}_Ovrch{self.overreach}.csv"
-
     def get_input_data_type(self) -> PipelineDataTypeEnum:
         return PipelineDataTypeEnum.PIPELINE_DATATYPE_DATAFRAME
 
@@ -223,10 +222,10 @@ class ComputeClusterYield(AnalysisPipelineStep):
 
     def get_py_steps_slurm(self, data_sources: tuple[Path], cache_file: Path):
         return "from pypatchy.patchy.analysis_lib import ComputeClusterYield\n" \
-                f"target = YieldAnalysisTarget({self.target.name})" \
-                f"step = ComputeClusterYield(0,{self.input_tstep},{self.output_tstep},(),{self.cutoff},{self.overreach},target)\n" \
-                f"data = step.exec(Path(\"{data_sources[0]}\")\n)" \
-                f"step.cache_data(data, {str(cache_file)})\n"
+               f"target = YieldAnalysisTarget({self.target.name})" \
+               f"step = ComputeClusterYield(0,{self.input_tstep},{self.output_tstep},(),{self.cutoff},{self.overreach},target)\n" \
+               f"data = step.exec(Path(\"{data_sources[0]}\")\n)" \
+               f"step.cache_data(data, {str(cache_file)})\n"
 
 
 class ComputeClusterSizeData(AnalysisPipelineStep):
@@ -277,9 +276,6 @@ class ComputeClusterSizeData(AnalysisPipelineStep):
                 cluster_size_data[self.STDEV_KEY].append(np.std(np.array(graph_sizes)))
         return pd.DataFrame.from_dict(data=cluster_size_data)
 
-    def get_cache_file_name(self) -> str:
-        return f"cluster_size_data_min{self.minsize}.csv"
-
     def get_input_data_type(self) -> PipelineDataTypeEnum:
         return PipelineDataTypeEnum.PIPELINE_DATATYPE_DATAFRAME
 
@@ -290,7 +286,7 @@ class ComputeClusterSizeData(AnalysisPipelineStep):
         return False
 
 
-class ComputeSpecGroupClusterYield(ComputeClusterYield):
+class ComputeSpecGroupClusterYield(AggregateAnalysisPipelineStep):
     """
     Simulation step which computes yields over multiple simulations
     This Step was specifically designed to compute average, min, max,
@@ -298,10 +294,6 @@ class ComputeSpecGroupClusterYield(ComputeClusterYield):
 
     The step uses simple statistical methods and does NOT attempt to line
     up formation curves or any other thing I just thought of
-
-    Don't put too much consideration into the fact that this class extends ComputeClusterYield
-    instead of AnalysisPipelineStep. This is just so I don't have to copy over the code
-    for target name, cutoff, and overreach
     """
 
     MIN_KEY = "yield_min"
@@ -337,9 +329,6 @@ class ComputeSpecGroupClusterYield(ComputeClusterYield):
 
         return data
 
-    def get_cache_file_name(self) -> str:
-        return f"sims_yield_Ctf{self.cutoff}_Ovrch{self.overreach}.csv"
-
     def get_input_data_type(self) -> PipelineDataTypeEnum:
         return PipelineDataTypeEnum.PIPELINE_DATATYPE_DATAFRAME
 
@@ -350,8 +339,11 @@ class ComputeSpecGroupClusterYield(ComputeClusterYield):
                            data_sources: tuple[Path],
                            cache_file: Path):
         return "from pypatchy.patchy.analysis_lib import ComputeSpecGroupClusterYield\n" \
-                f"step = ComputeSpecGroupClusterYield(0, {self.input_tstep}, {self.output_tstep},(),{self.cutoff},{self.overreach},{self.target_name})\n" \
-                f"in_data = [pd.read_csv(fpath) for fpath in {data_sources}]\n" \
-                "in_data = pd.concat(in_data, ignore_index=True)\n" \
-                "data = step.exec(in_data)\n)" \
-                f"step.cache_data(data, {str(cache_file)})\n"
+               f"step = ComputeSpecGroupClusterYield(0, {self.input_tstep}, {self.output_tstep},(),{self.cutoff},{self.overreach},{self.target_name})\n" \
+               f"in_data = [pd.read_csv(fpath) for fpath in {data_sources}]\n" \
+               "in_data = pd.concat(in_data, ignore_index=True)\n" \
+               "data = step.exec(in_data)\n)" \
+               f"step.cache_data(data, {str(cache_file)})\n"
+
+    def can_parallelize(self):
+        return True
