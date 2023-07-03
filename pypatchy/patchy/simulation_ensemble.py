@@ -109,7 +109,7 @@ class PatchySimulationEnsemble:
         assert "cfg_file_name" in kwargs or METADATA_FILE_KEY in kwargs or "cfg_dict" in kwargs
 
         self.metadata: dict = {}
-        sim_cfg = {}
+        sim_cfg = kwargs
         if METADATA_FILE_KEY in kwargs or "cfg_file_name" in kwargs:
             # if an exec metadata file was provided
             if METADATA_FILE_KEY in kwargs:
@@ -123,7 +123,7 @@ class PatchySimulationEnsemble:
                 # if a cfg file name was provided
                 cfg_file_name = kwargs["cfg_file_name"]
                 with open(get_input_dir() / cfg_file_name) as f:
-                    sim_cfg = json.load(f)
+                    sim_cfg.update(json.load(f))
 
         # if no file key was provided, use function arg dict as setup dict
         else:
@@ -295,6 +295,9 @@ class PatchySimulationEnsemble:
                   self.folder_path(sim) / "init.top",
                   self.folder_path(sim) / "particles.txt",
                   self.folder_path(sim) / "patches.txt")
+
+    def show_analysis_status(self):
+        pd.DataFrame(g)
 
     # ----------------------- Setup Methods ----------------------------------- #
     def do_setup(self):
@@ -676,7 +679,7 @@ class PatchySimulationEnsemble:
 
 
 def ensemble_from_export_settings(export_settings_file_path: Union[Path, str],
-                                  targets_file_path: Union[Path, str]) -> PatchySimulationEnsemble:
+                                  targets_file_path: Union[Path, str] = None) -> PatchySimulationEnsemble:
     """
     Constructs a PatchySimulationEnsemble object from the `patchy_export_settings.json` format
     """
