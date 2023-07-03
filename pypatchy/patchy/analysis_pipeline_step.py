@@ -41,7 +41,6 @@ class AnalysisPipelineStep(ABC):
     output_data: PipelineDataTypeEnum
 
     # steps immediately feeding into this step
-    previous_steps: list[AnalysisPipelineStep]
 
     # interval in timesteps between input data points
     input_tstep: int
@@ -54,7 +53,6 @@ class AnalysisPipelineStep(ABC):
         self.idx = -1
         self.input_tstep = input_tstep
         self.output_tstep = output_tstep
-        self.previous_steps = []
 
     @abstractmethod
     def load_cached_files(self, f: IO) -> PipelineDataType:

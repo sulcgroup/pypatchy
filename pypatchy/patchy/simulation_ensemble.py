@@ -653,14 +653,14 @@ class PatchySimulationEnsemble:
             self.get_data(prev_step,
                           sim,
                           time_steps)
-            for prev_step in step.previous_steps
+            for prev_step in self.analysis_pipeline.steps_before(sim)
         ]
 
         if self.is_do_analysis_parallel() and step.can_parallelize():
             server_cfg = get_server_config()
             data_sources = [
                 self.get_cache_file(data_source, sim)
-                for data_source in step.previous_steps
+                for data_source in self.analysis_pipeline.steps_before(sim)
             ]
             with tempfile.TemporaryDirectory() as temp_dir:
                 jobid = step.exec_step_slurm(temp_dir,
