@@ -604,7 +604,11 @@ class PatchySimulationEnsemble:
         return self.folder_path(sim) / "init.conf"
 
     # ------------- ANALYSIS FUNCTIONS --------------------- #
-    def add_analysis_steps(self, new_steps: AnalysisPipeline):
+    def add_analysis_steps(self, *args):
+        if isinstance(args[0], AnalysisPipeline):
+            new_steps = args[0]
+        else:
+            new_steps = AnalysisPipeline(args[0], *args[1:])
         self.analysis_pipeline = self.analysis_pipeline + new_steps
         self.dump_metadata()
 

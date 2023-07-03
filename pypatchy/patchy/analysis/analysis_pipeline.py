@@ -19,11 +19,11 @@ class AnalysisPipeline:
     pipeline_steps: list[AnalysisPipelineStep]
     name_map: dict[str: AnalysisPipelineStep]
 
-    def __init__(self, pathway: dict[str: str], *args: AnalysisPipelineStep):
+    def __init__(self, pathway: list[tuple[str: str]] = [], *args: AnalysisPipelineStep):
         self.pipeline_graph = nx.DiGraph()
         self.pipeline_steps = list(args)
         self.name_map = {step.name: step for step in self.pipeline_steps}
-        for begin, end in pathway.items():
+        for begin, end in pathway:
             assert begin in self.name_map
             assert end in self.name_map
             self.pipeline_graph.add_edge(self.name_map[begin].idx,
