@@ -41,7 +41,6 @@ class AnalysisPipeline:
                            step: Union[int, AnalysisPipelineStep],
                            dependant_step: Union[int, AnalysisPipelineStep]):
         self.pipeline_graph.add_edge(analysis_step_idx(dependant_step), analysis_step_idx(step))
-        self.get_pipeline_step(step).previous_steps.append(dependant_step)
 
     def num_pipeline_steps(self) -> int:
         """
@@ -52,6 +51,9 @@ class AnalysisPipeline:
 
     def get_pipeline_step(self, step: Union[int, AnalysisPipelineStep]) -> AnalysisPipelineStep:
         return step if isinstance(step, AnalysisPipelineStep) else self.pipeline_steps[step]
+
+    def steps_before(self, step: AnalysisPipelineStep) -> list[int]:
+        return self.pipeline_graph.in_edges(step.idx).keys()
 
     def __add__(self, other: AnalysisPipeline):
         id_remap: dict[int: int] = {}
