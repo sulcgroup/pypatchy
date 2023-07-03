@@ -107,8 +107,10 @@ class ClassifyClusters(AnalysisPipelineStep):
                  name: str,
                  input_tstep: int,
                  output_tstep: int,
-                 target: YieldAnalysisTarget):
+                 target: Union[str, YieldAnalysisTarget]):
         super().__init__(name, input_tstep, output_tstep)
+        if isinstance(target, str):
+            target = YieldAnalysisTarget(target)
         self.target = target
 
     CLUSTER_CATEGORY_KEY = "clustercategory"
@@ -243,7 +245,6 @@ class ComputeClusterSizeData(AnalysisPipelineStep):
                  name: str,
                  input_tstep: int,
                  output_tstep: int,
-                 previous_steps: tuple[AnalysisPipelineStep],
                  minsize=0):
         super().__init__(name, input_tstep, output_tstep)
         self.minsize = minsize
