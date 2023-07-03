@@ -280,6 +280,11 @@ class PatchySimulationEnsemble:
     def ensemble(self) -> list[PatchySimulation]:
         return [PatchySimulation(e) for e in itertools.product(*self.ensemble_params)]
 
+    def get_ensemble_parameter(self, ens_param_name: str) -> EnsembleParameter:
+        param_match = [p for p in self.ensemble_params if p.param_key == ens_param_name]
+        assert len(param_match) == 0, "ensemble parameter name problem bad bad bad!!!"
+        return param_match[0]
+
     def tld(self) -> Path:
         return simulation_run_dir() / self.long_name()
 
