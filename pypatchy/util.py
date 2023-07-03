@@ -16,6 +16,12 @@ def get_input_dir() -> Path:
     return get_local_dir() / "input"
 
 
+def lsin() -> list[str]:
+    """
+    Lists files and folders in `input` directory
+    """
+    return [*get_input_dir().iterdir()]
+
 def get_output_dir() -> Path:
     return get_local_dir() / "output"
 

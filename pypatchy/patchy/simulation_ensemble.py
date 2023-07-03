@@ -192,13 +192,17 @@ class PatchySimulationEnsemble:
         # handle potential weird stuff??
 
         # load analysis pipeline
-        self.analysis_pipeline = AnalysisPipeline(self.tld() / "analysis_pipeline.pickle")
+        self.analysis_pipeline = AnalysisPipeline()
 
         if "analysis_file" in self.metadata:
             file_path = self.metadata["analysis_file"]
             self.analysis_pipeline = self.analysis_pipeline + pickle.load(file_path)
         else:
-            self.metadata["analysis_file"] = self.analysis_pipeline.file_path
+            default_analysis_file_path = self.tld() / "analysis_pipeline.pickle"
+            if default_analysis_file_path.exists():
+                with open(default_analysis_file_path, "rb") as f:
+                    self.analysis_pipeline = self.analysis_pipeline + pickle.load(f)
+            self.metadata["analysis_file"] = default_analysis_file_path
 
         # init slurm log dataframe
         self.slurm_log = pd.DataFrame(columns=["slurm_job_id", *[p.param_key for p in self.ensemble_params]])
@@ -297,7 +301,10 @@ class PatchySimulationEnsemble:
                   self.folder_path(sim) / "patches.txt")
 
     def show_analysis_status(self):
-        pd.DataFrame(g)
+        pd.DataFrame(index=self.ensemble(), columns=[step.name for step in self.analysis_pipeline.pipeline_steps])
+
+    def all_folders_exist(self):
+        return all(self.folder_path(s).exists() for s in self.ensemble())
 
     # ----------------------- Setup Methods ----------------------------------- #
     def do_setup(self):
@@ -550,6 +557,14 @@ class PatchySimulationEnsemble:
     def dump_slurm_log_file(self):
         self.slurm_log.to_csv(f"{self.tld()}/slurm_log.csv")
 
+    def dump_metadata(self):
+        # dump metadata dict to file
+        with open(self.metadata_file, "w") as f:
+            json.dump(self.metadata, fp=f, indent=4)
+        # dump analysis pipeline as pickle
+        with open(self.tld() / "analysis_pipeline.pickle", "wb") as f:
+            pickle.dump(self.analysis_pipeline, f)
+
     def start_simulations(self):
         for sim in self.ensemble():
             self.start_simulation(sim)
@@ -589,6 +604,9 @@ class PatchySimulationEnsemble:
         return self.folder_path(sim) / "init.conf"
 
     # ------------- ANALYSIS FUNCTIONS --------------------- #
+    def add_analysis_steps(self, new_steps: AnalysisPipeline):
+        self.analysis_pipeline = self.analysis_pipeline + new_steps
+        self.dump_metadata()
 
     def has_data_for_analysis_step(self,
                                    step: Union[int, AnalysisPipelineStep],
@@ -677,73 +695,73 @@ class PatchySimulationEnsemble:
         self.logger.info(f"`{response.stdout}`")
         return response.stdout
 
-
-def ensemble_from_export_settings(export_settings_file_path: Union[Path, str],
-                                  targets_file_path: Union[Path, str] = None) -> PatchySimulationEnsemble:
-    """
-    Constructs a PatchySimulationEnsemble object from the `patchy_export_settings.json` format
-    """
-    with open(export_settings_file_path, "r") as f:
-        export_setup_dict = json.load(f)
-
-    # Grab list of narrow types
-    narrow_types = export_setup_dict['narrow_types']
-    # grab list of temperatures
-    temperatures = export_setup_dict['temperatures']
-
-    rule = PolycubesRule(rule_str=export_setup_dict["rule_json"])
-
-    # make sure that all export groups have the same set of narrow types, duplicates,
-    # densities, and temperatures
-    assert all([
-        all_equal([
-            export_group[key]
-            for export_group in export_setup_dict['export_groups']
-        ])
-        for key in ["temperatures", "num_duplicates", "particle_density", "narrow_types"]
-    ])
-
-    particle_type_level_groups_list = [
-        {
-            "name": export_group["exportGroupName"],
-            "value": {
-                "particle_type_levels": {
-                    p.name(): export_group["particle_type_levels"]
-                    for p in rule.particles()
-                }
-            }
-        }
-        for export_group in export_setup_dict['export_groups']
-    ]
-
-    cfg_dict = {
-        EXPORT_NAME_KEY: export_setup_dict['export_name'],
-        PARTICLES_KEY: rule,
-        DEFAULT_PARAM_SET_KEY: "default.json",
-        OBSERABLES_KEY: ["plclustertopology"],
-        CONST_PARAMS_KEY: {
-            DENSITY_KEY: export_setup_dict["particle_density"] if "particle_density" else 0.1,
-            DENTAL_RADIUS_KEY: 0,
-            NUM_TEETH_KEY: 1,
-            "torsion": True
-        },
-        ENSEMBLE_PARAMS_KEY: [
-            (
-                "T",
-                temperatures
-            ),
-            (
-                "narrow_type",
-                narrow_types
-            ),
-            (
-                "type_level_group",
-                particle_type_level_groups_list
-            ),
-            (
-                "duplicate",
-
-            )
-        ],
-    }
-    return PatchySimulationEnsemble(cfg_dict=cfg_dict)
+#
+# def ensemble_from_export_settings(export_settings_file_path: Union[Path, str],
+#                                   targets_file_path: Union[Path, str] = None) -> PatchySimulationEnsemble:
+#     """
+#     Constructs a PatchySimulationEnsemble object from the `patchy_export_settings.json` format
+#     """
+#     with open(export_settings_file_path, "r") as f:
+#         export_setup_dict = json.load(f)
+#
+#     # Grab list of narrow types
+#     narrow_types = export_setup_dict['narrow_types']
+#     # grab list of temperatures
+#     temperatures = export_setup_dict['temperatures']
+#
+#     rule = PolycubesRule(rule_str=export_setup_dict["rule_json"])
+#
+#     # make sure that all export groups have the same set of narrow types, duplicates,
+#     # densities, and temperatures
+#     assert all([
+#         all_equal([
+#             export_group[key]
+#             for export_group in export_setup_dict['export_groups']
+#         ])
+#         for key in ["temperatures", "num_duplicates", "particle_density", "narrow_types"]
+#     ])
+#
+#     particle_type_level_groups_list = [
+#         {
+#             "name": export_group["exportGroupName"],
+#             "value": {
+#                 "particle_type_levels": {
+#                     p.name(): export_group["particle_type_levels"]
+#                     for p in rule.particles()
+#                 }
+#             }
+#         }
+#         for export_group in export_setup_dict['export_groups']
+#     ]
+#
+#     cfg_dict = {
+#         EXPORT_NAME_KEY: export_setup_dict['export_name'],
+#         PARTICLES_KEY: rule,
+#         DEFAULT_PARAM_SET_KEY: "default.json",
+#         OBSERABLES_KEY: ["plclustertopology"],
+#         CONST_PARAMS_KEY: {
+#             DENSITY_KEY: export_setup_dict["particle_density"] if "particle_density" else 0.1,
+#             DENTAL_RADIUS_KEY: 0,
+#             NUM_TEETH_KEY: 1,
+#             "torsion": True
+#         },
+#         ENSEMBLE_PARAMS_KEY: [
+#             (
+#                 "T",
+#                 temperatures
+#             ),
+#             (
+#                 "narrow_type",
+#                 narrow_types
+#             ),
+#             (
+#                 "type_level_group",
+#                 particle_type_level_groups_list
+#             ),
+#             (
+#                 "duplicate",
+#
+#             )
+#         ],
+#     }
+#     return PatchySimulationEnsemble(cfg_dict=cfg_dict)

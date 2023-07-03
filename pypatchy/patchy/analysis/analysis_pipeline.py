@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 import json
+import pickle
 from pathlib import Path
 from typing import Union
 
@@ -18,12 +19,15 @@ class AnalysisPipeline:
     pipeline_steps: list[AnalysisPipelineStep]
     name_map: dict[str: AnalysisPipelineStep]
 
-    def __init__(self, path: Path):
+    def __init__(self, pathway: dict[str: str], *args: AnalysisPipelineStep):
         self.pipeline_graph = nx.DiGraph()
-        self.pipeline_steps = []
-        self.name_map = {}
-
-        self.file_path = path
+        self.pipeline_steps = list(args)
+        self.name_map = {step.name: step for step in self.pipeline_steps}
+        for begin, end in pathway.items():
+            assert begin in self.name_map
+            assert end in self.name_map
+            self.pipeline_graph.add_edge(self.name_map[begin].idx,
+                                         self.name_map[end].idx)
 
     def add_step(self, new_step: AnalysisPipelineStep):
         """

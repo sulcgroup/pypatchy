@@ -58,8 +58,8 @@ def create_default_config():
             os.makedirs(target_file_dir, exist_ok=True)
             shutil.copyfile(source_file_path, target_file_path)
 
-    os.makedirs(home / "input", exist_ok=True)
-    os.makedirs(home / "output" / "logs", exist_ok=True)
+    os.makedirs(pypatchy_dir / "input", exist_ok=True)
+    os.makedirs(pypatchy_dir / "output" / "logs", exist_ok=True)
 
 if __name__ == '__main__':
     create_default_config()
