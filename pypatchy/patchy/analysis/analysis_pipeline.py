@@ -18,11 +18,15 @@ class AnalysisPipeline:
 
     def __init__(self, pathway: list[tuple[str: str]] = [], *args: AnalysisPipelineStep):
         self.pipeline_graph = nx.DiGraph()
-        self.pipeline_steps = list(args)
+        self.pipeline_steps = []
+        for i, step in enumerate(args):
+            step = copy.deepcopy(step)
+            step.idx = i
+            self.pipeline_steps.append(step)
         self.name_map = {step.name: step for step in self.pipeline_steps}
         for begin, end in pathway:
-            assert begin in self.name_map
-            assert end in self.name_map
+            assert begin in self.name_map, f"No step in pathway with name {begin}."
+            assert end in self.name_map, f"No step in pathway with name {end}."
             self.pipeline_graph.add_edge(self.name_map[begin].idx,
                                          self.name_map[end].idx)
 
@@ -56,8 +60,8 @@ class AnalysisPipeline:
         id_remap: dict[int: int] = {}
         for node in other.pipeline_graph.nodes:
             assert other.pipeline_steps[node].name not in self.name_map
-            n = copy.deepcopy(node)
-            id_remap[n] = self.num_pipeline_steps()
+            n = copy.deepcopy(other.pipeline_steps[node])
+            id_remap[node] = self.num_pipeline_steps()
             n.idx = self.num_pipeline_steps()
             self.name_map[n.name] = n
             self.pipeline_steps.append(n)
