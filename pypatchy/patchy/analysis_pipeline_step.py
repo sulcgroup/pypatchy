@@ -28,6 +28,9 @@ PipelineDataType = Any  # todo: detail!
 
 
 class AnalysisPipelineStep(ABC):
+    # unique ID
+    idx: int
+
     # the name of this step on the analysis pipeline
     name: str
 
