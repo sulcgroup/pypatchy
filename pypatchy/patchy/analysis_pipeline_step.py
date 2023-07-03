@@ -104,11 +104,14 @@ class AnalysisPipelineStep(ABC):
     def can_parallelize(self):
         pass
 
-    @abstractmethod
     def write_steps_slurm(self,
                           f: IO,
                           data_sources: tuple[Path],
                           cache_file: Path):
+        f.write(self.get_py_steps_slurm(data_sources, cache_file))
+
+    @abstractmethod
+    def get_py_steps_slurm(self, data_sources: tuple[Path], cache_file: Path):
         pass
 
     @abstractmethod
