@@ -72,8 +72,11 @@ def get_param_set(filename) -> dict:
 
 
 def get_spec_json(name, folder) -> dict:
-    with open(f"{get_local_dir()}/spec_files/{folder}/{name}.json") as f:
-        return json.load(f)
+    try:
+        with open(f"{get_local_dir()}/spec_files/{folder}/{name}.json") as f:
+            return json.load(f)
+    except IOError as e:
+        print(f"No file named {name} in {get_local_dir() / 'spec_files' / folder}!")
 
 
 class BadSimulationDirException(Exception):

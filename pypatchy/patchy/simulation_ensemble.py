@@ -179,16 +179,9 @@ class PatchySimulationEnsemble:
         self.observables: dict[str: PatchySimObservable] = {}
 
         if OBSERABLES_KEY in sim_cfg:
-            for obs_specifier in sim_cfg[OBSERABLES_KEY]:
-                # if the name of an observable is provided
-                if isinstance(obs_specifier, str):
-                    try:
-                        obs = observable_from_file(obs_specifier)
-                    except FileNotFoundError as e:
-                        print(f"No file {obs_specifier}!")
-                else:  # assume observable is provided as raw json
-                    obs = PatchySimObservable(**obs_specifier)
-                self.observables[obs.name] = obs
+            for obs_name in sim_cfg[OBSERABLES_KEY]:
+                self.observables[obs_name] = observable_from_file(obs_name)
+
         # handle potential weird stuff??
 
         # load analysis pipeline
@@ -202,7 +195,7 @@ class PatchySimulationEnsemble:
             if default_analysis_file_path.exists():
                 with open(default_analysis_file_path, "rb") as f:
                     self.analysis_pipeline = self.analysis_pipeline + pickle.load(f)
-            self.metadata["analysis_file"] = default_analysis_file_path
+            self.metadata["analysis_file"] = str(default_analysis_file_path)
 
         # init slurm log dataframe
         self.slurm_log = pd.DataFrame(columns=["slurm_job_id", *[p.param_key for p in self.ensemble_params]])
@@ -282,7 +275,7 @@ class PatchySimulationEnsemble:
 
     def get_ensemble_parameter(self, ens_param_name: str) -> EnsembleParameter:
         param_match = [p for p in self.ensemble_params if p.param_key == ens_param_name]
-        assert len(param_match) == 0, "ensemble parameter name problem bad bad bad!!!"
+        assert len(param_match) == 1, "ensemble parameter name problem bad bad bad!!!"
         return param_match[0]
 
     def tld(self) -> Path:
@@ -689,13 +682,29 @@ class PatchySimulationEnsemble:
     def get_cache_file(self,
                        step: Union[int, AnalysisPipelineStep],
                        sim: Union[tuple[ParameterValue], PatchySimulation]) -> Path:
+        """
+        Retrieves a path to a file of analysis cache data for the given analysis step and
+        simulation descriptor
+        Parameters:
+             step : an AnalysisPipelineStep object or an int indxer for such an object
+             sim : either a PatchySimulation object or a tuple of ParameterValue objects specifying
+             a set of PatchySimulation objects
+        Return: a path to a data file
+        """
+        # get step object if it was passed as an index
         step = self.get_pipeline_step(step)
+        # if single simulation
         if isinstance(sim, PatchySimulation):
+            # cache analysis data in the simulation data folder
             return self.folder_path(sim) / step.get_cache_file_name()
         else:
+            # cache analysis data in a folder in the top level directory
             return self.tld() / describe_param_vals(*sim) / step.get_cache_file_name()
 
     def bash_exec(self, command: str):
+        """
+        Executes a bash command and returns the output
+        """
         self.logger.info(f">`{command}`")
         response = subprocess.run(command, shell=True,
                                   capture_output=True, text=True, check=False)

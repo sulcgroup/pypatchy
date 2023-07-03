@@ -30,7 +30,7 @@ class GraphsFromClusterTxt(AnalysisPipelineStep):
                  name: str,
                  output_tstep: int,
                  source: PatchySimObservable):
-        super().__init__(name, self.input_tstep, output_tstep)
+        super().__init__(name, source.print_every, output_tstep)
         self.source_observable = source
 
     def load_cached_files(self, f: IO):
@@ -174,10 +174,12 @@ class ComputeClusterYield(AnalysisPipelineStep):
                  output_tstep: int,
                  cutoff: float,
                  overreach: bool,
-                 target: YieldAnalysisTarget):
+                 target: Union[str, YieldAnalysisTarget]):
         super().__init__(name, input_tstep, output_tstep)
         self.cutoff = cutoff
         self.overreach = overreach
+        if isinstance(target, str):
+            target = YieldAnalysisTarget(target)
         self.target = target
 
     def load_cached_files(self, f: IO):
@@ -296,10 +298,18 @@ class ComputeSpecGroupClusterYield(AggregateAnalysisPipelineStep):
     up formation curves or any other thing I just thought of
     """
 
+    def __init__(self,
+                 name: str,
+                 input_tstep: int,
+                 output_tstep: int,
+                 aggregate_over: EnsembleParameter):
+        super().__init__(name, input_tstep, output_tstep, tuple(aggregate_over))
+
     MIN_KEY = "yield_min"
     MAX_KEY = "yield_max"
     AVG_KEY = "yield_avg"
     STD_KEY = "yield_std"
+
 
     def load_cached_files(self, f: IO):
         return pd.read_csv(f)
