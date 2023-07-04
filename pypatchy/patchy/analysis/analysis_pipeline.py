@@ -50,22 +50,26 @@ class AnalysisPipeline:
         """
         return len(self.pipeline_steps)
 
-    def get_pipeline_step(self, step: Union[int, AnalysisPipelineStep]) -> AnalysisPipelineStep:
-        return step if isinstance(step, AnalysisPipelineStep) else self.pipeline_steps[step]
+    def get_pipeline_step(self, step: Union[int, str, AnalysisPipelineStep]) -> AnalysisPipelineStep:
+        return step if isinstance(step, AnalysisPipelineStep) else\
+            self.name_map[step] if isinstance(step, str) else self.pipeline_steps[step]
 
     def steps_before(self, step: AnalysisPipelineStep) -> list[int]:
         return self.pipeline_graph.in_edges(step.idx).keys()
 
     def __add__(self, other: AnalysisPipeline):
         id_remap: dict[int: int] = {}
+        new_pipeline = copy.deepcopy(self)
         for node in other.pipeline_graph.nodes:
-            assert other.pipeline_steps[node].name not in self.name_map
+            assert other.pipeline_steps[node].name not in new_pipeline.name_map
             n = copy.deepcopy(other.pipeline_steps[node])
-            id_remap[node] = self.num_pipeline_steps()
-            n.idx = self.num_pipeline_steps()
-            self.name_map[n.name] = n
-            self.pipeline_steps.append(n)
-            self.pipeline_graph.add_node(n.idx)
+            id_remap[node] = new_pipeline.num_pipeline_steps()
+            n.idx = new_pipeline.num_pipeline_steps()
+            new_pipeline.name_map[n.name] = n
+            new_pipeline.pipeline_steps.append(n)
+            new_pipeline.pipeline_graph.add_node(n.idx)
 
         for n1, n2 in other.pipeline_graph.edges:
-            self.pipeline_graph.add_edge(id_remap[n1], id_remap[n2])
+            new_pipeline.pipeline_graph.add_edge(id_remap[n1], id_remap[n2])
+
+        return new_pipeline

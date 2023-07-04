@@ -17,7 +17,7 @@ import re
 import logging
 
 from .analysis.analysis_pipeline import AnalysisPipeline, analysis_step_idx
-from .analysis_pipeline_step import AnalysisPipelineStep, PipelineDataType
+from .analysis_pipeline_step import AnalysisPipelineStep, PipelineDataType, AggregateAnalysisPipelineStep
 from .patchy_sim_observable import PatchySimObservable, observable_from_file
 from ..util import get_param_set, simulation_run_dir, get_server_config, get_log_dir, get_input_dir, all_equal
 from .ensemble_parameter import EnsembleParameter, ParameterValue
@@ -111,7 +111,7 @@ class PatchySimulationEnsemble:
         self.metadata: dict = {}
         sim_cfg = kwargs
         if METADATA_FILE_KEY in kwargs or "cfg_file_name" in kwargs:
-            # if an exec metadata file was provided
+            # if an execution metadata file was provided
             if METADATA_FILE_KEY in kwargs:
                 self.metadata_file = get_input_dir() / kwargs[METADATA_FILE_KEY]
                 with open(self.metadata_file) as f:
@@ -139,15 +139,20 @@ class PatchySimulationEnsemble:
             # save current date
             self.sim_init_date: datetime.datetime = datetime.datetime.now()
 
+        # whether it was just set from kwaargs or gen'd from today, make init date str
+        # to identify this ensemble
         datestr = self.sim_init_date.strftime("%Y-%m-%d")
 
+        # if no metadata file was provided in the keyword arguements
         if METADATA_FILE_KEY not in kwargs:
             self.metadata["setup_date"] = datestr
-
             self.metadata["ensemble_config"] = sim_cfg
-            self.metadata_file = get_input_dir() / f"{sim_cfg[EXPORT_NAME_KEY]}_{datestr}.json"
-
-        # assume standard file format json
+            self.metadata_file = get_input_dir() / f"{sim_cfg[EXPORT_NAME_KEY]}_{datestr}_metadata.json"
+            # if a metadata file exists at the default path
+            if self.metadata_file.exists():
+                # update metadata dict from file
+                with open(self.metadata_file, "r") as f:
+                    self.metadata.update(json.load(f))
 
         # name of simulation set
         self.export_name: str = sim_cfg[EXPORT_NAME_KEY]
@@ -187,15 +192,15 @@ class PatchySimulationEnsemble:
         # load analysis pipeline
         self.analysis_pipeline = AnalysisPipeline()
 
+        # if the metadata specifies a pickle file of a stored analywsis pathway, use it
         if "analysis_file" in self.metadata:
-            file_path = self.metadata["analysis_file"]
-            self.analysis_pipeline = self.analysis_pipeline + pickle.load(file_path)
-        else:
-            default_analysis_file_path = self.tld() / "analysis_pipeline.pickle"
-            if default_analysis_file_path.exists():
-                with open(default_analysis_file_path, "rb") as f:
+            file_path = Path(self.metadata["analysis_file"])
+            if file_path.exists():
+                with open(file_path, "rb") as f:
                     self.analysis_pipeline = self.analysis_pipeline + pickle.load(f)
-            self.metadata["analysis_file"] = str(default_analysis_file_path)
+        else:  # if not, use a default one and cache it
+            file_path = self.tld() / "analysis_pipeline.pickle"
+            self.metadata["analysis_file"] = str(file_path)
 
         # init slurm log dataframe
         self.slurm_log = pd.DataFrame(columns=["slurm_job_id", *[p.param_key for p in self.ensemble_params]])
@@ -212,7 +217,7 @@ class PatchySimulationEnsemble:
         return f"{self.export_name}_{self.sim_init_date.strftime('%Y-%m-%d')}"
 
     def is_do_analysis_parallel(self) -> bool:
-        return self.metadata["parallel"]
+        return "parallel" in self.metadata and self.metadata["parallel"]
 
     def get_sim_set_root(self) -> Path:
         return simulation_run_dir() / self.export_name
@@ -560,7 +565,7 @@ class PatchySimulationEnsemble:
         with open(self.metadata_file, "w") as f:
             json.dump(self.metadata, fp=f, indent=4)
         # dump analysis pipeline as pickle
-        with open(self.tld() / "analysis_pipeline.pickle", "wb") as f:
+        with open(self.metadata["analysis_file"], "wb") as f:
             pickle.dump(self.analysis_pipeline, f)
 
     def start_simulations(self):
@@ -635,7 +640,8 @@ class PatchySimulationEnsemble:
 
     def get_data(self,
                  step: Union[int, AnalysisPipelineStep],
-                 sim: Union[tuple[ParameterValue], PatchySimulation],
+                 sim: Union[tuple[ParameterValue, ...], PatchySimulation, str,
+                            list[Union[tuple[ParameterValue, ...], PatchySimulation], str]],
                  time_steps: range = None) -> PipelineDataType:
         """
         Returns data for a step, doing any/all required calculations
@@ -644,21 +650,36 @@ class PatchySimulationEnsemble:
             :param sim
             :param time_steps
         """
+        if isinstance(sim, list):
+            return [self.get_data(step, s, time_steps) for s in sim]
+
         step = self.get_pipeline_step(step)
 
         # compute data for previous steps
-        data_in = [
-            self.get_data(prev_step,
-                          sim,
-                          time_steps)
-            for prev_step in self.analysis_pipeline.steps_before(sim)
-        ]
+        # if the current analysis step is an aggregate, things get complecated
+        if isinstance(step, AggregateAnalysisPipelineStep):
+            # compute the simulation data required for this step
+            param_prev_steps = step.get_input_data_params(sim)
+            data_in = [
+                self.get_data(prev_step,
+                              param_prev_steps,
+                              time_steps)
+                for prev_step in self.analysis_pipeline.steps_before(step)
+            ]
+        else:  # honestly this is still complecated but not as bad
+            data_in = [
+                self.get_data(prev_step,
+                              sim,
+                              time_steps)
+                for prev_step in self.analysis_pipeline.steps_before(step)
+            ]
 
+        # if this step is enabled parallel processing
         if self.is_do_analysis_parallel() and step.can_parallelize():
             server_cfg = get_server_config()
             data_sources = [
                 self.get_cache_file(data_source, sim)
-                for data_source in self.analysis_pipeline.steps_before(sim)
+                for data_source in self.analysis_pipeline.steps_before(step)
             ]
             with tempfile.TemporaryDirectory() as temp_dir:
                 jobid = step.exec_step_slurm(temp_dir,
@@ -670,9 +691,10 @@ class PatchySimulationEnsemble:
 
                 with open(self.get_cache_file(step, sim), read_type) as f:
                     data = step.load_cached_files(f)
-
+        # normal processing
         else:
             # TODO: make sure this can handle the amount of args we're feeding in here
+            # execute the step!
             data = step.exec(*data_in)
 
         sim_key = str(sim) if isinstance(sim, PatchySimulation) else describe_param_vals(*sim)
@@ -700,6 +722,13 @@ class PatchySimulationEnsemble:
         else:
             # cache analysis data in a folder in the top level directory
             return self.tld() / describe_param_vals(*sim) / step.get_cache_file_name()
+
+    def step_targets(self, step: Union[int, str, AnalysisPipelineStep]):
+        step = self.get_pipeline_step(step)
+        if isinstance(step, AggregateAnalysisPipelineStep):
+            return itertools.product(p for p in self.ensemble_params if p not in step.params_aggregate_over)
+        else:
+            return self.ensemble()
 
     def bash_exec(self, command: str):
         """
