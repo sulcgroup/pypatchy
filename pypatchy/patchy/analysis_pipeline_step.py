@@ -9,7 +9,8 @@ from typing import Union, IO, Any
 
 import pandas as pd
 
-from .ensemble_parameter import EnsembleParameter
+from .simulation_specification import PatchySimulation
+from .ensemble_parameter import EnsembleParameter, ParameterValue
 
 
 class PipelineDataTypeEnum(Enum):
@@ -156,4 +157,11 @@ class AggregateAnalysisPipelineStep(AnalysisPipelineStep, ABC):
                  output_tstep: int,
                  aggregate_over: tuple[EnsembleParameter, ...]):
         super().__init__(step_name, input_tstep, output_tstep)
-        self.param_aggregate_over = aggregate_over
+        self.params_aggregate_over = aggregate_over
+
+    def get_input_data_params(self, sim):
+        if isinstance(sim, PatchySimulation):
+            this_step_param_specs: tuple[ParameterValue] = tuple(sim.param_vals)
+        else:
+            this_step_param_specs = sim
+        return (param for param in this_step_param_specs if param not in step.params_aggregate_over)
