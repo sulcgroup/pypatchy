@@ -187,7 +187,13 @@ class Structure:
         return False
 
     def edge_exists(self, v: int, delta: int) -> bool:
-        return len([d for a, b, d in self.graph.out_edges(v, "dirIdx") if d == delta])
+        return len([d for a, b, d in self.graph.out_edges(v, "dirIdx") if d == delta]) > 0
+
+    def is_connected(self):
+        return nx.is_weakly_connected(self.graph)
+
+    def is_multifarious(self):
+        return not self.is_connected()
 
     def __contains__(self, item: Union[int]) -> bool:
         if isinstance(item, int):

@@ -13,7 +13,7 @@ from .simulation_specification import PatchySimulation
 from .ensemble_parameter import EnsembleParameter, ParameterValue
 
 
-class PipelineDataTypeEnum(Enum):
+class PipelineDataType(Enum):
     # raw data from trajectory.dat - currently not used
     PIPELINE_DATATYPE_RAWDATA = 0
     # data from an observable
@@ -24,7 +24,7 @@ class PipelineDataTypeEnum(Enum):
     PIPELINE_DATATYPE_GRAPH = 3
 
 
-PipelineDataType = Any  # todo: detail!
+PipelineData = Any  # todo: detail!
 
 
 class AnalysisPipelineStep(ABC):
@@ -35,10 +35,10 @@ class AnalysisPipelineStep(ABC):
     name: str
 
     # specifier for data that will be taken as input by this object
-    input_data: PipelineDataTypeEnum
+    input_data: PipelineDataType
 
     # specifier for output data.
-    output_data: PipelineDataTypeEnum
+    output_data: PipelineDataType
 
     # steps immediately feeding into this step
 
@@ -55,7 +55,7 @@ class AnalysisPipelineStep(ABC):
         self.output_tstep = output_tstep
 
     @abstractmethod
-    def load_cached_files(self, f: IO) -> PipelineDataType:
+    def load_cached_files(self, f: IO) -> PipelineData:
         """
         loads data from a file object (from `open(filepath)`)
         """
@@ -115,36 +115,45 @@ class AnalysisPipelineStep(ABC):
         pass
 
     @abstractmethod
-    def data_matches_trange(self, data: PipelineDataType, trange: range) -> bool:
+    def data_matches_trange(self, data: PipelineData, trange: range) -> bool:
         pass
 
     @abstractmethod
-    def exec(self, din: Union[PipelineDataType, AnalysisPipelineStep]) -> PipelineDataType:
+    def exec(self, *args: Union[PipelineData, AnalysisPipelineStep]) -> PipelineData:
         pass
 
     def get_cache_file_name(self) -> str:
-        if self.get_output_data_type() == PipelineDataTypeEnum.PIPELINE_DATATYPE_GRAPH:
+        if self.get_output_data_type() == PipelineDataType.PIPELINE_DATATYPE_GRAPH:
             return f"{self.name}.pickle"
         else:
             return f"{self.name}.csv"
 
-    def cache_data(self, data: PipelineDataType, file_path: Path):
-        if self.get_output_data_type() == PipelineDataTypeEnum.PIPELINE_DATATYPE_DATAFRAME:
+    def cache_data(self, data: PipelineData, file_path: Path):
+        if self.get_output_data_type() == PipelineDataType.PIPELINE_DATATYPE_DATAFRAME:
             data.to_csv(file_path)
-        elif self.get_output_data_type() == PipelineDataTypeEnum.PIPELINE_DATATYPE_GRAPH:
+        elif self.get_output_data_type() == PipelineDataType.PIPELINE_DATATYPE_GRAPH:
             with open(file_path, "w") as f:
                 pickle.dump(data, f)
         else:
             assert False
 
     @abstractmethod
-    def get_input_data_type(self) -> PipelineDataTypeEnum:
+    def get_input_data_type(self) -> PipelineDataType:
         pass
 
     @abstractmethod
-    def get_output_data_type(self) -> PipelineDataTypeEnum:
+    def get_output_data_type(self) -> PipelineDataType:
         pass
 
+class AnalysisPipelineHead(AnalysisPipelineStep, ABC):
+    """
+    Class for any "head" node of the analysis pipeline.
+    Note that there's nothing stopping even a connected graph
+    of the pipeline from having multiple "heads"
+    """
+    @abstractmethod
+    def get_data_in_filenames(self) -> list[str]:
+        pass
 
 class AggregateAnalysisPipelineStep(AnalysisPipelineStep, ABC):
     """
@@ -164,4 +173,7 @@ class AggregateAnalysisPipelineStep(AnalysisPipelineStep, ABC):
             this_step_param_specs: tuple[ParameterValue] = tuple(sim.param_vals)
         else:
             this_step_param_specs = sim
-        return (param for param in this_step_param_specs if param not in step.params_aggregate_over)
+        return (param for param in this_step_param_specs if param not in self.params_aggregate_over)
+
+
+PipelineStepDescriptor = Union[AnalysisPipelineStep, int, str]

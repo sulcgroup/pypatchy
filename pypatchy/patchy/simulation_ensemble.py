@@ -17,7 +17,8 @@ import re
 import logging
 
 from .analysis.analysis_pipeline import AnalysisPipeline, analysis_step_idx
-from .analysis_pipeline_step import AnalysisPipelineStep, PipelineDataType, AggregateAnalysisPipelineStep
+from .analysis_pipeline_step import AnalysisPipelineStep, PipelineData, AggregateAnalysisPipelineStep, \
+    AnalysisPipelineHead, PipelineStepDescriptor
 from .patchy_sim_observable import PatchySimObservable, observable_from_file
 from ..util import get_param_set, simulation_run_dir, get_server_config, get_log_dir, get_input_dir, all_equal
 from .ensemble_parameter import EnsembleParameter, ParameterValue
@@ -49,6 +50,11 @@ METADATA_FILE_KEY = "sim_metadata_file"
 def describe_param_vals(*args) -> str:
     return "_".join([str(v) for v in args])
 
+PatchySimDescriptor = Union[tuple[ParameterValue, ...],
+                            PatchySimulation,
+                            str,
+                            list[Union[tuple[ParameterValue, ...], PatchySimulation],
+                                 str]]
 
 class PatchySimulationEnsemble:
     """
@@ -96,7 +102,7 @@ class PatchySimulationEnsemble:
     analysis_pipeline: AnalysisPipeline
 
     # dict to store loaded analysis data
-    analysis_data: dict[tuple[int, str]: PipelineDataType]
+    analysis_data: dict[tuple[int, str]: PipelineData]
 
     def __init__(self, **kwargs):
         """
@@ -358,7 +364,7 @@ class PatchySimulationEnsemble:
         self.bash_exec(f"chmod u+x {self.folder_path(sim)}/slurm_script.sh")
 
 
-    def write_sbatch_params(self, sim, slurm_file):
+    def write_sbatch_params(self, sim: PatchySimulation, slurm_file):
         server_config = get_server_config()
 
         slurm_file.write("#!/bin/bash\n")
@@ -548,10 +554,19 @@ class PatchySimulationEnsemble:
                                   "conf_file": "last_conf.dat" if counter == 2 else f"last_conf_{counter - 1}.dat",
                                   "lastconf_file": f"last_conf_{counter}.dat"
                               })
+        # overwrite run script
         self.write_run_script(sim, input_file=f"input_{counter}")
 
     def exec_continue(self, sim: PatchySimulation, counter: int = 2):
-        pass
+        if not (self.folder_path(sim) / f"input_{counter}").exists():
+            # write new input file, update .sh file
+            self.write_continue_files(sim, counter)
+        # start the simulation
+        self.start_simulation(sim)
+
+    def exec_all_continue(self, counter: int = 2):
+        for sim in self.ensemble():
+            self.exec_continue(sim, counter)
 
     def gen_confs(self):
         for sim in self.ensemble():
@@ -632,17 +647,16 @@ class PatchySimulationEnsemble:
             return False
         else:
             # all read types are plain-text except
-            read_type = "rb" if step.get_input_data_type() == PipelineDataType.PIPELINE_DATATYPE_GRAPH else "r"
+            read_type = "rb" if step.get_input_data_type() == PipelineData.PIPELINE_DATATYPE_GRAPH else "r"
             with open(self.get_cache_file(step, sim), read_type) as f:
                 self.analysis_data[(analysis_step_idx(step), sim_key)] = step.load_cached_files(f)
                 return step.data_matches_trange(self.analysis_data[(analysis_step_idx(step), sim_key)],
                                                 time_steps)
 
     def get_data(self,
-                 step: Union[int, AnalysisPipelineStep],
-                 sim: Union[tuple[ParameterValue, ...], PatchySimulation, str,
-                            list[Union[tuple[ParameterValue, ...], PatchySimulation], str]],
-                 time_steps: range = None) -> PipelineDataType:
+                 step: PipelineStepDescriptor,
+                 sim: PatchySimDescriptor,
+                 time_steps: range = None) -> PipelineData:
         """
         Returns data for a step, doing any/all required calculations
         Parameters:
@@ -657,40 +671,26 @@ class PatchySimulationEnsemble:
 
         # compute data for previous steps
         # if the current analysis step is an aggregate, things get complecated
-        if isinstance(step, AggregateAnalysisPipelineStep):
-            # compute the simulation data required for this step
-            param_prev_steps = step.get_input_data_params(sim)
-            data_in = [
-                self.get_data(prev_step,
-                              param_prev_steps,
-                              time_steps)
-                for prev_step in self.analysis_pipeline.steps_before(step)
-            ]
-        else:  # honestly this is still complecated but not as bad
-            data_in = [
-                self.get_data(prev_step,
-                              sim,
-                              time_steps)
-                for prev_step in self.analysis_pipeline.steps_before(step)
-            ]
+        data_in = self.get_step_input_data(step, sim, time_steps)
 
         # if this step is enabled parallel processing
         if self.is_do_analysis_parallel() and step.can_parallelize():
-            server_cfg = get_server_config()
-            data_sources = [
-                self.get_cache_file(data_source, sim)
-                for data_source in self.analysis_pipeline.steps_before(step)
-            ]
-            with tempfile.TemporaryDirectory() as temp_dir:
-                jobid = step.exec_step_slurm(temp_dir,
-                                             server_cfg["slurm_bash_flags"],
-                                             server_cfg["slurm_includes"],
-                                             data_sources,
-                                             self.get_cache_file(step, sim))
-                read_type = "rb" if step.get_input_data_type() == PipelineDataType.PIPELINE_DATATYPE_GRAPH else "r"
-
-                with open(self.get_cache_file(step, sim), read_type) as f:
-                    data = step.load_cached_files(f)
+            pass
+            # server_cfg = get_server_config()
+            # data_sources = [
+            #     self.get_cache_file(data_source, sim)
+            #     for data_source in self.analysis_pipeline.steps_before(step)
+            # ]
+            # with tempfile.TemporaryDirectory() as temp_dir:
+            #     jobid = step.exec_step_slurm(temp_dir,
+            #                                  server_cfg["slurm_bash_flags"],
+            #                                  server_cfg["slurm_includes"],
+            #                                  data_sources,
+            #                                  self.get_cache_file(step, sim))
+            #     read_type = "rb" if step.get_input_data_type() == PipelineDataType.PIPELINE_DATATYPE_GRAPH else "r"
+            #
+            #     with open(self.get_cache_file(step, sim), read_type) as f:
+            #         data = step.load_cached_files(f)
         # normal processing
         else:
             # TODO: make sure this can handle the amount of args we're feeding in here
@@ -701,9 +701,33 @@ class PatchySimulationEnsemble:
         self.analysis_data[(step.idx, sim_key)] = data
         return data
 
+    def get_step_input_data(self,
+                            step: PipelineStepDescriptor,
+                            sim: PatchySimDescriptor,
+                            time_steps: range) -> list[PipelineData]:
+        step = self.get_pipeline_step(step)
+        if isinstance(step, AggregateAnalysisPipelineStep):
+            # compute the simulation data required for this step
+            param_prev_steps = step.get_input_data_params(sim)
+            return [
+                self.get_data(prev_step,
+                              param_prev_steps,
+                              time_steps)
+                for prev_step in self.analysis_pipeline.steps_before(step)
+            ]
+        elif isinstance(step, AnalysisPipelineHead):
+            return [self.folder_path(sim) / file_name for file_name in step.get_data_in_filenames()]
+        else:  # honestly this is still complecated but not as bad
+            return [
+                self.get_data(prev_step,
+                              sim,
+                              time_steps)
+                for prev_step in self.analysis_pipeline.steps_before(step)
+            ]
+
     def get_cache_file(self,
-                       step: Union[int, AnalysisPipelineStep],
-                       sim: Union[tuple[ParameterValue], PatchySimulation]) -> Path:
+                       step: PipelineStepDescriptor,
+                       sim: Union[tuple[ParameterValue, ...], PatchySimulation]) -> Path:
         """
         Retrieves a path to a file of analysis cache data for the given analysis step and
         simulation descriptor
@@ -723,7 +747,7 @@ class PatchySimulationEnsemble:
             # cache analysis data in a folder in the top level directory
             return self.tld() / describe_param_vals(*sim) / step.get_cache_file_name()
 
-    def step_targets(self, step: Union[int, str, AnalysisPipelineStep]):
+    def step_targets(self, step: PipelineStepDescriptor):
         step = self.get_pipeline_step(step)
         if isinstance(step, AggregateAnalysisPipelineStep):
             return itertools.product(p for p in self.ensemble_params if p not in step.params_aggregate_over)
@@ -741,6 +765,7 @@ class PatchySimulationEnsemble:
         # universal_newlines=True)
         self.logger.info(f"`{response.stdout}`")
         return response.stdout
+
 
 #
 # def ensemble_from_export_settings(export_settings_file_path: Union[Path, str],

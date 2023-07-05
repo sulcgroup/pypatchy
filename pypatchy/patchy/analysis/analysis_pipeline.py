@@ -5,7 +5,7 @@ from typing import Union
 
 import networkx as nx
 
-from pypatchy.patchy.analysis_pipeline_step import AnalysisPipelineStep
+from pypatchy.patchy.analysis_pipeline_step import AnalysisPipelineStep, PipelineDataType, AnalysisPipelineHead
 
 
 def analysis_step_idx(step: Union[int, AnalysisPipelineStep]) -> int:
@@ -55,7 +55,9 @@ class AnalysisPipeline:
             self.name_map[step] if isinstance(step, str) else self.pipeline_steps[step]
 
     def steps_before(self, step: AnalysisPipelineStep) -> list[int]:
-        return self.pipeline_graph.in_edges(step.idx).keys()
+        # if the pipeline data is expected to be in raw form
+        assert not isinstance(step, AnalysisPipelineHead)
+        return [v for u, v in self.pipeline_graph.in_edges(step.idx)]
 
     def __add__(self, other: AnalysisPipeline):
         id_remap: dict[int: int] = {}
