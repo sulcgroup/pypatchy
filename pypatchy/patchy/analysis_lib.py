@@ -14,7 +14,7 @@ TIMEPOINT_KEY = "timepoint"
 
 # all classes in this document should extend AnalysisPipelineStep
 
-class GraphsFromClusterTxt(AnalysisPipelineStep):
+class GraphsFromClusterTxt(AnalysisPipelineHead):
     """
     Analysis operation that reads in the text file produced by the observable
     PLPatchyTopology and outputs a dict where they keys are timepoints and the
@@ -73,11 +73,14 @@ class GraphsFromClusterTxt(AnalysisPipelineStep):
                 stepcounter += self.source_observable.print_every
         return graphs
 
-    def get_input_data_type(self) -> PipelineDataTypeEnum:
-        return PipelineDataTypeEnum.PIPELINE_DATATYPE_OBSERVABLE
+    def get_input_data_type(self) -> PipelineDataType:
+        return PipelineDataType.PIPELINE_DATATYPE_OBSERVABLE
 
-    def get_output_data_type(self) -> PipelineDataTypeEnum:
-        return PipelineDataTypeEnum.PIPELINE_DATATYPE_GRAPH
+    def get_data_in_filenames(self):
+        return [self.source_observable.name]
+
+    def get_output_data_type(self) -> PipelineDataType:
+        return PipelineDataType.PIPELINE_DATATYPE_GRAPH
 
     def get_py_steps_slurm(self,
                            data_sources: tuple[Path],
@@ -122,7 +125,7 @@ class ClassifyClusters(AnalysisPipelineStep):
     def load_cached_files(self, f: IO) -> pd.DataFrame:
         return pd.read_csv(f)
 
-    def data_matches_trange(self, data: PipelineDataType, trange: range) -> bool:
+    def data_matches_trange(self, data: PipelineData, trange: range) -> bool:
         return (data["tstep"] == np.array(trange)).all()
 
     def exec(self, input_graphs: dict[int: list[nx.Graph]]) -> pd.DataFrame:
@@ -143,11 +146,11 @@ class ClassifyClusters(AnalysisPipelineStep):
                 cluster_cats_data[self.SIZE_RATIO_KEY].append(sizeFrac)
         return pd.DataFrame.from_dict(data=cluster_cats_data)
 
-    def get_input_data_type(self) -> PipelineDataTypeEnum:
-        return PipelineDataTypeEnum.PIPELINE_DATATYPE_GRAPH
+    def get_input_data_type(self) -> PipelineDataType:
+        return PipelineDataType.PIPELINE_DATATYPE_GRAPH
 
-    def get_output_data_type(self) -> PipelineDataTypeEnum:
-        return PipelineDataTypeEnum.PIPELINE_DATATYPE_DATAFRAME
+    def get_output_data_type(self) -> PipelineDataType:
+        return PipelineDataType.PIPELINE_DATATYPE_DATAFRAME
 
     def get_py_steps_slurm(self, data_sources: tuple[Path], cache_file: Path) -> str:
         return "import networkx as nx\n" \
@@ -216,11 +219,11 @@ class ComputeClusterYield(AnalysisPipelineStep):
         data = data.loc[data[TIMEPOINT_KEY] % self.output_tstep == 0]
         return data
 
-    def get_input_data_type(self) -> PipelineDataTypeEnum:
-        return PipelineDataTypeEnum.PIPELINE_DATATYPE_DATAFRAME
+    def get_input_data_type(self) -> PipelineDataType:
+        return PipelineDataType.PIPELINE_DATATYPE_DATAFRAME
 
-    def get_output_data_type(self) -> PipelineDataTypeEnum:
-        return PipelineDataTypeEnum.PIPELINE_DATATYPE_DATAFRAME
+    def get_output_data_type(self) -> PipelineDataType:
+        return PipelineDataType.PIPELINE_DATATYPE_DATAFRAME
 
     def get_py_steps_slurm(self, data_sources: tuple[Path], cache_file: Path):
         return "from pypatchy.patchy.analysis_lib import ComputeClusterYield\n" \
@@ -278,11 +281,11 @@ class ComputeClusterSizeData(AnalysisPipelineStep):
                 cluster_size_data[self.STDEV_KEY].append(np.std(np.array(graph_sizes)))
         return pd.DataFrame.from_dict(data=cluster_size_data)
 
-    def get_input_data_type(self) -> PipelineDataTypeEnum:
-        return PipelineDataTypeEnum.PIPELINE_DATATYPE_DATAFRAME
+    def get_input_data_type(self) -> PipelineDataType:
+        return PipelineDataType.PIPELINE_DATATYPE_DATAFRAME
 
-    def get_output_data_type(self) -> PipelineDataTypeEnum:
-        return PipelineDataTypeEnum.PIPELINE_DATATYPE_DATAFRAME
+    def get_output_data_type(self) -> PipelineDataType:
+        return PipelineDataType.PIPELINE_DATATYPE_DATAFRAME
 
     def can_parallelize(self):
         return False
@@ -339,11 +342,11 @@ class ComputeSpecGroupClusterYield(AggregateAnalysisPipelineStep):
 
         return data
 
-    def get_input_data_type(self) -> PipelineDataTypeEnum:
-        return PipelineDataTypeEnum.PIPELINE_DATATYPE_DATAFRAME
+    def get_input_data_type(self) -> PipelineDataType:
+        return PipelineDataType.PIPELINE_DATATYPE_DATAFRAME
 
-    def get_output_data_type(self) -> PipelineDataTypeEnum:
-        return PipelineDataTypeEnum.PIPELINE_DATATYPE_DATAFRAME
+    def get_output_data_type(self) -> PipelineDataType:
+        return PipelineDataType.PIPELINE_DATATYPE_DATAFRAME
 
     def get_py_steps_slurm(self,
                            data_sources: tuple[Path],
