@@ -55,7 +55,7 @@ class AnalysisPipelineStep(ABC):
         self.output_tstep = output_tstep
 
     @abstractmethod
-    def load_cached_files(self, f: IO) -> PipelineData:
+    def load_cached_files(self, f: Path) -> PipelineData:
         """
         loads data from a file object (from `open(filepath)`)
         """
@@ -132,7 +132,7 @@ class AnalysisPipelineStep(ABC):
         if self.get_output_data_type() == PipelineDataType.PIPELINE_DATATYPE_DATAFRAME:
             data.to_csv(file_path)
         elif self.get_output_data_type() == PipelineDataType.PIPELINE_DATATYPE_GRAPH:
-            with open(file_path, "w") as f:
+            with open(file_path, "wb") as f:
                 pickle.dump(data, f)
         else:
             assert False

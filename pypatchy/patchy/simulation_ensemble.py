@@ -56,6 +56,11 @@ PatchySimDescriptor = Union[tuple[ParameterValue, ...],
                             list[Union[tuple[ParameterValue, ...], PatchySimulation],
                                  str]]
 
+
+def get_descriptor_key(sim: PatchySimDescriptor):
+    return sim if isinstance(sim, str) else str(sim) if isinstance(sim, PatchySimulation) else describe_param_vals(*sim)
+
+
 class PatchySimulationEnsemble:
     """
     Stores data for a group of related simulation
@@ -207,6 +212,9 @@ class PatchySimulationEnsemble:
         else:  # if not, use a default one and cache it
             file_path = self.tld() / "analysis_pipeline.pickle"
             self.metadata["analysis_file"] = str(file_path)
+
+        # construct analysis data dict in case we need it
+        self.analysis_data = dict()
 
         # init slurm log dataframe
         self.slurm_log = pd.DataFrame(columns=["slurm_job_id", *[p.param_key for p in self.ensemble_params]])
@@ -420,11 +428,12 @@ class PatchySimulationEnsemble:
 
                 # loop parameters in group
                 for paramname in paramgroup:
-                    # if no override
-                    if paramname not in sim and paramname not in self.const_params:
-                        val = paramgroup[paramname]
-                    elif paramname in replacer_dict:
+                    # if we've specified this param in a replacer dict
+                    if paramname in replacer_dict:
                         val = replacer_dict[paramname]
+                    # if no override
+                    elif paramname not in sim and paramname not in self.const_params:
+                        val = paramgroup[paramname]
                     else:
                         val = self.sim_get_param(sim, paramname)
                     inputfile.write(f"{paramname} = {val}\n")
@@ -539,23 +548,27 @@ class PatchySimulationEnsemble:
             with open(self.folder_path(sim) / "observables.json", "w+") as f:
                 json.dump({f"data_output_{i + 1}": obs.to_dict() for i, obs in enumerate(self.observables.values())}, f)
 
-    def write_continue_files(self, sim: PatchySimulation, counter: int = 2):
+    def write_continue_files(self, sim: Union[None, PatchySimulation] = None, counter: int = 2):
         """
         writes input file and shell script to continue running the simulation after
         completion of first oxDNA execution
         """
 
-        # construct an input file for the continuation execution
-        # using previous conf as starting conf, adding new traj, writing new last_conf
-        self.write_input_file(sim,
-                              file_name=f"input_{counter}",
-                              replacer_dict={
-                                  "trajectory_file": f"trajectory_{counter}.dat",
-                                  "conf_file": "last_conf.dat" if counter == 2 else f"last_conf_{counter - 1}.dat",
-                                  "lastconf_file": f"last_conf_{counter}.dat"
-                              })
-        # overwrite run script
-        self.write_run_script(sim, input_file=f"input_{counter}")
+        if sim is None:
+            for sim in self.ensemble():
+                self.write_continue_files(sim, counter)
+        else:
+            # construct an input file for the continuation execution
+            # using previous conf as starting conf, adding new traj, writing new last_conf
+            self.write_input_file(sim,
+                                  file_name=f"input_{counter}",
+                                  replacer_dict={
+                                      "trajectory_file": f"trajectory_{counter}.dat",
+                                      "conf_file": "last_conf.dat" if counter == 2 else f"last_conf_{counter - 1}.dat",
+                                      "lastconf_file": f"last_conf_{counter}.dat"
+                                  })
+            # overwrite run script
+            self.write_run_script(sim, input_file=f"input_{counter}")
 
     def exec_continue(self, sim: PatchySimulation, counter: int = 2):
         if not (self.folder_path(sim) / f"input_{counter}").exists():
@@ -630,28 +643,8 @@ class PatchySimulationEnsemble:
         self.analysis_pipeline = self.analysis_pipeline + new_steps
         self.dump_metadata()
 
-    def has_data_for_analysis_step(self,
-                                   step: Union[int, AnalysisPipelineStep],
-                                   sim: Union[tuple[ParameterValue], PatchySimulation],
-                                   time_steps: range = None) -> bool:
-        """
-        Checks if the system has data for the given analysis step and simulation within the given
-        timepoints
-        Parameters:
-            :param step
-            :param sim
-            :param time_steps
-        """
-        sim_key = str(sim) if isinstance(sim, PatchySimulation) else describe_param_vals(*sim)
-        if not self.get_cache_file(step, sim).exists():
-            return False
-        else:
-            # all read types are plain-text except
-            read_type = "rb" if step.get_input_data_type() == PipelineData.PIPELINE_DATATYPE_GRAPH else "r"
-            with open(self.get_cache_file(step, sim), read_type) as f:
-                self.analysis_data[(analysis_step_idx(step), sim_key)] = step.load_cached_files(f)
-                return step.data_matches_trange(self.analysis_data[(analysis_step_idx(step), sim_key)],
-                                                time_steps)
+    def has_data_file(self, step: PipelineStepDescriptor, sim: PatchySimDescriptor) -> bool:
+        return self.get_cache_file(step, sim).exists()
 
     def get_data(self,
                  step: PipelineStepDescriptor,
@@ -666,6 +659,16 @@ class PatchySimulationEnsemble:
         """
         if isinstance(sim, list):
             return [self.get_data(step, s, time_steps) for s in sim]
+        step = self.get_pipeline_step(step)
+        # check if we have cached data for this step already
+        if self.has_data_file(step, sim):
+            cache_file_path = self.get_cache_file(step, sim)
+            data = step.load_cached_files(cache_file_path)
+            # if we already have the data needed for the required time range
+            if step.data_matches_trange(data, time_steps):
+                # that was easy!
+                self.analysis_data[(step.idx, get_descriptor_key(sim))] = data
+                return data
 
         step = self.get_pipeline_step(step)
 
@@ -695,10 +698,11 @@ class PatchySimulationEnsemble:
         else:
             # TODO: make sure this can handle the amount of args we're feeding in here
             # execute the step!
+            # TODO: handle existing data that's incomplete over the required time interval
             data = step.exec(*data_in)
+            step.cache_data(data, self.get_cache_file(step, sim))
 
-        sim_key = str(sim) if isinstance(sim, PatchySimulation) else describe_param_vals(*sim)
-        self.analysis_data[(step.idx, sim_key)] = data
+        self.analysis_data[(step.idx, get_descriptor_key(sim))] = data
         return data
 
     def get_step_input_data(self,

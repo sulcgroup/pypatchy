@@ -29,6 +29,8 @@ class AnalysisPipeline:
             assert end in self.name_map, f"No step in pathway with name {end}."
             self.pipeline_graph.add_edge(self.name_map[begin].idx,
                                          self.name_map[end].idx)
+        assert len(list(nx.simple_cycles(self.pipeline_graph))) == 0, "Analysis pipeline is cyclic"
+
 
     def add_step(self, new_step: AnalysisPipelineStep):
         """
@@ -37,11 +39,13 @@ class AnalysisPipeline:
         new_step.idx = len(self.pipeline_steps)
         self.pipeline_graph.add_node(new_step.idx)
         self.pipeline_steps.append(new_step)
+        assert len(list(nx.simple_cycles(self.pipeline_graph))) == 0, "Analysis pipeline is cyclic"
 
     def add_step_dependant(self,
                            step: Union[int, AnalysisPipelineStep],
                            dependant_step: Union[int, AnalysisPipelineStep]):
         self.pipeline_graph.add_edge(analysis_step_idx(dependant_step), analysis_step_idx(step))
+        assert len(list(nx.simple_cycles(self.pipeline_graph))) == 0, "Analysis pipeline is cyclic"
 
     def num_pipeline_steps(self) -> int:
         """
@@ -57,7 +61,7 @@ class AnalysisPipeline:
     def steps_before(self, step: AnalysisPipelineStep) -> list[int]:
         # if the pipeline data is expected to be in raw form
         assert not isinstance(step, AnalysisPipelineHead)
-        return [v for u, v in self.pipeline_graph.in_edges(step.idx)]
+        return [u for u, v in self.pipeline_graph.in_edges(step.idx)]
 
     def __add__(self, other: AnalysisPipeline):
         id_remap: dict[int: int] = {}
@@ -74,4 +78,5 @@ class AnalysisPipeline:
         for n1, n2 in other.pipeline_graph.edges:
             new_pipeline.pipeline_graph.add_edge(id_remap[n1], id_remap[n2])
 
+        assert len(list(nx.simple_cycles(new_pipeline.pipeline_graph))) == 0, "Analysis pipeline is cyclic"
         return new_pipeline

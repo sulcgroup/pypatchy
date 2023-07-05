@@ -2,6 +2,7 @@ import re
 
 import networkx as nx
 import numpy as np
+import pandas as pd
 
 from .analysis_pipeline_step import *
 from .patchy_sim_observable import PatchySimObservable
@@ -33,8 +34,10 @@ class GraphsFromClusterTxt(AnalysisPipelineHead):
         super().__init__(name, source.print_every, output_tstep)
         self.source_observable = source
 
-    def load_cached_files(self, f: IO):
-        return pickle.load(f)
+    def load_cached_files(self, p: Path) -> nx.Graph:
+        assert p.exists()
+        with open(p, "rb") as f:
+            return pickle.load(f)
 
     def data_matches_trange(self, data: dict[int: list[nx.Graph]], trange: range) -> bool:
         return (np.array(data.keys()) == np.array(trange)).all()
@@ -122,8 +125,9 @@ class ClassifyClusters(AnalysisPipelineStep):
     CLUSTER_CATEGORY_KEY = "clustercategory"
     SIZE_RATIO_KEY = "sizeratio"
 
-    def load_cached_files(self, f: IO) -> pd.DataFrame:
-        return pd.read_csv(f)
+    def load_cached_files(self, p: Path) -> pd.DataFrame:
+        with open(p, "r") as f:
+            return pd.read_csv(f)
 
     def data_matches_trange(self, data: PipelineData, trange: range) -> bool:
         return (data["tstep"] == np.array(trange)).all()
@@ -185,8 +189,10 @@ class ComputeClusterYield(AnalysisPipelineStep):
             target = YieldAnalysisTarget(target)
         self.target = target
 
-    def load_cached_files(self, f: IO):
-        return pd.read_csv(f)  # TODO: more params probably
+    def load_cached_files(self, p: Path) -> pd.DataFrame:
+        assert p.exists()
+        with open(p, "r") as f:
+            return pd.read_csv(f)  # TODO: more params probably
 
     def data_matches_trange(self, data: pd.DataFrame, trange: range) -> bool:
         return (data["tstep"] == np.array(trange)).all()
@@ -253,8 +259,10 @@ class ComputeClusterSizeData(AnalysisPipelineStep):
         super().__init__(name, input_tstep, output_tstep)
         self.minsize = minsize
 
-    def load_cached_files(self, f: IO):
-        return pd.read_csv(f)
+    def load_cached_files(self, p: Path) -> pd.DataFrame:
+        assert p.exists()
+        with open(p, "r") as f:
+            return pd.read_csv(f)
 
     def data_matches_trange(self, data: pd.DataFrame, trange: range) -> bool:
         return (data[TIMEPOINT_KEY] == np.array(trange)).all()
@@ -313,9 +321,9 @@ class ComputeSpecGroupClusterYield(AggregateAnalysisPipelineStep):
     AVG_KEY = "yield_avg"
     STD_KEY = "yield_std"
 
-
-    def load_cached_files(self, f: IO):
-        return pd.read_csv(f)
+    def load_cached_files(self, p: Path) -> pd.DataFrame:
+        with open(p, "r") as f:
+            return pd.read_csv(f)
 
     def data_matches_trange(self, data: pd.DataFrame, trange: range) -> bool:
         return (data[TIMEPOINT_KEY] == np.array(trange)).all()
