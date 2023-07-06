@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import datetime
 import json
+import multiprocessing
 import os
 import itertools
 import pickle
@@ -240,6 +241,19 @@ class PatchySimulationEnsemble:
     def is_do_analysis_parallel(self) -> bool:
         return "parallel" in self.metadata and self.metadata["parallel"]
 
+    def n_processes(self):
+        return self.metadata["parallel"]
+
+    def set_metadata_attr(self, key, val):
+        """
+        Sets a metadata value, and
+        saves the metadata file if a change has been made
+        """
+        oldVal = self.metadata[val]
+        self.metadata[key] = val
+        if val != oldVal:
+            self.dump_metadata()
+
     def get_sim_set_root(self) -> Path:
         return simulation_run_dir() / self.export_name
 
@@ -338,7 +352,7 @@ class PatchySimulationEnsemble:
     # ------------------------ Status-Type Stuff --------------------------------#
 
     def has_pipeline(self) -> bool:
-        return len(self.analysis_pipeline) != None
+        return len(self.analysis_pipeline) != 0
 
     def show_pipeline_graph(self):
         # Increase the figure size
@@ -365,7 +379,7 @@ class PatchySimulationEnsemble:
                   self.folder_path(sim) / "particles.txt",
                   self.folder_path(sim) / "patches.txt")
 
-    def show_analysis_status(self):
+    def show_analysis_status(self) -> pd.DataFrame:
         return pd.DataFrame.from_dict({
             tuple(v.value for _, v in sim.param_vals):
                 {
@@ -728,10 +742,15 @@ class PatchySimulationEnsemble:
         """
         # if we've provided a list of simulations
         if isinstance(sim, list):
-            return [self.get_data(step, s, time_steps) for s in sim]
+            if self.is_do_analysis_parallel():
+                with multiprocessing.Pool(self.n_processes()) as pool:
+                    return pool.map(lambda s: self.get_data(step, s, time_steps), sim)
+            else:
+                return [self.get_data(step, s, time_steps) for s in sim]
 
         step = self.get_pipeline_step(step)
         # if timesteps were not specified
+        data = None
         if time_steps is None:
             time_steps = range(0, self.time_length(sim), step.output_tstep)
         else:
@@ -742,27 +761,35 @@ class PatchySimulationEnsemble:
         if self.has_data_file(step, sim):
             self.get_logger().info(f"Cache file for simulation {get_descriptor_key(sim)} and step {step} exists! Loading...")
             cache_file_path = self.get_cache_file(step, sim)
-            data = step.load_cached_files(cache_file_path)
+            cached_data = step.load_cached_files(cache_file_path)
             # if we already have the data needed for the required time range
             if step.data_matches_trange(data, time_steps):
                 # that was easy!
                 self.get_logger().info(f"All data in file! That was easy!")
-                self.analysis_data[(step.name, get_descriptor_key(sim))] = data
-                return data
+                return cached_data
             else:
                 self.get_logger().info(f"Cache file missing data!")
 
         step = self.get_pipeline_step(step)
 
-        # compute data for previous steps
-        data_in = self.get_step_input_data(step, sim, time_steps)
+        lock = multiprocessing.Lock()
+        lock.acquire()
+        try:
+            # compute data for previous steps
+            data_in = self.get_step_input_data(step, sim, time_steps)
+        finally:
+            lock.release()
         # TODO: make sure this can handle the amount of args we're feeding in here
         # execute the step!
         # TODO: handle existing data that's incomplete over the required time interval
         data = step.exec(*data_in)
-        step.cache_data(data, self.get_cache_file(step, sim))
+        lock.acquire()
+        try:
+            step.cache_data(data, self.get_cache_file(step, sim))
+            self.analysis_data[(step.name, get_descriptor_key(sim))] = data
+        finally:
+            lock.release()
 
-        self.analysis_data[(step.name, get_descriptor_key(sim))] = data
         return data
 
     def get_step_input_data(self,

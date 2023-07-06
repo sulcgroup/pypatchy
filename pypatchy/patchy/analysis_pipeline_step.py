@@ -107,10 +107,6 @@ class AnalysisPipelineStep(ABC):
     #     job_id = int(result.stdout.decode().split(' ')[-1].strip())  # extract the job id from output
     #     return job_id
 
-    @abstractmethod
-    def can_parallelize(self):
-        pass
-
     # def write_steps_slurm(self,
     #                       f: IO,
     #                       data_sources: tuple[Path],
