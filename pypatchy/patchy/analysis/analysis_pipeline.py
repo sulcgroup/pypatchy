@@ -121,9 +121,18 @@ class AnalysisPipeline:
         assert len(list(nx.simple_cycles(new_pipeline.pipeline_graph))) == 0, "Analysis pipeline is cyclic"
         return new_pipeline
 
-    def __contains__(self, key: Union[str, AnalysisPipelineStep]):
+    def __contains__(self, key: Union[str, AnalysisPipelineStep, AnalysisPipeline]):
         if isinstance(key, AnalysisPipelineStep):
             return key.name in self
+        elif isinstance(key, AnalysisPipeline):
+            # test if all analysis steps and pipes in our key are also present in this
+            for node in key.pipeline_graph.nodes():
+                if not self.pipeline_graph.has_node(node):
+                    return False
+            for edge in key.pipeline_graph.edges():
+                if not self.pipeline_graph.has_edge(*edge):
+                    return False
+            return True
         else:
             return key in self.name_map
 

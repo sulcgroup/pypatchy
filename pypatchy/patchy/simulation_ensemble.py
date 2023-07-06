@@ -16,6 +16,8 @@ import subprocess
 import re
 import logging
 
+from matplotlib import pyplot as plt
+
 from oxDNA_analysis_tools.UTILS.oxview import from_path
 from oxDNA_analysis_tools.file_info import file_info
 
@@ -339,7 +341,23 @@ class PatchySimulationEnsemble:
         return len(self.analysis_pipeline) != None
 
     def show_pipeline_graph(self):
-        nx.draw(self.analysis_pipeline)
+        # Increase the figure size
+        plt.figure(figsize=(8, 8))
+
+        # Define the layout. Here we use spring_layout but you can try other layouts like shell_layout, random_layout etc.
+        pos = nx.spring_layout(self.analysis_pipeline.pipeline_graph, 0.8)
+
+        # Draw the nodes
+        nx.draw_networkx_nodes(self.analysis_pipeline.pipeline_graph, pos, node_size=500)
+
+        # Draw the edges
+        nx.draw_networkx_edges(self.analysis_pipeline.pipeline_graph, pos, arrowstyle='->', arrowsize=20,
+                               edge_cmap=plt.cm.Blues, width=2)
+
+        # Draw the labels
+        nx.draw_networkx_labels(self.analysis_pipeline.pipeline_graph, pos, font_size=8)
+
+        plt.show()
 
     def show_last_conf(self, sim: PatchySimulation):
         from_path(self.folder_path(sim) / "last_conf.dat",
@@ -348,7 +366,14 @@ class PatchySimulationEnsemble:
                   self.folder_path(sim) / "patches.txt")
 
     def show_analysis_status(self):
-        pd.DataFrame(index=self.ensemble(), columns=[step.name for step in self.analysis_pipeline.pipeline_steps])
+        return pd.DataFrame.from_dict({
+            tuple(v.value for _, v in sim.param_vals):
+                {
+                    step_name: self.has_data_file(self.analysis_pipeline[step_name], sim)
+                    for step_name in self.analysis_pipeline.name_map
+                }
+            for sim in self.ensemble()
+        }, orient="index")
 
     def all_folders_exist(self):
         return all(self.folder_path(s).exists() for s in self.ensemble())
@@ -674,8 +699,14 @@ class PatchySimulationEnsemble:
             new_steps = args[0]
         else:
             new_steps = AnalysisPipeline(args[0], *args[1:])
-        self.analysis_pipeline = self.analysis_pipeline + new_steps
-        self.dump_metadata()
+        if new_steps not in self.analysis_pipeline:
+            self.get_logger().info(f"Adding {len(new_steps)} steps "
+                                   f"and {len(new_steps.pipeline_graph.edges)} to the analysis pipeline")
+            self.analysis_pipeline = self.analysis_pipeline + new_steps
+            self.dump_metadata()
+        else:
+            self.get_logger().info("The analysis pipeline you passed is already present")
+
 
     def has_data_file(self, step: PipelineStepDescriptor, sim: PatchySimDescriptor) -> bool:
         return self.get_cache_file(step, sim).exists()
