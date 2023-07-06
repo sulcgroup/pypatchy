@@ -29,9 +29,9 @@ class GraphsFromClusterTxt(AnalysisPipelineHead):
 
     def __init__(self,
                  name: str,
-                 output_tstep: int,
-                 source: PatchySimObservable):
-        super().__init__(name, source.print_every, output_tstep)
+                 source: PatchySimObservable,
+                 output_tstep: Union[int, None] = None):
+        super().__init__(name, int(source.print_every), output_tstep)
         self.source_observable = source
 
     def load_cached_files(self, p: Path) -> nx.Graph:
@@ -40,7 +40,7 @@ class GraphsFromClusterTxt(AnalysisPipelineHead):
             return pickle.load(f)
 
     def data_matches_trange(self, data: dict[int: list[nx.Graph]], trange: range) -> bool:
-        return (np.array(data.keys()) == np.array(trange)).all()
+        return all(t in data for t in trange)
 
     def exec(self, din: Path) -> dict[int: list[nx.Graph]]:
         graphs = {}
@@ -114,9 +114,9 @@ class ClassifyClusters(AnalysisPipelineStep):
 
     def __init__(self,
                  name: str,
-                 input_tstep: int,
-                 output_tstep: int,
-                 target: Union[str, YieldAnalysisTarget]):
+                 target: Union[str, YieldAnalysisTarget],
+                 input_tstep: Union[int, None] = None,
+                 output_tstep: Union[int, None] = None):
         super().__init__(name, input_tstep, output_tstep)
         if isinstance(target, str):
             target = YieldAnalysisTarget(target)
@@ -165,11 +165,13 @@ class ClassifyClusters(AnalysisPipelineStep):
                f"step.cache_data(data, {str(cache_file)})\n"
 
 
+YIELD_KEY = "yield"
+
+
 class ComputeClusterYield(AnalysisPipelineStep):
     def can_parallelize(self):
         return True
 
-    YIELD_KEY = "yield"
 
     cutoff: float
     overreach: bool
@@ -177,17 +179,13 @@ class ComputeClusterYield(AnalysisPipelineStep):
 
     def __init__(self,
                  name: str,
-                 input_tstep: int,
-                 output_tstep: int,
                  cutoff: float,
                  overreach: bool,
-                 target: Union[str, YieldAnalysisTarget]):
+                 input_tstep: Union[int, None] = None,
+                 output_tstep: Union[int, None] = None):
         super().__init__(name, input_tstep, output_tstep)
         self.cutoff = cutoff
         self.overreach = overreach
-        if isinstance(target, str):
-            target = YieldAnalysisTarget(target)
-        self.target = target
 
     def load_cached_files(self, p: Path) -> pd.DataFrame:
         assert p.exists()
@@ -220,7 +218,7 @@ class ComputeClusterYield(AnalysisPipelineStep):
         # group by timepoint, average, reset index
         data = data.groupby(TIMEPOINT_KEY).sum().reset_index()
         # rename column
-        data = data.rename(mapper={ClassifyClusters.SIZE_RATIO_KEY: self.YIELD_KEY})
+        data = data.rename(mapper={ClassifyClusters.SIZE_RATIO_KEY: YIELD_KEY})
         data = data.set_index([TIMEPOINT_KEY])
         data = data.loc[data[TIMEPOINT_KEY] % self.output_tstep == 0]
         return data
@@ -230,13 +228,6 @@ class ComputeClusterYield(AnalysisPipelineStep):
 
     def get_output_data_type(self) -> PipelineDataType:
         return PipelineDataType.PIPELINE_DATATYPE_DATAFRAME
-
-    def get_py_steps_slurm(self, data_sources: tuple[Path], cache_file: Path):
-        return "from pypatchy.patchy.analysis_lib import ComputeClusterYield\n" \
-               f"target = YieldAnalysisTarget({self.target.name})" \
-               f"step = ComputeClusterYield(0,{self.input_tstep},{self.output_tstep},(),{self.cutoff},{self.overreach},target)\n" \
-               f"data = step.exec(Path(\"{data_sources[0]}\")\n)" \
-               f"step.cache_data(data, {str(cache_file)})\n"
 
 
 class ComputeClusterSizeData(AnalysisPipelineStep):
@@ -253,8 +244,8 @@ class ComputeClusterSizeData(AnalysisPipelineStep):
 
     def __init__(self,
                  name: str,
-                 input_tstep: int,
-                 output_tstep: int,
+                 input_tstep: Union[int, None] = None,
+                 output_tstep: Union[int, None] = None,
                  minsize=0):
         super().__init__(name, input_tstep, output_tstep)
         self.minsize = minsize
@@ -311,9 +302,9 @@ class ComputeSpecGroupClusterYield(AggregateAnalysisPipelineStep):
 
     def __init__(self,
                  name: str,
-                 input_tstep: int,
-                 output_tstep: int,
-                 aggregate_over: EnsembleParameter):
+                 aggregate_over: EnsembleParameter,
+                 input_tstep: Union[int, None] = None,
+                 output_tstep: Union[int, None] = None):
         super().__init__(name, input_tstep, output_tstep, tuple(aggregate_over))
 
     MIN_KEY = "yield_min"
@@ -343,10 +334,10 @@ class ComputeSpecGroupClusterYield(AggregateAnalysisPipelineStep):
                 stop=yield_data[TIMEPOINT_KEY].max(),
                 step=self.output_tstep),
             columns=[self.MIN_KEY, self.MAX_KEY, self.AVG_KEY, self.STD_KEY])
-        data.update(gb.min().rename({self.YIELD_KEY: self.MIN_KEY}))
-        data.update(gb.max().rename({self.YIELD_KEY: self.MAX_KEY}))
-        data.update(gb.mean().rename({self.YIELD_KEY: self.AVG_KEY}))
-        data.update(gb.std().rename({self.YIELD_KEY: self.STD_KEY}))
+        data.update(gb.min().rename({YIELD_KEY: self.MIN_KEY}))
+        data.update(gb.max().rename({YIELD_KEY: self.MAX_KEY}))
+        data.update(gb.mean().rename({YIELD_KEY: self.AVG_KEY}))
+        data.update(gb.std().rename({YIELD_KEY: self.STD_KEY}))
 
         return data
 
