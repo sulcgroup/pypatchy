@@ -1,82 +1,134 @@
 from __future__ import annotations
 
 import copy
-from typing import Union
+from typing import Union, Generator
 
 import networkx as nx
 
 from pypatchy.patchy.analysis_pipeline_step import AnalysisPipelineStep, PipelineDataType, AnalysisPipelineHead
 
 
-def analysis_step_idx(step: Union[int, AnalysisPipelineStep]) -> int:
-    return step if isinstance(step, int) else step.idx
+# def analysis_step_idx(step: Union[int, AnalysisPipelineStep]) -> int:
+#     return step if isinstance(step, int) else step.idx
+
 
 class AnalysisPipeline:
     pipeline_graph = nx.DiGraph
-    pipeline_steps: list[AnalysisPipelineStep]
+    # pipeline_steps: list[AnalysisPipelineStep]
     name_map: dict[str: AnalysisPipelineStep]
 
-    def __init__(self, pathway: list[tuple[str: str]] = [], *args: AnalysisPipelineStep):
-        self.pipeline_graph = nx.DiGraph()
-        self.pipeline_steps = []
-        for i, step in enumerate(args):
-            step = copy.deepcopy(step)
-            step.idx = i
-            self.pipeline_steps.append(step)
-        self.name_map = {step.name: step for step in self.pipeline_steps}
-        for begin, end in pathway:
-            assert begin in self.name_map, f"No step in pathway with name {begin}."
-            assert end in self.name_map, f"No step in pathway with name {end}."
-            self.pipeline_graph.add_edge(self.name_map[begin].idx,
-                                         self.name_map[end].idx)
+    def __init__(self, *args):
+        self.pipeline_graph: nx.DiGraph = nx.DiGraph()
+        # self.pipeline_steps: list[AnalysisPipelineStep] = []
+        self.name_map: dict[str: str] = dict()
+
+        # sort steps in pipeline so head nodes will be in front
+        steps = sorted([s for s in args if isinstance(s, AnalysisPipelineStep)],
+                       key=lambda s: isinstance(s, AnalysisPipelineHead), reverse=True)
+        pipes = [p for p in args if isinstance(p, tuple)]
+        # loop nodes
+        for step in steps:
+            parent_steps = [self.name_map[a] for a, b in pipes if a in self.name_map and b == step.name]
+            if len(parent_steps) > 0:
+                self.add_step(parent_steps[0], step)
+                for parent in parent_steps[1:]:
+                    self._add_pipe_between(parent, step)
+            else:
+                # if node is pipeline head
+                self.add_step(None, step)
+
         assert len(list(nx.simple_cycles(self.pipeline_graph))) == 0, "Analysis pipeline is cyclic"
 
-
-    def add_step(self, new_step: AnalysisPipelineStep):
-        """
-        Adds a step to this analysis pipeline
-        """
-        new_step.idx = len(self.pipeline_steps)
-        self.pipeline_graph.add_node(new_step.idx)
-        self.pipeline_steps.append(new_step)
-        assert len(list(nx.simple_cycles(self.pipeline_graph))) == 0, "Analysis pipeline is cyclic"
-
-    def add_step_dependant(self,
-                           step: Union[int, AnalysisPipelineStep],
-                           dependant_step: Union[int, AnalysisPipelineStep]):
-        self.pipeline_graph.add_edge(analysis_step_idx(dependant_step), analysis_step_idx(step))
-        assert len(list(nx.simple_cycles(self.pipeline_graph))) == 0, "Analysis pipeline is cyclic"
+    def _add_pipe_between(self,
+                          first: AnalysisPipelineStep,
+                          second: AnalysisPipelineStep):
+        self.pipeline_graph.add_edge(first.name, second.name)
+        # if the child node we're adding has no specified input timestep
+        if second.input_tstep is None:
+            assert first.output_tstep is not None
+            second.config_io(input_tstep=first.output_tstep)
 
     def num_pipeline_steps(self) -> int:
         """
         Returns the total number of analysis steps in this pipeline.
 
         """
-        return len(self.pipeline_steps)
+        return len(self.name_map)
 
-    def get_pipeline_step(self, step: Union[int, str, AnalysisPipelineStep]) -> AnalysisPipelineStep:
-        return step if isinstance(step, AnalysisPipelineStep) else\
-            self.name_map[step] if isinstance(step, str) else self.pipeline_steps[step]
+    def add_step(self, origin_step: Union[AnalysisPipelineStep, None],
+                 newStep: AnalysisPipelineStep) -> AnalysisPipelineStep:
+        if origin_step is not None:
+            assert origin_step.name in self.name_map
+            # assert origin_step.idx <= len(self.name_map)
+            # assert self.pipeline_steps[origin_step.idx] == self.name_map[origin_step.name]
+        # newStep.idx = len(self.name_map)
+        self.name_map[newStep.name] = newStep
+        self.pipeline_graph.add_node(newStep.name)
+        # self.pipeline_steps.append(newStep)
+        if origin_step is not None:
+            self._add_pipe_between(origin_step, newStep)
+        return newStep
+
+    def get_pipeline_step(self, step: Union[str, AnalysisPipelineStep]) -> AnalysisPipelineStep:
+        return step if isinstance(step, AnalysisPipelineStep) else self.name_map[step]
 
     def steps_before(self, step: AnalysisPipelineStep) -> list[int]:
         # if the pipeline data is expected to be in raw form
         assert not isinstance(step, AnalysisPipelineHead)
-        return [u for u, v in self.pipeline_graph.in_edges(step.idx)]
+        return [u for u, v in self.pipeline_graph.in_edges(step.name)]
+
+    def head_nodes(self) -> list[AnalysisPipelineHead]:
+        return [self.name_map[str(n)] for n in self.pipeline_graph.nodes
+                if isinstance(self.name_map[str(n)], AnalysisPipelineHead)]
+
+    def num_distinct_pipelines(self) -> int:
+        return len([n for n in self.get_distinct_pipelines()])
+
+    def get_distinct_pipelines(self) -> Generator[nx.DiGraph]:
+        return nx.weakly_connected_components(self.pipeline_graph)
+
+    def validate(self):
+        assert len(list(nx.simple_cycles(self.pipeline_graph))) == 0, "Analysis pipeline is cyclic"
+        for pipe_start, pipe_end in self.pipeline_graph.edges:
+            start_tstep = self.name_map[pipe_start].output_tstep
+            end_tstep = self.name_map[pipe_end].input_tstep
+            assert end_tstep % start_tstep == 0, "Inconsistant pipeline step time intervals between" \
+                                                 f"{start_tstep} and {end_tstep}!"
+
+    def _add_recursive(self,
+                       other_graph: AnalysisPipeline,
+                       other_start_node: AnalysisPipelineStep,
+                       other_prev_node: Union[AnalysisPipelineStep, None] = None):
+        new_node = self.add_step(other_prev_node, copy.deepcopy(other_start_node))
+        pipes = list(other_graph.pipeline_graph.successors(other_start_node.name))
+        for destination_node in pipes:
+            # check by name so we don't run into indexing problems
+            dest_name = other_graph[destination_node].name
+            if dest_name not in self:
+                # node we just added -> child node
+                self._add_recursive(other_graph, other_graph[dest_name], new_node)
+            else:
+                # reverse order but the same operation
+                self._add_pipe_between(new_node, other_graph[dest_name])
 
     def __add__(self, other: AnalysisPipeline):
-        id_remap: dict[int: int] = {}
         new_pipeline = copy.deepcopy(self)
-        for node in other.pipeline_graph.nodes:
-            assert other.pipeline_steps[node].name not in new_pipeline.name_map
-            n = copy.deepcopy(other.pipeline_steps[node])
-            id_remap[node] = new_pipeline.num_pipeline_steps()
-            n.idx = new_pipeline.num_pipeline_steps()
-            new_pipeline.name_map[n.name] = n
-            new_pipeline.pipeline_steps.append(n)
-            new_pipeline.pipeline_graph.add_node(n.idx)
+        # add nodes recursively from head
+        for node in other.head_nodes():
+            new_pipeline._add_recursive(other, node)
 
-        for n1, n2 in other.pipeline_graph.edges:
-            new_pipeline.pipeline_graph.add_edge(id_remap[n1], id_remap[n2])
-
+        assert len(new_pipeline.pipeline_graph) == len(self.pipeline_graph) + len(other.pipeline_graph)
         assert len(list(nx.simple_cycles(new_pipeline.pipeline_graph))) == 0, "Analysis pipeline is cyclic"
         return new_pipeline
+
+    def __contains__(self, key: Union[str, AnalysisPipelineStep]):
+        if isinstance(key, AnalysisPipelineStep):
+            return key.name in self
+        else:
+            return key in self.name_map
+
+    def __getitem__(self, item: str) -> AnalysisPipelineStep:
+        return self.name_map[item]
+
+    def __len__(self):
+        return len(self.pipeline_graph)

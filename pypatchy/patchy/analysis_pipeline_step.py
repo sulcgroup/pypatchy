@@ -29,7 +29,7 @@ PipelineData = Any  # todo: detail!
 
 class AnalysisPipelineStep(ABC):
     # unique ID
-    idx: int
+    # idx: int
 
     # the name of this step on the analysis pipeline
     name: str
@@ -48,11 +48,18 @@ class AnalysisPipelineStep(ABC):
     # interval in timesteps between input data points
     output_tstep: int
 
-    def __init__(self, step_name: str, input_tstep: int, output_tstep: int):
+    def __init__(self,
+                 step_name: str,
+                 input_tstep: Union[int, None] = None,
+                 output_tstep: Union[int, None] = None):
         self.name = step_name  # unique name, not class name
-        self.idx = -1
+        # self.idx = -1
         self.input_tstep = input_tstep
         self.output_tstep = output_tstep
+        self.config_io(input_tstep=self.input_tstep, output_tstep=self.output_tstep)
+
+    def __str__(self):
+        return self.name
 
     @abstractmethod
     def load_cached_files(self, f: Path) -> PipelineData:
@@ -61,58 +68,58 @@ class AnalysisPipelineStep(ABC):
         """
         pass
 
-    def exec_step_slurm(self,
-                        script_dir_path: Path,
-                        slurm_bash_flags: dict[str: str],
-                        slurm_includes: list[str],
-                        data_sources: Union[tuple[Path], list[Path]],
-                        cache_file: Path) -> int:
-        """
-        executes this step in the analysis pipeline,
-        using slurm
-        Parameters:
-            :param script_dir_path a directory to put a temporary bash script (
-            :param slurm_bash_flags
-            :param slurm_includes
-            :param data_sources
-            :param cache_file
-        """
-        assert script_dir_path.exists()
-        script_path = script_dir_path / f"{self.name}.sh"
-        with open(script_path, "w") as f:
-            f.write("!/bin/bash\n")
-            # write slurm flags (server-specific)
-            for flag_key in slurm_bash_flags:
-                if len(flag_key) > 1:
-                    f.write(f"#SBATCH --{flag_key}=\"{slurm_bash_flags[flag_key]}\"\n")
-                else:
-                    f.write(f"#SBATCH -{flag_key} {slurm_bash_flags[flag_key]}\n")
-            for incl in slurm_includes:
-                f.write(f"{incl}\n")
-            f.write("source activate polycubes\n")
-            f.write("python <<EOF\n")
-            self.write_steps_slurm(f, data_sources, cache_file)
-            f.write("EOF\n")
-
-        # submit slurm job
-        result = subprocess.run(['sbatch', script_path], stdout=subprocess.PIPE)
-        # get job id
-        job_id = int(result.stdout.decode().split(' ')[-1].strip())  # extract the job id from output
-        return job_id
+    # def exec_step_slurm(self,
+    #                     script_dir_path: Path,
+    #                     slurm_bash_flags: dict[str: str],
+    #                     slurm_includes: list[str],
+    #                     data_sources: Union[tuple[Path], list[Path]],
+    #                     cache_file: Path) -> int:
+    #     """
+    #     executes this step in the analysis pipeline,
+    #     using slurm
+    #     Parameters:
+    #         :param script_dir_path a directory to put a temporary bash script (
+    #         :param slurm_bash_flags
+    #         :param slurm_includes
+    #         :param data_sources
+    #         :param cache_file
+    #     """
+    #     assert script_dir_path.exists()
+    #     script_path = script_dir_path / f"{self.name}.sh"
+    #     with open(script_path, "w") as f:
+    #         f.write("!/bin/bash\n")
+    #         # write slurm flags (server-specific)
+    #         for flag_key in slurm_bash_flags:
+    #             if len(flag_key) > 1:
+    #                 f.write(f"#SBATCH --{flag_key}=\"{slurm_bash_flags[flag_key]}\"\n")
+    #             else:
+    #                 f.write(f"#SBATCH -{flag_key} {slurm_bash_flags[flag_key]}\n")
+    #         for incl in slurm_includes:
+    #             f.write(f"{incl}\n")
+    #         f.write("source activate polycubes\n")
+    #         f.write("python <<EOF\n")
+    #         self.write_steps_slurm(f, data_sources, cache_file)
+    #         f.write("EOF\n")
+    #
+    #     # submit slurm job
+    #     result = subprocess.run(['sbatch', script_path], stdout=subprocess.PIPE)
+    #     # get job id
+    #     job_id = int(result.stdout.decode().split(' ')[-1].strip())  # extract the job id from output
+    #     return job_id
 
     @abstractmethod
     def can_parallelize(self):
         pass
 
-    def write_steps_slurm(self,
-                          f: IO,
-                          data_sources: tuple[Path],
-                          cache_file: Path):
-        f.write(self.get_py_steps_slurm(data_sources, cache_file))
+    # def write_steps_slurm(self,
+    #                       f: IO,
+    #                       data_sources: tuple[Path],
+    #                       cache_file: Path):
+    #     f.write(self.get_py_steps_slurm(data_sources, cache_file))
 
-    @abstractmethod
-    def get_py_steps_slurm(self, data_sources: tuple[Path], cache_file: Path):
-        pass
+    # @abstractmethod
+    # def get_py_steps_slurm(self, data_sources: tuple[Path], cache_file: Path):
+    #     pass
 
     @abstractmethod
     def data_matches_trange(self, data: PipelineData, trange: range) -> bool:
@@ -145,12 +152,41 @@ class AnalysisPipelineStep(ABC):
     def get_output_data_type(self) -> PipelineDataType:
         pass
 
+    def config_io(self, input_tstep=None, output_tstep=None):
+        """
+        Configures the input and output time intervals
+        """
+        if input_tstep is not None:
+            self.input_tstep = input_tstep
+        if output_tstep is not None:
+            self.output_tstep = output_tstep
+
+        # if there's a specified input tstep but not output tstep, assume they're the same
+        if self.output_tstep is None and self.input_tstep is not None:
+            self.output_tstep = self.input_tstep
+
+        # if the user specifies a smaller output timestep than input timestep,
+        # assume it's an interval
+        if self.input_tstep is not None and self.output_tstep is not None:
+            if self.output_tstep < self.input_tstep:
+                self.output_tstep *= self.input_tstep
+            assert self.output_tstep % self.input_tstep == 0
+
+
 class AnalysisPipelineHead(AnalysisPipelineStep, ABC):
     """
     Class for any "head" node of the analysis pipeline.
     Note that there's nothing stopping even a connected graph
     of the pipeline from having multiple "heads"
     """
+    def __init__(self,
+                 step_name: str,
+                 input_tstep: int,
+                 output_tstep: Union[int, None] = None):
+        super().__init__(step_name, input_tstep, output_tstep)
+        if output_tstep is None:
+            self.output_tstep = input_tstep
+
     @abstractmethod
     def get_data_in_filenames(self) -> list[str]:
         pass
@@ -174,6 +210,5 @@ class AggregateAnalysisPipelineStep(AnalysisPipelineStep, ABC):
         else:
             this_step_param_specs = sim
         return (param for param in this_step_param_specs if param not in self.params_aggregate_over)
-
 
 PipelineStepDescriptor = Union[AnalysisPipelineStep, int, str]
