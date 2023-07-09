@@ -64,6 +64,8 @@ PatchySimDescriptor = Union[tuple[ParameterValue, ...],
 def get_descriptor_key(sim: PatchySimDescriptor):
     return sim if isinstance(sim, str) else str(sim) if isinstance(sim, PatchySimulation) else describe_param_vals(*sim)
 
+def print_help():
+    pass
 
 class PatchySimulationEnsemble:
     """
@@ -350,6 +352,19 @@ class PatchySimulationEnsemble:
             ])["t_end"])
 
     # ------------------------ Status-Type Stuff --------------------------------#
+    def info(self, infokey: str = "all"):
+        """
+        prints help text, for non-me people or if I forget
+        """
+        print(f"Ensemble of simulations of {self.export_name}")
+        print("Ensemble Params")
+        for param in self.ensemble_params:
+            print(param)
+
+        print("Function `has_pipeline`")
+        print("Function `show_pipeline_graph`")
+        print("Function `ensemble`")
+        print("Function show_last_conf")
 
     def has_pipeline(self) -> bool:
         return len(self.analysis_pipeline) != 0
@@ -380,6 +395,10 @@ class PatchySimulationEnsemble:
                   self.folder_path(sim) / "patches.txt")
 
     def show_analysis_status(self) -> pd.DataFrame:
+        """
+        Returns a Pandas dataframe showing the status of every simulation in the ensemble
+        at each step on the analysis pipeline
+        """
         return pd.DataFrame.from_dict({
             tuple(v.value for _, v in sim.param_vals):
                 {
