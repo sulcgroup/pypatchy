@@ -51,7 +51,6 @@ PATCHY_FILE_FORMAT_KEY = "patchy_format"
 METADATA_FILE_KEY = "sim_metadata_file"
 LAST_CONTINUE_COUNT_KEY = "continue_count"
 
-
 SUBMIT_SLURM_PATTERN = r"Submitted batch job (\d+)"
 
 
@@ -90,6 +89,7 @@ def list_simulation_ensembles():
                             print(f"\t\t{sim_path}")
         except JSONDecodeError as e:
             print(f"\tJSON file `{file.name} is malformed. Skipping...")
+
 
 class PatchySimulationEnsemble:
     """
@@ -797,7 +797,8 @@ class PatchySimulationEnsemble:
         if isinstance(sim, list):
             if self.is_do_analysis_parallel():
                 with multiprocessing.Pool(self.n_processes()) as pool:
-                    return pool.map(lambda s: self.get_data(step, s, time_steps), sim)
+                    args = [(self, step, s, time_steps) for s in sim]
+                    return pool.map(process_simulation_data, args)
             else:
                 return [self.get_data(step, s, time_steps) for s in sim]
 
@@ -912,6 +913,11 @@ class PatchySimulationEnsemble:
         # universal_newlines=True)
         self.get_logger().info(f"`{response.stdout}`")
         return response.stdout
+
+
+def process_simulation_data(args):
+    self, step, s, time_steps = args
+    return self.get_data(step, s, time_steps)
 
 #
 # def ensemble_from_export_settings(export_settings_file_path: Union[Path, str],
