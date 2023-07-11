@@ -42,10 +42,12 @@ class Structure:
     https://paper.dropbox.com/doc/Computational-Design-of-Allostery-ddFV7iLkKaua1tnDZOQFu#:uid=923787386309510691921072&h2=Empirical-Definition-of-a-Comp
     so go read that
     """
+    graph: nx.DiGraph
+    bindings_list: list[tuple[int, int, int, int]]
 
     def __init__(self, **kwargs):
         self.graph: nx.DiGraph = nx.DiGraph()
-
+        self.bindings_list = []
         if "bindings" in kwargs:
             for n1, d1, n2, d2 in kwargs["bindings"]:
                 if n1 not in self.graph:
@@ -54,13 +56,14 @@ class Structure:
                     self.graph.add_node(n2)
                 self.graph.add_edge(n1, n2, dirIdx=d1)
                 self.graph.add_edge(n2, n1, dirIdx=d2)
+                self.bindings_list.append((n1, d1, n2, d2))
         if "graph" in kwargs:
             self.graph = kwargs["graph"]
 
         # if bindings aren't provided, the object is initialized empty
         # (useful for calls from subconstructor, see below)
 
-    def is_common_component(self, structures: Union[list, tuple]) -> Union[TCommonComponent, bool]:
+    def is_common_component(self, structures: Union[list, tuple]) -> Union[TCommonComponent, None]:
         """
         Checks if self is a common component (see doc: "Computational Design of Allostery")
         of the provided structures
@@ -74,13 +77,15 @@ class Structure:
         """
 
         if not nx.components.is_strongly_connected(self.graph):
-            return False
+            return None
 
+        # identifies a homomorphism for each structure onto this
         homomorphisms = [self.homomorphism(s) for s in structures]
+        # if homomorphisms exist for all structures, this is common component
         if all(homomorphisms):
             return CommonComponent(self, structures, homomorphisms)
         else:
-            return False
+            return None
 
     def cycles_by_size(self) -> dict[int: list[int]]:
         """
@@ -285,15 +290,23 @@ def get_common_components(*args: Structure) -> list[CommonComponent]:
     Parameters:
          args: Structure objects
     """
+    assert len(args) >= 2
+    # start with an arbitrary structure
     s0 = args[0]
     common_components = []
+    # loop possible sizes for components of s0
     for n in range(2, len(s0) + 1):
+        # loop combinations of nodes in s0
         for nodes in itertools.combinations(s0.graph, n):
+            # grab subgraph
             subgraph = s0.graph.subgraph(nodes)
+            # check if subgraph si connected
             if nx.algorithms.components.is_strongly_connected(subgraph):
+                # grab Structure object
                 component = Structure(graph=subgraph)
+                # check if this is a common component
                 component = component.is_common_component(args)
-                if component:
+                if component is not None:
                     # TODO: check for redundency? somehow
                     common_components.append(component)
     return common_components
