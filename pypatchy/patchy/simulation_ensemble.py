@@ -8,6 +8,7 @@ import itertools
 import pickle
 import sys
 import tempfile
+from json import JSONDecodeError
 from pathlib import Path
 from typing import Any, Union
 
@@ -47,9 +48,11 @@ DENTAL_RADIUS_KEY = "dental_radius"
 
 PATCHY_FILE_FORMAT_KEY = "patchy_format"
 
-SUBMIT_SLURM_PATTERN = r"Submitted batch job (\d+)"
-
 METADATA_FILE_KEY = "sim_metadata_file"
+LAST_CONTINUE_COUNT_KEY = "continue_count"
+
+
+SUBMIT_SLURM_PATTERN = r"Submitted batch job (\d+)"
 
 
 def describe_param_vals(*args) -> str:
@@ -59,13 +62,34 @@ def describe_param_vals(*args) -> str:
 PatchySimDescriptor = Union[tuple[ParameterValue, ...],
                             PatchySimulation,
                             list[Union[tuple[ParameterValue, ...], PatchySimulation],
-                                 ]]
+                            ]]
+
 
 def get_descriptor_key(sim: PatchySimDescriptor):
     return sim if isinstance(sim, str) else str(sim) if isinstance(sim, PatchySimulation) else describe_param_vals(*sim)
 
+
 def print_help():
     pass
+
+
+def list_simulation_ensembles():
+    print("Simulations:")
+    sim_paths = [ensemble_dir
+                 for ensemble_dir in simulation_run_dir().glob("*_*-*-*")
+                 if ensemble_dir.is_dir() and re.match(r"[\w\d_]*_\d{4}-\d{2}-\d{2}", ensemble_dir.name)]
+    for file in get_input_dir().glob("*.json"):
+        try:
+            with open(file, "r") as f:
+                sim_json = json.load(f)
+                if EXPORT_NAME_KEY in sim_json:
+                    sim_name = sim_json[EXPORT_NAME_KEY]
+                    print(f"\tEnsemble spec `{sim_name}` specified in file `{file.name}`:")
+                    for sim_path in sim_paths:
+                        if sim_path.name.startswith(sim_name):
+                            print(f"\t\t{sim_path}")
+        except JSONDecodeError as e:
+            print(f"\tJSON file `{file.name} is malformed. Skipping...")
 
 class PatchySimulationEnsemble:
     """
@@ -91,9 +115,6 @@ class PatchySimulationEnsemble:
 
     # set of cube types that are used in this ensemble
     rule: PolycubesRule
-
-    # logging
-    logger: logging.Logger
 
     observables: dict[str: PatchySimObservable]
 
@@ -178,7 +199,7 @@ class PatchySimulationEnsemble:
         logger: logging.Logger = logging.getLogger(self.export_name)
         logger.setLevel(logging.INFO)
         logger.addHandler(logging.FileHandler(get_log_dir() /
-                                                   f"log_{self.export_name}_{self.sim_init_date.strftime('%Y-%m-%d')}.log"))
+                                              f"log_{self.export_name}_{self.sim_init_date.strftime('%Y-%m-%d')}.log"))
         logger.addHandler(logging.StreamHandler(sys.stdout))
 
         # load particles
@@ -341,8 +362,8 @@ class PatchySimulationEnsemble:
         if sim is None:
             return self.time_length(self.ensemble())
         elif isinstance(sim, PatchySimulation):
-                traj_file = self.folder_path(sim) / self.sim_get_param(sim, "trajectory_file")
-                return file_info([str(traj_file)])["t_end"][0]
+            traj_file = self.folder_path(sim) / self.sim_get_param(sim, "trajectory_file")
+            return file_info([str(traj_file)])["t_end"][0]
         elif isinstance(sim, tuple):
             return self.time_length(self.get_simulation(*sim))
         else:
@@ -364,7 +385,8 @@ class PatchySimulationEnsemble:
         print("Function `has_pipeline`")
         print("Function `show_pipeline_graph`")
         print("Function `ensemble`")
-        print("Function show_last_conf")
+        print("Function `show_last_conf`")
+        print("Function `all_folders_exist`")
 
     def has_pipeline(self) -> bool:
         return len(self.analysis_pipeline) != 0
@@ -413,30 +435,28 @@ class PatchySimulationEnsemble:
 
     # ----------------------- Setup Methods ----------------------------------- #
     def do_setup(self):
-        self.logger.info("Setting up folder / file structure...")
+        self.get_logger().info("Setting up folder / file structure...")
         for sim in self.ensemble():
-            self.logger.info(f"Setting up folder / file structure for {repr(sim)}...")
+            self.get_logger().info(f"Setting up folder / file structure for {repr(sim)}...")
             # create nessecary folders
             if not os.path.isdir(self.folder_path(sim)):
-                self.logger.info(f"Creating folder {self.folder_path(sim)}")
+                self.get_logger().info(f"Creating folder {self.folder_path(sim)}")
                 Path(self.folder_path(sim)).mkdir(parents=True)
             else:
-                self.logger.info(f"Folder {self.folder_path(sim)} already exists. Continuing...")
+                self.get_logger().info(f"Folder {self.folder_path(sim)} already exists. Continuing...")
             # write input file
-            self.logger.info("Writing input files...")
+            self.get_logger().info("Writing input files...")
             self.write_input_file(sim)
             # write requisite top, patches, particles files
-            self.logger.info("Writing .top, .txt, etc. files...")
+            self.get_logger().info("Writing .top, .txt, etc. files...")
             self.write_sim_top_particles_patches(sim)
             # write observables.json if applicble
-            self.logger.info("Writing observable json, as nessecary...")
+            self.get_logger().info("Writing observable json, as nessecary...")
             self.write_sim_observables(sim)
             # write .sh script
-            self.logger.info("Writing sbatch scripts...")
+            self.get_logger().info("Writing sbatch scripts...")
             self.write_confgen_script(sim)
             self.write_run_script(sim)
-
-
 
     def write_confgen_script(self, sim: PatchySimulation):
         with open(self.get_run_confgen_sh(sim), "w+") as confgen_file:
@@ -458,7 +478,6 @@ class PatchySimulationEnsemble:
             slurm_file.write(f"{server_config['oxdna_path']}/build/bin/oxDNA {input_file}\n")
 
         self.bash_exec(f"chmod u+x {self.folder_path(sim)}/slurm_script.sh")
-
 
     def write_sbatch_params(self, sim: PatchySimulation, slurm_file):
         server_config = get_server_config()
@@ -636,11 +655,18 @@ class PatchySimulationEnsemble:
             with open(self.folder_path(sim) / "observables.json", "w+") as f:
                 json.dump({f"data_output_{i + 1}": obs.to_dict() for i, obs in enumerate(self.observables.values())}, f)
 
-    def write_continue_files(self, sim: Union[None, PatchySimulation] = None, counter: int = 2):
+    def write_continue_files(self, sim: Union[None, PatchySimulation] = None, counter: int = -1):
         """
         writes input file and shell script to continue running the simulation after
         completion of first oxDNA execution
         """
+        # continues start at 2; interpret anything lower as "figure it out"
+        if counter < 2:
+            # if metadata can help here, use it
+            if LAST_CONTINUE_COUNT_KEY in self.metadata:
+                counter = self.metadata[LAST_CONTINUE_COUNT_KEY] + 1
+            else:  # use default first continue counter (2)
+                counter = 2
 
         if sim is None:
             for sim in self.ensemble():
@@ -659,11 +685,20 @@ class PatchySimulationEnsemble:
             self.write_run_script(sim, input_file=f"input_{counter}")
 
     def exec_continue(self, sim: PatchySimulation, counter: int = 2):
+        # continues start at 2; interpret anything lower as "figure it out"
+        if counter < 2:
+            # if metadata can help here, use it
+            if LAST_CONTINUE_COUNT_KEY in self.metadata:
+                counter = self.metadata[LAST_CONTINUE_COUNT_KEY] + 1
+            else:  # use default first continue counter (2)
+                counter = 2
+
         if not (self.folder_path(sim) / f"input_{counter}").exists():
             # write new input file, update .sh file
             self.write_continue_files(sim, counter)
         # start the simulation
         self.start_simulation(sim)
+        self.metadata[LAST_CONTINUE_COUNT_KEY] = counter
 
     def exec_all_continue(self, counter: int = 2):
         for sim in self.ensemble():
@@ -740,7 +775,6 @@ class PatchySimulationEnsemble:
         else:
             self.get_logger().info("The analysis pipeline you passed is already present")
 
-
     def has_data_file(self, step: PipelineStepDescriptor, sim: PatchySimDescriptor) -> bool:
         return self.get_cache_file(step, sim).exists()
 
@@ -778,7 +812,8 @@ class PatchySimulationEnsemble:
                                                              f"interval {step.output_tstep}"
         # check if we have cached data for this step already
         if self.has_data_file(step, sim):
-            self.get_logger().info(f"Cache file for simulation {get_descriptor_key(sim)} and step {step} exists! Loading...")
+            self.get_logger().info(
+                f"Cache file for simulation {get_descriptor_key(sim)} and step {step} exists! Loading...")
             cache_file_path = self.get_cache_file(step, sim)
             cached_data = step.load_cached_files(cache_file_path)
             # if we already have the data needed for the required time range
@@ -870,14 +905,13 @@ class PatchySimulationEnsemble:
         """
         Executes a bash command and returns the output
         """
-        self.logger.info(f">`{command}`")
+        self.get_logger().info(f">`{command}`")
         response = subprocess.run(command, shell=True,
                                   capture_output=True, text=True, check=False)
         # response = subprocess.check_output(command, shell=True, stderr=subprocess.STDOUT, check=False,
         # universal_newlines=True)
-        self.logger.info(f"`{response.stdout}`")
+        self.get_logger().info(f"`{response.stdout}`")
         return response.stdout
-
 
 #
 # def ensemble_from_export_settings(export_settings_file_path: Union[Path, str],
