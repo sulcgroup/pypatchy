@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import itertools
-from typing import TypeVar
+from typing import TypeVar, Generator
 
 from scipy.spatial.transform import Rotation
 
@@ -43,11 +43,11 @@ class Structure:
     so go read that
     """
     graph: nx.DiGraph
-    bindings_list: list[tuple[int, int, int, int]]
+    bindings_list: set[tuple[int, int, int, int]]
 
     def __init__(self, **kwargs):
         self.graph: nx.DiGraph = nx.DiGraph()
-        self.bindings_list = []
+        self.bindings_list = set()
         if "bindings" in kwargs:
             for n1, d1, n2, d2 in kwargs["bindings"]:
                 if n1 not in self.graph:
@@ -56,12 +56,56 @@ class Structure:
                     self.graph.add_node(n2)
                 self.graph.add_edge(n1, n2, dirIdx=d1)
                 self.graph.add_edge(n2, n1, dirIdx=d2)
-                self.bindings_list.append((n1, d1, n2, d2))
+                self.bindings_list.add((n1, d1, n2, d2))
         if "graph" in kwargs:
+            # TODO: test!
             self.graph = kwargs["graph"]
+            handled_set = set()
+            # iter edges
+            for u, v in self.graph.edges:
+                if (v,u) not in handled_set:
+                    u_diridx = self.graph.get_edge_data(u, v)["dirIdx"]
+                    assert (v, u) in self.graph.edges
+                    v_diridx = self.graph.get_edge_data(v, u)["dirIdx"]
+                    self.bindings_list.add((
+                            u, u_diridx,
+                            v, v_diridx
+                        ))
+                    handled_set.add((u, v)) # only add each edge once
 
         # if bindings aren't provided, the object is initialized empty
         # (useful for calls from subconstructor, see below)
+
+    def vertices(self) -> list[int]:
+        return [int(n) for n in self.graph.nodes]
+
+    def substructures(self) -> Generator[Structure]:
+        # iterate possible sets of nodes in this graph
+        # a subgraph of 1 node isn't a graph for our purposes; a subgraph of all nodes is self
+        for n in range(2, len(self)):
+            for subset in itertools.combinations(self.vertices(), n):
+                # grab subgraph
+                subgraph = self.graph.subgraph(subset)
+                # check if subgraph si connected
+                if nx.algorithms.components.is_strongly_connected(subgraph):
+                    yield self.substructure(subset)
+
+    def substructure(self, nodes: tuple[int]) -> Structure:
+        """
+        Returns:
+             a Structre object that's a substructure of this
+        """
+        assert nx.algorithms.components.is_strongly_connected(self.graph.subgraph(nodes))
+        lmap = dict()
+        counter = 0
+        # remap node indeces in self to new graph
+        for n in self.vertices():
+            if n in nodes:
+                lmap[n] = counter
+                counter += 1
+        return Structure(bindings=[
+            (lmap[u], du, lmap[v], dv) for u, du, v, dv in self.bindings_list if u in lmap and v in lmap
+        ])
 
     def is_common_component(self, structures: Union[list, tuple]) -> Union[TCommonComponent, None]:
         """
@@ -208,10 +252,19 @@ class Structure:
     def __len__(self) -> int:
         return len(self.graph.nodes)
 
+    def __str__(self) -> str:
+        return f"Structure with {len(self.vertices())} particles and {len(self.bindings_list)} connections"
+
 
 class CommonComponent(Structure):
-    def __init__(self, component, full_structures: list, homomorphisms: list):
-        self.graph = component.graph
+    full_structures: list[Structure]
+    homomorphisms: list[StructuralHomomorphism]
+
+    def __init__(self,
+                 component: Structure,
+                 full_structures: list[Structure],
+                 homomorphisms: list[StructuralHomomorphism]):
+        super().__init__(graph=component.graph)
         self.full_structures = full_structures
         self.homomorphisms = homomorphisms
 
@@ -318,12 +371,17 @@ class StructuralHomomorphism:
                  target_structure: Structure,
                  rotation_mapping_idx: int,
                  location_mapping: dict,
-                 reverse_location_mapping: dict):
+                 reverse_location_mapping: Union[dict, None] = None):
         self.source = source_structure
         self.target = target_structure
         self._rmapidx = rotation_mapping_idx
         self.lmap = location_mapping
-        self.rlmap = reverse_location_mapping
+        if reverse_location_mapping is not None:
+            self.rlmap = reverse_location_mapping
+        else:
+            self.rlmap = {
+                location_mapping[k]: k for k in location_mapping
+            }
 
     def map_location(self, i: int) -> int:
         assert i in self.lmap
