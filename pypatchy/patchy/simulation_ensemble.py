@@ -683,6 +683,10 @@ class PatchySimulationEnsemble:
                                   })
             # overwrite run script
             self.write_run_script(sim, input_file=f"input_{counter}")
+        self.metadata[LAST_CONTINUE_COUNT_KEY] = counter \
+            if self.metadata[LAST_CONTINUE_COUNT_KEY] not in self.metadata \
+            or self.metadata["continue_count"] < counter \
+            else self.metadata["continue_count"]
 
     def exec_continue(self, sim: PatchySimulation, counter: int = 2):
         # continues start at 2; interpret anything lower as "figure it out"
