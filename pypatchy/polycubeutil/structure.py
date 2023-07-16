@@ -6,6 +6,7 @@ from typing import TypeVar, Generator
 from scipy.spatial.transform import Rotation
 
 import networkx as nx
+import numpy as np
 from collections import defaultdict
 
 from ..util import getRotations, enumerateRotations
@@ -280,6 +281,7 @@ class CommonComponent(Structure):
                 continue
             if len([i for i in range(self.nstructures()) if self.homomorphism_contains(i, v, delta)]) > 1:
                 return False
+        return True
 
     def is_crucial_point(self, v: int) -> bool:
         """
@@ -293,7 +295,7 @@ class CommonComponent(Structure):
             # loop pairs of nodes in s
             for u1, u2 in itertools.combinations(list(s.graph.nodes), 2):
                 # skip instances where either u1 or u2 are in the common component
-                if f.rmap_location(u1) in self or f.rmap_location(u2) in self:
+                if u1 in f.rlmap or u2 in f.rlmap:
                     continue
                 # loop all possible simple paths from u1 to u2
                 for p in nx.algorithms.all_simple_paths(s.graph, u1, u2):
@@ -302,7 +304,7 @@ class CommonComponent(Structure):
                         # if node n in the path is in the common component but
                         # isn't the node (v) that we're testing for cruciality,
                         # node v is not a crucial point
-                        if f.rmap_location(n) in self and f.rmap_location(n) != v:
+                        if n in f.rlmap in self and f.rlmap[n] != v:
                             return False
         return True
 
@@ -310,8 +312,10 @@ class CommonComponent(Structure):
         """
         See defn. of a pivot point in the doc "Computational Design of Allostery"
         """
+        # check if vertex is a crucial point and is a superimposition point
         if not self.is_crucial_point(v) or not self.is_superimposition_point(v):
             return False
+        # check if any other vertices in this Common Component are crucial points
         for n in list(self.graph.nodes):
             if n != v and self.is_crucial_point(n):
                 return False
