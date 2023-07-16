@@ -655,7 +655,10 @@ class PatchySimulationEnsemble:
             with open(self.folder_path(sim) / "observables.json", "w+") as f:
                 json.dump({f"data_output_{i + 1}": obs.to_dict() for i, obs in enumerate(self.observables.values())}, f)
 
-    def write_continue_files(self, sim: Union[None, PatchySimulation] = None, counter: int = -1):
+    def write_continue_files(self,
+                             sim: Union[None, PatchySimulation] = None,
+                             counter: int = -1,
+                             continue_step_count: Union[int, None] = None):
         """
         writes input file and shell script to continue running the simulation after
         completion of first oxDNA execution
@@ -679,7 +682,8 @@ class PatchySimulationEnsemble:
                                   replacer_dict={
                                       "trajectory_file": f"trajectory_{counter}.dat",
                                       "conf_file": "last_conf.dat" if counter == 2 else f"last_conf_{counter - 1}.dat",
-                                      "lastconf_file": f"last_conf_{counter}.dat"
+                                      "lastconf_file": f"last_conf_{counter}.dat",
+                                      "steps": self.sim_get_param(sim, "steps") if continue_step_count is None else continue_step_count
                                   })
             # overwrite run script
             self.write_run_script(sim, input_file=f"input_{counter}")
@@ -703,6 +707,7 @@ class PatchySimulationEnsemble:
         # start the simulation
         self.start_simulation(sim)
         self.metadata[LAST_CONTINUE_COUNT_KEY] = counter
+        self.dump_metadata()
 
     def exec_all_continue(self, counter: int = 2):
         for sim in self.ensemble():
