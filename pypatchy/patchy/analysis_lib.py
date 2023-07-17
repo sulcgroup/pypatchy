@@ -53,7 +53,7 @@ class GraphsFromClusterTxt(AnalysisPipelineHead):
 
                     clusterGraphs = []
                     # regex for a single cluster
-                    clusters = re.finditer('\[.+?\]', line)
+                    clusters = re.finditer(r'\[.+?\]', line)
 
                     # iter regex matches
                     for cluster in clusters:
@@ -61,7 +61,7 @@ class GraphsFromClusterTxt(AnalysisPipelineHead):
                         # iter entries within cluster
                         # entries are in format "[source-particle] -> ([space-seperated-list-of-connected-particles])
                         matches = re.finditer(
-                            '(\d+) -> \(((?:\d+ ?)+)\)', cluster.group()
+                            r'(\d+) -> \(((?:\d+ ?)+)\)', cluster.group()
                         )
                         # loop matches
                         for m in matches:

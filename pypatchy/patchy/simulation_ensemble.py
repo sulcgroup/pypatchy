@@ -805,6 +805,7 @@ class PatchySimulationEnsemble:
         # if we've provided a list of simulations
         if isinstance(sim, list):
             if self.is_do_analysis_parallel():
+                self.get_logger().info(f"Assembling pool of {self.n_processes()} processes")
                 with multiprocessing.Pool(self.n_processes()) as pool:
                     args = [(self, step, s, time_steps) for s in sim]
                     return pool.map(process_simulation_data, args)
@@ -816,6 +817,7 @@ class PatchySimulationEnsemble:
         data = None
         if time_steps is None:
             time_steps = range(0, self.time_length(sim), step.output_tstep)
+            self.get_logger().info(f"Constructed time steps {time_steps}")
         else:
             assert time_steps.step % step.output_tstep == 0, f"Specified step interval {time_steps} " \
                                                              f"not consistant with {step} output time " \
@@ -840,6 +842,7 @@ class PatchySimulationEnsemble:
         lock.acquire()
         try:
             # compute data for previous steps
+            self.get_logger().info(f"Computing data for previous step {step.name} for simulation {str(sim)}...")
             data_in = self.get_step_input_data(step, sim, time_steps)
         finally:
             lock.release()
@@ -849,6 +852,7 @@ class PatchySimulationEnsemble:
         data = step.exec(*data_in)
         lock.acquire()
         try:
+            self.get_logger().info(f"Caching data in file `{self.get_cache_file(step, sim)}`")
             step.cache_data(data, self.get_cache_file(step, sim))
             self.analysis_data[(step.name, get_descriptor_key(sim))] = data
         finally:
@@ -925,8 +929,8 @@ class PatchySimulationEnsemble:
 
 
 def process_simulation_data(args):
-    self, step, s, time_steps = args
-    return self.get_data(step, s, time_steps)
+    ensemble, step, s, time_steps = args
+    return ensemble.get_data(step, s, time_steps)
 
 #
 # def ensemble_from_export_settings(export_settings_file_path: Union[Path, str],
