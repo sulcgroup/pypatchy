@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import IO
+
 from ..util import get_spec_json
 
 
@@ -34,6 +36,26 @@ class PatchySimObservable:
             "print_every": self.print_every,
             "cols": self.cols
         }
+
+    def write_input(self, input_file: IO, i: int):
+        input_file.write(f"analysis_data_output_{i} = " + "{\n")
+        input_file.write(f"\tname = {self.name}\n")
+        input_file.write(f"\tprint_every = {self.print_every}\n")  # TODO: configure to deal with nonlinear time
+        if self.start_observe_stepnum > 0:
+            input_file.write(f"\tstart_from = {self.start_observe_stepnum}\n")
+        if self.start_observe_stepnum is not None:
+            input_file.write(f"\tstop_at = {self.stop_observe_stepnum}\n")
+        if self.only_write_last:
+            input_file.write("\tonly_last = 1\n")
+        if self.update_name_with_time:
+            input_file.write("\tupdate_name_with_time = 1\n")
+
+        for i_col, col in enumerate(self.cols):
+            input_file.write(f"\tcol_{i_col} = " + "{\n")
+            for key, value in col.item():
+                input_file.write(f"\t\t{key} = {value}\n")
+            input_file.write("\t}\n")
+        input_file.write("}\n")
 
 
 def observable_from_file(obs_file_name: str) -> PatchySimObservable:
