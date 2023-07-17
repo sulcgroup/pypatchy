@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import datetime
+import glob
 import json
 import multiprocessing
 import os
@@ -53,6 +54,8 @@ LAST_CONTINUE_COUNT_KEY = "continue_count"
 
 SUBMIT_SLURM_PATTERN = r"Submitted batch job (\d+)"
 
+# for forwards compatibility in case I ever get this working
+EXTERNAL_OBSERVABLES = False
 
 def describe_param_vals(*args) -> str:
     return "_".join([str(v) for v in args])
@@ -433,6 +436,64 @@ class PatchySimulationEnsemble:
     def all_folders_exist(self):
         return all(self.folder_path(s).exists() for s in self.ensemble())
 
+    def dna_analysis(self,
+                     observable: Union[str, PatchySimObservable],
+                     simulation_selector: Union[None, list[PatchySimulation], PatchySimulation] = None,
+                     conf_file_name: Union[None, str] = None):
+        """
+        Runs the oxDNA utility DNAAnalysis, which allows the program to compute output for
+        an observable for t
+        """
+        if simulation_selector is None:
+            simulation_selector = self.ensemble()
+        if conf_file_name is None:
+            conf_file_name = "full_trajectory.dat"
+        if isinstance(simulation_selector, list):
+            for sim in simulation_selector:
+                self.dna_analysis(observable, sim)
+        else:
+            self.write_input_file(simulation_selector,
+                                  "input_dna_analysis",
+                                  {
+                                      "conf_file": conf_file_name,
+                                      "analysis_data_output_1": observable
+                                  })
+            server_config = get_server_config()
+
+            # write slurm script
+            with open(self.folder_path(simulation_selector) / "dna_analysis.sh", "w+") as slurm_file:
+                # bash header
+
+                self.write_sbatch_params(simulation_selector, slurm_file)
+
+                # skip confGenerator call because we will invoke it directly later
+                slurm_file.write(f"{server_config['oxdna_path']}/build/bin/DNAnalysis input_dna_analysis\n")
+
+            self.bash_exec(f"chmod u+x {self.folder_path(simulation_selector)}/slurm_script.sh")
+            self.start_simulation(simulation_selector, "dna_analysis.sh")
+
+    def merge_topologies(self,
+                         sim_selector: Union[None, PatchySimulation, list[PatchySimulation]] = None,
+                         topologies: Union[list[int], None] = None,
+                         out_file_name: Union[str, None] = None):
+        """
+        Merges some topology files
+        """
+        if sim_selector is None:
+            sim_selector = self.ensemble()
+        if isinstance(sim_selector, list):
+            for sim in sim_selector:
+                self.merge_topologies(sim, topologies, out_file_name)
+        else:
+            # if no topology file specified
+            if topologies is None:
+                topologies = [f for f in self.folder_path(sim_selector).iterdir() if re.match(r"trajectory_\d+\.dat", f.name)]
+                topologies = sorted(topologies, key=lambda f: int(re.search(r'trajectory_(\d+)\.dat', f.name).group(1)))
+            if out_file_name is None:
+                out_file_name = self.folder_path(sim_selector) / "full_trajectory.dat"
+
+            #
+            self.bash_exec(f"cat {' '.join(map(str, topologies))} > {str(out_file_name)}")
     # ----------------------- Setup Methods ----------------------------------- #
     def do_setup(self):
         self.get_logger().info("Setting up folder / file structure...")
@@ -451,8 +512,9 @@ class PatchySimulationEnsemble:
             self.get_logger().info("Writing .top, .txt, etc. files...")
             self.write_sim_top_particles_patches(sim)
             # write observables.json if applicble
-            self.get_logger().info("Writing observable json, as nessecary...")
-            self.write_sim_observables(sim)
+            if EXTERNAL_OBSERVABLES:
+                self.get_logger().info("Writing observable json, as nessecary...")
+                self.write_sim_observables(sim)
             # write .sh script
             self.get_logger().info("Writing sbatch scripts...")
             self.write_confgen_script(sim)
@@ -575,7 +637,11 @@ class PatchySimulationEnsemble:
 
             # write external observables file path
             if len(self.observables) > 0:
-                inputfile.write(f"observables_file = observables.json" + "\n")
+                if EXTERNAL_OBSERVABLES:
+                    inputfile.write(f"observables_file = observables.json" + "\n")
+                else:
+                    for i, obsrv in enumerate(self.observables.values()):
+                        obsrv.write_input(inputfile, i)
 
     def write_sim_top_particles_patches(self, sim: PatchySimulation):
         server_config = get_server_config()
