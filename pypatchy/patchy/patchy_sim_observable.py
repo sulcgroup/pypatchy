@@ -38,7 +38,7 @@ class PatchySimObservable:
         }
 
     def write_input(self, input_file: IO, i: int):
-        input_file.write(f"analysis_data_output_{i} = " + "{\n")
+        input_file.write(f"analysis_data_output_{i+1} = " + "{\n")
         input_file.write(f"\tname = {self.name}\n")
         input_file.write(f"\tprint_every = {self.print_every}\n")  # TODO: configure to deal with nonlinear time
         if self.start_observe_stepnum > 0:
