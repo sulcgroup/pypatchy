@@ -28,7 +28,8 @@ from .analysis.analysis_pipeline import AnalysisPipeline
 from .analysis_pipeline_step import AnalysisPipelineStep, PipelineData, AggregateAnalysisPipelineStep, \
     AnalysisPipelineHead, PipelineStepDescriptor
 from .patchy_sim_observable import PatchySimObservable, observable_from_file
-from ..util import get_param_set, simulation_run_dir, get_server_config, get_log_dir, get_input_dir, all_equal
+from ..util import get_param_set, simulation_run_dir, get_server_config, get_log_dir, get_input_dir, all_equal, \
+    get_local_dir
 from .ensemble_parameter import EnsembleParameter, ParameterValue
 from .simulation_specification import PatchySimulation
 from .plpatchy import PLPatchyParticle, export_interaction_matrix
@@ -444,6 +445,8 @@ class PatchySimulationEnsemble:
         Runs the oxDNA utility DNAAnalysis, which allows the program to compute output for
         an observable for t
         """
+        if isinstance(observable, str):
+            observable = observable_from_file(observable)
         if simulation_selector is None:
             simulation_selector = self.ensemble()
         if conf_file_name is None:
@@ -494,6 +497,10 @@ class PatchySimulationEnsemble:
 
             #
             self.bash_exec(f"cat {' '.join(map(str, topologies))} > {str(out_file_name)}")
+
+    def list_folder_files(self, sim: PatchySimulation):
+        print([p.name for p in self.folder_path(sim).iterdir()])
+
     # ----------------------- Setup Methods ----------------------------------- #
     def do_setup(self):
         self.get_logger().info("Setting up folder / file structure...")
