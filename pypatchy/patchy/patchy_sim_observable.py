@@ -52,7 +52,7 @@ class PatchySimObservable:
 
         for i_col, col in enumerate(self.cols):
             input_file.write(f"\tcol_{i_col} = " + "{\n")
-            for key, value in col.item():
+            for key, value in col.items():
                 input_file.write(f"\t\t{key} = {value}\n")
             input_file.write("\t}\n")
         input_file.write("}\n")
