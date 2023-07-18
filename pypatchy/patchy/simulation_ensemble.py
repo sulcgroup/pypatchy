@@ -446,7 +446,7 @@ class PatchySimulationEnsemble:
         an observable for t
         """
         if isinstance(observable, str):
-            observable = observable_from_file(observable)
+            observable = self.observables[observable]
         if simulation_selector is None:
             simulation_selector = self.ensemble()
         if conf_file_name is None:
