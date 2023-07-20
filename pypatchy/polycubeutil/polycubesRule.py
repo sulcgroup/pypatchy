@@ -223,9 +223,19 @@ class PolycubeRuleCubeType:
 
     def get_patch_state_var(self, key: Union[int, str, np.ndarray],
                             make_if_0=False) -> int:
+        """
+        returns the state variable associated with a patch
+
+        Parameters:
+            key a int, string, or vector (as an np array) that indicates a patch
+        """
+        # process index
         idx = key if isinstance(key, int) else int(key) if isinstance(key, str) else diridx(key)
+        # if we need to make a new variable, and should do that
         if make_if_0 and self.get_patch_by_diridx(idx).state_var() == 0:
+            # make one
             self.get_patch_by_diridx(idx).set_state_var(self.add_state_var())
+        # return patch state variable
         return self.get_patch_by_diridx(idx).state_var()
 
     def effects(self) -> list[EFFECT_CLASSES]:
@@ -238,21 +248,24 @@ class PolycubeRuleCubeType:
         return [e for e in self._effects if e.target() == v]
 
     def add_effect(self, effect: EFFECT_CLASSES):
-        if isinstance(effect, StringConditionalEffect):
-            if effect.conditional() != "(true)":
-                effect.setStr(re.sub(r'b\[(\d+)]',
-                                     # lambda match: str(self.get_patch_by_diridx(int(match.group(1))).state_var()),
-                                     lambda match: str(self.get_patch_state_var(int(match.group(1)), True)),
-                                     effect.conditional())
-                              )
-            else:
-                effect.setStr("0")
+        # if isinstance(effect, StringConditionalEffect):
+        #     if effect.conditional() != "(true)":
+        #         effect.setStr(re.sub(r'b\[(\d+)]',
+        #                              # lambda match: str(self.get_patch_by_diridx(int(match.group(1))).state_var()),
+        #                              lambda match: str(self.get_patch_state_var(int(match.group(1)), True)),
+        #                              effect.conditional())
+        #                       )
+        #     else:
+        #         effect.setStr("0")
         self._effects.append(effect)
 
     def patch_conditional(self, patch: PolycubesPatch) -> str:
         return "|".join(f"({e.conditional()})" for e in self.effects_targeting(patch.activation_var()))
 
     def __str__(self) -> str:
+        return self.to_string()
+
+    def __repr__(self) -> str:
         return self.to_string()
 
     def to_string(self, force_static=False) -> str:
@@ -269,7 +282,7 @@ class PolycubeRuleCubeType:
 
     def patch_string_static(self, patch_dir_idx: int) -> str:
         if self.has_patch(patch_dir_idx):
-            p = self.get_patch_by_diridx()
+            p = self.get_patch_by_diridx(patch_dir_idx)
             return f"{p.color()}:{p.get_align_rot_num()}:{self.patch_conditional(p)}"
         else:
             return ""

@@ -14,5 +14,6 @@
         "plugin_search_path": "/home/jrevan21/oxDNZ/contrib/rovigatti"
 	},
 	"oxdna_path": "/home/jrevan21/oxDNA",
-	"patchy_format": "lorenzo"
+	"patchy_format": "lorenzo",
+	"babysitter_refresh": 43200
 }

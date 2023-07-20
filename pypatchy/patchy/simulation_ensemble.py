@@ -9,6 +9,7 @@ import itertools
 import pickle
 import sys
 import tempfile
+import time
 from json import JSONDecodeError
 from pathlib import Path
 from typing import Any, Union
@@ -28,8 +29,10 @@ from .analysis.analysis_pipeline import AnalysisPipeline
 from .analysis_pipeline_step import AnalysisPipelineStep, PipelineData, AggregateAnalysisPipelineStep, \
     AnalysisPipelineHead, PipelineStepDescriptor
 from .patchy_sim_observable import PatchySimObservable, observable_from_file
+from ..slurm_log_entry import SlurmLogEntry
+from ..slurmlog import SlurmLog
 from ..util import get_param_set, simulation_run_dir, get_server_config, get_log_dir, get_input_dir, all_equal, \
-    get_local_dir
+    get_local_dir, get_babysitter_refresh
 from .ensemble_parameter import EnsembleParameter, ParameterValue
 from .simulation_specification import PatchySimulation
 from .plpatchy import PLPatchyParticle, export_interaction_matrix
@@ -58,6 +61,7 @@ SUBMIT_SLURM_PATTERN = r"Submitted batch job (\d+)"
 # for forwards compatibility in case I ever get this working
 EXTERNAL_OBSERVABLES = False
 
+
 def describe_param_vals(*args) -> str:
     return "_".join([str(v) for v in args])
 
@@ -68,7 +72,10 @@ PatchySimDescriptor = Union[tuple[ParameterValue, ...],
                             ]]
 
 
-def get_descriptor_key(sim: PatchySimDescriptor):
+def get_descriptor_key(sim: PatchySimDescriptor) -> str:
+    """
+    returns a string representing the provided descriptor
+    """
     return sim if isinstance(sim, str) else str(sim) if isinstance(sim, PatchySimulation) else describe_param_vals(*sim)
 
 
@@ -140,6 +147,9 @@ class PatchySimulationEnsemble:
     # dict to store loaded analysis data
     analysis_data: dict[tuple[str, str]: PipelineData]
 
+    # log of slurm jobs
+    slurm_log: SlurmLog
+
     def __init__(self, **kwargs):
         """
         Very flexable constructor
@@ -151,6 +161,8 @@ class PatchySimulationEnsemble:
         assert "cfg_file_name" in kwargs or METADATA_FILE_KEY in kwargs or "cfg_dict" in kwargs
 
         self.metadata: dict = {}
+        self.slurm_log = SlurmLog()
+
         sim_cfg = kwargs
         if METADATA_FILE_KEY in kwargs or "cfg_file_name" in kwargs:
             # if an execution metadata file was provided
@@ -195,6 +207,8 @@ class PatchySimulationEnsemble:
                 # update metadata dict from file
                 with open(self.metadata_file, "r") as f:
                     self.metadata.update(json.load(f))
+            if "slurm_log" in self.metadata:
+                self.slurm_log = SlurmLog(*self.metadata["slurm_log"])
 
         # name of simulation set
         self.export_name: str = sim_cfg[EXPORT_NAME_KEY]
@@ -248,9 +262,6 @@ class PatchySimulationEnsemble:
         # construct analysis data dict in case we need it
         self.analysis_data = dict()
 
-        # init slurm log dataframe
-        self.slurm_log = pd.DataFrame(columns=["slurm_job_id", *[p.param_key for p in self.ensemble_params]])
-
     # --------------- Accessors and Mutators -------------------------- #
     def get_simulation(self, *args: list[ParameterValue]) -> PatchySimulation:
         """
@@ -271,6 +282,14 @@ class PatchySimulationEnsemble:
     def n_processes(self):
         return self.metadata["parallel"]
 
+    def append_slurm_log(self, item: SlurmLogEntry):
+        """
+        Appends an entry to the slurm log, also writes a brief description
+        to the logger
+        """
+        self.get_logger().info(str(item))
+        self.slurm_log.append(item)
+
     def set_metadata_attr(self, key, val):
         """
         Sets a metadata value, and
@@ -281,25 +300,52 @@ class PatchySimulationEnsemble:
         if val != oldVal:
             self.dump_metadata()
 
+    def get_step_counts(self) -> list[tuple[PatchySimulation, int]]:
+        return [
+            (sim, self.time_length(sim))
+            for sim in self.ensemble()
+        ]
+
+    def get_stopped_sims(self) -> list[PatchySimulation]:
+        """
+        Returns a list of simulations which have been stopped by the slurm
+        controller before they were complete
+        """
+        sims_that_need_attn = []
+        for sim in self.ensemble():
+            entries = self.slurm_log.by_simulation(sim)
+            if len(entries) == 0:
+                continue
+            desired_sim_length = self.sim_get_param(sim, "steps")
+            last_entry = entries[-1]
+            # get job info
+            jobinfo = self.bash_exec(f"scontrol show job {last_entry.job_id}")
+            # TODO: from job info, determine if job is running
+            if not job_is_running:
+                if self.time_length(sim) < desired_sim_length:
+                    sims_that_need_attn.append(sim)
+        return sims_that_need_attn
+
     def get_sim_set_root(self) -> Path:
         return simulation_run_dir() / self.export_name
 
-    """
-    num_particle_types should be constant across all simulations. some particle
-    types may have 0 instances but hopefully oxDNA should tolerate this
-    """
+
 
     def num_particle_types(self) -> int:
+        """
+        num_particle_types should be constant across all simulations. some particle
+        types may have 0 instances but hopefully oxDNA should tolerate this
+        """
         return len(self.rule)
-
-    """
-    Returns the value of the parameter specified by paramname in the 
-    simulation specification sim
-    The program first checks if the parameter exists
-    """
 
     def sim_get_param(self, sim: PatchySimulation,
                       paramname: str) -> Any:
+        """
+        Returns the value of a parameter
+        This method will first search in the simulation to see if this parameter
+        has a specific value for this simulation, then in the ensemble const params,
+        then the default parameter set
+        """
         if paramname in sim:
             return sim[paramname]
         # use const_params
@@ -333,22 +379,29 @@ class PatchySimulationEnsemble:
     def num_patch_types(self, sim: PatchySimulation) -> int:
         return self.rule.numPatches() * self.sim_get_param(sim, NUM_TEETH_KEY)
 
-    def paths_list(self) -> list[str]:
-        return [
-            os.sep.join(combo)
-            for combo in itertools.product(*[
-                p.dir_names() for p in self.ensemble_params
-            ])
-        ]
+    # def paths_list(self) -> list[str]:
+    #     return [
+    #         os.sep.join(combo)
+    #         for combo in itertools.product(*[
+    #             p.dir_names() for p in self.ensemble_params
+    #         ])
+    #     ]
 
     """
     Returns a list of lists of tuples,
     """
 
     def ensemble(self) -> list[PatchySimulation]:
+        """
+        Returns a list of all simulations in this ensemble
+        """
         return [PatchySimulation(e) for e in itertools.product(*self.ensemble_params)]
 
     def get_ensemble_parameter(self, ens_param_name: str) -> EnsembleParameter:
+        """
+        Return
+            the EnsembleParameter object with the provided name
+        """
         param_match = [p for p in self.ensemble_params if p.param_key == ens_param_name]
         assert len(param_match) == 1, "ensemble parameter name problem bad bad bad!!!"
         return param_match[0]
@@ -360,9 +413,20 @@ class PatchySimulationEnsemble:
         return self.tld() / sim.get_folder_path()
 
     def get_pipeline_step(self, step: Union[int, AnalysisPipelineStep]) -> AnalysisPipelineStep:
+        """
+        Returns a step in the analysis pipeline
+        """
         return self.analysis_pipeline.get_pipeline_step(step)
 
-    def time_length(self, sim: Union[PatchySimDescriptor, list[PatchySimDescriptor], None] = None) -> int:
+    def time_length(self,
+                    sim: Union[PatchySimDescriptor,
+                               list[PatchySimDescriptor],
+                               None] = None
+                    ) -> int:
+        """
+        Returns the length of a simulation, in steps
+        """
+        # TODO IMPORTANT - make sure this method returns the correct step count for multipart simulations
         if sim is None:
             return self.time_length(self.ensemble())
         elif isinstance(sim, PatchySimulation):
@@ -380,6 +444,7 @@ class PatchySimulationEnsemble:
     def info(self, infokey: str = "all"):
         """
         prints help text, for non-me people or if I forget
+        might replace later with pydoc
         """
         print(f"Ensemble of simulations of {self.export_name}")
         print("Ensemble Params")
@@ -413,6 +478,24 @@ class PatchySimulationEnsemble:
         nx.draw_networkx_labels(self.analysis_pipeline.pipeline_graph, pos, font_size=8)
 
         plt.show()
+
+    def babysit(self):
+        """
+        intermittantly checks whether any simulations have been stopped by the slurm
+        controller before completion
+        if it finds any, it starts the simulation again
+        """
+        finished = False
+        while not finished:
+            time.sleep(get_babysitter_refresh())
+            to_reup = self.get_stopped_sims()
+            if len(to_reup) == 0:
+                finished = True
+            else:
+                for sim in to_reup:
+                    self.write_continue_files(sim)
+                    self.exec_continue(sim)
+            self.dump_metadata()
 
     def show_last_conf(self, sim: PatchySimulation):
         from_path(self.folder_path(sim) / "last_conf.dat",
@@ -473,7 +556,9 @@ class PatchySimulationEnsemble:
                 slurm_file.write(f"{server_config['oxdna_path']}/build/bin/DNAnalysis input_dna_analysis\n")
 
             self.bash_exec(f"chmod u+x {self.folder_path(simulation_selector)}/slurm_script.sh")
-            self.start_simulation(simulation_selector, "dna_analysis.sh")
+            self.start_simulation(simulation_selector,
+                                  script_name="dna_analysis.sh",
+                                  job_type="dna_analysis")
 
     def merge_topologies(self,
                          sim_selector: Union[None, PatchySimulation, list[PatchySimulation]] = None,
@@ -561,8 +646,8 @@ class PatchySimulationEnsemble:
                 slurm_file.write(f"#SBATCH -{flag_key} {server_config['slurm_bash_flags'][flag_key]}\n")
         run_oxdna_counter = 1
         slurm_file.write(f"#SBATCH --job-name=\"{self.export_name}\"\n")
-        slurm_file.write(f"#SBATCH -o run{run_oxdna_counter}_%j.out\n")
-        slurm_file.write(f"#SBATCH -e run{run_oxdna_counter}_%j.err\n")
+        slurm_file.write(f"#SBATCH -o run%j.out\n")
+        # slurm_file.write(f"#SBATCH -e run{run_oxdna_counter}_%j.err\n")
 
         # slurm includes ("module load xyz" and the like)
         for line in server_config["slurm_includes"]:
@@ -651,24 +736,35 @@ class PatchySimulationEnsemble:
                         obsrv.write_input(inputfile, i)
 
     def write_sim_top_particles_patches(self, sim: PatchySimulation):
+        """
+        Writes the topology file (.top) and the files speficying particle
+        and patch behavior for a simulation in the ensemble
+        This method was written to be called from `do_setup()` and it is not
+        recommended to be used in other contexts
+        """
         server_config = get_server_config()
 
         # write top and particles/patches spec files
         # first convert particle json into PLPatchy objects (cf plpatchy.py)
         particles = []
+        all_patches = []
+        # iter particles
         for particle in self.rule.particles():
+            # convert to pl patch
             particle_patches = [patch.to_pl_patch() for patch in particle.patches()]
+            all_patches.extend(particle_patches)
+            # convert to pl particle
             particle = PLPatchyParticle(type_id=particle.get_id(), index_=particle.get_id())
             particle.set_patches(particle_patches)
 
             particles.append(particle)
-
+        # do multidentate convert
         if self.sim_get_param(sim, NUM_TEETH_KEY) > 1:
             particles, patches = convert_multidentate(particles,
                                                       self.sim_get_param(sim, DENTAL_RADIUS_KEY),
                                                       self.sim_get_param(sim, NUM_TEETH_KEY))
         else:
-            patches = particle_patches
+            patches = all_patches
         # do any/all valid conversions
         # either josh_lorenzo or josh_flavio
         if server_config[PATCHY_FILE_FORMAT_KEY].find("josh") > -1:
@@ -697,7 +793,7 @@ class PatchySimulationEnsemble:
                             # allosteric conditional should be "true" for non-allosterically-controlled patches
                             extradict = {"allostery_conditional": allo_conditional if allo_conditional else "true"}
                         else:  # josh/lorenzo
-                            # adjust for patch multiplier from multidentate
+                            # adjust for patch multiplier from multiparticale_patchesdentate
                             state_var = cube_type.get_patch_by_diridx(polycube_patch_idx).state_var()
                             activation_var = cube_type.get_patch_by_diridx(polycube_patch_idx).activation_var()
                             extradict = {
@@ -728,26 +824,33 @@ class PatchySimulationEnsemble:
             with open(self.folder_path(sim) / "observables.json", "w+") as f:
                 json.dump({f"data_output_{i + 1}": obs.to_dict() for i, obs in enumerate(self.observables.values())}, f)
 
+    def get_last_continue_step(self, sim: PatchySimulation) -> int:
+        """
+        Returns the number of times this simulation has been "continued" after the slurm
+        controller timed it out
+        """
+        entries = self.slurm_log.by_simulation(sim)
+        continue_entries = entries.by_type("oxdna_continue")
+        if len(continue_entries) > 0:
+            # return counter for most recent continue step
+            return continue_entries[-1].additional_metadata["continue_count"]
+        else:
+            return 0
+
     def write_continue_files(self,
-                             sim: Union[None, PatchySimulation] = None,
-                             counter: int = -1,
-                             continue_step_count: Union[int, None] = None):
+                             sim: Union[None, PatchySimulation] = None):
         """
         writes input file and shell script to continue running the simulation after
         completion of first oxDNA execution
         """
         # continues start at 2; interpret anything lower as "figure it out"
-        if counter < 2:
-            # if metadata can help here, use it
-            if LAST_CONTINUE_COUNT_KEY in self.metadata:
-                counter = self.metadata[LAST_CONTINUE_COUNT_KEY] + 1
-            else:  # use default first continue counter (2)
-                counter = 2
 
         if sim is None:
             for sim in self.ensemble():
-                self.write_continue_files(sim, counter)
+                self.write_continue_files(sim)
         else:
+            counter = self.get_last_continue_step(sim)
+
             # construct an input file for the continuation execution
             # using previous conf as starting conf, adding new traj, writing new last_conf
             self.write_input_file(sim,
@@ -760,40 +863,35 @@ class PatchySimulationEnsemble:
                                   })
             # overwrite run script
             self.write_run_script(sim, input_file=f"input_{counter}")
-        self.metadata[LAST_CONTINUE_COUNT_KEY] = counter \
-            if self.metadata[LAST_CONTINUE_COUNT_KEY] not in self.metadata \
-            or self.metadata["continue_count"] < counter \
-            else self.metadata["continue_count"]
 
-    def exec_continue(self, sim: PatchySimulation, counter: int = 2):
-        # continues start at 2; interpret anything lower as "figure it out"
-        if counter < 2:
-            # if metadata can help here, use it
-            if LAST_CONTINUE_COUNT_KEY in self.metadata:
-                counter = self.metadata[LAST_CONTINUE_COUNT_KEY] + 1
-            else:  # use default first continue counter (2)
-                counter = 2
+    def exec_continue(self, sim: PatchySimulation):
+        counter = self.get_last_continue_step(sim)
 
         if not (self.folder_path(sim) / f"input_{counter}").exists():
             # write new input file, update .sh file
-            self.write_continue_files(sim, counter)
+            self.write_continue_files(sim)
         # start the simulation
-        self.start_simulation(sim)
-        self.metadata[LAST_CONTINUE_COUNT_KEY] = counter
+        jobid = self.start_simulation(sim, job_type="oxdna_continue")
+        self.slurm_log.by_id(jobid).additional_metadata["continue_count"] = counter
         self.dump_metadata()
 
     def exec_all_continue(self, counter: int = 2):
         for sim in self.ensemble():
             self.exec_continue(sim, counter)
+        # exec_continue dumps metadata
 
     def gen_confs(self):
         for sim in self.ensemble():
             self.run_confgen(sim)
-
-    def dump_slurm_log_file(self):
-        self.slurm_log.to_csv(f"{self.tld()}/slurm_log.csv")
+        # run_confgen does NOT dump metadata
+        self.dump_metadata()
 
     def dump_metadata(self):
+        """
+        Saves metadata stored in `self.metadata` to a metadata file
+        Also saves the analysis pathway
+        """
+        self.metadata["slurm_log"] = self.slurm_log.serialize()
         # dump metadata dict to file
         with open(self.metadata_file, "w") as f:
             json.dump(self.metadata, fp=f, indent=4)
@@ -802,12 +900,25 @@ class PatchySimulationEnsemble:
             pickle.dump(self.analysis_pipeline, f)
 
     def start_simulations(self):
+        """
+        Starts all simulations
+        """
         for sim in self.ensemble():
             self.start_simulation(sim)
+        self.dump_metadata()
 
     def start_simulation(self,
                          sim: PatchySimulation,
-                         script_name: str = "slurm_script.sh"):
+                         script_name: str = "slurm_script.sh",
+                         job_type="oxdna"):
+        """
+        Starts an oxDNA simulation. direct invocation is not suggested;
+        use `start_simulations` instead
+        Parameters:
+             sim : simulation to start
+             script_name : the name of the slurm script file
+             job_type : the label of the job type, for logging purposes
+        """
         command = f"sbatch --chdir={self.folder_path(sim)}"
 
         if not os.path.isfile(self.get_conf_file(sim)):
@@ -817,16 +928,21 @@ class PatchySimulationEnsemble:
         submit_txt = self.bash_exec(command)
 
         jobid = int(re.search(SUBMIT_SLURM_PATTERN, submit_txt).group(1))
-        self.slurm_log.loc[len(self.slurm_log.index)] = {
-            "slurm_job_id": jobid,
-            **{
-                key: value for key, value in sim
-            }
-        }
+        self.append_slurm_log(SlurmLogEntry(
+            job_type=job_type,
+            pid=jobid,
+            simulation=sim,
+            script_path=self.folder_path(sim) / script_name,
+            log_path=self.folder_path(sim) / f"run{jobid}.out"
+        ))
         os.chdir(self.tld())
+        return jobid
 
-    def get_run_oxdna_sh(self, sim: PatchySimulation) -> Path:
-        return self.folder_path(sim) / "slurm_script.sh"
+    # def get_run_oxdna_sh(self, sim: PatchySimulation) -> Path:
+    #     """
+    #
+    #     """
+    #     return self.folder_path(sim) / "slurm_script.sh"
 
     def get_run_confgen_sh(self, sim: PatchySimulation) -> Path:
         return self.folder_path(sim) / "gen_conf.sh"
@@ -834,6 +950,13 @@ class PatchySimulationEnsemble:
     def run_confgen(self, sim: PatchySimulation) -> int:
         response = self.bash_exec(f"sbatch --chdir={self.folder_path(sim)} {self.folder_path(sim)}/gen_conf.sh")
         jobid = int(re.search(SUBMIT_SLURM_PATTERN, response).group(1))
+        self.append_slurm_log(SlurmLogEntry(
+            pid=jobid,
+            simulation=sim,
+            job_type="confgen",
+            script_path=self.folder_path(sim) / "gen_conf.sh",
+            log_path=self.folder_path(sim) / f"run{jobid}.out"
+        ))
         return jobid
 
     def get_conf_file(self, sim: PatchySimulation) -> Path:
@@ -841,10 +964,16 @@ class PatchySimulationEnsemble:
 
     # ------------- ANALYSIS FUNCTIONS --------------------- #
     def clear_pipeline(self):
+        """
+        deletes all steps from the analysis pipeline
+        """
         del self.metadata["analysis_file"]
         self.analysis_pipeline = AnalysisPipeline()
 
     def add_analysis_steps(self, *args):
+        """
+        Adds steps to the analysis pipeline
+        """
         if isinstance(args[0], AnalysisPipeline):
             new_steps = args[0]
         else:
@@ -941,7 +1070,6 @@ class PatchySimulationEnsemble:
         # if this step is an aggregate, things get... complecated
         if isinstance(step, AggregateAnalysisPipelineStep):
             # compute the simulation data required for this step
-            # TODO: employ parallelization where applicable
             param_prev_steps = step.get_input_data_params(sim)
             return [
                 self.get_data(prev_step,

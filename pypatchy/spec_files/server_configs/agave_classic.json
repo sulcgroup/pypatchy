@@ -16,5 +16,6 @@
         "plugin_search_path": "/home/jrevan21/alloassembly/contrib/romano"
 	},
 	"oxdna_path": "/home/jrevan21/alloassembly",
-	"patchy_format": "josh_flavio"
+	"patchy_format": "josh_flavio",
+	"babysitter_refresh": 43200
 }
