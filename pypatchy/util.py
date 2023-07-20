@@ -1,4 +1,7 @@
 import json
+from datetime import timedelta
+
+from dateutil.relativedelta import relativedelta
 from scipy.spatial.transform import Rotation as R
 from itertools import groupby
 from pathlib import Path
@@ -21,6 +24,7 @@ def lsin() -> list[str]:
     Lists files and folders in `input` directory
     """
     return [*get_input_dir().iterdir()]
+
 
 def get_output_dir() -> Path:
     return get_local_dir() / "output"
@@ -65,6 +69,13 @@ def get_analysis_params_file_name() -> str:
 
 def get_server_config() -> dict:
     return get_spec_json(cfg["SETUP"]["server_config"], "server_configs")
+
+
+def get_babysitter_refresh() -> int:
+    """
+    Returns the interval between babysitter checks, in seconds
+    """
+    return int(get_server_config()["babysitter_refresh"])
 
 
 def get_param_set(filename) -> dict:
@@ -119,6 +130,7 @@ def rotation_matrix(axis: np.ndarray, theta: float) -> np.ndarray:
 def rotAroundAxis(patchPos, axis, angle):
     r = R.from_rotvec(angle * axis)
     return r.apply(patchPos)
+
 
 def to_xyz(vector: np.ndarray) -> dict[str: int]:
     return {k: int(v) for k, v in zip(["x", "y", "z"], vector)}
@@ -177,16 +189,16 @@ def enumerateRotations() -> dict[int: dict[int: int]]:
 
     """
     return {
-        0:  {0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 5},
-        1:  {0: 0, 1: 1, 2: 3, 3: 2, 4: 5, 5: 4},
-        2:  {0: 0, 1: 1, 2: 4, 3: 5, 4: 3, 5: 2},
-        3:  {0: 0, 1: 1, 2: 5, 3: 4, 4: 2, 5: 3},
-        4:  {0: 1, 1: 0, 2: 2, 3: 3, 4: 5, 5: 4},
-        5:  {0: 1, 1: 0, 2: 3, 3: 2, 4: 4, 5: 5},
-        6:  {0: 1, 1: 0, 2: 4, 3: 5, 4: 2, 5: 3},
-        7:  {0: 1, 1: 0, 2: 5, 3: 4, 4: 3, 5: 2},
-        8:  {0: 2, 1: 3, 2: 0, 3: 1, 4: 5, 5: 4},
-        9:  {0: 2, 1: 3, 2: 1, 3: 0, 4: 4, 5: 5},
+        0: {0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 5},
+        1: {0: 0, 1: 1, 2: 3, 3: 2, 4: 5, 5: 4},
+        2: {0: 0, 1: 1, 2: 4, 3: 5, 4: 3, 5: 2},
+        3: {0: 0, 1: 1, 2: 5, 3: 4, 4: 2, 5: 3},
+        4: {0: 1, 1: 0, 2: 2, 3: 3, 4: 5, 5: 4},
+        5: {0: 1, 1: 0, 2: 3, 3: 2, 4: 4, 5: 5},
+        6: {0: 1, 1: 0, 2: 4, 3: 5, 4: 2, 5: 3},
+        7: {0: 1, 1: 0, 2: 5, 3: 4, 4: 3, 5: 2},
+        8: {0: 2, 1: 3, 2: 0, 3: 1, 4: 5, 5: 4},
+        9: {0: 2, 1: 3, 2: 1, 3: 0, 4: 4, 5: 5},
         10: {0: 2, 1: 3, 2: 4, 3: 5, 4: 0, 5: 1},
         11: {0: 2, 1: 3, 2: 5, 3: 4, 4: 1, 5: 0},
         12: {0: 3, 1: 2, 2: 0, 3: 1, 4: 4, 5: 5},
