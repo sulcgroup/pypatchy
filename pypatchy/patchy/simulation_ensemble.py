@@ -319,8 +319,8 @@ class PatchySimulationEnsemble:
             desired_sim_length = self.sim_get_param(sim, "steps")
             last_entry = entries[-1]
             # get job info
-            jobinfo = self.bash_exec(f"scontrol show job {last_entry.job_id}")
-            # TODO: from job info, determine if job is running
+            jobinfo = self.bash_exec(f"scontrol show job {last_entry.job_id} | grep JobState")
+            job_is_running = jobinfo.split()[0].split("=")[1] == "RUNNING"
             if not job_is_running:
                 if self.time_length(sim) < desired_sim_length:
                     sims_that_need_attn.append(sim)
@@ -426,12 +426,33 @@ class PatchySimulationEnsemble:
         """
         Returns the length of a simulation, in steps
         """
-        # TODO IMPORTANT - make sure this method returns the correct step count for multipart simulations
+
         if sim is None:
             return self.time_length(self.ensemble())
         elif isinstance(sim, PatchySimulation):
-            traj_file = self.folder_path(sim) / self.sim_get_param(sim, "trajectory_file")
-            return file_info([str(traj_file)])["t_end"][0]
+
+            # get the last continue log step before this
+            counter = self.get_last_continue_step(sim)
+            previous_step_records = self.slurm_log.by_simulation(sim).by_type(["oxdna_continue", "oxdna"])
+            if counter > 0:
+                last_step_end = previous_step_records.by_other("continue_count", counter)
+                assert len(last_step_end) == 1
+                last_step_end = last_step_end[0]
+            else:
+                assert len(previous_step_records) == 1
+                last_step_end = previous_step_records[0]
+            assert "starting_step_count" in last_step_end.additional_metadata
+            if counter == 0:
+                traj_file = self.folder_path(sim) / self.sim_get_param(sim, "trajectory_file")
+            else:
+                traj_file_name = self.sim_get_param(sim, 'trajectory_file')
+                traj_file_name = traj_file_name[:traj_file_name.rfind(".")] + f"_{counter}" + traj_file_name[
+                                                                                              traj_file_name.rfind(
+                                                                                                  "."):]
+                traj_file = self.folder_path(sim) / traj_file_name
+            elapsed_steps = last_step_end.additional_metadata["starting_step_count"]
+
+            return elapsed_steps + file_info([str(traj_file)])["t_end"][0]
         elif isinstance(sim, tuple):
             return self.time_length(self.get_simulation(*sim))
         else:
@@ -453,9 +474,13 @@ class PatchySimulationEnsemble:
 
         print("Function `has_pipeline`")
         print("Function `show_pipeline_graph`")
+        print("Function `show_analysis_status")
         print("Function `ensemble`")
         print("Function `show_last_conf`")
         print("Function `all_folders_exist`")
+        print("Function `folder_path`")
+        print("Function `tld`")
+        print("Function `")
 
     def has_pipeline(self) -> bool:
         return len(self.analysis_pipeline) != 0
@@ -850,16 +875,36 @@ class PatchySimulationEnsemble:
                 self.write_continue_files(sim)
         else:
             counter = self.get_last_continue_step(sim)
+            previous_step_records = self.slurm_log.by_simulation(sim).by_type(["oxdna_continue", "oxdna"])
+            if counter > 0:
+                last_step_end = previous_step_records.by_other("continue_count", counter)
+                assert len(last_step_end) == 1
+                last_step_end = last_step_end[0]
+            else:
+                assert len(previous_step_records) == 1
+                last_step_end = previous_step_records[0]
+            elapsed_steps = self.time_length(sim)
+            assert "starting_step_count" in last_step_end.additional_metadata
 
+            elapsed_steps = last_step_end.additional_metadata["starting_step_count"] + self.get_
             # construct an input file for the continuation execution
             # using previous conf as starting conf, adding new traj, writing new last_conf
+            traj_file_name = self.sim_get_param(sim, 'trajectory_file')
+            traj_file_name = traj_file_name[:traj_file_name.rfind(".")] + f"_{counter}" + traj_file_name[traj_file_name.rfind("."):]
+            prev_conf_file_name = self.sim_get_param(sim, "lastconf_file")
+            if counter != 0:
+                prev_conf_file_name = prev_conf_file_name[:prev_conf_file_name.rfind(".")] + f"_{counter}" + prev_conf_file_name[prev_conf_file_name.rfind("."):]
+            end_conf_file_name = self.sim_get_param(sim, "lastconf_file")
+            end_conf_file_name = end_conf_file_name[
+                                  :end_conf_file_name.rfind(".")] + f"_{counter+1}" + end_conf_file_name[
+                                                                                     end_conf_file_name.rfind("."):]
             self.write_input_file(sim,
-                                  file_name=f"input_{counter}",
+                                  file_name=f"input_{counter+1}",
                                   replacer_dict={
-                                      "trajectory_file": f"trajectory_{counter}.dat",
-                                      "conf_file": "last_conf.dat" if counter == 2 else f"last_conf_{counter - 1}.dat",
-                                      "lastconf_file": f"last_conf_{counter}.dat",
-                                      "steps": self.sim_get_param(sim, "steps") if continue_step_count is None else continue_step_count
+                                      "trajectory_file": traj_file_name,
+                                      "conf_file": prev_conf_file_name,
+                                      "lastconf_file": end_conf_file_name,
+                                      "steps": self.sim_get_param(sim, "steps") - elapsed_steps
                                   })
             # overwrite run script
             self.write_run_script(sim, input_file=f"input_{counter}")
@@ -1016,7 +1061,6 @@ class PatchySimulationEnsemble:
 
         step = self.get_pipeline_step(step)
         # if timesteps were not specified
-        data = None
         if time_steps is None:
             time_steps = range(0, self.time_length(sim), step.output_tstep)
             self.get_logger().info(f"Constructed time steps {time_steps}")
@@ -1031,13 +1075,12 @@ class PatchySimulationEnsemble:
             cache_file_path = self.get_cache_file(step, sim)
             cached_data = step.load_cached_files(cache_file_path)
             # if we already have the data needed for the required time range
-            if step.data_matches_trange(data, time_steps):
+            if step.data_matches_trange(cached_data, time_steps):
                 # that was easy!
                 self.get_logger().info(f"All data in file! That was easy!")
                 return cached_data
             else:
                 self.get_logger().info(f"Cache file missing data!")
-
         step = self.get_pipeline_step(step)
 
         lock = multiprocessing.Lock()

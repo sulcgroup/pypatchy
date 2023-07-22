@@ -140,11 +140,18 @@ class SlurmLog:
     def by_id(self, pid: int) -> SlurmLogEntry:
         return self.id_map[pid]
 
-    def by_type(self, entry_type: str) -> SlurmLog:
-        return SlurmLog(*[x for x in self.log_list if x.job_type == entry_type])
+    def by_type(self, entry_type: Union[str, list[str]]) -> SlurmLog:
+        if isinstance(entry_type, str):
+            return SlurmLog(*[x for x in self.log_list if x.job_type == entry_type])
+        else:
+            return SlurmLog(*[x for x in self.log_list if x.job_type in entry_type])
 
     def by_simulation(self, simulation: object) -> SlurmLog:
         return SlurmLog(*[x for x in self.log_list if x.simulation == simulation])
+
+    def by_other(self, key: str, value) -> SlurmLog:
+        return SlurmLog(*[x for x in self.log_list
+                          if key in x.additional_metadata and x.additional_metadata[key] == value])
 
     def append(self, obj: SlurmLogEntry):
         # if our log is empty or this new entry is after the last entry, this is easy
