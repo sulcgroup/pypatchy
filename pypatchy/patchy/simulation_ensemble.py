@@ -439,7 +439,8 @@ class PatchySimulationEnsemble:
                 assert len(last_step_end) == 1
                 last_step_end = last_step_end[0]
             else:
-                assert len(previous_step_records) == 1
+                # backwards-compatibility with simulations run before current logging system
+                assert len(self.slurm_log) == 0 or len(previous_step_records) == 1
                 last_step_end = previous_step_records[0]
             assert "starting_step_count" in last_step_end.additional_metadata
             if counter == 0:
@@ -450,7 +451,10 @@ class PatchySimulationEnsemble:
                                                                                               traj_file_name.rfind(
                                                                                                   "."):]
                 traj_file = self.folder_path(sim) / traj_file_name
-            elapsed_steps = last_step_end.additional_metadata["starting_step_count"]
+            if counter > 0:
+                elapsed_steps = last_step_end.additional_metadata["starting_step_count"]
+            else:
+                elapsed_steps = 0
 
             return elapsed_steps + file_info([str(traj_file)])["t_end"][0]
         elif isinstance(sim, tuple):
