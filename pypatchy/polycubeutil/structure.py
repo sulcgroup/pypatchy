@@ -232,6 +232,7 @@ class Structure:
     def __str__(self) -> str:
         return f"Structure with {len(self.vertices())} particles and {len(self.bindings_list)} connections"
 
+
 class StructuralHomomorphism:
     def __init__(self,
                  source_structure: Structure,
