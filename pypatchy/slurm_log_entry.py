@@ -1,5 +1,7 @@
 from pathlib import Path
 from datetime import datetime
+from typing import Union
+
 
 class SlurmLogEntry:
     """
@@ -26,17 +28,26 @@ class SlurmLogEntry:
                  job_type: str,
                  pid: int,
                  simulation: object,
-                 script_path: Path,
-                 log_path: Path,
+                 script_path: Union[Path, str],
+                 log_path: Union[Path, str],
                  notes: str = "",
                  additional_metadata: dict = {},
-                 start_date: datetime = datetime.now()):
-        self.job_submit_date = start_date
+                 start_date: Union[str, datetime] = datetime.now()):
+        if isinstance(start_date, datetime):
+            self.job_submit_date = start_date
+        else:
+            self.job_submit_date = datetime.strptime(start_date, "%Y-%m-%s")
         self.job_type = job_type
         self.job_id = pid
         self.simulation = simulation
-        self.script_path = script_path
-        self.log_path = log_path
+        if isinstance(script_path, Path):
+            self.script_path = script_path
+        else:
+            self.script_path = Path(script_path)
+        if isinstance(log_path, Path):
+            self.log_path = log_path
+        else:
+            self.log_path = Path(log_path)
         self.notes = notes
         self.additional_metadata = additional_metadata
 
@@ -46,3 +57,15 @@ class SlurmLogEntry:
                 return f.read()
         except FileNotFoundError:
             return f"No file {str(self.log_path)}"
+
+    def to_dict(self):
+        return {
+            "job_type": self.job_type,
+            "pid": self.job_id,
+            "simulation": str(self.simulation),
+            "script_path": str(self.script_path),
+            "log_path": str(self.log_path),
+            "notes": self.notes,
+            "additional_metadata": self.additional_metadata,
+            "start_date": self.job_submit_date.strftime("%Y-%m-%d")
+        }
