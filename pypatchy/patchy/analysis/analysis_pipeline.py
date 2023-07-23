@@ -70,6 +70,8 @@ class AnalysisPipeline:
         return newStep
 
     def get_pipeline_step(self, step: Union[str, AnalysisPipelineStep]) -> AnalysisPipelineStep:
+        assert isinstance(step,AnalysisPipelineStep) or step in self.name_map,\
+            f"Pipeline has no step called {step}. Pipeline steps: {', '.join(self.name_map.keys())}"
         return step if isinstance(step, AnalysisPipelineStep) else self.name_map[step]
 
     def steps_before(self, step: AnalysisPipelineStep) -> list[int]:
