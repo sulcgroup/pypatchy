@@ -329,8 +329,6 @@ class PatchySimulationEnsemble:
     def get_sim_set_root(self) -> Path:
         return simulation_run_dir() / self.export_name
 
-
-
     def num_particle_types(self) -> int:
         """
         num_particle_types should be constant across all simulations. some particle
@@ -430,30 +428,30 @@ class PatchySimulationEnsemble:
         if sim is None:
             return self.time_length(self.ensemble())
         elif isinstance(sim, PatchySimulation):
-
-            # get the last continue log step before this
-            counter = self.get_last_continue_step(sim)
-            previous_step_records = self.slurm_log.by_simulation(sim).by_type(["oxdna_continue", "oxdna"])
-            if counter > 0:
-                last_step_end = previous_step_records.by_other("continue_count", counter)
-                assert len(last_step_end) == 1
-                last_step_end = last_step_end[0]
+            # backwards-compatibility with simulations run before current logging system
+            if len(self.slurm_log) > 0:
+                # get the last continue log step before this
+                counter = self.get_last_continue_step(sim)
+                previous_step_records = self.slurm_log.by_simulation(sim).by_type(["oxdna_continue", "oxdna"])
+                if counter > 0:
+                    last_step_end = previous_step_records.by_other("continue_count", counter)
+                    assert len(last_step_end) == 1
+                    last_step_end = last_step_end[0]
+                else:
+                    assert len(previous_step_records) == 1
+                    last_step_end = previous_step_records[0]
+                elapsed_steps = last_step_end.additional_metadata["starting_step_count"]
+                assert "starting_step_count" in last_step_end.additional_metadata
             else:
-                # backwards-compatibility with simulations run before current logging system
-                assert len(self.slurm_log) == 0 or len(previous_step_records) == 1
-                last_step_end = previous_step_records[0]
-            assert "starting_step_count" in last_step_end.additional_metadata
+                counter = 0
             if counter == 0:
                 traj_file = self.folder_path(sim) / self.sim_get_param(sim, "trajectory_file")
             else:
                 traj_file_name = self.sim_get_param(sim, 'trajectory_file')
-                traj_file_name = traj_file_name[:traj_file_name.rfind(".")] + f"_{counter}" + traj_file_name[
-                                                                                              traj_file_name.rfind(
-                                                                                                  "."):]
+                traj_file_name = traj_file_name[:traj_file_name.rfind(".")] + \
+                                 f"_{counter}" + traj_file_name[traj_file_name.rfind("."):]
                 traj_file = self.folder_path(sim) / traj_file_name
-            if counter > 0:
-                elapsed_steps = last_step_end.additional_metadata["starting_step_count"]
-            else:
+            if counter == 0:
                 elapsed_steps = 0
 
             return elapsed_steps + file_info([str(traj_file)])["t_end"][0]
@@ -604,7 +602,8 @@ class PatchySimulationEnsemble:
         else:
             # if no topology file specified
             if topologies is None:
-                topologies = [f for f in self.folder_path(sim_selector).iterdir() if re.match(r"trajectory_\d+\.dat", f.name)]
+                topologies = [f for f in self.folder_path(sim_selector).iterdir() if
+                              re.match(r"trajectory_\d+\.dat", f.name)]
                 topologies = sorted(topologies, key=lambda f: int(re.search(r'trajectory_(\d+)\.dat', f.name).group(1)))
             if out_file_name is None:
                 out_file_name = self.folder_path(sim_selector) / "full_trajectory.dat"
@@ -894,16 +893,20 @@ class PatchySimulationEnsemble:
             # construct an input file for the continuation execution
             # using previous conf as starting conf, adding new traj, writing new last_conf
             traj_file_name = self.sim_get_param(sim, 'trajectory_file')
-            traj_file_name = traj_file_name[:traj_file_name.rfind(".")] + f"_{counter}" + traj_file_name[traj_file_name.rfind("."):]
+            traj_file_name = traj_file_name[:traj_file_name.rfind(".")] + f"_{counter}" + traj_file_name[
+                                                                                          traj_file_name.rfind("."):]
             prev_conf_file_name = self.sim_get_param(sim, "lastconf_file")
             if counter != 0:
-                prev_conf_file_name = prev_conf_file_name[:prev_conf_file_name.rfind(".")] + f"_{counter}" + prev_conf_file_name[prev_conf_file_name.rfind("."):]
+                prev_conf_file_name = prev_conf_file_name[
+                                      :prev_conf_file_name.rfind(".")] + f"_{counter}" + prev_conf_file_name[
+                                                                                         prev_conf_file_name.rfind(
+                                                                                             "."):]
             end_conf_file_name = self.sim_get_param(sim, "lastconf_file")
             end_conf_file_name = end_conf_file_name[
-                                  :end_conf_file_name.rfind(".")] + f"_{counter+1}" + end_conf_file_name[
-                                                                                     end_conf_file_name.rfind("."):]
+                                 :end_conf_file_name.rfind(".")] + f"_{counter + 1}" + end_conf_file_name[
+                                                                                       end_conf_file_name.rfind("."):]
             self.write_input_file(sim,
-                                  file_name=f"input_{counter+1}",
+                                  file_name=f"input_{counter + 1}",
                                   replacer_dict={
                                       "trajectory_file": traj_file_name,
                                       "conf_file": prev_conf_file_name,
