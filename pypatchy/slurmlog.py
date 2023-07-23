@@ -169,4 +169,4 @@ class SlurmLog:
         """
         getter for inner list
         """
-        return self.log_list
+        return [e.to_dict() for e in self.log_list]
