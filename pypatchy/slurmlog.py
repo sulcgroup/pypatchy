@@ -155,10 +155,10 @@ class SlurmLog:
 
     def append(self, obj: SlurmLogEntry):
         # if our log is empty or this new entry is after the last entry, this is easy
-        if len(self.log_list) == 0 or  obj.job_submit_date > self.log_list[-1].job_submit_date:
+        if len(self.log_list) == 0 or obj.job_submit_date > self.log_list[-1].job_submit_date:
             self.log_list.append(obj)
         else: # *sigh*
-            self.log_list.insert()
+            self.log_list.insert(self.find_idx(obj.job_submit_date)+1, obj)
 
         # if we assume linear tim
 
