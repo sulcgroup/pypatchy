@@ -513,13 +513,19 @@ class PatchySimulationEnsemble:
         if it finds any, it starts the simulation again
         """
         finished = False
+        # loop until all simulations are complete
         while not finished:
+            # sleep until refresh
             time.sleep(get_babysitter_refresh())
+            # find stopped simulations
             to_reup = self.get_stopped_sims()
+            self.get_logger().info(f"Found {len(to_reup)} stopped simulations.")
             if len(to_reup) == 0:
+                self.get_logger().info("All simulations complete. Babysitter exiting.")
                 finished = True
             else:
                 for sim in to_reup:
+                    self.get_logger().info(f"Re-upping simulation {str(sim)}")
                     self.write_continue_files(sim)
                     self.exec_continue(sim)
             self.dump_metadata()
