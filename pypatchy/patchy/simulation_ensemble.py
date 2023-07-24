@@ -210,7 +210,7 @@ class PatchySimulationEnsemble:
             if "slurm_log" in self.metadata:
                 for entry in self.metadata["slurm_log"]:
                     descriptors = [
-                        ParameterValue(*s.trim().split("=")) for s in entry["simulation"].split(",")
+                        ParameterValue(*s.strip().split("=")) for s in entry["simulation"].split(",")
                     ]
                     entry["simulation"] = self.get_simulation(*descriptors)
                 self.slurm_log = SlurmLog(*self.metadata["slurm_log"])
