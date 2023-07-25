@@ -210,10 +210,7 @@ class PatchySimulationEnsemble:
                     self.metadata.update(json.load(f))
             if "slurm_log" in self.metadata:
                 for entry in self.metadata["slurm_log"]:
-                    descriptors = [
-                        ParameterValue(k, v) for k, v in entry["simulation"].items()
-                    ]
-                    entry["simulation"] = self.get_simulation(*descriptors)
+                    entry["simulation"] = self.lookup_simulation(*entry["simulation"].items())
                 self.slurm_log = SlurmLog(*self.metadata["slurm_log"])
 
         # name of simulation set
