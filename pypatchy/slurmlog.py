@@ -21,7 +21,7 @@ class SlurmLog:
             kwargs (optional) list of log entry objects
         """
 
-        self.log_list = sorted(args, key=lambda x: x.start_date)
+        self.log_list = sorted(args, key=lambda x: x.job_submit_date)
         self.id_map = {
             x.job_id: x for x in self.log_list
         }

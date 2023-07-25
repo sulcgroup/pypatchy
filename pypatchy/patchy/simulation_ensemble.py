@@ -239,7 +239,7 @@ class PatchySimulationEnsemble:
         if "slurm_log" in self.metadata:
             for entry in self.metadata["slurm_log"]:
                 entry["simulation"] = self.lookup_simulation(*entry["simulation"].items())
-            self.slurm_log = SlurmLog(*self.metadata["slurm_log"])
+            self.slurm_log = SlurmLog(*[SlurmLogEntry(**e) for e in self.metadata["slurm_log"]])
 
         # observables are optional
         # TODO: integrate oxpy
@@ -273,15 +273,15 @@ class PatchySimulationEnsemble:
         TODO: idk
         given a list of parameter values, returns a PatchySimulation object
         """
-        return PatchySimulation(args)
+        return PatchySimulation(*args)
 
     def lookup_simulation(self, *args: tuple[str, Union[str, int, float, bool]]):
         """
         Similar to get_simulation but with more thought involved
         """
         params = [
-            EnsembleParameter(key, value) if not self.ensemble_param_name_map[key].is_grouped_params()
-            else EnsembleParameter(key, {
+            ParameterValue(key, value) if not self.ensemble_param_name_map[key].is_grouped_params()
+            else ParameterValue(key, {
                 "name": value,
                 "value": self.ensemble_param_name_map[key].lookup(value).param_value
             })
@@ -412,7 +412,7 @@ class PatchySimulationEnsemble:
         """
         Returns a list of all simulations in this ensemble
         """
-        return [PatchySimulation(e) for e in itertools.product(*self.ensemble_params)]
+        return [PatchySimulation(*e) for e in itertools.product(*self.ensemble_params)]
 
     def get_ensemble_parameter(self, ens_param_name: str) -> EnsembleParameter:
         """
