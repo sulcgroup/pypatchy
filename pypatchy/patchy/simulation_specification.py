@@ -28,7 +28,7 @@ class PatchySimulation(LogEntryObject):
                 for param_name in val.group_params_names():
                     self.parameter_dict[param_name] = val[param_name]
             else:
-                self.parameter_dict[val.name] = val.value
+                self.parameter_dict[val.param_name] = val.param_value
 
     def __contains__(self, parameter_name: str) -> bool:
         return parameter_name in self.parameter_dict
@@ -53,6 +53,6 @@ class PatchySimulation(LogEntryObject):
 
     def to_dict(self) -> dict[str, Union[str, int, float]]:
         return {
-            p.name: p.value if not p.is_grouped_params() else p.value["value"]
+            p.param_name: p.param_value if not p.is_grouped_params() else p.param_value["value"]
             for p in self.param_vals
         }

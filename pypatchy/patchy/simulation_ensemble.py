@@ -284,7 +284,7 @@ class PatchySimulationEnsemble:
             EnsembleParameter(key, value) if not self.ensemble_param_name_map[key].is_grouped_params()
             else EnsembleParameter(key, {
                 "name": value,
-                "value": self.ensemble_param_name_map[key].lookup(value)
+                "value": self.ensemble_param_name_map[key].lookup(value).param_value
             })
             for key, value in args
         ]
@@ -562,7 +562,7 @@ class PatchySimulationEnsemble:
         at each step on the analysis pipeline
         """
         return pd.DataFrame.from_dict({
-            tuple(v.value for _, v in sim.param_vals):
+            tuple(v.param_value for _, v in sim.param_vals):
                 {
                     step_name: self.has_data_file(self.analysis_pipeline[step_name], sim)
                     for step_name in self.analysis_pipeline.name_map
@@ -630,7 +630,7 @@ class PatchySimulationEnsemble:
             if topologies is None:
                 topologies = [f for f in self.folder_path(sim_selector).iterdir() if
                               re.match(r"trajectory_\d+\.dat", f.name)]
-                topologies = sorted(topologies, key=lambda f: int(re.search(r'trajectory_(\d+)\.dat', f.name).group(1)))
+                topologies = sorted(topologies, key=lambda f: int(re.search(r'trajectory_(\d+)\.dat', f.param_name).group(1)))
             if out_file_name is None:
                 out_file_name = self.folder_path(sim_selector) / "full_trajectory.dat"
 
