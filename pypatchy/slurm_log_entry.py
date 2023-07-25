@@ -76,3 +76,6 @@ class SlurmLogEntry:
             "additional_metadata": self.additional_metadata,
             "start_date": self.job_submit_date.strftime("%Y-%m-%d")
         }
+
+    def __str__(self):
+        return 

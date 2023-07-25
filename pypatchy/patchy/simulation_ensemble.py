@@ -12,7 +12,7 @@ import tempfile
 import time
 from json import JSONDecodeError
 from pathlib import Path
-from typing import Any, Union
+from typing import Any, Union, Iterable
 
 import networkx as nx
 import pandas as pd
@@ -269,7 +269,7 @@ class PatchySimulationEnsemble:
         self.analysis_data = dict()
 
     # --------------- Accessors and Mutators -------------------------- #
-    def get_simulation(self, *args: ParameterValue) -> PatchySimulation:
+    def get_simulation(self, *args: tuple[str, ParameterValue]) -> PatchySimulation:
         """
         TODO: idk
         given a list of parameter values, returns a PatchySimulation object
@@ -915,7 +915,6 @@ class PatchySimulationEnsemble:
             elapsed_steps = self.time_length(sim)
             assert "starting_step_count" in last_step_end.additional_metadata
 
-            elapsed_steps = last_step_end.additional_metadata["starting_step_count"] + self.get_
             # construct an input file for the continuation execution
             # using previous conf as starting conf, adding new traj, writing new last_conf
             traj_file_name = self.sim_get_param(sim, 'trajectory_file')

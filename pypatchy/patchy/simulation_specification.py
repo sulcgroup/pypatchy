@@ -17,10 +17,10 @@ class PatchySimulation(LogEntryObject):
     parameter_values is a list of (key,value) tuples where the key is a string identifier
     and the value is a ParameterValue object
     """
-    param_vals: list[ParameterValue]
+    param_vals: list[tuple[str, ParameterValue]]
     parameter_dict: dict[str, Any]
 
-    def __init__(self, parameter_values: Iterable[ParameterValue]):
+    def __init__(self, parameter_values: Iterable[tuple[str, ParameterValue]]):
         self.param_vals = list(parameter_values)
         self.parameter_dict = {}
         for _, val in self.param_vals:
@@ -54,5 +54,5 @@ class PatchySimulation(LogEntryObject):
     def to_dict(self) -> dict[str, Union[str, int, float]]:
         return {
             p.param_name: p.value_name if not p.is_grouped_params() else p.param_value["value"]
-            for p in self.param_vals
+            for _, p in self.param_vals
         }
