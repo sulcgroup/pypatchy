@@ -32,7 +32,7 @@ from .patchy_sim_observable import PatchySimObservable, observable_from_file
 from ..slurm_log_entry import SlurmLogEntry
 from ..slurmlog import SlurmLog
 from ..util import get_param_set, simulation_run_dir, get_server_config, get_log_dir, get_input_dir, all_equal, \
-    get_local_dir, get_babysitter_refresh
+    get_local_dir, get_babysitter_refresh, is_slurm_job
 from .ensemble_parameter import EnsembleParameter, ParameterValue
 from .simulation_specification import PatchySimulation
 from .plpatchy import PLPatchyParticle, export_interaction_matrix
@@ -491,11 +491,14 @@ class PatchySimulationEnsemble:
         print(f"Ensemble of simulations of {self.export_name}")
         print("Ensemble Params")
         for param in self.ensemble_params:
-            print(param)
+            print(str(param))
 
         print("Function `has_pipeline`")
+        print("\ttell me if there's an analysis pipeline")
         print("Function `show_pipeline_graph`")
-        print("Function `show_analysis_status")
+        print("\tdisplay a visual representation of the analysis pipeline graph")
+        print("Function `show_analysis_status`")
+        print("\tdisplay the status of the analysis pipeline")
         print("Function `ensemble`")
         print("Function `show_last_conf`")
         print("Function `all_folders_exist`")
@@ -1090,6 +1093,21 @@ class PatchySimulationEnsemble:
             else:
                 return [self.get_data(step, s, time_steps) for s in sim]
 
+        # check if this is a slurm job (should always be true I guess? even if it's a jupyter notebook)
+        if is_slurm_job():
+            slurm_job_info = self.slurm_job_info()
+            self.append_slurm_log(SlurmLogEntry(
+                job_type="analysis",
+                pid=int(slurm_job_info["JobId"]),
+                simulation=sim,
+                script_path=slurm_job_info["Command"],
+                start_date=datetime.datetime.strptime(slurm_job_info["SubmitTime"], "%Y-%m-%dT%H:%M:%S"),
+                log_path=slurm_job_info["StdOut"],
+                additional_metadata={
+                    "step": step.name
+                }
+            ))
+
         step = self.get_pipeline_step(step)
         # if timesteps were not specified
         if time_steps is None:
@@ -1190,13 +1208,28 @@ class PatchySimulationEnsemble:
         else:
             return self.ensemble()
 
+    def slurm_job_info(self, jobid: int = -1) -> Union[dict, None]:
+        if jobid == -1:  # retrieve job ID from current job
+            retr_id = os.environ.get("SLURM_JOB_ID")
+            assert retr_id is not None  # if we didn't pass a job ID and don't have one in the script, get extremely mad
+            jobid = int(retr_id)
+        jobinfo = self.bash_exec(f"scontrol show job {jobid}")
+        # if the job is completed, no further info can be extracted for some goddamn reason
+        if jobinfo == "slurm_load_jobs error: Invalid job id specified":
+            return None
+        jobinfo = jobinfo.split()
+        return {key: value for key, value in [x.split("=", 1) for x in jobinfo]}
+
     def bash_exec(self, command: str):
         """
         Executes a bash command and returns the output
         """
         self.get_logger().info(f">`{command}`")
-        response = subprocess.run(command, shell=True,
-                                  capture_output=True, text=True, check=False)
+        response = subprocess.run(command,
+                                  shell=True,
+                                  capture_output=True,
+                                  text=True,
+                                  check=False)
         # response = subprocess.check_output(command, shell=True, stderr=subprocess.STDOUT, check=False,
         # universal_newlines=True)
         self.get_logger().info(f"`{response.stdout}`")
