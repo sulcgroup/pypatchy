@@ -2,10 +2,13 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import Union
+
 from .ensemble_parameter import ParameterValue
+from ..slurm_log_entry import LogEntryObject
 
 
-class PatchySimulation:
+class PatchySimulation(LogEntryObject):
     """
     Specifies a execution of a Patchy Particle simulation run with the specific set of parameters
 
@@ -45,3 +48,6 @@ class PatchySimulation:
 
     def __repr__(self) -> str:
         return ", ".join([f"{key}={self[key]}" for key in self.var_names()])
+
+    def to_dict(self) -> dict[str, Union[str, int, float]]:
+        return self.parameter_dict

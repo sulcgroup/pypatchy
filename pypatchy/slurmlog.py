@@ -3,7 +3,7 @@ from __future__ import annotations
 import datetime
 from typing import Union, Optional
 
-from pypatchy.slurm_log_entry import SlurmLogEntry
+from pypatchy.slurm_log_entry import SlurmLogEntry, LogEntryObject
 
 
 class SlurmLog:
@@ -146,7 +146,7 @@ class SlurmLog:
         else:
             return SlurmLog(*[x for x in self.log_list if x.job_type in entry_type])
 
-    def by_simulation(self, simulation: object) -> SlurmLog:
+    def by_simulation(self, simulation: LogEntryObject) -> SlurmLog:
         return SlurmLog(*[x for x in self.log_list if x.simulation == simulation])
 
     def by_other(self, key: str, value) -> SlurmLog:
