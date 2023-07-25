@@ -78,4 +78,13 @@ class SlurmLogEntry:
         }
 
     def __str__(self):
-        return 
+        metadata_str = '\n'.join([f"\t\t{key}: {value}" for key, value in self.additional_metadata.items()])
+        return "Slurm log entry:\n" \
+               f"\tjob type: {self.job_type}\n" \
+               f"\tslurm job ID: {self.job_id}\n" \
+               f"\tsimulation: {str(self.simulation)}\n" \
+               f"\tscript path: {str(self.script_path)}\n" \
+               f"\tlog path: {str(self.log_path)}\n" \
+               f"\tnotes: {self.notes}" \
+               f"\tsubmit date: {self.job_submit_date.strftime('%Y-%m-%d')}\n" \
+               f"\tadditional metadata: {metadata_str}"
