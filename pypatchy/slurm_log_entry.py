@@ -1,6 +1,13 @@
+from abc import ABC, abstractmethod
 from pathlib import Path
 from datetime import datetime
 from typing import Union
+
+
+class LogEntryObject(ABC):
+    @abstractmethod
+    def to_dict(self) -> dict[str, Union[str, int, float]]:
+        pass
 
 
 class SlurmLogEntry:
@@ -13,7 +20,7 @@ class SlurmLogEntry:
     # slurm job ID
     job_id: int
     # an object for this simulaion.
-    simulation: object
+    simulation: LogEntryObject
     # path to the shell script that runs this job
     script_path: Path
     # this variable is provided to store extra text at user's disgression
@@ -27,7 +34,7 @@ class SlurmLogEntry:
     def __init__(self,
                  job_type: str,
                  pid: int,
-                 simulation: object,
+                 simulation: LogEntryObject,
                  script_path: Union[Path, str],
                  log_path: Union[Path, str],
                  notes: str = "",
@@ -62,7 +69,7 @@ class SlurmLogEntry:
         return {
             "job_type": self.job_type,
             "pid": self.job_id,
-            "simulation": str(self.simulation),
+            "simulation": self.simulation.to_dict(),
             "script_path": str(self.script_path),
             "log_path": str(self.log_path),
             "notes": self.notes,
