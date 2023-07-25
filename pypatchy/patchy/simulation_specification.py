@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Union
+from typing import Union, Any, Iterable
 
 from .ensemble_parameter import ParameterValue
 from ..slurm_log_entry import LogEntryObject
@@ -17,8 +17,10 @@ class PatchySimulation(LogEntryObject):
     parameter_values is a list of (key,value) tuples where the key is a string identifier
     and the value is a ParameterValue object
     """
+    param_vals: list[ParameterValue]
+    parameter_dict: list[str, Any]
 
-    def __init__(self, parameter_values: list[ParameterValue]):
+    def __init__(self, parameter_values: Iterable[ParameterValue]):
         self.param_vals = list(parameter_values)
         self.parameter_dict = {}
         for _, val in self.param_vals:
@@ -50,4 +52,7 @@ class PatchySimulation(LogEntryObject):
         return ", ".join([f"{key}={self[key]}" for key in self.var_names()])
 
     def to_dict(self) -> dict[str, Union[str, int, float]]:
-        return self.parameter_dict
+        return {
+            p.name: p.value if not p.is_grouped_params() else p.value["value"]
+            for p in self.param_vals
+        }

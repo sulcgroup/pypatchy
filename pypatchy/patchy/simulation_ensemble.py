@@ -123,6 +123,7 @@ class PatchySimulationEnsemble:
     # object in this list
     # TODO: some sort of "skip" list for
     ensemble_params: list[EnsembleParameter]
+    ensemble_param_name_map: dict[str, EnsembleParameter]
 
     # set of cube types that are used in this ensemble
     rule: PolycubesRule
@@ -210,7 +211,7 @@ class PatchySimulationEnsemble:
             if "slurm_log" in self.metadata:
                 for entry in self.metadata["slurm_log"]:
                     descriptors = [
-                        ParameterValue(k, v) for k,v in entry["simulation"].items()
+                        ParameterValue(k, v) for k, v in entry["simulation"].items()
                     ]
                     entry["simulation"] = self.get_simulation(*descriptors)
                 self.slurm_log = SlurmLog(*self.metadata["slurm_log"])
@@ -240,7 +241,7 @@ class PatchySimulationEnsemble:
         self.const_params = sim_cfg[CONST_PARAMS_KEY] if CONST_PARAMS_KEY in sim_cfg else {}
 
         self.ensemble_params = [EnsembleParameter(*p) for p in sim_cfg[ENSEMBLE_PARAMS_KEY]]
-
+        self.ensemble_param_name_map = {p.param_key: p for p in self.ensemble_params}
         # observables are optional
         # TODO: integrate oxpy
         self.observables: dict[str: PatchySimObservable] = {}
@@ -268,12 +269,26 @@ class PatchySimulationEnsemble:
         self.analysis_data = dict()
 
     # --------------- Accessors and Mutators -------------------------- #
-    def get_simulation(self, *args: list[ParameterValue]) -> PatchySimulation:
+    def get_simulation(self, *args: ParameterValue) -> PatchySimulation:
         """
         TODO: idk
         given a list of parameter values, returns a PatchySimulation object
         """
         return PatchySimulation(args)
+
+    def lookup_simulation(self, *args: tuple[str, Union[str, int, float, bool]]):
+        """
+        Similar to get_simulation but with more thought involved
+        """
+        params = [
+            EnsembleParameter(key, value) if not self.ensemble_param_name_map[key].is_grouped_params()
+            else EnsembleParameter(key, {
+                "name": value,
+                "value": self.ensemble_param_name_map[key].lookup(value)
+            })
+            for key, value in args
+        ]
+        return self.get_simulation(*params)
 
     def long_name(self) -> str:
         return f"{self.export_name}_{self.sim_init_date.strftime('%Y-%m-%d')}"

@@ -57,6 +57,9 @@ class EnsembleParameter:
     def __init__(self, key: str, paramData):
         self.param_key = key
         self.param_value_set = [ParameterValue(key, val) for val in paramData]
+        self.param_value_map = {
+            p.name: p for p in self.param_value_set
+        }
         names = itertools.chain.from_iterable(
             [p.group_params_names() if p.is_grouped_params() else self.param_key for p in self.param_value_set])
         self.parameter_names = set(names)
@@ -66,6 +69,17 @@ class EnsembleParameter:
 
     def param_names(self) -> set[str]:
         return self.parameter_names
+
+    def is_grouped_params(self) -> bool:
+        """
+        Returns true if the parameter is grouped, false otherwise
+        """
+        assert any(p.is_grouped_params() for p in self.param_value_set) == all(p.is_grouped_params() for p in self.param_value_set)
+        return any(p.is_grouped_params() for p in self.param_value_set)
+
+    def lookup(self, key: str) -> dict:
+        assert self.is_grouped_params()
+        return self.param_value_map[key]
 
     """
     ChatGPT wrote this method so use with caution
