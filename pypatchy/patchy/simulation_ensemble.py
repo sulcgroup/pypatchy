@@ -287,7 +287,7 @@ class PatchySimulationEnsemble:
             })
             for key, value in args
         ]
-        return self.get_simulation(*params)
+        return PatchySimulation(params)
 
     def long_name(self) -> str:
         return f"{self.export_name}_{self.sim_init_date.strftime('%Y-%m-%d')}"
