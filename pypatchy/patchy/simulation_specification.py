@@ -46,7 +46,8 @@ class PatchySimulation(LogEntryObject):
         return iter(self.param_vals)
 
     def get_folder_path(self) -> Path:
-        return Path(os.sep.join([f"{key}_{str(val)}" for key, val in self.param_vals]))
+        # return Path(os.sep.join([f"{key}_{str(val)}" for key, val in self.param_vals]))
+        return Path(os.sep.join([f"{param.param_name}_{str(param.value_name)}" for param in self.param_vals]))
 
     def __repr__(self) -> str:
         return ", ".join([f"{key}={self[key]}" for key in self.var_names()])
