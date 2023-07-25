@@ -92,7 +92,7 @@ class PatchyRunSet:
     def status_dataframe(self):
         df = pd.DataFrame([
             {
-                "type": sim.name,
+                "type": sim.param_name,
                 "dupl.": sim.duplicate_number,
                 "nt": sim.narrow_type_number,
                 "T": sim.temperature,
@@ -137,7 +137,7 @@ class PatchyRunSet:
         return np.unique([r.narrow_type_number for r in self.flat_runs()])
 
     def export_groups(self):
-        return list(set([r.name for r in self.flat_runs()]))
+        return list(set([r.param_name for r in self.flat_runs()]))
 
     #### ------------ Yield Computation Targets ------------- #
     def num_targets(self):
