@@ -208,10 +208,6 @@ class PatchySimulationEnsemble:
                 # update metadata dict from file
                 with open(self.metadata_file, "r") as f:
                     self.metadata.update(json.load(f))
-            if "slurm_log" in self.metadata:
-                for entry in self.metadata["slurm_log"]:
-                    entry["simulation"] = self.lookup_simulation(*entry["simulation"].items())
-                self.slurm_log = SlurmLog(*self.metadata["slurm_log"])
 
         # name of simulation set
         self.export_name: str = sim_cfg[EXPORT_NAME_KEY]
@@ -239,6 +235,12 @@ class PatchySimulationEnsemble:
 
         self.ensemble_params = [EnsembleParameter(*p) for p in sim_cfg[ENSEMBLE_PARAMS_KEY]]
         self.ensemble_param_name_map = {p.param_key: p for p in self.ensemble_params}
+
+        if "slurm_log" in self.metadata:
+            for entry in self.metadata["slurm_log"]:
+                entry["simulation"] = self.lookup_simulation(*entry["simulation"].items())
+            self.slurm_log = SlurmLog(*self.metadata["slurm_log"])
+
         # observables are optional
         # TODO: integrate oxpy
         self.observables: dict[str: PatchySimObservable] = {}
