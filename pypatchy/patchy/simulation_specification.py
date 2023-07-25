@@ -17,10 +17,10 @@ class PatchySimulation(LogEntryObject):
     parameter_values is a list of (key,value) tuples where the key is a string identifier
     and the value is a ParameterValue object
     """
-    param_vals: list[tuple[str, ParameterValue]]
+    param_vals: list[ParameterValue]
     parameter_dict: dict[str, Any]
 
-    def __init__(self, parameter_values: Iterable[tuple[str, ParameterValue]]):
+    def __init__(self, parameter_values: Iterable[ParameterValue]):
         self.param_vals = list(parameter_values)
         self.parameter_dict = {}
         for val in self.param_vals:

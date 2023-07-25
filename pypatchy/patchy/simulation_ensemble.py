@@ -412,7 +412,7 @@ class PatchySimulationEnsemble:
         """
         Returns a list of all simulations in this ensemble
         """
-        return [PatchySimulation(*e) for e in itertools.product(*self.ensemble_params)]
+        return [PatchySimulation([p for _, p in e]) for e in itertools.product(*self.ensemble_params)]
 
     def get_ensemble_parameter(self, ens_param_name: str) -> EnsembleParameter:
         """
