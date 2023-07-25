@@ -53,6 +53,6 @@ class PatchySimulation(LogEntryObject):
 
     def to_dict(self) -> dict[str, Union[str, int, float]]:
         return {
-            p.param_name: p.value_name if not p.is_grouped_params() else p.param_value["value"]
+            p.param_name: p.value_name
             for _, p in self.param_vals
         }
