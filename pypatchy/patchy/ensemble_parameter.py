@@ -48,7 +48,7 @@ class ParameterValue:
             return param_name in self.group_params_names()
 
     def __getitem__(self, key: str):
-        assert self.is_grouped_params()
+        # assert self.is_grouped_params()
         return self.param_value[key]
 
     def __str__(self) -> str:

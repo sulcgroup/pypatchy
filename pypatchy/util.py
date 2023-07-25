@@ -1,5 +1,7 @@
 import json
+import os
 from datetime import timedelta
+from typing import Union
 
 from dateutil.relativedelta import relativedelta
 from scipy.spatial.transform import Rotation as R
@@ -240,3 +242,7 @@ def inverse_quaternion(q: np.ndarray) -> np.ndarray:
 def all_equal(iterable):
     g = groupby(iterable)
     return next(g, True) and not next(g, False)
+
+
+def is_slurm_job() -> bool:
+    return os.environ.get("SLURM_JOB_ID") is not None
