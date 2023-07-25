@@ -564,7 +564,7 @@ class PatchySimulationEnsemble:
         at each step on the analysis pipeline
         """
         return pd.DataFrame.from_dict({
-            tuple(v.param_value for _, v in sim.param_vals):
+            tuple(v.param_value for v in sim.param_vals):
                 {
                     step_name: self.has_data_file(self.analysis_pipeline[step_name], sim)
                     for step_name in self.analysis_pipeline.name_map
