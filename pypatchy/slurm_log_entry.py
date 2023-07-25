@@ -43,7 +43,7 @@ class SlurmLogEntry:
         if isinstance(start_date, datetime):
             self.job_submit_date = start_date
         else:
-            self.job_submit_date = datetime.strptime(start_date, "%Y-%m-%s")
+            self.job_submit_date = datetime.strptime(start_date, "%Y-%m-%d")
         self.job_type = job_type
         self.job_id = pid
         self.simulation = simulation

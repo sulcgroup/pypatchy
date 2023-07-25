@@ -23,7 +23,7 @@ class PatchySimulation(LogEntryObject):
     def __init__(self, parameter_values: Iterable[tuple[str, ParameterValue]]):
         self.param_vals = list(parameter_values)
         self.parameter_dict = {}
-        for _, val in self.param_vals:
+        for val in self.param_vals:
             if val.is_grouped_params():
                 for param_name in val.group_params_names():
                     self.parameter_dict[param_name] = val[param_name]
