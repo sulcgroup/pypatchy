@@ -18,7 +18,7 @@ class PatchySimulation(LogEntryObject):
     and the value is a ParameterValue object
     """
     param_vals: list[ParameterValue]
-    parameter_dict: list[str, Any]
+    parameter_dict: dict[str, Any]
 
     def __init__(self, parameter_values: Iterable[ParameterValue]):
         self.param_vals = list(parameter_values)
@@ -53,6 +53,6 @@ class PatchySimulation(LogEntryObject):
 
     def to_dict(self) -> dict[str, Union[str, int, float]]:
         return {
-            p.param_name: p.param_value if not p.is_grouped_params() else p.param_value["value"]
+            p.param_name: p.value_name if not p.is_grouped_params() else p.param_value["value"]
             for p in self.param_vals
         }
