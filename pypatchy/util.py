@@ -139,7 +139,7 @@ def to_xyz(vector: np.ndarray) -> dict[str: int]:
 
 
 def from_xyz(d: dict[str: int]) -> np.ndarray:
-    return np.array([d[k] for k in ["x", "y", "z"]])
+    return np.array([d[k] if k in d else 0 for k in ["x", "y", "z"]])
 
 
 # TODO: test if getRotations and enumerateRotations have the same order!!!!
