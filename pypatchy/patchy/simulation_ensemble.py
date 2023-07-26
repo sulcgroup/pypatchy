@@ -488,11 +488,13 @@ class PatchySimulationEnsemble:
         prints help text, for non-me people or if I forget
         might replace later with pydoc
         """
-        print(f"Ensemble of simulations of {self.export_name}")
+        print(f"Ensemble of simulations of {self.export_name} set up on {self.sim_init_date.strftime('%Y-%m-%s')}")
+        print(f"Particle info: {str(self.rule)}")
         print("Ensemble Params")
         for param in self.ensemble_params:
-            print(str(param))
+            print("\t" + str(param))
 
+        print("\nHelpful analysis functions:")
         print("Function `has_pipeline`")
         print("\ttell me if there's an analysis pipeline")
         print("Function `show_pipeline_graph`")

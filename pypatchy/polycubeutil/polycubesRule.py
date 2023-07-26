@@ -12,12 +12,12 @@ from pypatchy.util import rotation_matrix, from_xyz, to_xyz, getSignedAngle
 
 FACE_NAMES = ("left", "right", "bottom", "top", "back", "front")
 RULE_ORDER = (
-    np.array((-1,  0,  0)),
-    np.array(( 1,  0,  0)),
-    np.array(( 0, -1,  0)),
-    np.array(( 0,  1,  0)),
-    np.array(( 0,  0, -1)),
-    np.array(( 0,  0,  1))
+    np.array((-1, 0, 0)),
+    np.array((1, 0, 0)),
+    np.array((0, -1, 0)),
+    np.array((0, 1, 0)),
+    np.array((0, 0, -1)),
+    np.array((0, 0, 1))
 )
 
 
@@ -386,7 +386,7 @@ class PolycubesRule:
 
                 # iv'e messed these up so badly omg
                 patches = []
-                effects = []
+                effects: list[Effect] = []
                 vars_set = {1}
                 if "effects" in ct_dict:
                     effects = [DynamicEffect(e_json["sources"], e_json["target"]) for e_json in ct_dict["effects"]]
@@ -405,12 +405,14 @@ class PolycubesRule:
                         if color:
                             alignDir = diridx(from_xyz(patch_json["alignDir"]))
                             # add patch
-                            patches.append(PolycubesPatch(self.numPatches(),
-                                                          color,
-                                                          dirIdx,
-                                                          alignDir,
-                                                          state_var,
-                                                          activation_var))
+                            patch = PolycubesPatch(self.numPatches(),
+                                                   color,
+                                                   dirIdx,
+                                                   alignDir,
+                                                   state_var,
+                                                   activation_var)
+                            patches.append(patch)
+                            self._patchList.append(patch)
                             # handle conditionals
                             if "conditionals" in ct_dict and ct_dict["conditionals"][dirIdx]:
                                 # if conditionals are inluded alongside a patch list, they'll be indexed by RULE_ORDER
@@ -431,19 +433,20 @@ class PolycubesRule:
                                 activation_var = 0
                             vars_set.add(activation_var)
                             vars_set.add(state_var)
-                            patches.append(PolycubesPatch(self.numPatches(),
-                                                          color,
-                                                          j,
-                                                          alignDir,
-                                                          1 + len(patches),
-                                                          activation_var))
+                            patch = PolycubesPatch(self.numPatches(),
+                                                   color,
+                                                   j,
+                                                   alignDir,
+                                                   1 + len(patches),
+                                                   activation_var)
+                            patches.append(patch)
+                            self._patchList.append(patch)
 
                 self._cubeTypeList.append(PolycubeRuleCubeType(self.numCubeTypes(),
                                                                patches,
                                                                len(vars_set),
                                                                effects,
                                                                name))
-                self._patchList += patches
         elif "nS" in kwargs:
             # if a number of species is provided, initialize an empty rule
             for i in range(kwargs["nS"]):
