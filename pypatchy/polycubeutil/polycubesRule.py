@@ -353,7 +353,7 @@ class PolycubesRule:
                         # split sources, target
                         sources, target = effect_str.split(">")
                         # parse sources
-                        sources = [int(match) for match in re.finditer("-?\d+", sources)]
+                        sources = [int(match.group(0)) for match in re.finditer("-?\d+", sources)]
                         # parse target
                         target = int(target)
                         # append to effects
