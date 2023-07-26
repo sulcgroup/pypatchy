@@ -847,7 +847,7 @@ class PatchySimulationEnsemble:
                         # if this is the "classic" format
                         if server_config[PATCHY_FILE_FORMAT_KEY] == "josh_flavio":
                             allo_conditional = cube_type.patch_conditional(
-                                cube_type.get_patch_by_idx(polycube_patch_idx))
+                                cube_type.get_patch_by_idx(polycube_patch_idx), minimize=True)
                             # allosteric conditional should be "true" for non-allosterically-controlled patches
                             extradict = {"allostery_conditional": allo_conditional if allo_conditional else "true"}
                         else:  # josh/lorenzo
