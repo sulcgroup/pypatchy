@@ -8,11 +8,10 @@ import os
 import itertools
 import pickle
 import sys
-import tempfile
 import time
 from json import JSONDecodeError
 from pathlib import Path
-from typing import Any, Union, Iterable
+from typing import Any, Union
 
 import networkx as nx
 import pandas as pd
@@ -29,14 +28,15 @@ from .analysis.analysis_pipeline import AnalysisPipeline
 from .analysis_pipeline_step import AnalysisPipelineStep, PipelineData, AggregateAnalysisPipelineStep, \
     AnalysisPipelineHead, PipelineStepDescriptor
 from .patchy_sim_observable import PatchySimObservable, observable_from_file
+from ..patchy_base_particle import BaseParticleSet
 from ..slurm_log_entry import SlurmLogEntry
 from ..slurmlog import SlurmLog
-from ..util import get_param_set, simulation_run_dir, get_server_config, get_log_dir, get_input_dir, all_equal, \
-    get_local_dir, get_babysitter_refresh, is_slurm_job
+from ..util import get_param_set, simulation_run_dir, get_server_config, get_log_dir, get_input_dir, \
+    get_babysitter_refresh, is_slurm_job
 from .ensemble_parameter import EnsembleParameter, ParameterValue
 from .simulation_specification import PatchySimulation
-from .plpatchy import PLPatchyParticle, export_interaction_matrix
-from .UDtoMDt import convert_multidentate
+from .plpatchy import export_interaction_matrix
+from .patchy_scripts import to_PL
 from ..polycubeutil.polycubesRule import PolycubesRule
 
 EXPORT_NAME_KEY = "export_name"
@@ -126,7 +126,7 @@ class PatchySimulationEnsemble:
     ensemble_param_name_map: dict[str, EnsembleParameter]
 
     # set of cube types that are used in this ensemble
-    rule: PolycubesRule
+    particle_set: BaseParticleSet
 
     observables: dict[str: PatchySimObservable]
 
@@ -220,20 +220,26 @@ class PatchySimulationEnsemble:
         logger.addHandler(logging.StreamHandler(sys.stdout))
 
         # load particles
-        if "rule" not in sim_cfg:
-            self.rule: PolycubesRule = PolycubesRule(rule_json=sim_cfg[PARTICLES_KEY])
-        else:
-            if isinstance(sim_cfg["rule"], PolycubesRule):
-                self.rule: PolycubesRule = sim_cfg["rule"]
+        if "rule" not in sim_cfg and "cube_types" not in sim_cfg:
+            if isinstance(sim_cfg[PARTICLES_KEY], BaseParticleSet):
+                self.particle_set = sim_cfg[PARTICLES_KEY]
             else:
-                self.rule: PolycubesRule = PolycubesRule(rule_str=sim_cfg["rule"])
+                self.particle_set: PolycubesRule = PolycubesRule(rule_json=sim_cfg[PARTICLES_KEY])
+        else:
+            if "cube_types" in sim_cfg:
+                if len(sim_cfg["cube_types"]) > 0 and isinstance(sim_cfg["cube_types"][0], dict):
+                    self.particle_set: PolycubesRule = PolycubesRule(rule_json=sim_cfg["cube_types"])
+                else:
+                    self.particle_set = sim_cfg["cube_types"]
+            else:
+                self.particle_set: PolycubesRule = PolycubesRule(rule_str=sim_cfg["rule"])
 
         # default simulation parameters
         self.default_param_set = get_param_set(
             sim_cfg[DEFAULT_PARAM_SET_KEY] if DEFAULT_PARAM_SET_KEY in sim_cfg else "default")
         self.const_params = sim_cfg[CONST_PARAMS_KEY] if CONST_PARAMS_KEY in sim_cfg else {}
 
-        self.ensemble_params = [EnsembleParameter(*p) for p in sim_cfg[ENSEMBLE_PARAMS_KEY]]
+        self.ensemble_params = [EnsembleParameter(*p) if not isinstance(p, EnsembleParameter) else p for p in sim_cfg[ENSEMBLE_PARAMS_KEY]]
         self.ensemble_param_name_map = {p.param_key: p for p in self.ensemble_params}
 
         if "slurm_log" in self.metadata:
@@ -353,7 +359,7 @@ class PatchySimulationEnsemble:
         num_particle_types should be constant across all simulations. some particle
         types may have 0 instances but hopefully oxDNA should tolerate this
         """
-        return len(self.rule)
+        return len(self.particle_set)
 
     def sim_get_param(self, sim: PatchySimulation,
                       paramname: str) -> Any:
@@ -381,7 +387,7 @@ class PatchySimulationEnsemble:
                                particle_idx: int) -> int:
         particle_lvl = 1  # mainly to shut up my IDE
         # grab particle name
-        particle_name = self.rule.particle(particle_idx).name()
+        particle_name = self.particle_set.particle(particle_idx).name()
         if PARTICLE_TYPE_LVLS_KEY in self.const_params and particle_name in self.const_params[PARTICLE_TYPE_LVLS_KEY]:
             particle_lvl = self.const_params[PARTICLE_TYPE_LVLS_KEY][particle_name]
         if PARTICLE_TYPE_LVLS_KEY in sim:
@@ -394,7 +400,7 @@ class PatchySimulationEnsemble:
         return sum([self.get_sim_particle_count(sim, i) for i in range(self.num_particle_types())])
 
     def num_patch_types(self, sim: PatchySimulation) -> int:
-        return self.rule.numPatches() * self.sim_get_param(sim, NUM_TEETH_KEY)
+        return self.particle_set.num_patches() * self.sim_get_param(sim, NUM_TEETH_KEY)
 
     # def paths_list(self) -> list[str]:
     #     return [
@@ -489,7 +495,7 @@ class PatchySimulationEnsemble:
         might replace later with pydoc
         """
         print(f"Ensemble of simulations of {self.export_name} set up on {self.sim_init_date.strftime('%Y-%m-%s')}")
-        print(f"Particle info: {str(self.rule)}")
+        print(f"Particle info: {str(self.particle_set)}")
         print("Ensemble Params")
         for param in self.ensemble_params:
             print("\t" + str(param))
@@ -804,25 +810,10 @@ class PatchySimulationEnsemble:
 
         # write top and particles/patches spec files
         # first convert particle json into PLPatchy objects (cf plpatchy.py)
-        particles = []
-        all_patches = []
-        # iter particles
-        for particle in self.rule.particles():
-            # convert to pl patch
-            particle_patches = [patch.to_pl_patch() for patch in particle.patches()]
-            all_patches.extend(particle_patches)
-            # convert to pl particle
-            particle = PLPatchyParticle(type_id=particle.get_id(), index_=particle.get_id())
-            particle.set_patches(particle_patches)
+        particles, patches = to_PL(self.particle_set,
+                                       self.sim_get_param(sim, NUM_TEETH_KEY),
+                                       self.sim_get_param(sim, DENTAL_RADIUS_KEY))
 
-            particles.append(particle)
-        # do multidentate convert
-        if self.sim_get_param(sim, NUM_TEETH_KEY) > 1:
-            particles, patches = convert_multidentate(particles,
-                                                      self.sim_get_param(sim, DENTAL_RADIUS_KEY),
-                                                      self.sim_get_param(sim, NUM_TEETH_KEY))
-        else:
-            patches = all_patches
         # do any/all valid conversions
         # either josh_lorenzo or josh_flavio
         if server_config[PATCHY_FILE_FORMAT_KEY].find("josh") > -1:
@@ -836,7 +827,7 @@ class PatchySimulationEnsemble:
             # write patches.txt and particles.txt
             with open(self.folder_path(sim) / "patches.txt", "w+") as patches_file, open(
                     self.folder_path(sim) / "particles.txt", "w+") as particles_file:
-                for particle_patchy, cube_type in zip(particles, self.rule.particles()):
+                for particle_patchy, cube_type in zip(particles, self.particle_set.particles()):
                     # handle writing particles file
                     for i, patch_obj in enumerate(particle_patchy.patches()):
                         # we have to be VERY careful here with indexing to account for multidentate simulations
@@ -871,7 +862,8 @@ class PatchySimulationEnsemble:
                 top_file.write(f"{self.get_sim_total_num_particles(sim)} {len(particles)}\n")
                 # export_to_lorenzian_patchy_str also writes patches.dat file
                 top_file.writelines([
-                    particle.export_to_lorenzian_patchy_str(self.get_sim_particle_count(sim, particle),
+                    particle.export_to_lorenzian_patchy_str(self.get_sim_particle_count(sim,
+                                                                                        particle.type_id()),
                                                             self.folder_path(sim))
                     + "\n"
                     for particle in particles])
