@@ -51,7 +51,7 @@ if __name__ == '__main__':
     duplicate_dir = dirstructure[-3]
     duplicate_num = int(duplicate_dir[duplicate_dir.rindex("_")+1:])
     
-    type_idx = dataset.export_group_names.index("_".join(duplicate_dir.split("_")[:-2]))
+    type_idx = dataset.export_group_names.unique_id("_".join(duplicate_dir.split("_")[:-2]))
     
     runresult = dataset.get_run(type_idx, duplicate_num, nt, temperature)
     if args.interval > runresult.num_timepoints():
