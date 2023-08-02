@@ -91,3 +91,8 @@ class EnsembleParameter:
     def __iter__(self):
         return iter([(self.param_key, val) for val in self.param_value_set])
 
+    def __str__(self) -> str:
+        if self.is_grouped_params():
+            pass
+        else:
+            pass

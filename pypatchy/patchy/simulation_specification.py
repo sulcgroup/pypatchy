@@ -46,7 +46,6 @@ class PatchySimulation(LogEntryObject):
         return iter(self.param_vals)
 
     def get_folder_path(self) -> Path:
-        # return Path(os.sep.join([f"{key}_{str(val)}" for key, val in self.param_vals]))
         return Path(os.sep.join([f"{param.param_name}_{str(param.value_name)}" for param in self.param_vals]))
 
     def __repr__(self) -> str:
@@ -55,7 +54,7 @@ class PatchySimulation(LogEntryObject):
     def to_dict(self) -> dict[str, Union[str, int, float]]:
         return {
             p.param_name: p.value_name
-            for _, p in self.param_vals
+            for p in self.param_vals
         }
     
     def __eq__(self, other: PatchySimulation) -> bool:

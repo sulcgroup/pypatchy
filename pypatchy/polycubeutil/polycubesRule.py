@@ -12,12 +12,12 @@ from pypatchy.util import rotation_matrix, from_xyz, to_xyz, getSignedAngle
 
 FACE_NAMES = ("left", "right", "bottom", "top", "back", "front")
 RULE_ORDER = (
-    np.array((-1,  0,  0)),
-    np.array(( 1,  0,  0)),
-    np.array(( 0, -1,  0)),
-    np.array(( 0,  1,  0)),
-    np.array(( 0,  0, -1)),
-    np.array(( 0,  0,  1))
+    np.array((-1, 0, 0)),
+    np.array((1, 0, 0)),
+    np.array((0, -1, 0)),
+    np.array((0, 1, 0)),
+    np.array((0, 0, -1)),
+    np.array((0, 0, 1))
 )
 
 
@@ -193,6 +193,16 @@ class PolycubeRuleCubeType:
     def get_patch_by_diridx(self, dirIdx: int) -> PolycubesPatch:
         return [p for p in self._patches if p.dirIdx() == dirIdx][0]
 
+    def get_patch_by_state_var(self, state_var: int) -> Union[None, PolycubesPatch]:
+        """
+
+        """
+        patches = [p for p in self._patches if p.state_var() == state_var]
+        assert len(patches) < 2, "No two patches should have the same state variable!"
+        if len(patches) == 0:
+            return None
+        else:
+            return patches[0]
     def has_patch(self, arg: Union[int, np.ndarray]) -> bool:
         if isinstance(arg, int):  # direction index
             return any([p.dirIdx() == arg for p in self._patches])
@@ -259,8 +269,38 @@ class PolycubeRuleCubeType:
         #         effect.setStr("0")
         self._effects.append(effect)
 
-    def patch_conditional(self, patch: PolycubesPatch) -> str:
-        return "|".join(f"({e.conditional()})" for e in self.effects_targeting(patch.activation_var()))
+    def patch_conditional(self, patch: PolycubesPatch, minimize=False) -> str:
+        """
+        Expresses the conditional for the provided patch in traditional string form
+        Parameters:
+            patch: the patch for which to derive a conditional
+            minimize: true if the patches should be indexed ignoring zero-color patches, false otherwise
+        """
+        effects_lists = self.effects_targeting(patch.activation_var())
+        if len(effects_lists) == 0:
+            return ""
+        if isinstance(effects_lists[0], StringConditionalEffect):
+            assert len(effects_lists) == 1, "Multiple string conditionals for one patch is not supported"
+            if minimize:
+                print("Please don't.")
+            return effects_lists[0].conditional()
+        effect_strs = []
+        for e in effects_lists:
+            # forward-proof for environmental effects, which should be ignored for our purposes here
+            if isinstance(e, DynamicEffect):
+                if minimize:
+                    patches_in = [str(self.patches().index(self.get_patch_by_state_var(abs(input_state_var)))) if input_state_var > 0
+                                  else "!" + str(self.patches().index(self.get_patch_by_state_var(abs(input_state_var))))
+                                  for input_state_var in e.sources()]
+                else:
+                    patches_in = [str(self.get_patch_by_state_var(abs(input_state_var)).dirIdx()) if input_state_var > 0
+                                  else "!"+str(self.get_patch_by_state_var(abs(input_state_var)).dirIdx())
+                                  for input_state_var in e.sources()]
+                if len(patches_in) > 1:
+                    effect_strs.append("(" + "&".join(patches_in) + ")")
+                else:
+                    effect_strs.append(patches_in[0])
+        return "|".join(effect_strs)
 
     def __str__(self) -> str:
         return self.to_string()
@@ -313,7 +353,7 @@ class PolycubesRule:
                         # split sources, target
                         sources, target = effect_str.split(">")
                         # parse sources
-                        sources = [int(match) for match in re.finditer("-?\d+", sources)]
+                        sources = [int(match.group(0)) for match in re.finditer("-?\d+", sources)]
                         # parse target
                         target = int(target)
                         # append to effects
@@ -328,7 +368,7 @@ class PolycubesRule:
                     patch_strs = patches_str.split("#")
 
                 # PLEASE for the LOVE of GOD do NOT combine static and dynamic patches in the same rule string!!!!!
-                cube_type = PolycubeRuleCubeType(i, [], max(vars_set), effects)
+                cube_type = PolycubeRuleCubeType(i, [], max(vars_set)+1, effects)
 
                 string_effects = []
 
@@ -386,7 +426,7 @@ class PolycubesRule:
 
                 # iv'e messed these up so badly omg
                 patches = []
-                effects = []
+                effects: list[Effect] = []
                 vars_set = {1}
                 if "effects" in ct_dict:
                     effects = [DynamicEffect(e_json["sources"], e_json["target"]) for e_json in ct_dict["effects"]]
@@ -405,12 +445,14 @@ class PolycubesRule:
                         if color:
                             alignDir = diridx(from_xyz(patch_json["alignDir"]))
                             # add patch
-                            patches.append(PolycubesPatch(self.numPatches(),
-                                                          color,
-                                                          dirIdx,
-                                                          alignDir,
-                                                          state_var,
-                                                          activation_var))
+                            patch = PolycubesPatch(self.numPatches(),
+                                                   color,
+                                                   dirIdx,
+                                                   alignDir,
+                                                   state_var,
+                                                   activation_var)
+                            patches.append(patch)
+                            self._patchList.append(patch)
                             # handle conditionals
                             if "conditionals" in ct_dict and ct_dict["conditionals"][dirIdx]:
                                 # if conditionals are inluded alongside a patch list, they'll be indexed by RULE_ORDER
@@ -431,19 +473,20 @@ class PolycubesRule:
                                 activation_var = 0
                             vars_set.add(activation_var)
                             vars_set.add(state_var)
-                            patches.append(PolycubesPatch(self.numPatches(),
-                                                          color,
-                                                          j,
-                                                          alignDir,
-                                                          1 + len(patches),
-                                                          activation_var))
+                            patch = PolycubesPatch(self.numPatches(),
+                                                   color,
+                                                   j,
+                                                   alignDir,
+                                                   1 + len(patches),
+                                                   activation_var)
+                            patches.append(patch)
+                            self._patchList.append(patch)
 
                 self._cubeTypeList.append(PolycubeRuleCubeType(self.numCubeTypes(),
                                                                patches,
                                                                len(vars_set),
                                                                effects,
                                                                name))
-                self._patchList += patches
         elif "nS" in kwargs:
             # if a number of species is provided, initialize an empty rule
             for i in range(kwargs["nS"]):
@@ -562,7 +605,11 @@ class DynamicEffect(Effect):
         self._vars = source_variables
 
     def conditional(self) -> str:
-        return "&".join([f"v" if v > 0 else f"!{-v}" for v in self._vars])
+        if len(self._vars) > 1:
+            return "(" + "&".join([f"{v}" if v > 0 else f"!{-v}" for v in self._vars]) + ")"
+        else:
+            v = self._vars[0]
+            return f"{v}" if v > 0 else f"!{-v}"
 
     def sources(self) -> list[int]:
         return self._vars
