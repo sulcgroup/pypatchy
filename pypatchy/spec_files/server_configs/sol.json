@@ -1,0 +1,19 @@
+{
+        "slurm_bash_flags": {
+                "p": "general",
+                "n": 1,
+                "t": "7-00:00"
+        },
+        "slurm_includes": [
+                "module load cuda-10.2.89-gcc-12.1.0",
+                "module load gcc-8.5.0-gcc-11.2.0"
+        ],
+        "input_file_params": {
+                "backend": "CPU",
+        "backend_precision": "double",
+                "interaction_type": "PatchyShapeInteraction",
+        "plugin_search_path": "/home/jrevan21/alloassembly/contrib/romano"
+        },
+        "oxdna_path": "/home/jrevan21/alloassembly",
+        "patchy_format": "josh_flavio"
+}

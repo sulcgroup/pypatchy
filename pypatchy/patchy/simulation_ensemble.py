@@ -488,11 +488,13 @@ class PatchySimulationEnsemble:
         prints help text, for non-me people or if I forget
         might replace later with pydoc
         """
-        print(f"Ensemble of simulations of {self.export_name}")
+        print(f"Ensemble of simulations of {self.export_name} set up on {self.sim_init_date.strftime('%Y-%m-%s')}")
+        print(f"Particle info: {str(self.rule)}")
         print("Ensemble Params")
         for param in self.ensemble_params:
-            print(str(param))
+            print("\t" + str(param))
 
+        print("\nHelpful analysis functions:")
         print("Function `has_pipeline`")
         print("\ttell me if there's an analysis pipeline")
         print("Function `show_pipeline_graph`")
@@ -848,7 +850,7 @@ class PatchySimulationEnsemble:
                         # if this is the "classic" format
                         if server_config[PATCHY_FILE_FORMAT_KEY] == "josh_flavio":
                             allo_conditional = cube_type.patch_conditional(
-                                cube_type.get_patch_by_idx(polycube_patch_idx))
+                                cube_type.get_patch_by_idx(polycube_patch_idx), minimize=True)
                             # allosteric conditional should be "true" for non-allosterically-controlled patches
                             extradict = {"allostery_conditional": allo_conditional if allo_conditional else "true"}
                         else:  # josh/lorenzo
