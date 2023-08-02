@@ -47,13 +47,20 @@ class MGLParticle(PatchyBaseParticleType):
     def radius(self, normal: np.ndarray = np.zeros(shape=(3,))) -> float:
         return self._radius # assume a spherical particle
 
+    def cms(self) -> np.ndarray:
+        """
+        Calculates the center of mass of the particle as defined as
+        the average of the positions of the patches
+        """
+        return np.mean([patch.position() for patch in self.patches()], axis=0)
+
 
 class MGLPatch(BasePatchType):
     _width: float
 
     def __init__(self, uid: int, color: str, position: np.ndarray, width: float):
         super().__init__(uid, color)
-        self._key_points[0] = position
+        self._key_points = (position,)
         self._width = width
 
     def width(self):
@@ -79,6 +86,7 @@ class MGLScene:
 
     def __init__(self, box_size: np.ndarray):
         self._box_size = box_size
+        self._particles = []
 
     def box_size(self) -> np.ndarray:
         return self._box_size
@@ -121,8 +129,6 @@ class MGLScene:
         return particle_map
 
 
-
-
 def load_mgl(file_path: Path) -> MGLScene:
     assert file_path.is_file()
     with file_path.open("r") as f:
@@ -145,7 +151,8 @@ def load_mgl(file_path: Path) -> MGLScene:
             assert len(patch_strs) % 5 == 0
             patches = []
             # no delimeter between patches
-            for j in range(int(len(patch_strs) / 5)):
+            j = 0
+            while j < len(patch_strs) / 5:
                 # each patch is specied by 4 numbers and a string
                 # the first three numbers specify the patch position, the fourth is the patch width,
                 # the string is fifth and is the patch color
@@ -154,6 +161,8 @@ def load_mgl(file_path: Path) -> MGLScene:
                 patch_color = re.search(r"C\[(\w+)]", patch_strs[j+4]).group(1)
                 patches.append(MGLPatch(patch_idx, patch_color, patch_coords, w))
                 patch_idx += 1
+                j += 5
+
             p = MGLParticle(particle_position, r, particle_color, i, patches)
             mgl.add_particle(p)
         return mgl

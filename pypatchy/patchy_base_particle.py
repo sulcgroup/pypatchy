@@ -19,7 +19,6 @@ class PatchyBaseParticleType(ABC):
         self._type_id = uid
         self._patches = patches
 
-
     def type_id(self) -> int:
         return self._type_id
 
