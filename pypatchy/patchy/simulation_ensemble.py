@@ -339,8 +339,8 @@ class PatchySimulationEnsemble:
             last_entry = entries[-1]
             # get job info
             jobinfo = self.bash_exec(f"scontrol show job {last_entry.job_id} | grep JobState")
-            job_is_running = jobinfo.split()[0].split("=")[1] == "RUNNING"
-            if not job_is_running:
+            job_stopped = len(jobinfo) == 0 or jobinfo.split()[0].split("=")[1] != "RUNNING"
+            if job_stopped:
                 if self.time_length(sim) < desired_sim_length:
                     sims_that_need_attn.append(sim)
         return sims_that_need_attn
@@ -457,10 +457,10 @@ class PatchySimulationEnsemble:
                     assert len(last_step_end) == 1
                     last_step_end = last_step_end[0]
                 else:
-                    assert len(previous_step_records) == 1
+                    # assert len(previous_step_records) == 1
                     last_step_end = previous_step_records[0]
-                elapsed_steps = last_step_end.additional_metadata["starting_step_count"]
-                assert "starting_step_count" in last_step_end.additional_metadata
+                elapsed_steps = last_step_end.additional_metadata["starting_step_count"] if "starting_step_count" in last_step_end.additional_metadata else 0
+                # assert "starting_step_count" in last_step_end.additional_metadata
             else:
                 counter = 0
             if counter == 0:
@@ -615,6 +615,9 @@ class PatchySimulationEnsemble:
                                   script_name="dna_analysis.sh",
                                   job_type="dna_analysis")
 
+    def missing_analysis_data(self, step: AnalysisPipelineStep) -> pd.DataFrame:
+        return self.show_analysis_status().loc[~self.show_analysis_status()[step.name]]
+            
     def merge_topologies(self,
                          sim_selector: Union[None, PatchySimulation, list[PatchySimulation]] = None,
                          topologies: Union[list[int], None] = None,

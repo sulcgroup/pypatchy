@@ -18,18 +18,18 @@ if [[ $# == 2 ]]; then
   nice -n 19 python <<EOT &
 from pypatchy.patchy.simulation_ensemble import PatchySimulationEnsemble
 try:
-  PatchySimulationEnsemble(cfg_file_name="$specfile", sim_date="$simdate").babysit()
+    PatchySimulationEnsemble(cfg_file_name="$specfile", sim_date="$simdate").babysit()
 except Exception as e:
-  print(f"Error occurred: {e}")
-  exit(1)
+    print(f"Error occurred: {e}")
+    exit(1)
 EOT
 else
   nice -n 19 python <<EOT &
-  from pypatchy.patchy.simulation_ensemble import PatchySimulationEnsemble
+from pypatchy.patchy.simulation_ensemble import PatchySimulationEnsemble
 try:
-  PatchySimulationEnsemble(cfg_file_name="$specfile").babysit()
+    PatchySimulationEnsemble(cfg_file_name="$specfile").babysit()
 except Exception as e:
-  print(f"Error occurred: {e}")
-  exit(1)
+    print(f"Error occurred: {e}")
+    exit(1)
 EOT
 fi
