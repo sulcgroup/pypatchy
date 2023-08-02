@@ -56,3 +56,6 @@ class PatchySimulation(LogEntryObject):
             p.param_name: p.value_name
             for p in self.param_vals
         }
+    
+    def __eq__(self, other: PatchySimulation) -> bool:
+        return repr(self) == repr(other)
