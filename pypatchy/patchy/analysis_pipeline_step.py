@@ -187,6 +187,7 @@ class AnalysisPipelineHead(AnalysisPipelineStep, ABC):
     def get_data_in_filenames(self) -> list[str]:
         pass
 
+
 class AggregateAnalysisPipelineStep(AnalysisPipelineStep, ABC):
     """
     Class for analysis pipeline steps that aggregate data from multiple
@@ -206,5 +207,6 @@ class AggregateAnalysisPipelineStep(AnalysisPipelineStep, ABC):
         else:
             this_step_param_specs = sim
         return (param for param in this_step_param_specs if param not in self.params_aggregate_over)
+
 
 PipelineStepDescriptor = Union[AnalysisPipelineStep, int, str]
