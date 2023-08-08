@@ -13,6 +13,7 @@ class ParameterValue:
     param_name: str
     value_name: str
     param_value: Union[str, bool, float, dict, int, dict]
+
     def __init__(self, key, val):
         # values for the parameter can be either simple types (int, str, or float) which are
         # pretty simple, or object, which are really really not
@@ -77,12 +78,19 @@ class EnsembleParameter:
         """
         Returns true if the parameter is grouped, false otherwise
         """
-        assert any(p.is_grouped_params() for p in self.param_value_set) == all(p.is_grouped_params() for p in self.param_value_set)
+        assert any(p.is_grouped_params() for p in self.param_value_set) == all(
+            p.is_grouped_params() for p in self.param_value_set)
         return any(p.is_grouped_params() for p in self.param_value_set)
 
     def lookup(self, key: str) -> ParameterValue:
-        assert self.is_grouped_params()
         return self.param_value_map[key]
+
+    def __getitem__(self, item) -> ParameterValue:
+        if isinstance(item, int):
+            return self.param_value_set[item]
+        else:
+            assert isinstance(item, str)
+            return self.lookup(item)
 
     """
     ChatGPT wrote this method so use with caution
@@ -93,3 +101,9 @@ class EnsembleParameter:
 
     def __str__(self) -> str:
         return f"{self.param_key}: [{','.join([str(p) for p in self.param_value_set])}]"
+
+    def __len__(self):
+        return len(self.param_value_set)
+
+    def __contains__(self, item: ParameterValue):
+        return item in self.param_value_set
