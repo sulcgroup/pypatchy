@@ -155,7 +155,7 @@ class PatchySimulationEnsemble:
         """
         Very flexable constructor
         Options are:
-            PatchySimulationEnsemble(cfg_file_name="input_file_name.json")
+            PatchySimulationEnsemble(cfg_file_name="input_file_name.json", [sim_date="yyyy-mm-dd"])
             PatchySimulationEnsemble(sim_metadata_file="metadata_file.json)
             PatchySimulationEnsemble(export_name="a-simulation-name", particles=[{.....)
         """
@@ -512,7 +512,7 @@ class PatchySimulationEnsemble:
         print("Function `all_folders_exist`")
         print("Function `folder_path`")
         print("Function `tld`")
-        print("Function `")
+        print("Function `list_folder_files`")
 
     def has_pipeline(self) -> bool:
         return len(self.analysis_pipeline) != 0
@@ -723,7 +723,8 @@ class PatchySimulationEnsemble:
     def write_input_file(self,
                          sim: PatchySimulation,
                          file_name: str = "input",
-                         replacer_dict=None):
+                         replacer_dict: Union[dict, None] = None,
+                         analysis: bool = False):
         """
         Writes an input file
         """
@@ -800,7 +801,7 @@ class PatchySimulationEnsemble:
                     inputfile.write(f"observables_file = observables.json" + "\n")
                 else:
                     for i, obsrv in enumerate(self.observables.values()):
-                        obsrv.write_input(inputfile, i)
+                        obsrv.write_input(inputfile, i, analysis)
 
     def write_sim_top_particles_patches(self, sim: PatchySimulation):
         """

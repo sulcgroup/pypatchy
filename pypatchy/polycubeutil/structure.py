@@ -291,6 +291,14 @@ class StructuralHomomorphism:
     #         d = RULE_ORDER[d]
     #     return enumerateRotations()[self._rmapidx] ....
 
+
+def identity_homomorphism(s: Structure) -> StructuralHomomorphism:
+    """
+    Returns the identity homomorphism of the provided structure, which maps the structure onto
+    itself
+    """
+    return StructuralHomomorphism(s, s, 0, {i: i for i in s.graph.nodes})
+
 class PolycubeStructure(Structure):
     # mypy type specs
     rule: PolycubesRule

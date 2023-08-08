@@ -76,6 +76,13 @@ class BasePatchType(ABC):
         """
         self._uid = new_id
 
+    def add_key_point(self, pt: np.ndarray) -> int:
+        self._key_points.append(pt)
+        return len(self._key_points) - 1
+
+    def get_key_point(self, idx: int) -> np.ndarray:
+        return self._key_points[idx]
+
     @abstractmethod
     def position(self) -> np.ndarray:
         pass  # neeed to make this method abstract for compatibility with different patch types
@@ -123,10 +130,10 @@ class BaseParticleSet(abc.ABC):
             self.add_particle(particle)
 
     def add_particle(self, particle: PatchyBaseParticleType):
-        if particle.type_id() is not None and particle.type_id() != -1:
-            assert particle.type_id() == self.num_particle_types()
-        else:
-            particle.set_id(self.num_particle_types())
+        # if particle.type_id() is not None and particle.type_id() != -1:
+        #     assert particle.type_id() == self.num_particle_types()
+        # else:
+        particle.set_id(self.num_particle_types())
         self._particle_types.append(particle)
         for patch in particle.patches():
             if patch not in self.patches():
