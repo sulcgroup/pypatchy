@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import itertools
 import re
+from copy import deepcopy
 from pathlib import Path
 
 import numpy as np
@@ -54,13 +56,19 @@ class MGLParticle(PatchyBaseParticleType):
         """
         return np.mean([patch.position() for patch in self.patches()], axis=0)
 
+    def position(self):
+        return self._position
+
+    def set_position(self, new_position: np.ndarray):
+        self._position = new_position
+
 
 class MGLPatch(BasePatchType):
     _width: float
 
     def __init__(self, uid: int, color: str, position: np.ndarray, width: float):
         super().__init__(uid, color)
-        self._key_points = (position,)
+        self._key_points = [position,]
         self._width = width
 
     def width(self):
@@ -84,12 +92,15 @@ class MGLScene:
     _box_size: np.ndarray
     _particles: list[MGLParticle]
 
-    def __init__(self, box_size: np.ndarray):
+    def __init__(self, box_size: np.ndarray=np.zeros((3,))):
         self._box_size = box_size
         self._particles = []
 
     def box_size(self) -> np.ndarray:
         return self._box_size
+
+    def box_valid(self) -> bool:
+        return not (self.box_size() != 0).any()
 
     def particles(self) -> list[MGLParticle]:
         """
@@ -99,6 +110,9 @@ class MGLScene:
 
     def add_particle(self, p: MGLParticle):
         self._particles.append(p)
+
+    def num_particlees(self) -> int:
+        return len(self._particles)
 
     def particle_set(self) -> BaseParticleSet:
         """
@@ -110,7 +124,7 @@ class MGLScene:
         for particle in self._particles:
             if particle.color() not in colors:
                 colors.add(particle.color())
-                particle_set.add_particle(particle)
+                particle_set.add_particle(deepcopy(particle))
 
         return particle_set
 
@@ -127,6 +141,34 @@ class MGLScene:
         for particle in self.particles():
             particle_map[particle.color()] += 1
         return particle_map
+
+    def center(self) -> np.ndarray:
+        """
+        Returns the center of the scene as defined as the average of all the particle
+        positions of the scene
+        """
+        return np.mean([p.position() for p in self.particles()])
+
+    def recenter(self) -> MGLScene:
+        new_scene = MGLScene()
+        center = self.center()
+        for p in self.particles():
+            p = deepcopy(p)
+            p.set_position(p.position() - center)
+            new_scene.add_particle(p)
+        return new_scene
+
+    def patch_ids_unique(self) -> bool:
+        patch_ids = list(itertools.chain.from_iterable(
+            [[patch.get_id() for patch in particle.patches()] for particle in self.particles()]))
+        if min(patch_ids) != 0 or max(patch_ids) != len(patch_ids) - 1:
+            return False
+        if len(np.unique(patch_ids)) != len(patch_ids):
+            return False
+        return True
+
+    def avg_pad_bind_distance(self):
+        pass
 
 
 def load_mgl(file_path: Path) -> MGLScene:
@@ -146,13 +188,13 @@ def load_mgl(file_path: Path) -> MGLScene:
             r, particle_color = particle_data.split()
             r = float(r)
             assert particle_color.startswith("C")
-            particle_color = particle_color[particle_color.find("p") + 1:particle_color.rfind("]")]
+            particle_color = particle_color[particle_color.find("[") + 1:particle_color.rfind("]")]
             patch_strs = patch_strs.split()
             assert len(patch_strs) % 5 == 0
             patches = []
             # no delimeter between patches
             j = 0
-            while j < len(patch_strs) / 5:
+            while j < len(patch_strs):
                 # each patch is specied by 4 numbers and a string
                 # the first three numbers specify the patch position, the fourth is the patch width,
                 # the string is fifth and is the patch color

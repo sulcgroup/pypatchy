@@ -37,8 +37,11 @@ class PatchySimObservable:
             "cols": self.cols
         }
 
-    def write_input(self, input_file: IO, i: int):
-        input_file.write(f"analysis_data_output_{i+1} = " + "{\n")
+    def write_input(self, input_file: IO, i: int, analysis: bool = False):
+        if analysis:
+            input_file.write(f"analysis_data_output_{i + 1} = " + "{\n")
+        else:
+            input_file.write(f"data_output_{i + 1} = " + "{\n")
         input_file.write(f"\tname = {self.name}\n")
         input_file.write(f"\tprint_every = {self.print_every}\n")  # TODO: configure to deal with nonlinear time
         if self.start_observe_stepnum > 0:
@@ -51,7 +54,7 @@ class PatchySimObservable:
             input_file.write("\tupdate_name_with_time = 1\n")
 
         for i_col, col in enumerate(self.cols):
-            input_file.write(f"\tcol_{i_col+1} = " + "{\n")
+            input_file.write(f"\tcol_{i_col + 1} = " + "{\n")
             for key, value in col.items():
                 input_file.write(f"\t\t{key} = {value}\n")
             input_file.write("\t}\n")
@@ -60,4 +63,3 @@ class PatchySimObservable:
 
 def observable_from_file(obs_file_name: str) -> PatchySimObservable:
     return PatchySimObservable(**get_spec_json(obs_file_name, "observables"))
-

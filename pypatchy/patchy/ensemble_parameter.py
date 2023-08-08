@@ -13,6 +13,7 @@ class ParameterValue:
     param_name: str
     value_name: str
     param_value: Union[str, bool, float, dict, int, dict]
+
     def __init__(self, key, val):
         # values for the parameter can be either simple types (int, str, or float) which are
         # pretty simple, or object, which are really really not
@@ -77,7 +78,8 @@ class EnsembleParameter:
         """
         Returns true if the parameter is grouped, false otherwise
         """
-        assert any(p.is_grouped_params() for p in self.param_value_set) == all(p.is_grouped_params() for p in self.param_value_set)
+        assert any(p.is_grouped_params() for p in self.param_value_set) == all(
+            p.is_grouped_params() for p in self.param_value_set)
         return any(p.is_grouped_params() for p in self.param_value_set)
 
     def lookup(self, key: str) -> ParameterValue:

@@ -146,7 +146,7 @@ def write_oxview(tops, confs, clusters, file_path: Path):
 # this shit was originally in a file called helix.py
 # i cannot be held resposible for this
 BASE_BASE = 0.3897628551303122
-POS_BASE = 0.4
+POS_BASE = 0.4  # I think this is the conversion factor from base pairs to oxDNA units????
 CM_CENTER_DS = POS_BASE + 0.2
 POS_BACK = -0.4
 FENE_EPS = 2.0
@@ -154,7 +154,7 @@ FENE_EPS = 2.0
 
 def get_rotation_matrix(axis: np.ndarray,
                         angle: Union[int, float, np.float64, np.float32],
-                        units: Union[None, str]):
+                        units: Union[None, str] = None):
     """
     Gets. a rotation matrix around an axis? using rodreguis' formula?
     The main thing this provides is flexability with multiple types
@@ -190,17 +190,39 @@ def get_rotation_matrix(axis: np.ndarray,
     #                  [olc * x * z - st * y, olc * y * z + st * x, olc * z * z + ct]])
 
 
-def generate_helix_coords(bp,
-                          start_pos=np.array([0, 0, 0]),
-                          helix_direction=np.array([0, 0, 1]), perp=None, rot=0., double=True,
-                          circular=False,
-                          DELTA_LK=0,
-                          BP_PER_TURN=10.34,
+# the position of a series of DNA nucleotides, where each position is a tuple of numpy arrays
+# the first element of the tuple is the position vector, the second and third elements are the a1 and a3 vectors
+SequenceConfList = list[tuple[np.ndarray, np.ndarray, np.ndarray]]
+
+
+def generate_helix_coords(bp: int,
+                          start_pos: np.ndarray = np.array([0, 0, 0]),
+                          helix_direction: np.ndarray = np.array([0, 0, 1]),
+                          perp: Union[None, bool, np.ndarray] = None,
+                          rot: float = 0.,
+                          double: bool = True,
+                          # circular=False,
+                          # DELTA_LK=0,
+                          # BP_PER_TURN=10.34,
                           ds_start=None,
                           ds_end=None,
-                          force_helicity=False):
+                          # force_helicity=False
+                          ) -> Union[tuple[SequenceConfList, SequenceConfList],
+                                     SequenceConfList]:
     """
-    Helper method written by... Micha? which i am too afraid to touch
+    Generates oxview coordinates for a DNA helix
+
+    Parameters:
+        bp: the length of the sequence for which to generate coordinates
+        start_pos: xyz coords of the start position of the helix. default: 0,0,0 (origin)
+        helix_direction: a vector for the direction of the helix
+        perp: ???????
+        rot: ?????
+        double: whether to create coordinates for a double helix. defaults to true
+        ds_start: the point where the sequence becomes double-stranded???
+        ds_end: the point where the sequence stops being double-stranded???
+
+
     """
     # we need numpy array for these
     start_pos = np.array(start_pos, dtype=float)
@@ -211,10 +233,14 @@ def generate_helix_coords(bp,
         ds_end = bp
 
     # we need to find a vector orthogonal to dir
+    # compute magnitude of helix direction vector
     dir_norm = np.sqrt(np.dot(helix_direction, helix_direction))
+    # if the vector is zero-length
     if dir_norm < 1e-10:
+        # arbitrary default helix direction
         helix_direction = np.array([0, 0, 1])
     else:
+        # normalize helix direction vector
         helix_direction /= dir_norm
 
     if perp is None or perp is False:
@@ -225,10 +251,10 @@ def generate_helix_coords(bp,
         v1 = perp
 
     # Setup initial parameters
-    ns1 = []
+    ns1: SequenceConfList = []
     # and we need to generate a rotational matrix
     R0 = get_rotation_matrix(helix_direction, rot)
-    R = get_rotation_matrix(helix_direction, [1, "bp"])
+    R = get_rotation_matrix(helix_direction, 1, "bp")
     a1 = v1
     a1 = np.dot(R0, a1)
     rb = np.array(start_pos)
@@ -236,21 +262,74 @@ def generate_helix_coords(bp,
 
     # Add nt in canonical double helix
     for i in range(bp):
-        ns1.append([rb - CM_CENTER_DS * a1, a1, a3])  # , sequence[i]))
+        ns1.append((rb - CM_CENTER_DS * a1, a1, a3))  # , sequence[i]))
         if i != bp - 1:
             a1 = np.dot(R, a1)
             rb += a3 * BASE_BASE
 
     # Fill in complement strand
     if double:
-        ns2 = []
+        ns2: SequenceConfList = []
         for i in reversed(range(ds_start, ds_end)):
             # Note that the complement strand is built in reverse order
             nt = ns1[i]
             a1 = -nt[1]
             a3 = -nt[2]
             nt2_cm_pos = -(FENE_EPS + 2 * POS_BACK) * a1 + nt[0]
-            ns2.append([nt2_cm_pos, a1, a3])  # 3-sequence[i]))
+            ns2.append((nt2_cm_pos, a1, a3,))  # 3-sequence[i]))
         return ns1, ns2
     else:
         return ns1
+
+
+def generate_spacer(spacer_length: int,
+                    start_position: np.ndarray,
+                    end_position: np.ndarray,
+                    perp: Union[None, bool, np.ndarray] = None,
+                    rot: float = 0.,
+                    stretch: bool = False
+                    ) -> SequenceConfList:
+    """
+    Generates coords for a single-stranded spacer sequence between two points
+    """
+    coords: SequenceConfList = generate_helix_coords(spacer_length,
+                                                     start_pos=start_position,
+                                                     helix_direction=end_position - start_position,
+                                                     perp=perp,
+                                                     rot=rot,
+                                                     double=False)
+
+    seq_coords_magnitude = np.linalg.norm(coords[0][0] - coords[-1][0])
+    assert abs(seq_coords_magnitude - spacer_length * POS_BASE) < 1, \
+        "Length of generated sequence does not match expected length!"
+    if stretch:
+        stretch_factor = spacer_length * POS_BASE / seq_coords_magnitude
+        coords = [
+            (
+                (pos - start_position) * stretch_factor + + start_position,
+                a1,
+                a3
+            ) for pos, a1, a3 in coords
+        ]
+    return coords
+
+
+def generate_3p_ids(patch_id, seq_length):
+    """
+    Returns the 3-prime residue IDs of nucleotides in the sticky end starting at the provided residue IDs
+    """
+    return range(patch_id, patch_id + seq_length)
+
+
+def assign_coords(conf,
+                  indices: Iterable[int],
+                  coords: SequenceConfList):
+    """
+    Updates a conf to set positions, a1s, and a3s at the given index to the values
+    specified in the passed set of coords
+    """
+    for cds, idx in zip(coords, indices):
+        conf.positions[idx] = cds[0]
+        conf.a1s[idx] = cds[1]
+        conf.a3s[idx] = cds[2]
+
