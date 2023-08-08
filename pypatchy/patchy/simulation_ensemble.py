@@ -566,7 +566,7 @@ class PatchySimulationEnsemble:
         at each step on the analysis pipeline
         """
         return pd.DataFrame.from_dict({
-            tuple(v.param_value for v in sim.param_vals):
+            tuple(v.value_name for v in sim.param_vals):
                 {
                     step_name: self.has_data_file(self.analysis_pipeline[step_name], sim)
                     for step_name in self.analysis_pipeline.name_map
@@ -589,18 +589,17 @@ class PatchySimulationEnsemble:
             observable = self.observables[observable]
         if simulation_selector is None:
             simulation_selector = self.ensemble()
-        if conf_file_name is None:
-            conf_file_name = "full_trajectory.dat"
         if isinstance(simulation_selector, list):
             for sim in simulation_selector:
                 self.dna_analysis(observable, sim)
         else:
+            if conf_file_name is None:
+                conf_file_name = self.sim_get_param(simulation_selector, "trajectory_file")
             self.write_input_file(simulation_selector,
                                   "input_dna_analysis",
                                   {
-                                      "conf_file": conf_file_name,
-                                      "analysis_data_output_1": observable
-                                  })
+                                      "conf_file": conf_file_name
+                                  }, analysis=True)
             server_config = get_server_config()
 
             # write slurm script
@@ -717,7 +716,8 @@ class PatchySimulationEnsemble:
     def write_input_file(self,
                          sim: PatchySimulation,
                          file_name: str = "input",
-                         replacer_dict=None):
+                         replacer_dict: Union[dict, None] = None,
+                         analysis: bool = False):
         """
         Writes an input file
         """
@@ -794,7 +794,7 @@ class PatchySimulationEnsemble:
                     inputfile.write(f"observables_file = observables.json" + "\n")
                 else:
                     for i, obsrv in enumerate(self.observables.values()):
-                        obsrv.write_input(inputfile, i)
+                        obsrv.write_input(inputfile, i, analysis)
 
     def write_sim_top_particles_patches(self, sim: PatchySimulation):
         """
@@ -1098,6 +1098,8 @@ class PatchySimulationEnsemble:
             else:
                 return [self.get_data(step, s, time_steps) for s in sim]
 
+
+        step = self.get_pipeline_step(step)
         # check if this is a slurm job (should always be true I guess? even if it's a jupyter notebook)
         if is_slurm_job():
             slurm_job_info = self.slurm_job_info()
@@ -1113,7 +1115,6 @@ class PatchySimulationEnsemble:
                 }
             ))
 
-        step = self.get_pipeline_step(step)
         # if timesteps were not specified
         if time_steps is None:
             time_steps = range(0, self.time_length(sim), step.output_tstep)
