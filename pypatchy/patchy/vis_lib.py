@@ -2,9 +2,9 @@ from typing import Union
 
 import pandas as pd
 
-from build.lib.pypatchy.patchy.analysis_lib import TIMEPOINT_KEY
-from pypatchy.patchy.ensemble_parameter import EnsembleParameter, ParameterValue
-from simulation_ensemble import PatchySimulationEnsemble, PipelineStepDescriptor, describe_param_vals
+from .analysis_lib import TIMEPOINT_KEY
+from .ensemble_parameter import EnsembleParameter, ParameterValue
+from .simulation_ensemble import PatchySimulationEnsemble, PipelineStepDescriptor, describe_param_vals
 
 import seaborn as sb
 import matplotlib.pyplot as plt
@@ -64,7 +64,7 @@ def plot_analysis_data(e: PatchySimulationEnsemble,
                 selector.append(plot_grid_v_axis[y])
             ax: plt.Axes = axs[y, x]
             ax.set_title(describe_param_vals(selector))
-            data: pd.DataFrame = e.get_data(analysis_data_source, tuple(selector))
+            data: pd.DataFrame = e.get_data(analysis_data_source, selector)
             plt_args = {
                 "kind": "line",
                 "errorbar": "sd"

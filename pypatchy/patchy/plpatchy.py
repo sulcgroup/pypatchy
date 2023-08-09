@@ -3,14 +3,15 @@ import itertools
 from pathlib import Path
 import sys
 import os
-sys.path.append(os.path.join(sys.path[0],".."))
+
+sys.path.append(os.path.join(sys.path[0], ".."))
 
 # This file loads patchy particle file from topology and Configuration
 import numpy as np
 import copy
 import random
 import math
-from util import rotation_matrix
+from ..util import rotation_matrix
 
 myepsilon = 0.00001
 

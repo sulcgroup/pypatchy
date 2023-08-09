@@ -156,14 +156,6 @@ class ClassifyClusters(AnalysisPipelineStep):
     def get_output_data_type(self) -> PipelineDataType:
         return PipelineDataType.PIPELINE_DATATYPE_DATAFRAME
 
-    def get_py_steps_slurm(self, data_sources: tuple[Path], cache_file: Path) -> str:
-        return "import networkx as nx\n" \
-               "from pypatchy.patchy.analysis_lib import ClassifyClusters\n" \
-               f"target = YieldAnalysisTarget({self.target.name})\n" \
-               f"step = ClassifyClusters(0,{self.input_tstep},{self.output_tstep},(),{self.target_name},target_graph)\n" \
-               f"data = step.exec(Path(\"{data_sources[0]}\")\n)" \
-               f"step.cache_data(data, {str(cache_file)})\n"
-
 
 YIELD_KEY = "yield"
 
