@@ -4,8 +4,6 @@ from pathlib import Path
 import sys
 import os
 
-sys.path.append(os.path.join(sys.path[0], ".."))
-
 # This file loads patchy particle file from topology and Configuration
 import numpy as np
 import copy

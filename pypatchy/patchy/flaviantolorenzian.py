@@ -1,5 +1,5 @@
 import sys
-from plpatchy import *
+from .plpatchy import *
 import shutil
 
 
