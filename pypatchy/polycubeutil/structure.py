@@ -13,11 +13,6 @@ from ..util import getRotations, enumerateRotations
 
 from polycubesRule import *
 
-TCommonComponent = TypeVar("TCommonComponent", bound="CommonComponent")
-TStructuralHomomorphism = TypeVar("TStructuralHomomorphism", bound="StructuralHomomorphism")
-TStructure = TypeVar("TStructure", bound="Structure")
-
-
 def get_nodes_overlap(homocycles: list[list[int]]) -> set[int]:
     """
     Get the list of nodes that are common to all cycles in the list.
@@ -141,7 +136,7 @@ class Structure:
 
         return unique_cycles_by_size
 
-    def homomorphism(self, structure: TStructure) -> Union[bool, TStructuralHomomorphism]:
+    def homomorphism(self, structure: Structure) -> Union[bool, StructuralHomomorphism]:
         """
         Constructs the graph injective homomorphism of self.graph -> structure.graph
         Parameters:
@@ -221,6 +216,35 @@ class Structure:
     def is_multifarious(self):
         return not self.is_connected()
 
+    def matrix(self) -> np.ndarray:
+        """
+        Returns the structure as a N x 3 matrix where cols are x,y,z coordinates
+        """
+        # TODO: compute this on init? idk
+        assert self.is_connected(), "Please don't try to get a matrix for a non connected structure. " \
+                                    "It's not invalid I just hate it."
+        # start with zeroes
+        processed_coords = {0}
+        cubes_coords = {0: np.array([0, 0, 0])}
+        # loop until we've processed all coords
+        while len(processed_coords) < len(self):
+            for v1, d1, v2, d2 in self.bindings_list:
+                # if this binding connects a cube which has been processed
+                if (v1 in processed_coords and v2 not in processed_coords) or (v2 in processed_coords and v1 not in processed_coords):
+                    if v1 in processed_coords:
+                        origin = v1
+                        destination = v2
+                        direction = d1
+                    else:
+                        origin = v2
+                        destination = v1
+                        direction = d2
+                    cubes_coords[destination] = cubes_coords[origin] + RULE_ORDER[direction]
+                    processed_coords.add(destination)
+        a = np.array([*cubes_coords.values()])
+        assert a.shape == (len(self), 3)
+        return a
+
     def __contains__(self, item: Union[int]) -> bool:
         if isinstance(item, int):
             # item is assumed to be a node index
@@ -268,8 +292,12 @@ class StructuralHomomorphism:
     #     return enumerateRotations()[self._rmapidx] ....
 
 
-TPolycubesStructureCube = TypeVar("TPolycubesStructureCube", bound="PolycubesStructureCube")
-
+def identity_homomorphism(s: Structure) -> StructuralHomomorphism:
+    """
+    Returns the identity homomorphism of the provided structure, which maps the structure onto
+    itself
+    """
+    return StructuralHomomorphism(s, s, 0, {i: i for i in s.graph.nodes})
 
 class PolycubeStructure(Structure):
     # mypy type specs
@@ -380,7 +408,7 @@ class PolycubeStructure(Structure):
                 next_node,
                 self.get_arrow_local_diridx(n, next_node))
 
-    def cubeAtPosition(self, v) -> TPolycubesStructureCube:
+    def cubeAtPosition(self, v) -> PolycubesStructureCube:
         return self.cubeMap[v.tobytes()]
 
     def get_arrow_diridx(self, node: int, adj: int) -> int:

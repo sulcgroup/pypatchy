@@ -286,7 +286,7 @@ class PatchyRunResult:
             data['shape'] = self.get_shape_name()
             data['num_assemblies'] = self.num_assemblies
 
-            if len(cluster_categories.index) > 0:
+            if len(cluster_categories.unique_id) > 0:
                 # filter out oversize clusters
                 if not overreach:
                     cluster_categories = cluster_categories.loc[

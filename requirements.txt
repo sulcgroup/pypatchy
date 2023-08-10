@@ -7,3 +7,4 @@ networkx~=2.7.1
 altair~=4.1.0
 scipy~=1.8.1
 setuptools~=61.2.0
+Biopython~=1.76
