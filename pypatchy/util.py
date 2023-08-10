@@ -218,6 +218,13 @@ def enumerateRotations() -> dict[int: dict[int: int]]:
     }
 
 
+# there may be a faster algorithm for this but frankly I don't care enough to find it
+def rotidx(r: dict[int, dict[int, int]]) -> int:
+    for key, value in enumerateRotations().items():
+        if all(value[x] == r[x] for x in r):
+            return key
+    return -1  # invalid rotation dict
+
 def getSignedAngle(v1: np.ndarray, v2: np.ndarray, axis: np.ndarray) -> float:
     s = np.cross(v1, v2)
     c = v1.dot(v2)

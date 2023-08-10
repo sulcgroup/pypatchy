@@ -54,7 +54,7 @@ class PatchySimObservable:
             input_file.write("\tupdate_name_with_time = 1\n")
 
         for i_col, col in enumerate(self.cols):
-            input_file.write(f"\tcol_{i_col+1} = " + "{\n")
+            input_file.write(f"\tcol_{i_col + 1} = " + "{\n")
             for key, value in col.items():
                 input_file.write(f"\t\t{key} = {value}\n")
             input_file.write("\t}\n")
@@ -63,4 +63,3 @@ class PatchySimObservable:
 
 def observable_from_file(obs_file_name: str) -> PatchySimObservable:
     return PatchySimObservable(**get_spec_json(obs_file_name, "observables"))
-
