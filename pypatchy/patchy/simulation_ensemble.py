@@ -274,12 +274,13 @@ class PatchySimulationEnsemble:
         self.analysis_data = dict()
 
     # --------------- Accessors and Mutators -------------------------- #
-    def get_simulation(self, *args: tuple[str, ParameterValue]) -> PatchySimulation:
+    def get_simulation(self, *args: Union[tuple[str, Any], ParameterValue]) -> PatchySimulation:
         """
         TODO: idk
         given a list of parameter values, returns a PatchySimulation object
         """
-        return PatchySimulation(*args)
+        sim_params = args
+        return PatchySimulation(sim_params)
 
     def lookup_simulation(self, *args: tuple[str, Union[str, int, float, bool]]):
         """
@@ -504,6 +505,7 @@ class PatchySimulationEnsemble:
         print("Function `has_pipeline`")
         print("\ttell me if there's an analysis pipeline")
         print("Function `show_pipeline_graph`")
+        print("missing_analysis_data")
         print("\tdisplay a visual representation of the analysis pipeline graph")
         print("Function `show_analysis_status`")
         print("\tdisplay the status of the analysis pipeline")
@@ -622,8 +624,11 @@ class PatchySimulationEnsemble:
                                   script_name="dna_analysis.sh",
                                   job_type="dna_analysis")
 
-    def missing_analysis_data(self, step: AnalysisPipelineStep) -> pd.DataFrame:
-        return self.show_analysis_status().loc[~self.show_analysis_status()[step.name]]
+    def missing_analysis_data(self, step: Union[AnalysisPipelineStep, str]) -> pd.DataFrame:
+        if isinstance(step, str):
+            return self.missing_analysis_data(self.analysis_pipeline.name_map[step])
+        else:
+            return self.show_analysis_status().loc[~self.show_analysis_status()[step.name]]
             
     def merge_topologies(self,
                          sim_selector: Union[None, PatchySimulation, list[PatchySimulation]] = None,
