@@ -480,9 +480,22 @@ class MGLOrigamiConverter:
                         spacer_ids1 = generate_3p_ids(patch_id1, self.spacer_length)
                         spacer_ids2 = generate_3p_ids(patch_id2, self.spacer_length)
 
+                        # lets modify the topology somehow
+                        # 1st figure out the strand index
+                        sid1 = p1_dna.base2strand[patch_id1]
+                        sid2 = p2_dna.base2strand[patch_id2]
+
+                        # first modify strand to add spacer
+                        modify_strand3p(top1, sid1, "T" * self.spacer_length)
+                        modify_strand3p(top2, sid2, "T" * self.spacer_length)
+
                         # retrieve sequences from map
                         sticky_seq1 = self.color_sequence(patch1.color())
                         sticky_seq2 = self.color_sequence(patch2.color())
+
+                        # then modify strand to add sticky ends
+                        modify_strand3p(top1, sid1, sticky_seq1)
+                        modify_strand3p(top2, sid2, sticky_seq2)
 
                         # generate 3prime ids for sticky end sequences
                         sticky_id1s = generate_3p_ids(patch_id1 + self.spacer_length, self.sticky_length)
@@ -494,19 +507,6 @@ class MGLOrigamiConverter:
                         # make sure overhangs comply with the helix
                         assign_coords(conf1, sticky_id1s, coords1)
                         assign_coords(conf2, sticky_id2s, coords2)
-
-                        # lets modify the topology somehow
-                        # 1st figure out the strand index
-                        sid1 = p1_dna.base2strand[patch_id1]
-                        sid2 = p2_dna.base2strand[patch_id2]
-
-                        # first modify strand to add spacer
-                        modify_strand3p(top1, sid1, "T" * self.spacer_length)
-                        modify_strand3p(top2, sid2, "T" * self.spacer_length)
-
-                        # then modify strand to add sticky ends
-                        modify_strand3p(top1, sid1, sticky_seq1)
-                        modify_strand3p(top2, sid2, sticky_seq2)
 
                         # add bond helix nucleotides to cluster lists
                         for x in sticky_id1s:
