@@ -201,7 +201,7 @@ class AggregateAnalysisPipelineStep(AnalysisPipelineStep, ABC):
         super().__init__(step_name, input_tstep, output_tstep)
         self.params_aggregate_over = aggregate_over
 
-    def get_input_data_params(self, sim):
+    def get_input_data_params(self, sim) -> tuple[EnsembleParameter, ...]:
         if isinstance(sim, PatchySimulation):
             this_step_param_specs: tuple[ParameterValue] = tuple(sim.param_vals)
         else:

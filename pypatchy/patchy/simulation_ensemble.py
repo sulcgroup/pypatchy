@@ -169,7 +169,7 @@ class PatchySimulationEnsemble:
             # if an execution metadata file was provided
             if METADATA_FILE_KEY in kwargs:
                 self.metadata_file = get_input_dir() / kwargs[METADATA_FILE_KEY]
-                with open(self.metadata_file) as f:
+                with open(self.metadata_file, 'r') as f:
                     self.metadata.update(json.load(f))
                     sim_cfg = self.metadata["ensemble_config"]
 
@@ -177,7 +177,7 @@ class PatchySimulationEnsemble:
             elif "cfg_file_name" in kwargs:
                 # if a cfg file name was provided
                 cfg_file_name = kwargs["cfg_file_name"]
-                with open(get_input_dir() / cfg_file_name) as f:
+                with open(get_input_dir() / cfg_file_name, 'r') as f:
                     sim_cfg.update(json.load(f))
 
         # if no file key was provided, use function arg dict as setup dict
@@ -274,13 +274,41 @@ class PatchySimulationEnsemble:
         self.analysis_data = dict()
 
     # --------------- Accessors and Mutators -------------------------- #
-    def get_simulation(self, *args: Union[tuple[str, Any], ParameterValue]) -> PatchySimulation:
+    def get_simulation(self, *args: Union[tuple[str, Any], ParameterValue], **kwargs) -> Union[PatchySimulation, list[PatchySimulation]]:
         """
-        TODO: idk
+        This is a very flexable method for returning PatchySimulation objects but is also very complex, due to the range of inputs accepted
+        
         given a list of parameter values, returns a PatchySimulation object
-        """
-        sim_params = args
-        return PatchySimulation(sim_params)
+        """            
+        # sim_params = args
+        sim_params: list[Union[list[ParameterValue], EnsembleParameter]] = []
+        multiselect = False
+        for i_counter, param_type in enumerate(self.ensemble_params):
+            pname =  param_type.param_key 
+            if pname in kwargs:
+                valname = str(kwargs[pname])
+                sim_params.append([param_type[valname]])
+            else:
+                for a in args:
+                    if isinstance(a, ParameterValue):
+                        if a in param_type:
+                            sim_params.append([a])
+                            break
+                    else:
+                        assert isinstance(a, tuple) and len(a) == 2, f"Invalid parameter {str(a)}!"
+                        k,v = a
+                        if k == pname:
+                            pv = ParameterValue(k,v)
+                            assert pv in param_type
+                            sim_params.append([pv])
+                            break # terminate loop of args
+            if len(sim_params) == i_counter: # if we've found value for param, len(sim_params) should be one greater than counter
+                sim_params.append(param_type.param_value_set)
+                multiselect = True
+        if multiselect:
+            return [PatchySimulation(e) for e in itertools.product(*sim_params)]
+        else:
+            return PatchySimulation([p for p, in sim_params]) # de-listify
 
     def lookup_simulation(self, *args: tuple[str, Union[str, int, float, bool]]):
         """
@@ -419,7 +447,10 @@ class PatchySimulationEnsemble:
         """
         Returns a list of all simulations in this ensemble
         """
-        return [PatchySimulation([p for _, p in e]) for e in itertools.product(*self.ensemble_params)]
+        return [PatchySimulation(e) for e in itertools.product(*self.ensemble_params)]
+    
+    def num_ensemble_parameters(self) -> int:
+        return len(self.ensemble_params)
 
     def get_ensemble_parameter(self, ens_param_name: str) -> EnsembleParameter:
         """
@@ -455,7 +486,7 @@ class PatchySimulationEnsemble:
             return self.time_length(self.ensemble())
         elif isinstance(sim, PatchySimulation):
             # backwards-compatibility with simulations run before current logging system
-            if len(self.slurm_log) > 0:
+            if len(self.slurm_log.by_type("oxdna")) > 0:
                 # get the last continue log step before this
                 counter = self.get_last_continue_step(sim)
                 previous_step_records = self.slurm_log.by_simulation(sim).by_type(["oxdna_continue", "oxdna"])
@@ -464,7 +495,7 @@ class PatchySimulationEnsemble:
                     assert len(last_step_end) == 1
                     last_step_end = last_step_end[0]
                 else:
-                    # assert len(previous_step_records) == 1
+                    assert len(previous_step_records) >= 1, f"Missing any oxdna simulation records for simulation {str(sim)}"
                     last_step_end = previous_step_records[0]
                 elapsed_steps = last_step_end.additional_metadata["starting_step_count"] if "starting_step_count" in last_step_end.additional_metadata else 0
                 # assert "starting_step_count" in last_step_end.additional_metadata
@@ -484,10 +515,8 @@ class PatchySimulationEnsemble:
         elif isinstance(sim, tuple):
             return self.time_length(self.get_simulation(*sim))
         else:
-            return min(file_info([
-                self.folder_path(s) / self.sim_get_param(s, "trajectory_file")
-                for s in sim
-            ])["t_end"])
+            assert isinstance(sim, list)
+            return min([self.time_length(s) for s in sim])
 
     # ------------------------ Status-Type Stuff --------------------------------#
     def info(self, infokey: str = "all"):
@@ -1070,6 +1099,21 @@ class PatchySimulationEnsemble:
     def has_data_file(self, step: PipelineStepDescriptor, sim: PatchySimDescriptor) -> bool:
         return self.get_cache_file(step, sim).exists()
 
+    def is_multiselect(self, selector: PatchySimDescriptor, exceptions: tuple[EnsembleParameter, ...]) -> bool:
+        """
+        Returns true if the provided selector will match multiple PatchySimulation objects, false otherwise
+        """
+        if isinstance(sim, PatchySimulation):
+            return False
+        try:
+            assert all([any([pv in ep for pv in selector]) for ep in self.ensemble_params]), f"Invalid selector {selector}"
+            # if all provided items in selector are either in the ensemble parameters or are used in aggregation
+            if len(selector) + len(exceptions) == self.num_ensemble_parameters():
+                return False
+            assert len(selector) + len(exceptions) < self.num_ensemble_parameters(), f"Too many specifiers found between {selector} and {exceptions} (expected {self.num_ensemble_parameters()} specifiers)"
+            return True
+        except TypeError as e:
+            raise Exception(f"{selector} is not iterable!")
     def get_data(self,
                  step: PipelineStepDescriptor,
                  sim: PatchySimDescriptor,
@@ -1085,6 +1129,12 @@ class PatchySimulationEnsemble:
             :param time_steps a range of timesteps to get data at. if None, the steps
             will be calculated automatically
         """
+        # first check if the provided simulation selector is incomplete, and that this isn't an aggregate step (which expects incomplete selectors
+        if (isinstance(step, AggregateAnalysisPipelineStep) and self.is_multiselect(sim, step.aggregate_over) or (not isinstance(step, AggregateAnalysisPipelineStep) and self.is_multiselect(sim)):
+            
+            # if the simulation selector provided doesn't line up with the aggregation params (or the step isn't an aggregation step), this method will return a grouping of results. somehow.
+            if 
+            
         # if we've provided a list of simulations
         if isinstance(sim, list):
             if self.is_do_analysis_parallel():
@@ -1132,7 +1182,6 @@ class PatchySimulationEnsemble:
                 return cached_data
             else:
                 self.get_logger().info(f"Cache file missing data!")
-        step = self.get_pipeline_step(step)
 
         lock = multiprocessing.Lock()
         lock.acquire()
