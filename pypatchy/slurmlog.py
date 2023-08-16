@@ -28,9 +28,13 @@ class SlurmLog:
 
     def __getitem__(self, key: Union[int, datetime.date, slice]) -> Union[list[SlurmLogEntry], SlurmLogEntry]:
         if isinstance(key, int):
+            assert -1 < key < len(self), f"Index {key} out of bounds for list length {len(self)}" 
             return self.log_list[key]
         if isinstance(key, datetime.date):
-            return self.log_list
+            start = self.idx_begin(key)
+            stop = self.idx_end(key)
+            if start is not None and stop is not None:
+                return self[start:stop]
         if isinstance(key, slice):
             if isinstance(key.start, int):
                 return self.log_list[key]
