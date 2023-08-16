@@ -64,7 +64,7 @@ def plot_analysis_data(e: PatchySimulationEnsemble,
                 selector.append(plot_grid_v_axis[y])
             ax: plt.Axes = axs[y, x]
             ax.set_title(describe_param_vals(selector))
-            data: pd.DataFrame = e.get_data(analysis_data_source, selector)
+            data: pd.DataFrame = e.get_data(analysis_data_source, tuple(selector))
             plt_args = {
                 "kind": "line",
                 "errorbar": "sd"
