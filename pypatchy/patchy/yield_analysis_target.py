@@ -20,7 +20,7 @@ class YieldAnalysisTarget:
     name: str
     graph: nx.Graph
 
-    def __init__(self, name: str, graph: Union[nx.Graph, None]=None):
+    def __init__(self, name: str, graph: Union[nx.Graph, None] = None):
         self.name = name
         if not graph:
             graph = graphShape(get_input_dir() / "targets" / f"{name}.json")

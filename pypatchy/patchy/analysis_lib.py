@@ -1,18 +1,23 @@
 import re
+from pathlib import Path
+from typing import Union
+import pickle
 
 import networkx as nx
 import numpy as np
 import pandas as pd
 
-from .analysis_pipeline_step import *
+from .ensemble_parameter import EnsembleParameter
+from ..analpipe.analysis_pipeline_step import AnalysisPipelineStep, AggregateAnalysisPipelineStep, AnalysisPipelineHead, \
+    PipelineDataType, PipelineData
 from .patchy_sim_observable import PatchySimObservable
 from .yield_analysis_target import ClusterCategory
 
 from .yield_analysis_target import YieldAnalysisTarget
+from ..analpipe.analysis_pipeline_step import TIMEPOINT_KEY
 
-TIMEPOINT_KEY = "timepoint"
 
-
+# this file contains classes that are useful in analpipe, but aren't required by other PyPatchy modules
 # all classes in this document should extend AnalysisPipelineStep
 
 class GraphsFromClusterTxt(AnalysisPipelineHead):
@@ -111,6 +116,7 @@ class ClassifyClusters(AnalysisPipelineStep):
         return True
 
     target_name: YieldAnalysisTarget
+    force_recompute: bool
 
     def __init__(self,
                  name: str,
@@ -130,7 +136,16 @@ class ClassifyClusters(AnalysisPipelineStep):
             return pd.read_csv(f)
 
     def data_matches_trange(self, data: PipelineData, trange: range) -> bool:
-        return (data["tstep"] == np.array(trange)).all()
+        """
+        override of data_matches_trange
+        the data type that this method takes isn't expected to produce an output at every timestep
+        so it's hard to tell the difference between "data missing" and "data equals zero"
+        I've added a flag that can be manually set to for
+        TODO: figure out a better approach for this
+        """
+
+        return not self.force_recompute
+
 
     def exec(self, input_graphs: dict[int: list[nx.Graph]]) -> pd.DataFrame:
         cluster_cats_data = {
@@ -164,7 +179,6 @@ class ComputeClusterYield(AnalysisPipelineStep):
     def can_parallelize(self):
         return True
 
-
     cutoff: float
     overreach: bool
     target: YieldAnalysisTarget
@@ -185,7 +199,12 @@ class ComputeClusterYield(AnalysisPipelineStep):
             return pd.read_csv(f)  # TODO: more params probably
 
     def data_matches_trange(self, data: pd.DataFrame, trange: range) -> bool:
-        return (data["tstep"] == np.array(trange)).all()
+        tdata = data[TIMEPOINT_KEY].unique()
+
+        if len(tdata) == len(trange):
+            return (tdata == np.array(trange)).all()
+        else:
+            return all([t in tdata for t in trange])
 
     def exec(self, cluster_categories: pd.DataFrame) -> pd.DataFrame:
         """
@@ -196,7 +215,7 @@ class ComputeClusterYield(AnalysisPipelineStep):
 
         # filter off-target graphs
         data: pd.DataFrame = cluster_categories[
-            cluster_categories[ClassifyClusters.CLUSTER_CATEGORY_KEY != ClusterCategory.SMALLER_NOT_SUB]]
+            cluster_categories[ClassifyClusters.CLUSTER_CATEGORY_KEY] != ClusterCategory.SMALLER_NOT_SUB]
         # filter too-small graphs
         data = data[data[ClassifyClusters.SIZE_RATIO_KEY] >= self.cutoff]
         if not self.overreach:
@@ -206,12 +225,12 @@ class ComputeClusterYield(AnalysisPipelineStep):
             # max cluster yield should be 1.0
             data[ClassifyClusters.SIZE_RATIO_KEY] = data[ClassifyClusters.SIZE_RATIO_KEY].apply(np.ceil)
         # discard cluster categories column
-        data.drop(ClassifyClusters.CLUSTER_CATEGORY_KEY)
+        data.drop(ClassifyClusters.CLUSTER_CATEGORY_KEY, axis=1)
         # group by timepoint, average, reset index
         data = data.groupby(TIMEPOINT_KEY).sum().reset_index()
         # rename column
-        data = data.rename(mapper={ClassifyClusters.SIZE_RATIO_KEY: YIELD_KEY})
-        data = data.set_index([TIMEPOINT_KEY])
+        data = data.rename(mapper={ClassifyClusters.SIZE_RATIO_KEY: YIELD_KEY}, axis="columns")
+        # data = data.set_index([TIMEPOINT_KEY])
         data = data.loc[data[TIMEPOINT_KEY] % self.output_tstep == 0]
         return data
 

@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import copy
-from typing import Union, Generator
+from typing import Union, Generator, Callable
 
 import networkx as nx
 
-from pypatchy.patchy.analysis_pipeline_step import AnalysisPipelineStep, PipelineDataType, AnalysisPipelineHead
+from pypatchy.analpipe.analysis_pipeline_step import AnalysisPipelineStep, AnalysisPipelineHead
 
 
 # def analysis_step_idx(step: Union[int, AnalysisPipelineStep]) -> int:
@@ -17,10 +17,12 @@ class AnalysisPipeline:
     # pipeline_steps: list[AnalysisPipelineStep]
     name_map: dict[str: AnalysisPipelineStep]
 
-    def __init__(self, *args):
+    def __init__(self, *args: Union[AnalysisPipelineStep, tuple[str, str]]):
+        # assert all([isinstance(s, AnalysisPipelineStep) for s in args]), "Invalid arguement passed to pipeline constructor!"
+        # construct new directed graph for the pipeline
         self.pipeline_graph: nx.DiGraph = nx.DiGraph()
-        # self.pipeline_steps: list[AnalysisPipelineStep] = []
-        self.name_map: dict[str: str] = dict()
+        # construct dict mapping names of nodes to steps in the pipeline
+        self.name_map: dict[str: AnalysisPipelineStep] = dict()
 
         # sort steps in pipeline so head nodes will be in front
         steps = sorted([s for s in args if isinstance(s, AnalysisPipelineStep)],
@@ -50,7 +52,7 @@ class AnalysisPipeline:
 
     def num_pipeline_steps(self) -> int:
         """
-        Returns the total number of analysis steps in this pipeline.
+        Returns the total number of analpipe steps in this pipeline.
 
         """
         return len(self.name_map)
@@ -127,7 +129,7 @@ class AnalysisPipeline:
         if isinstance(key, AnalysisPipelineStep):
             return key.name in self
         elif isinstance(key, AnalysisPipeline):
-            # test if all analysis steps and pipes in our key are also present in this
+            # test if all analpipe steps and pipes in our key are also present in this
             for node in key.pipeline_graph.nodes():
                 if not self.pipeline_graph.has_node(node):
                     return False
@@ -143,3 +145,20 @@ class AnalysisPipeline:
 
     def __len__(self):
         return len(self.pipeline_graph)
+
+    def __getstate__(self) -> dict:
+        return {
+            "nodes": self.name_map,
+            "edges": [
+                (u, v) for u, v in self.pipeline_graph.edges
+            ]
+        }
+
+    def __setstate__(self, state: dict):
+        self.pipeline_graph = nx.DiGraph()
+        self.name_map = state['nodes']
+        for name in self.name_map:
+            self.pipeline_graph.add_node(name)
+        for u, v in state["edges"]:
+            self._add_pipe_between(self.name_map[u], self.name_map[v])
+

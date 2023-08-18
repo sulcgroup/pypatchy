@@ -20,6 +20,7 @@ class PatchySimulation(LogEntryObject):
     param_vals: list[ParameterValue]
     parameter_dict: dict[str, Any]
 
+
     def __init__(self, parameter_values: Iterable[ParameterValue]):
         self.param_vals = list(parameter_values)
         self.parameter_dict = {}

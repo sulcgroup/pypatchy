@@ -1,16 +1,13 @@
 from __future__ import annotations
 
 import pickle
-import subprocess
 from abc import ABC, abstractmethod
 from enum import Enum
 from pathlib import Path
-from typing import Union, IO, Any
+from typing import Union, Any
 
-import pandas as pd
-
-from .simulation_specification import PatchySimulation
-from .ensemble_parameter import EnsembleParameter, ParameterValue
+from pypatchy.patchy.simulation_specification import PatchySimulation
+from pypatchy.patchy.ensemble_parameter import EnsembleParameter, ParameterValue
 
 
 class PipelineDataType(Enum):
@@ -28,10 +25,7 @@ PipelineData = Any  # todo: detail!
 
 
 class AnalysisPipelineStep(ABC):
-    # unique ID
-    # idx: int
-
-    # the name of this step on the analysis pipeline
+    # the name of this step on the analpipe pipeline
     name: str
 
     # specifier for data that will be taken as input by this object
@@ -48,6 +42,9 @@ class AnalysisPipelineStep(ABC):
     # interval in timesteps between input data points
     output_tstep: int
 
+    # flag which allows the user to temporarily disable loading cached data
+    force_recompute: bool
+
     def __init__(self,
                  step_name: str,
                  input_tstep: Union[int, None] = None,
@@ -57,6 +54,7 @@ class AnalysisPipelineStep(ABC):
         self.input_tstep = input_tstep
         self.output_tstep = output_tstep
         self.config_io(input_tstep=self.input_tstep, output_tstep=self.output_tstep)
+        self.force_recompute = False
 
     def __str__(self):
         return self.name
@@ -75,7 +73,7 @@ class AnalysisPipelineStep(ABC):
     #                     data_sources: Union[tuple[Path], list[Path]],
     #                     cache_file: Path) -> int:
     #     """
-    #     executes this step in the analysis pipeline,
+    #     executes this step in the analpipe pipeline,
     #     using slurm
     #     Parameters:
     #         :param script_dir_path a directory to put a temporary bash script (
@@ -119,6 +117,12 @@ class AnalysisPipelineStep(ABC):
 
     @abstractmethod
     def data_matches_trange(self, data: PipelineData, trange: range) -> bool:
+        """
+        Check if all data points in the provided data object (assumed pd.DataFrame) match the provided
+        range object
+        it's assumed that the pipeline data are for a single simulation, nethod may have... unexpected results
+        if called on concatengated data from multiple simulations
+        """
         pass
 
     @abstractmethod
@@ -171,7 +175,7 @@ class AnalysisPipelineStep(ABC):
 
 class AnalysisPipelineHead(AnalysisPipelineStep, ABC):
     """
-    Class for any "head" node of the analysis pipeline.
+    Class for any "head" node of the analpipe pipeline.
     Note that there's nothing stopping even a connected graph
     of the pipeline from having multiple "heads"
     """
@@ -190,7 +194,7 @@ class AnalysisPipelineHead(AnalysisPipelineStep, ABC):
 
 class AggregateAnalysisPipelineStep(AnalysisPipelineStep, ABC):
     """
-    Class for analysis pipeline steps that aggregate data from multiple
+    Class for analpipe pipeline steps that aggregate data from multiple
     simulations, e.g. average yield over duplicates
     """
 
@@ -206,7 +210,8 @@ class AggregateAnalysisPipelineStep(AnalysisPipelineStep, ABC):
             this_step_param_specs: tuple[ParameterValue] = tuple(sim.param_vals)
         else:
             this_step_param_specs = sim
-        return (param for param in this_step_param_specs if param not in self.params_aggregate_over)
+        return tuple(param for param in this_step_param_specs if param not in self.params_aggregate_over)
 
 
 PipelineStepDescriptor = Union[AnalysisPipelineStep, int, str]
+TIMEPOINT_KEY = "timepoint"

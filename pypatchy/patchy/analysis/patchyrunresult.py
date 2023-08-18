@@ -14,7 +14,7 @@ from pypatchy.util import get_cluster_file_name, get_init_top_file_name, get_sam
 # hardcoding this because reading it from the input file would be difficult I've literally never changed it
 OXDNA_PRINT_CLUSTERS_EVERY = 1e7
 
-# analysis status codes
+# analpipe status codes
 ASC_NO_DATA = 0
 ACS_NO_PICKLES = 1
 ASC_PICKLE_CLUSTERS = 2
@@ -213,7 +213,7 @@ class PatchyRunResult:
             if verbose:
                 print(f"Finished categorizing clusters in {int(time.time()) - tstart} seconds!")
 
-            # save analysis results
+            # save analpipe results
             with open(filename, 'wb+') as f:
                 pickle.dump(cluster_categories, f)
             metadata["categorized_timepoints"][target_name]["timepoints"] = tidxs_processed
