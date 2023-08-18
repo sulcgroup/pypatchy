@@ -16,7 +16,7 @@ def choose_results(sim_name=None) -> PatchyRunSet:
         with open(simulation_analysis_dir() / sim_name / get_analysis_params_file_name(), 'r') as f:
             analysis_params = json.load(f)
     except FileNotFoundError:
-        print("No analysis params file found. Continuing with default analysis params...")
+        print("No analpipe params file found. Continuing with default analpipe params...")
         dir_files = os.listdir(simulation_analysis_dir() / sim_name)
         analysis_params['targets'] = []
         for target_file in dir_files:
@@ -47,7 +47,7 @@ def choose_target(results: PatchyRunSet):
 def choose_results_and_target():
     # construct a PatchySimResultSet object from the specified directory
     results = choose_results()
-    target_name = input(f"Input the name of an analysis target ({','.join(results.targets.keys())}): ")
+    target_name = input(f"Input the name of an analpipe target ({','.join(results.targets.keys())}): ")
 
     target = results.targets[target_name]
     return results.export_name, results, target_name, target

@@ -37,9 +37,9 @@ class PatchyRunSet:
                 'name': target_name,
                 'graph': graphShape(self.root_dir + os.sep + analysisparams['targets'][target_name]['file']),
             }
-            # number of replications of the analysis target per "assembly"
-            # for an analysis target that's just the entire asesmbly, this will equal 1. for
-            # an analysis target that is a repeated subgraph of the entire assembly, the
+            # number of replications of the analpipe target per "assembly"
+            # for an analpipe target that's just the entire asesmbly, this will equal 1. for
+            # an analpipe target that is a repeated subgraph of the entire assembly, the
             # target will be some integer greater than 1
             if 'rel_count' in analysisparams['targets'][target_name]:
                 self.targets[target_name]['rel_count'] = analysisparams['targets'][target_name]['rel_count']
@@ -76,7 +76,7 @@ class PatchyRunSet:
     def print_status(self):
         """
         Helper method which prints the overall status of this result set and the state
-        of analysis
+        of analpipe
         """
         pd.set_option('display.max_rows', None)
         pd.set_option('display.max_columns', None)

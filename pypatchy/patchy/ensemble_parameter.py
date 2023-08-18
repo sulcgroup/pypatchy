@@ -1,3 +1,4 @@
+from __future__ import annotations
 import itertools
 import os
 import pathlib
@@ -34,7 +35,6 @@ class ParameterValue:
     """
 
     def group_params_names(self) -> list[str]:
-        assert self.is_grouped_params()
         return list(self.param_value.keys())
 
     """
@@ -57,6 +57,9 @@ class ParameterValue:
             return str(self.param_value)
         else:
             return self.param_name
+
+    def __eq__(self, other: ParameterValue) -> bool:
+        return self.param_name == other.param_name and self.value_name == other.value_name
 
 
 class EnsembleParameter:
