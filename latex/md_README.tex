@@ -1,0 +1,31 @@
+This repository contains a collection of scripts written by Josh Evans and Joakim Bohlin for Patchy Particles data. At some point it will probably be merged into \href{https://github.com/sulcgroup/polycubes-clone}{\texttt{ polycubes-\/clone}} and/or \href{https://github.com/sulcgroup/patchy-particle-utils}{\texttt{ patchy-\/particle-\/utils}} Requirements\+:
+\begin{DoxyItemize}
+\item oxpy
+\item altair
+\item numpy
+\item networkx
+\item pandas
+\end{DoxyItemize}
+
+T\+O\+DO\+: seperate data processing scripts from figure-\/forming jupyter notebooks\hypertarget{md_README_autotoc_md0}{}\doxysection{Analysis Notebooks}\label{md_README_autotoc_md0}
+\hypertarget{md_README_autotoc_md1}{}\doxysubsection{Chart Cluster Sizes}\label{md_README_autotoc_md1}
+\hypertarget{md_README_autotoc_md2}{}\doxysubsection{Compare Cutoffs}\label{md_README_autotoc_md2}
+\hypertarget{md_README_autotoc_md3}{}\doxysubsection{compare\+\_\+datasets.\+ipynb}\label{md_README_autotoc_md3}
+Compaers a number of datasets which have the same analysis target (or at least analysis targets with the same name) and overlapping narrow types and temperatures. \hypertarget{md_README_autotoc_md4}{}\doxysubsection{Compare Temperature}\label{md_README_autotoc_md4}
+\hypertarget{md_README_autotoc_md5}{}\doxysubsection{generate\+\_\+graphs.\+ipynb}\label{md_README_autotoc_md5}
+Generates a set of graphs for a specific narrow type and a single dataset at the full range of temperatures, along with a chart showing the number of each cube type which were present. \hypertarget{md_README_autotoc_md6}{}\doxysubsection{Graph Duplicates}\label{md_README_autotoc_md6}
+\hypertarget{md_README_autotoc_md7}{}\doxysubsection{Show Clusters}\label{md_README_autotoc_md7}
+\hypertarget{md_README_autotoc_md8}{}\doxysection{The Analysis Pipeline}\label{md_README_autotoc_md8}
+\hypertarget{md_README_autotoc_md9}{}\doxysection{compute\+\_\+yields.\+py}\label{md_README_autotoc_md9}
+{\ttfamily compute\+\_\+yields.\+py} is a python script that can be run from shell that will run yield calculations for the patchy run result in a provided directory (directory should be the one with the oxdna {\ttfamily input} file). It will automatically load the result group from the {\ttfamily patchy\+\_\+export\+\_\+settings.\+json} and {\ttfamily analysis\+\_\+params.\+json} files in the datset directory. \hypertarget{md_README_autotoc_md10}{}\doxysection{compute\+\_\+yields.\+sh}\label{md_README_autotoc_md10}
+This shell script will start slurm jobs to compute the yields of a dataset. It takes the following parameters
+\begin{DoxyItemize}
+\item {\ttfamily d} the folder name of a dataset to analyze.
+\item {\ttfamily t} the name of a target to use for the analysis
+\item {\ttfamily i} (optional) the frequency with which to run the analysis. If set to 1, all the cluster timepoints will be analyzed, however there are many cluster timepoints so this would be unwise. the default value is the value {\ttfamily sample\+\_\+every} in {\ttfamily settings.\+cfg} Run {\ttfamily print\+\_\+all\+\_\+results\+\_\+status()} in a jupyter notebook to get options for dataset names and timepoints Example\+: {\ttfamily ./compute\+\_\+yields.sh -\/d W\+T\+Solid\+Cube\+\_\+7\+Nov22 -\/t solidcube -\/i 10}
+\end{DoxyItemize}\hypertarget{md_README_autotoc_md11}{}\doxysection{Libraries}\label{md_README_autotoc_md11}
+\hypertarget{md_README_autotoc_md12}{}\doxysubsection{util.\+py}\label{md_README_autotoc_md12}
+\hypertarget{md_README_autotoc_md13}{}\doxysubsection{patchyresults.\+py}\label{md_README_autotoc_md13}
+\hypertarget{md_README_autotoc_md14}{}\doxysubsection{patchyrunresult.\+py}\label{md_README_autotoc_md14}
+\hypertarget{md_README_autotoc_md15}{}\doxysubsection{input\+\_\+output.\+py}\label{md_README_autotoc_md15}
+function {\ttfamily print\+\_\+all\+\_\+results\+\_\+status}\+: Lists all the datasets in the analysis directory and prints info function {\ttfamily choose\+\_\+results}\+: Constructs a Patchy\+Run\+Set object. Can be given a string name. If no name is given, the function will list options and prompt the user to choose one. 

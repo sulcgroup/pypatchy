@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any, Union
 
 import networkx as nx
+import numpy as np
 import pandas as pd
 import subprocess
 import re
@@ -24,6 +25,7 @@ from oxDNA_analysis_tools.UTILS.oxview import from_path
 from oxDNA_analysis_tools.file_info import file_info
 
 from pypatchy.analpipe.analysis_pipeline import AnalysisPipeline
+from ..analpipe.analysis_data import PDPipelineData, TIMEPOINT_KEY
 from ..analpipe.analysis_pipeline_step import AnalysisPipelineStep, PipelineData, AggregateAnalysisPipelineStep, \
     AnalysisPipelineHead, PipelineStepDescriptor, PipelineDataType
 from .patchy_sim_observable import PatchySimObservable, observable_from_file
@@ -104,14 +106,14 @@ def list_simulation_ensembles():
 class PatchySimulationEnsemble:
     """
     Stores data for a group of related simulation
-    class was originally written for setup but I've been folding analpipe stuff from
+    class was originally written for setup but I've been folding analysis stuff from
     `PatchyResults` and `PatchyRunResult` in as well with the aim of eventually deprecating those
     preferably sooner tather than later
     """
 
     # --------------- GENERAL MEMBER VARS -------------- #
 
-    # metadata regarding execution and analpipe (TBD)
+    # metadata regarding execution and analysis (TBD)
     metadata: dict[Any]
 
     # list of parameters that will be varied across this ensemble
@@ -141,10 +143,10 @@ class PatchySimulationEnsemble:
 
     # -------------- STUFF SPECIFIC TO ANALYSIS ------------- #
 
-    # each "node" of the analpipe pipeline graph is a step in the analpipe pipeline
+    # each "node" of the analysis pipeline graph is a step in the analysis pipeline
     analysis_pipeline: AnalysisPipeline
 
-    # dict to store loaded analpipe data
+    # dict to store loaded analysis data
     analysis_data: dict[tuple[str, str]: PipelineData]
 
     # log of slurm jobs
@@ -301,7 +303,8 @@ class PatchySimulationEnsemble:
     def get_simulation(self, *args: Union[tuple[str, Any], ParameterValue], **kwargs) -> Union[
         PatchySimulation, list[PatchySimulation]]:
         """
-        This is a very flexable method for returning PatchySimulation objects but is also very complex, due to the range of inputs accepted
+        This is a very flexable method for returning PatchySimulation objects
+        but is also very complex, due to the range of inputs accepted
         
         given a list of parameter values, returns a PatchySimulation object
         """
@@ -342,7 +345,7 @@ class PatchySimulationEnsemble:
         params = [
             ParameterValue(key, value) if not self.ensemble_param_name_map[key].is_grouped_params()
             else ParameterValue(key, {
-                "name": value,
+                    "name": value,
                 "value": self.ensemble_param_name_map[key].lookup(value).param_value
             })
             for key, value in args
@@ -435,7 +438,19 @@ class PatchySimulationEnsemble:
         for paramgroup in self.default_param_set["input"].values():
             if paramname in paramgroup:
                 return paramgroup[paramname]
-        assert False, f"Parameter {paramname} not found ANYWHERE!!!"
+        raise Exception(f"Parameter {paramname} not found ANYWHERE!!!")
+
+    def get_input_file_param(self, paramname: str):
+        """
+        Gets a parameter which is passed to input file and is constant
+        """
+        assert paramname not in [e.param_key for e in self.ensemble_params]
+        if paramname in self.const_params:
+            return self.const_params[paramname]
+        for paramgroup in self.default_param_set["input"].values():
+            if paramname in paramgroup:
+                return paramgroup[paramname]
+        raise Exception(f"Parameter {paramname} not found!")
 
     def get_sim_particle_count(self, sim: PatchySimulation,
                                particle_idx: int) -> int:
@@ -1119,11 +1134,11 @@ class PatchySimulationEnsemble:
             new_steps = AnalysisPipeline(args[0], *args[1:])
         if new_steps not in self.analysis_pipeline:
             self.get_logger().info(f"Adding {len(new_steps)} steps "
-                                   f"and {len(new_steps.pipeline_graph.edges)} to the analpipe pipeline")
+                                   f"and {len(new_steps.pipeline_graph.edges)} to the analysis pipeline")
             self.analysis_pipeline = self.analysis_pipeline + new_steps
             self.dump_metadata()
         else:
-            self.get_logger().info("The analpipe pipeline you passed is already present")
+            self.get_logger().info("The analysis pipeline you passed is already present")
 
     def has_data_file(self, step: PipelineStepDescriptor, sim: PatchySimDescriptor) -> bool:
         return self.get_cache_file(step, sim).exists()
@@ -1151,7 +1166,7 @@ class PatchySimulationEnsemble:
     def get_data(self,
                  step: PipelineStepDescriptor,
                  sim: PatchySimDescriptor,
-                 time_steps: range = None) -> PipelineData:
+                 time_steps: range = None) -> Union[PipelineData, list[PipelineData]]:
         """
         Returns data for a step, doing any/all required calculations
         Parameters:
@@ -1184,13 +1199,19 @@ class PatchySimulationEnsemble:
             # if the simulation selector provided doesn't line up with the aggregation params
             # (or the step isn't an aggregation step), this method will return a grouping of results. somehow.
             simulations_list: list[PatchySimulation] = self.get_simulation(*sim)
-            data: list = self.get_data(step, simulations_list, time_steps)
+            # get data for each simulation
+            data: list[PipelineData] = self.get_data(step, simulations_list, time_steps)
             # ugh wish python had switch/case
             if step.get_output_data_type() == PipelineDataType.PIPELINE_DATATYPE_DATAFRAME:
+                self.get_logger().info(f"Merging data from simulations: {sim}")
+                timerange = np.array(list(set.intersection(*[set(s.trange()) for s in data])))
+                # iter simulation data
                 for s, sim_data in zip(simulations_list, data):  # I'm GREAT at naming variables!
                     for p in s.param_vals:
-                        sim_data[p.param_name] = p.value_name
-                return pd.concat(data, axis=0)
+                        sim_data.get()[p.param_name] = p.value_name
+                df = pd.concat([d.get() for d in data], axis=0)
+                df = df.loc[np.isin(df[TIMEPOINT_KEY], timerange)]
+                return PDPipelineData(df, timerange)
             elif step.get_output_data_type() == PipelineDataType.PIPELINE_DATATYPE_GRAPH:
                 raise Exception("I haven't bothered trying to join graph data yet")
             else:
@@ -1227,7 +1248,7 @@ class PatchySimulationEnsemble:
             cache_file_path = self.get_cache_file(step, sim)
             cached_data = step.load_cached_files(cache_file_path)
             # if we already have the data needed for the required time range
-            if step.data_matches_trange(cached_data, time_steps):
+            if cached_data.matches_trange(time_steps):
                 # that was easy!
                 self.get_logger().info(f"All data in file! That was easy!")
                 return cached_data
@@ -1238,7 +1259,7 @@ class PatchySimulationEnsemble:
             lock.acquire()
         try:
             # compute data for previous steps
-            self.get_logger().info(f"Computing data for previous step {step.name} for simulation {str(sim)}...")
+            self.get_logger().info(f"Computing data for step {step.name} for simulation {str(sim)}...")
             data_in = self.get_step_input_data(step, sim, time_steps)
         finally:
             if self.is_do_analysis_parallel():
@@ -1246,7 +1267,7 @@ class PatchySimulationEnsemble:
         # TODO: make sure this can handle the amount of args we're feeding in here
         # execute the step!
         # TODO: handle existing data that's incomplete over the required time interval
-        data = step.exec(*data_in)
+        data: PipelineData = step.exec(*data_in)
         if self.is_do_analysis_parallel():
             lock.acquire()
         try:
@@ -1262,7 +1283,7 @@ class PatchySimulationEnsemble:
     def get_step_input_data(self,
                             step: PipelineStepDescriptor,
                             sim: PatchySimDescriptor,
-                            time_steps: range) -> list[PipelineData]:
+                            time_steps: range) -> Union[list[PipelineData], list[Path]]:
         step = self.get_pipeline_step(step)
         # if this step is an aggregate, things get... complecated
         if isinstance(step, AggregateAnalysisPipelineStep):
@@ -1274,8 +1295,19 @@ class PatchySimulationEnsemble:
                               time_steps)
                 for prev_step in self.analysis_pipeline.steps_before(step)
             ]
+        # if this is a head node, it will take ensemble info, sim info, and
+        # file paths instead of previous step data
         elif isinstance(step, AnalysisPipelineHead):
-            return [self.folder_path(sim) / file_name for file_name in step.get_data_in_filenames()]
+            assert isinstance(sim, PatchySimulation), "Analysis pipeline head nodes should only take single simulations"
+            files = [self, sim]
+            for file_name in step.get_data_in_filenames():
+                if isinstance(file_name, str):
+                    files.append(self.folder_path(sim) / file_name)
+                elif isinstance(file_name, re.Pattern):
+                    files.extend(
+                        [f for f in self.folder_path(sim).iterdir() if file_name.match(f.name)]
+                    )
+            return files
         else:  # honestly this is still complecated but not as bad
             return [
                 self.get_data(prev_step,
@@ -1288,8 +1320,9 @@ class PatchySimulationEnsemble:
                        step: PipelineStepDescriptor,
                        sim: Union[tuple[ParameterValue, ...], PatchySimulation]) -> Path:
         """
-        Retrieves a path to a file of analpipe cache data for the given analpipe step and
+        Retrieves a path to a file of analysis cache data for the given analysis step and
         simulation descriptor
+
         Parameters:
              step : an AnalysisPipelineStep object or an int indxer for such an object
              sim : either a PatchySimulation object or a tuple of ParameterValue objects specifying
@@ -1300,10 +1333,10 @@ class PatchySimulationEnsemble:
         step = self.get_pipeline_step(step)
         # if single simulation
         if isinstance(sim, PatchySimulation):
-            # cache analpipe data in the simulation data folder
+            # cache analysis data in the simulation data folder
             return self.folder_path(sim) / step.get_cache_file_name()
         else:
-            # cache analpipe data in a folder in the top level directory
+            # cache analysis data in a folder in the top level directory
             return self.tld() / describe_param_vals(*sim) / step.get_cache_file_name()
 
     def step_targets(self, step: PipelineStepDescriptor):

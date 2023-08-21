@@ -2,7 +2,7 @@ from typing import Union
 
 import pandas as pd
 
-from ..analpipe.analysis_pipeline_step import TIMEPOINT_KEY
+from ..analpipe.analysis_data import TIMEPOINT_KEY
 from .ensemble_parameter import EnsembleParameter, ParameterValue
 from .simulation_ensemble import PatchySimulationEnsemble, PipelineStepDescriptor, describe_param_vals
 
@@ -21,6 +21,7 @@ def plot_analysis_data(e: PatchySimulationEnsemble,
                        plot_grid_rows: Union[None, str, EnsembleParameter] = None,
                        plot_line_color: Union[None, str, EnsembleParameter] = None,
                        plot_line_stroke: Union[None, str, EnsembleParameter] = None,
+                       norm: Union[None, str] = None
                        ) -> sb.FacetGrid:
     """
     Uses matplotlib to construct a plot of data provided with the output values on the y axis
@@ -47,20 +48,28 @@ def plot_analysis_data(e: PatchySimulationEnsemble,
         "errorbar": "sd"
     }
     if isinstance(plot_grid_cols, str):
-        plt_args["col"] = plot_grid_cols# e.get_ensemble_parameter(plot_grid_h_axis)
+        plt_args["col"] = plot_grid_cols  # e.get_ensemble_parameter(plot_grid_h_axis)
     if isinstance(plot_grid_rows, str):
-        plt_args["row"] = plot_grid_rows #e.get_ensemble_parameter(plot_grid_v_axis)
+        plt_args["row"] = plot_grid_rows  #e.get_ensemble_parameter(plot_grid_v_axis)
     if isinstance(plot_line_color, str):
-        plt_args["hue"] = plot_line_color #e.get_ensemble_parameter(plot_line_color)
+        plt_args["hue"] = plot_line_color  #e.get_ensemble_parameter(plot_line_color)
     if isinstance(plot_line_stroke, str):
-        plt_args["style"] = plot_line_stroke#e.get_ensemble_parameter(plot_line_stroke)
+        plt_args["style"] = plot_line_stroke #e.get_ensemble_parameter(plot_line_stroke)
 
-    data = e.get_data(analysis_data_source, tuple(other_spec))
+    data_source = e.get_data(analysis_data_source, tuple(other_spec))
+    data = data_source.get().copy()
+    if norm:
+        for row in data.index:
+            sim = data_source.get().iloc[row].drop([TIMEPOINT_KEY, data_source_key]).to_dict()
+            sim = e.get_simulation(**sim)
+            data.loc[row, data_source_key] /= e.sim_get_param(sim, norm)
+    data.rename(mapper={TIMEPOINT_KEY: "steps"}, axis="columns", inplace=True)
 
     fig = sb.relplot(data,
-                     x=TIMEPOINT_KEY,
+                     x="steps",
                      y=data_source_key,
                      **plt_args)
+    fig.set(title=f"{e.export_name} - {analysis_data_source}")
     return fig
 
     # nx = len(plot_grid_h_axis) if plot_grid_h_axis is not None else 1
