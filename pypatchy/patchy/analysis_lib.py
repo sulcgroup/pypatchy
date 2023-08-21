@@ -1,4 +1,5 @@
 import re
+from abc import ABC
 from pathlib import Path
 from typing import Union
 import pickle
@@ -6,19 +7,104 @@ import pickle
 import networkx as nx
 import numpy as np
 import pandas as pd
+from pypatchy.patchy.simulation_specification import PatchySimulation
 
 from .ensemble_parameter import EnsembleParameter
+from .simulation_ensemble import PatchySimulationEnsemble
 from ..analpipe.analysis_pipeline_step import AnalysisPipelineStep, AggregateAnalysisPipelineStep, AnalysisPipelineHead, \
     PipelineDataType, PipelineData
 from .patchy_sim_observable import PatchySimObservable
 from .yield_analysis_target import ClusterCategory
 
 from .yield_analysis_target import YieldAnalysisTarget
-from ..analpipe.analysis_pipeline_step import TIMEPOINT_KEY
+
+from ..analpipe.analysis_data import PDPipelineData, GraphPipelineData, TIMEPOINT_KEY, load_cached_pd_data, \
+    load_cached_graph_data
 
 
 # this file contains classes that are useful in analpipe, but aren't required by other PyPatchy modules
 # all classes in this document should extend AnalysisPipelineStep
+
+# class LoadSimulationInfo(AnalysisPipelineHead, ABC):
+#     """
+#     This is a "helper" analysis pipeline step abstract base class for loading
+#     simulation parameters
+#     """
+#     pass
+
+class LoadParticlesTraj(AnalysisPipelineHead):
+    """
+    Loads a trajectory
+    """
+
+    def get_output_data_type(self):
+        return PipelineDataType.PIPELINE_DATATYPE_DATAFRAME
+
+    trajfile: re.Pattern
+
+    # pandas array keys
+    PARTICLE_IDX_KEY = "pidx"
+    P_POS_KEY = "r"
+    P_A1_KEY = "a1"
+    P_A3_KEY = "a3"
+    P_V_KEY = "v"
+    P_ANGV_KEY = "angv"
+    P_TYPE_ID_KEY = "typeid"
+
+    def __init__(self,
+                 name,
+                 input_tstep: Union[int, None],  # ensemble.
+                 traj_file_regex=r"trajectory_\d+\.dat"):
+        """
+        Constructor for traj read step
+        I strongly advise initializing with input_tstep = ensemble.get_input_file_param("print_conf_interval")
+        """
+        super().__init__(name, input_tstep)
+        self.trajfile = re.Pattern(traj_file_regex)
+
+    def get_data_in_filenames(self) -> list[re.Pattern]:
+        return [self.trajfile]
+
+    load_cached_files = load_cached_pd_data
+
+    def exec(self,
+             ensemble: PatchySimulationEnsemble,
+             sim: PatchySimulation,
+             *args: Path) -> PipelineData:
+        top_file = ensemble.folder_path(sim) / ensemble.sim_get_param(sim, "topology")
+        with open(top_file) as f:
+            f.readline()  # skip line
+            particle_type_ids = f.readline().split()
+        time_data = []
+        t = 0
+        timepoints = []
+        particle_idx = 0
+        for file_path in args:
+            with open(file_path, 'r') as f:
+                for line in f:
+                    if line.startswith("t"):
+                        t = int(line.split("=")[1].strip())
+                        timepoints.append(t)
+                        particle_idx = 0
+                    # skip bound box size and whatever "E" is
+                    elif not line.startswith("b") and not line.startswith("E"):
+                        line_data = np.array([int(x) for x in line.split()])
+
+                        # particle data
+                        time_data.append({
+                            TIMEPOINT_KEY: t,
+                            self.PARTICLE_IDX_KEY: particle_idx,
+                            self.P_POS_KEY: line_data[:3],
+                            self.P_A1_KEY: line_data[3:6],
+                            self.P_A3_KEY: line_data[6:9],
+                            self.P_V_KEY: line_data[9:12],
+                            self.P_ANGV_KEY: line_data[12:15],
+                            self.P_TYPE_ID_KEY: particle_type_ids[particle_idx]
+                        })
+                        particle_idx += 1
+        data = pd.DataFrame.from_records(time_data)
+        return PDPipelineData(data, tr=np.array(timepoints))
+
 
 class GraphsFromClusterTxt(AnalysisPipelineHead):
     """
@@ -26,9 +112,6 @@ class GraphsFromClusterTxt(AnalysisPipelineHead):
     PLPatchyTopology and outputs a dict where they keys are timepoints and the
     values are the list of cluster graphs at each of those timepoints
     """
-
-    def can_parallelize(self):
-        return True
 
     source_observable: PatchySimObservable
 
@@ -39,22 +122,16 @@ class GraphsFromClusterTxt(AnalysisPipelineHead):
         super().__init__(name, int(source.print_every), output_tstep)
         self.source_observable = source
 
-    def load_cached_files(self, p: Path) -> nx.Graph:
-        assert p.exists()
-        with open(p, "rb") as f:
-            return pickle.load(f)
+    load_cached_files = load_cached_graph_data
 
-    def data_matches_trange(self, data: dict[int: list[nx.Graph]], trange: range) -> bool:
-        return all(t in data for t in trange)
-
-    def exec(self, din: Path) -> dict[int: list[nx.Graph]]:
+    def exec(self, _, __, din: Path) -> GraphPipelineData:
         graphs = {}
         stepcounter = 0
         with open(din, "r") as f:
             # iterate lines in the graph file
             for line in f:
                 # skip timepoints that aren't multiples of the specified timestep
-                if stepcounter % self.input_tstep == 0:
+                if stepcounter % self.output_tstep == 0:
 
                     clusterGraphs = []
                     # regex for a single cluster
@@ -79,25 +156,16 @@ class GraphsFromClusterTxt(AnalysisPipelineHead):
                         clusterGraphs.append(G)
                     graphs[stepcounter] = clusterGraphs
                 stepcounter += self.source_observable.print_every
-        return graphs
-
-    def get_input_data_type(self) -> PipelineDataType:
-        return PipelineDataType.PIPELINE_DATATYPE_OBSERVABLE
+        return GraphPipelineData(graphs)
 
     def get_data_in_filenames(self):
         return [self.source_observable.name]
 
-    def get_output_data_type(self) -> PipelineDataType:
+    def get_output_data_type(self):
         return PipelineDataType.PIPELINE_DATATYPE_GRAPH
 
-    def get_py_steps_slurm(self,
-                           data_sources: tuple[Path],
-                           cache_file: Path):
-        return "from pypatchy.patchy.analysis_lib import GraphsFromClusterTxt\n" \
-               f"obs = PatchySimObservable(**{self.source_observable.to_dict()})\n" \
-               f"step = GraphsFromClusterTxt(0, {self.input_tstep}, {self.output_tstep}, obs)\n" \
-               f"data = step.exec(Path(\"{data_sources[0]}\")\n)" \
-               f"step.cache_data(data, {str(cache_file)})\n"
+    def can_parallelize(self):
+        return True
 
 
 class ClassifyClusters(AnalysisPipelineStep):
@@ -112,11 +180,7 @@ class ClassifyClusters(AnalysisPipelineStep):
         category (see ClusterCategory enum at the top of this file)
     """
 
-    def can_parallelize(self):
-        return True
-
     target_name: YieldAnalysisTarget
-    force_recompute: bool
 
     def __init__(self,
                  name: str,
@@ -131,54 +195,85 @@ class ClassifyClusters(AnalysisPipelineStep):
     CLUSTER_CATEGORY_KEY = "clustercategory"
     SIZE_RATIO_KEY = "sizeratio"
 
-    def load_cached_files(self, p: Path) -> pd.DataFrame:
-        with open(p, "r") as f:
-            return pd.read_csv(f)
+    load_cached_files = load_cached_pd_data
 
-    def data_matches_trange(self, data: PipelineData, trange: range) -> bool:
-        """
-        override of data_matches_trange
-        the data type that this method takes isn't expected to produce an output at every timestep
-        so it's hard to tell the difference between "data missing" and "data equals zero"
-        I've added a flag that can be manually set to for
-        TODO: figure out a better approach for this
-        """
-
-        return not self.force_recompute
-
-
-    def exec(self, input_graphs: dict[int: list[nx.Graph]]) -> pd.DataFrame:
+    def exec(self, input_data: GraphPipelineData) -> PDPipelineData:
         cluster_cats_data = {
             TIMEPOINT_KEY: [],
             self.CLUSTER_CATEGORY_KEY: [],
             self.SIZE_RATIO_KEY: []
         }
         # loop timepoints in input graph data
-        for timepoint in input_graphs:
+        for timepoint in input_data.get():
+            # check output tstep
+            if timepoint % self.output_tstep == 0:
+                # loop cluster graphs at this timepoint
+                for g in input_data.get()[timepoint]:
+                    cat, sizeFrac = self.target.compare(g)
+
+                    # assign stuff
+                    cluster_cats_data[TIMEPOINT_KEY].append(timepoint)
+                    cluster_cats_data[self.CLUSTER_CATEGORY_KEY].append(cat)
+                    cluster_cats_data[self.SIZE_RATIO_KEY].append(sizeFrac)
+        return PDPipelineData(pd.DataFrame.from_dict(data=cluster_cats_data),
+                              input_data.trange()[input_data.trange() % self.output_tstep == 0])
+
+    def can_parallelize(self):
+        return True
+
+    def get_output_data_type(self):
+        return PipelineDataType.PIPELINE_DATATYPE_DATAFRAME
+
+
+class SmartClassifyClusters(ClassifyClusters):
+    """
+    I wrote like half of this and then gave up
+    """
+    def get_output_data_type(self):
+        return PipelineDataType.PIPELINE_DATATYPE_DATAFRAME
+
+    load_cached_files = load_cached_pd_data
+
+    def exec(self,
+             graph_data: GraphPipelineData,
+             traj_data: PDPipelineData) -> PDPipelineData:
+        traj = traj_data.get()
+
+        shared_timepoints = set(traj_data.trange()).intersection(graph_data.trange())
+
+        cluster_cats_data = {
+            TIMEPOINT_KEY: [],
+            self.CLUSTER_CATEGORY_KEY: [],
+            self.SIZE_RATIO_KEY: []
+        }
+
+        # loop timepoints in input graph data
+        for timepoint in shared_timepoints:
+            graphs = graph_data.get()[timepoint]
+
+            time_data = traj.loc[traj[TIMEPOINT_KEY] == timepoint]
+
             # loop cluster graphs at this timepoint
-            for g in input_graphs[timepoint]:
+            for g in graphs:
+
+                g_particle_types = {node:
+                    time_data.loc[time_data[LoadParticlesTraj.PARTICLE_IDX_KEY] == node][LoadParticlesTraj.P_TYPE_ID_KEY][0]
+                    for node in g
+                }
                 cat, sizeFrac = self.target.compare(g)
 
                 # assign stuff
                 cluster_cats_data[TIMEPOINT_KEY].append(timepoint)
                 cluster_cats_data[self.CLUSTER_CATEGORY_KEY].append(cat)
                 cluster_cats_data[self.SIZE_RATIO_KEY].append(sizeFrac)
-        return pd.DataFrame.from_dict(data=cluster_cats_data)
 
-    def get_input_data_type(self) -> PipelineDataType:
-        return PipelineDataType.PIPELINE_DATATYPE_GRAPH
-
-    def get_output_data_type(self) -> PipelineDataType:
-        return PipelineDataType.PIPELINE_DATATYPE_DATAFRAME
+        return PDPipelineData(pd.DataFrame.from_dict(data=cluster_cats_data), graph_data.trange())
 
 
 YIELD_KEY = "yield"
 
 
 class ComputeClusterYield(AnalysisPipelineStep):
-    def can_parallelize(self):
-        return True
-
     cutoff: float
     overreach: bool
     target: YieldAnalysisTarget
@@ -193,10 +288,7 @@ class ComputeClusterYield(AnalysisPipelineStep):
         self.cutoff = cutoff
         self.overreach = overreach
 
-    def load_cached_files(self, p: Path) -> pd.DataFrame:
-        assert p.exists()
-        with open(p, "r") as f:
-            return pd.read_csv(f)  # TODO: more params probably
+    load_cached_files = load_cached_pd_data
 
     def data_matches_trange(self, data: pd.DataFrame, trange: range) -> bool:
         tdata = data[TIMEPOINT_KEY].unique()
@@ -206,16 +298,14 @@ class ComputeClusterYield(AnalysisPipelineStep):
         else:
             return all([t in tdata for t in trange])
 
-    def exec(self, cluster_categories: pd.DataFrame) -> pd.DataFrame:
+    def exec(self, cluster_categories: PDPipelineData) -> PDPipelineData:
         """
         returns a pandas DataFrame where each row corresponds to a timepoint
         the resulting dataframe will be indexed by timepoint
         """
-        # create a 'default' version of the yield dataframe to serve for timepoints with no clusters
-
         # filter off-target graphs
-        data: pd.DataFrame = cluster_categories[
-            cluster_categories[ClassifyClusters.CLUSTER_CATEGORY_KEY] != ClusterCategory.SMALLER_NOT_SUB]
+        data: pd.DataFrame = cluster_categories.get()[
+            cluster_categories.get()[ClassifyClusters.CLUSTER_CATEGORY_KEY] != ClusterCategory.SMALLER_NOT_SUB]
         # filter too-small graphs
         data = data[data[ClassifyClusters.SIZE_RATIO_KEY] >= self.cutoff]
         if not self.overreach:
@@ -232,13 +322,19 @@ class ComputeClusterYield(AnalysisPipelineStep):
         data = data.rename(mapper={ClassifyClusters.SIZE_RATIO_KEY: YIELD_KEY}, axis="columns")
         # data = data.set_index([TIMEPOINT_KEY])
         data = data.loc[data[TIMEPOINT_KEY] % self.output_tstep == 0]
-        return data
+        missing_timepoints = cluster_categories.missing_timepoints(data[TIMEPOINT_KEY].unique().data)
+        data = data.append(pd.DataFrame.from_dict({
+            TIMEPOINT_KEY: missing_timepoints,
+            YIELD_KEY: 0
+        }), ignore_index=True)
+        return PDPipelineData(data,
+                              cluster_categories.trange()[cluster_categories.trange() % self.output_tstep == 0])
 
-    def get_input_data_type(self) -> PipelineDataType:
+    def get_output_data_type(self):
         return PipelineDataType.PIPELINE_DATATYPE_DATAFRAME
 
-    def get_output_data_type(self) -> PipelineDataType:
-        return PipelineDataType.PIPELINE_DATATYPE_DATAFRAME
+    def can_parallelize(self):
+        return True
 
 
 class ComputeClusterSizeData(AnalysisPipelineStep):
@@ -261,15 +357,12 @@ class ComputeClusterSizeData(AnalysisPipelineStep):
         super().__init__(name, input_tstep, output_tstep)
         self.minsize = minsize
 
-    def load_cached_files(self, p: Path) -> pd.DataFrame:
-        assert p.exists()
-        with open(p, "r") as f:
-            return pd.read_csv(f)
+    load_cached_files = load_cached_pd_data
 
     def data_matches_trange(self, data: pd.DataFrame, trange: range) -> bool:
         return (data[TIMEPOINT_KEY] == np.array(trange)).all()
 
-    def exec(self, input_graphs: dict[int: list[nx.Graph]]) -> pd.DataFrame:
+    def exec(self, input_graphs: GraphPipelineData) -> PDPipelineData:
 
         cluster_size_data = {
             TIMEPOINT_KEY: [],
@@ -280,7 +373,7 @@ class ComputeClusterSizeData(AnalysisPipelineStep):
             self.STDEV_KEY: []
         }
         # loop timepoints in input graph data
-        for timepoint in input_graphs:
+        for timepoint in input_graphs.get():
             if timepoint % self.output_tstep == 0:
                 graph_sizes = [len(g) for g in input_graphs[timepoint] if len(g) >= self.minsize]
                 cluster_size_data[TIMEPOINT_KEY] = timepoint
@@ -289,16 +382,13 @@ class ComputeClusterSizeData(AnalysisPipelineStep):
                 cluster_size_data[self.MEDIAN_KEY].append(np.median(np.array(graph_sizes)))
                 cluster_size_data[self.MEDIAN_KEY].append(sum(graph_sizes) / len(graph_sizes))
                 cluster_size_data[self.STDEV_KEY].append(np.std(np.array(graph_sizes)))
-        return pd.DataFrame.from_dict(data=cluster_size_data)
-
-    def get_input_data_type(self) -> PipelineDataType:
-        return PipelineDataType.PIPELINE_DATATYPE_DATAFRAME
+        return PDPipelineData(pd.DataFrame.from_dict(data=cluster_size_data), input_graphs.trange())
 
     def get_output_data_type(self) -> PipelineDataType:
         return PipelineDataType.PIPELINE_DATATYPE_DATAFRAME
 
     def can_parallelize(self):
-        return False
+        return True
 
 
 class ComputeSpecGroupClusterYield(AggregateAnalysisPipelineStep):
@@ -323,14 +413,9 @@ class ComputeSpecGroupClusterYield(AggregateAnalysisPipelineStep):
     AVG_KEY = "yield_avg"
     STD_KEY = "yield_std"
 
-    def load_cached_files(self, p: Path) -> pd.DataFrame:
-        with open(p, "r") as f:
-            return pd.read_csv(f)
+    load_cached_files = load_cached_pd_data
 
-    def data_matches_trange(self, data: pd.DataFrame, trange: range) -> bool:
-        return (data[TIMEPOINT_KEY] == np.array(trange)).all()
-
-    def exec(self, yield_data: pd.DataFrame) -> pd.DataFrame:
+    def exec(self, yield_data: PDPipelineData) -> PDPipelineData:
         """
         yield_data should be a pd.DataFrame with columns name YIELD_KEY and TIMEPOINT_KEY
         returns a pd.DataFrame where each row is a timepoint, with columns for min, max,
@@ -338,7 +423,7 @@ class ComputeSpecGroupClusterYield(AggregateAnalysisPipelineStep):
         the resulting dataframe will be indexed by timepoint
         """
 
-        gb = yield_data.groupby(TIMEPOINT_KEY)
+        gb = yield_data.get().groupby(TIMEPOINT_KEY)
         data = pd.DataFrame(
             index=pd.RangeIndex(
                 start=yield_data[TIMEPOINT_KEY].min(),
@@ -350,23 +435,10 @@ class ComputeSpecGroupClusterYield(AggregateAnalysisPipelineStep):
         data.update(gb.mean().rename({YIELD_KEY: self.AVG_KEY}))
         data.update(gb.std().rename({YIELD_KEY: self.STD_KEY}))
 
-        return data
-
-    def get_input_data_type(self) -> PipelineDataType:
-        return PipelineDataType.PIPELINE_DATATYPE_DATAFRAME
-
-    def get_output_data_type(self) -> PipelineDataType:
-        return PipelineDataType.PIPELINE_DATATYPE_DATAFRAME
-
-    def get_py_steps_slurm(self,
-                           data_sources: tuple[Path],
-                           cache_file: Path):
-        return "from pypatchy.patchy.analysis_lib import ComputeSpecGroupClusterYield\n" \
-               f"step = ComputeSpecGroupClusterYield(0, {self.input_tstep}, {self.output_tstep},(),{self.cutoff},{self.overreach},{self.target_name})\n" \
-               f"in_data = [pd.read_csv(fpath) for fpath in {data_sources}]\n" \
-               "in_data = pd.concat(in_data, ignore_index=True)\n" \
-               "data = step.exec(in_data)\n)" \
-               f"step.cache_data(data, {str(cache_file)})\n"
+        return PDPipelineData(data, yield_data.trange())
 
     def can_parallelize(self):
         return True
+
+    def get_output_data_type(self):
+        return PipelineDataType.PIPELINE_DATATYPE_DATAFRAME

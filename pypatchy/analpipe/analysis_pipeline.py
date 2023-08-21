@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import copy
-from typing import Union, Generator, Callable
+from typing import Union, Generator
 
 import networkx as nx
 
@@ -24,6 +24,7 @@ class AnalysisPipeline:
         # construct dict mapping names of nodes to steps in the pipeline
         self.name_map: dict[str: AnalysisPipelineStep] = dict()
 
+        # constructor takes edge and node info together, must seperate!
         # sort steps in pipeline so head nodes will be in front
         steps = sorted([s for s in args if isinstance(s, AnalysisPipelineStep)],
                        key=lambda s: isinstance(s, AnalysisPipelineHead), reverse=True)

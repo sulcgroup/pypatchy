@@ -1,0 +1,16 @@
+name: polycubes
+channels:
+  - defaults
+dependencies:
+  - h5py
+  - altair
+  - jupyter
+  - nb_conda_kernels
+  - networkx
+  - matplotlib
+  - biopython
+  - sympy
+  - seaborn
+  - pytables
+  - python-igraph
+prefix: /home/josh/anaconda3/envs/polycubes

@@ -3,6 +3,7 @@ from enum import Enum
 from typing import Union
 
 import networkx as nx
+import igraph as ig
 from networkx.algorithms import isomorphism
 
 from pypatchy.util import get_input_dir
@@ -33,9 +34,10 @@ class YieldAnalysisTarget:
         # compute size fraction
         sizeFrac = len(g) / len(self)
         # check if g is a subgraph of the target graph
-        if isomorphism.GraphMatcher(nx.line_graph(self.graph),
-                                    nx.line_graph(g)
-                                    ).subgraph_is_isomorphic():
+        if len(ig.Graph.from_networkx(self.graph).get_subisomorphisms_vf2(ig.Graph.from_networkx(g))) > 0:
+        # if isomorphism.GraphMatcher(nx.line_graph(self.graph),
+        #                             nx.line_graph(g)
+        #                             ).subgraph_is_isomorphic():
             if sizeFrac == 1:
                 cat = ClusterCategory.MATCH
             else:

@@ -2,26 +2,14 @@ from __future__ import annotations
 
 import pickle
 from abc import ABC, abstractmethod
-from enum import Enum
 from pathlib import Path
-from typing import Union, Any
+from typing import Union
+
+import pandas as pd
 
 from pypatchy.patchy.simulation_specification import PatchySimulation
 from pypatchy.patchy.ensemble_parameter import EnsembleParameter, ParameterValue
-
-
-class PipelineDataType(Enum):
-    # raw data from trajectory.dat - currently not used
-    PIPELINE_DATATYPE_RAWDATA = 0
-    # data from an observable
-    PIPELINE_DATATYPE_OBSERVABLE = 1
-    # data from a pandas dataframe
-    PIPELINE_DATATYPE_DATAFRAME = 2
-    # list of graphs
-    PIPELINE_DATATYPE_GRAPH = 3
-
-
-PipelineData = Any  # todo: detail!
+from .analysis_data import PipelineData, PipelineDataType
 
 
 class AnalysisPipelineStep(ABC):
@@ -116,16 +104,6 @@ class AnalysisPipelineStep(ABC):
     #     pass
 
     @abstractmethod
-    def data_matches_trange(self, data: PipelineData, trange: range) -> bool:
-        """
-        Check if all data points in the provided data object (assumed pd.DataFrame) match the provided
-        range object
-        it's assumed that the pipeline data are for a single simulation, nethod may have... unexpected results
-        if called on concatengated data from multiple simulations
-        """
-        pass
-
-    @abstractmethod
     def exec(self, *args: Union[PipelineData, AnalysisPipelineStep]) -> PipelineData:
         pass
 
@@ -133,24 +111,18 @@ class AnalysisPipelineStep(ABC):
         if self.get_output_data_type() == PipelineDataType.PIPELINE_DATATYPE_GRAPH:
             return f"{self.name}.pickle"
         else:
-            return f"{self.name}.csv"
+            return f"{self.name}.h5"
 
     def cache_data(self, data: PipelineData, file_path: Path):
         if self.get_output_data_type() == PipelineDataType.PIPELINE_DATATYPE_DATAFRAME:
-            data.to_csv(file_path)
+            with pd.HDFStore(str(file_path)) as f:
+                f["data"] = data.get()
+                f["trange"] = pd.Series(data.trange())
         elif self.get_output_data_type() == PipelineDataType.PIPELINE_DATATYPE_GRAPH:
             with open(file_path, "wb") as f:
-                pickle.dump(data, f)
+                pickle.dump(data.get(), f)
         else:
-            assert False
-
-    @abstractmethod
-    def get_input_data_type(self) -> PipelineDataType:
-        pass
-
-    @abstractmethod
-    def get_output_data_type(self) -> PipelineDataType:
-        pass
+            raise Exception("Invalid data type!!!!")
 
     def config_io(self, input_tstep=None, output_tstep=None):
         """
@@ -172,12 +144,18 @@ class AnalysisPipelineStep(ABC):
                 self.output_tstep *= self.input_tstep
             assert self.output_tstep % self.input_tstep == 0
 
+    @abstractmethod
+    def get_output_data_type(self):
+        pass
+
 
 class AnalysisPipelineHead(AnalysisPipelineStep, ABC):
     """
     Class for any "head" node of the analpipe pipeline.
     Note that there's nothing stopping even a connected graph
     of the pipeline from having multiple "heads"
+    Note that while I haven't explicitly stated it here, AnalysisPipelineHead.exec
+    the first two positional arguements to be a PatchySimulationEnsemble and a PatchySimulation
     """
     def __init__(self,
                  step_name: str,
@@ -205,7 +183,7 @@ class AggregateAnalysisPipelineStep(AnalysisPipelineStep, ABC):
         super().__init__(step_name, input_tstep, output_tstep)
         self.params_aggregate_over = aggregate_over
 
-    def get_input_data_params(self, sim) -> tuple[EnsembleParameter, ...]:
+    def get_input_data_params(self, sim) -> tuple[ParameterValue, ...]:
         if isinstance(sim, PatchySimulation):
             this_step_param_specs: tuple[ParameterValue] = tuple(sim.param_vals)
         else:
@@ -214,4 +192,3 @@ class AggregateAnalysisPipelineStep(AnalysisPipelineStep, ABC):
 
 
 PipelineStepDescriptor = Union[AnalysisPipelineStep, int, str]
-TIMEPOINT_KEY = "timepoint"
