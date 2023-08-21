@@ -395,7 +395,7 @@ class PatchySimulationEnsemble:
         """
         sims_that_need_attn = []
         for sim in self.ensemble():
-            entries = self.slurm_log.by_simulation(sim)
+            entries = self.slurm_log.by_entry_subject(sim)
             if len(entries) == 0:
                 continue
             desired_sim_length = self.sim_get_param(sim, "steps")
@@ -529,7 +529,7 @@ class PatchySimulationEnsemble:
             if len(self.slurm_log.by_type("oxdna")) > 0:
                 # get the last continue log step before this
                 counter = self.get_last_continue_step(sim)
-                previous_step_records = self.slurm_log.by_simulation(sim).by_type(["oxdna_continue", "oxdna"])
+                previous_step_records = self.slurm_log.by_entry_subject(sim).by_type(["oxdna_continue", "oxdna"])
                 if counter > 0:
                     last_step_end = previous_step_records.by_other("continue_count", counter)
                     assert len(last_step_end) == 1
@@ -959,7 +959,7 @@ class PatchySimulationEnsemble:
         Returns the number of times this simulation has been "continued" after the slurm
         controller timed it out
         """
-        entries = self.slurm_log.by_simulation(sim)
+        entries = self.slurm_log.by_entry_subject(sim)
         continue_entries = entries.by_type("oxdna_continue")
         if len(continue_entries) > 0:
             # return counter for most recent continue step
@@ -980,7 +980,7 @@ class PatchySimulationEnsemble:
                 self.write_continue_files(sim)
         else:
             counter = self.get_last_continue_step(sim)
-            previous_step_records = self.slurm_log.by_simulation(sim).by_type(["oxdna_continue", "oxdna"])
+            previous_step_records = self.slurm_log.by_entry_subject(sim).by_type(["oxdna_continue", "oxdna"])
             if counter > 0:
                 last_step_end = previous_step_records.by_other("continue_count", counter)
                 assert len(last_step_end) == 1
@@ -1044,7 +1044,7 @@ class PatchySimulationEnsemble:
         Saves metadata stored in `self.metadata` to a metadata file
         Also saves the analpipe pathway
         """
-        self.metadata["slurm_log"] = self.slurm_log.serialize()
+        self.metadata["slurm_log"] = self.slurm_log.to_list()
         # dump metadata dict to file
         with open(self.metadata_file, "w") as f:
             json.dump(self.metadata, fp=f, indent=4)

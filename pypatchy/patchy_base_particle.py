@@ -16,22 +16,49 @@ class PatchyBaseParticleType(ABC):
     _patches: list[BasePatchType]
 
     def __init__(self, uid: int, patches: list[BasePatchType]):
+        """
+        Constructs particle
+        """
         self._type_id = uid
         self._patches = patches
 
     def type_id(self) -> int:
+        """
+        Returns:
+            the particle's type id
+        """
         return self._type_id
 
     def set_id(self, new_id: int):
+        """
+        Sets particle id
+        """
         self._type_id = new_id
 
     def num_patches(self) -> int:
+        """
+        Returns:
+            number of patches on the particle
+        """
         return len(self._patches)
 
     def patches(self) -> list[Any]:
+        """
+        Returns:
+            list of particle patches
+        """
         return self._patches
 
     def patch(self, patch_idx: Union[int, np.ndarray]) -> Any:
+        """
+        Accessor for patch
+
+        Args:
+            patch_idx: int index of patch, or 3-length vector for patch position
+
+        Returns:
+            patch object specified by `patch_index`
+        """
         if isinstance(patch_idx, int):
             assert -1 < patch_idx < self.num_patches(), "Index out of bounds"
             return self._patches[patch_idx]

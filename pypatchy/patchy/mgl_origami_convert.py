@@ -68,6 +68,10 @@ def modify_strand3p(top, strand_id: int, seq: str):
 
 
 class DNAParticleType:
+    """
+    A DNA origami that will be used to make a particle in the output particle thing
+    i'm very tired rn
+    """
     topology: Any
     conf: Any
     base2strand: dict

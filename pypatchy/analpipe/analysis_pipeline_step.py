@@ -13,6 +13,9 @@ from .analysis_data import PipelineData, PipelineDataType
 
 
 class AnalysisPipelineStep(ABC):
+    """
+    Base class for a step in a Patchy Particle Data analysis pipeline
+    """
     # the name of this step on the analpipe pipeline
     name: str
 
@@ -54,60 +57,21 @@ class AnalysisPipelineStep(ABC):
         """
         pass
 
-    # def exec_step_slurm(self,
-    #                     script_dir_path: Path,
-    #                     slurm_bash_flags: dict[str: str],
-    #                     slurm_includes: list[str],
-    #                     data_sources: Union[tuple[Path], list[Path]],
-    #                     cache_file: Path) -> int:
-    #     """
-    #     executes this step in the analpipe pipeline,
-    #     using slurm
-    #     Parameters:
-    #         :param script_dir_path a directory to put a temporary bash script (
-    #         :param slurm_bash_flags
-    #         :param slurm_includes
-    #         :param data_sources
-    #         :param cache_file
-    #     """
-    #     assert script_dir_path.exists()
-    #     script_path = script_dir_path / f"{self.name}.sh"
-    #     with open(script_path, "w") as f:
-    #         f.write("!/bin/bash\n")
-    #         # write slurm flags (server-specific)
-    #         for flag_key in slurm_bash_flags:
-    #             if len(flag_key) > 1:
-    #                 f.write(f"#SBATCH --{flag_key}=\"{slurm_bash_flags[flag_key]}\"\n")
-    #             else:
-    #                 f.write(f"#SBATCH -{flag_key} {slurm_bash_flags[flag_key]}\n")
-    #         for incl in slurm_includes:
-    #             f.write(f"{incl}\n")
-    #         f.write("source activate polycubes\n")
-    #         f.write("python <<EOF\n")
-    #         self.write_steps_slurm(f, data_sources, cache_file)
-    #         f.write("EOF\n")
-    #
-    #     # submit slurm job
-    #     result = subprocess.run(['sbatch', script_path], stdout=subprocess.PIPE)
-    #     # get job id
-    #     job_id = int(result.stdout.decode().split(' ')[-1].strip())  # extract the job id from output
-    #     return job_id
-
-    # def write_steps_slurm(self,
-    #                       f: IO,
-    #                       data_sources: tuple[Path],
-    #                       cache_file: Path):
-    #     f.write(self.get_py_steps_slurm(data_sources, cache_file))
-
-    # @abstractmethod
-    # def get_py_steps_slurm(self, data_sources: tuple[Path], cache_file: Path):
-    #     pass
-
     @abstractmethod
     def exec(self, *args: Union[PipelineData, AnalysisPipelineStep]) -> PipelineData:
+        """
+        Executes this analysis step
+
+        Returns:
+            data! (in a PipelineData wrapper object)
+        """
         pass
 
     def get_cache_file_name(self) -> str:
+        """
+        Returns:
+            the filename for where this step will cache data
+        """
         if self.get_output_data_type() == PipelineDataType.PIPELINE_DATATYPE_GRAPH:
             return f"{self.name}.pickle"
         else:
@@ -145,7 +109,14 @@ class AnalysisPipelineStep(ABC):
             assert self.output_tstep % self.input_tstep == 0
 
     @abstractmethod
-    def get_output_data_type(self):
+    def get_output_data_type(self) -> PipelineDataType:
+        """
+        Override this method to tell stuff what kind of data this step will spit out
+        It's assumed that whatever it does will be constant
+
+        Returns:
+            the data type produced by this pipeline, represented by an enum
+        """
         pass
 
 
@@ -167,6 +138,10 @@ class AnalysisPipelineHead(AnalysisPipelineStep, ABC):
 
     @abstractmethod
     def get_data_in_filenames(self) -> list[str]:
+        """
+        Returns:
+            a list of files containing the raw data that will be used by this step
+        """
         pass
 
 
@@ -184,6 +159,9 @@ class AggregateAnalysisPipelineStep(AnalysisPipelineStep, ABC):
         self.params_aggregate_over = aggregate_over
 
     def get_input_data_params(self, sim) -> tuple[ParameterValue, ...]:
+        """
+        .........
+        """
         if isinstance(sim, PatchySimulation):
             this_step_param_specs: tuple[ParameterValue] = tuple(sim.param_vals)
         else:

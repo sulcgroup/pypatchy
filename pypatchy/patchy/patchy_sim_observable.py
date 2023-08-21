@@ -8,6 +8,9 @@ from ..util import get_spec_json
 # TODO: integrate with oxpy.core.observables stuff
 
 class PatchySimObservable:
+    """
+    A class describing an oxDNA observable that can be added to a patchy particle interaction
+    """
     def __init__(self, **kwargs):
         # for all param meanings, see https://lorenzo-rovigatti.github.io/oxDNA/observables.html
         self.name: str = kwargs["name"]
@@ -30,6 +33,9 @@ class PatchySimObservable:
         self.cols = kwargs["cols"]  # abandon hope all ye who enter here
 
     def to_dict(self) -> dict:
+        """
+        Returns the observable as a python dict
+        """
         # TODO: if using more params, update this
         return {
             "name": self.name,
@@ -38,6 +44,15 @@ class PatchySimObservable:
         }
 
     def write_input(self, input_file: IO, i: int, analysis: bool = False):
+        """
+        Writes the observable to an oxDNA input file
+
+        Args:
+            input_file: an io object for file writing, directing to an oxdna input file
+            i: the index of this observable (important because of how oxdna reads the input file)
+            analysis: if true, this input file is being written for `DNAanalysis` and not `oxdna`
+
+        """
         if analysis:
             input_file.write(f"analysis_data_output_{i + 1} = " + "{\n")
         else:
@@ -62,4 +77,18 @@ class PatchySimObservable:
 
 
 def observable_from_file(obs_file_name: str) -> PatchySimObservable:
+    """
+    Constructs a new PatchySimObservable object from a json file, assumed to be located in
+    ~/.pypatchy/spec_files/observables
+
+    Args:
+        obs_file_name: a file name for the observable file
+
+    Returns:
+        a PatchySimObservable object made from the provided file
+
+    """
+    # standardize input
+    if obs_file_name.endswith(".json"):
+        obs_file_name = obs_file_name[:obs_file_name.rfind(".")]
     return PatchySimObservable(**get_spec_json(obs_file_name, "observables"))

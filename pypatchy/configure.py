@@ -12,6 +12,9 @@ import pkg_resources
 
 
 def create_default_config():
+    """
+    Creates a default config file. Please modify config file afterwards!
+    """
     config = configparser.ConfigParser()
 
     # Add some default values
