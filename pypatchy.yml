@@ -1,6 +1,7 @@
 name: polycubes
 channels:
   - defaults
+  - conda-forge
 dependencies:
   - h5py
   - altair

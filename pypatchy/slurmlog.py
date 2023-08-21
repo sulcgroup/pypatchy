@@ -142,9 +142,23 @@ class SlurmLog:
         return binary_search(0, len(self.log_list) - 1)
 
     def by_id(self, pid: int) -> SlurmLogEntry:
+        """
+        Finds the log entry with the provided id
+        Returns:
+            a slurm log entry
+        """
         return self.id_map[pid]
 
     def by_type(self, entry_type: Union[str, list[str]]) -> SlurmLog:
+        """
+        Filters the log by type, returning a log containing only the entries that match
+        the provided type.
+        Args:
+            entry_type: a string or list of strings that are entry type names, e.g. "oxdna".
+
+        Returns:
+            a slurm log containing all entries matching the specified entry type
+        """
         if isinstance(entry_type, str):
             return SlurmLog(*[x for x in self.log_list if x.job_type == entry_type])
         else:
