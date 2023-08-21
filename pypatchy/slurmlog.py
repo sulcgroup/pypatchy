@@ -8,8 +8,7 @@ from pypatchy.slurm_log_entry import SlurmLogEntry, LogEntryObject
 
 class SlurmLog:
     """
-    Wrapper class for a list of SlurmLogEntry objects,
-    which provides a lot of helpful accessor methods
+    Wrapper class for a list of SlurmLogEntry objects, which provides a lot of helpful accessor methods
     """
     # list of Slurm Log Entries, sorted by date
     log_list: list[SlurmLogEntry]
@@ -18,7 +17,7 @@ class SlurmLog:
     def __init__(self, *args: SlurmLogEntry):
         """
         Parameters:
-            kwargs (optional) list of log entry objects
+            args (optional) list of log entry objects
         """
 
         self.log_list = sorted(args, key=lambda x: x.job_submit_date)
@@ -27,6 +26,14 @@ class SlurmLog:
         }
 
     def __getitem__(self, key: Union[int, datetime.date, slice]) -> Union[list[SlurmLogEntry], SlurmLogEntry]:
+        """
+        Accessor function. Provided an int index, a date, or a slice (of ints or dates),
+        returns the log entry or entries specified
+
+        Returns:
+            a SlurmLogEntry or list of SlurmLogEntry objects
+
+        """
         if isinstance(key, int):
             assert -1 < key < len(self), f"Index {key} out of bounds for list length {len(self)}" 
             return self.log_list[key]
@@ -47,8 +54,16 @@ class SlurmLog:
                   begin: int = 0,
                   end: int = -1) -> Union[int, None]:
         """
-        Use a modified version of a binary search to find
-        the first entry for the provided date
+        Uses a modified version of a binary search to find the first entry for the provided date
+
+        Args:
+            key: the date to search for
+            begin: the index in the log to start searching
+            end: the index in the log to stop searching
+
+        Returns:
+            the index of the first position in the log where the date matches the provided date,
+            or None if the index provided was out of bounds
         """
         # if no end is provided, use last entry
         if end == -1:
@@ -77,8 +92,16 @@ class SlurmLog:
                 begin: int = 0,
                 end: int = -1) -> Union[int, None]:
         """
-        Use a modified version of a binary search to find
-        the last entry for the provided date
+        Uses a modified version of a binary search to find the last entry for the provided date
+
+        Args:
+            key: the date to search for
+            begin: the index in the log to start searching
+            end: the index in the log to stop searching
+
+        Returns:
+            the index of the last position in the log where the date matches the provided date,
+            or None if the index provided was out of bounds
         """
         # if no end is provided, use last entry
         if end == -1:
@@ -164,27 +187,58 @@ class SlurmLog:
         else:
             return SlurmLog(*[x for x in self.log_list if x.job_type in entry_type])
 
-    def by_simulation(self, simulation: LogEntryObject) -> SlurmLog:
-        return SlurmLog(*[x for x in self.log_list if x.simulation == simulation])
+    def by_entry_subject(self, subject: LogEntryObject) -> SlurmLog:
+        """
+        Filters the slurm log by simulation
+
+        Args:
+            subject: the subject to filter by
+
+        Return:
+            a SlurmLog object containing only the entries where the log entry subject matches the provided subject
+        """
+        return SlurmLog(*[x for x in self.log_list if x.simulation == subject])
 
     def by_other(self, key: str, value) -> SlurmLog:
+        """
+        Filters the slurm log by some other key, as included in SlurmLogEntry.additional_metadata
+
+        Args:
+            key: a string, the key to filter by
+            value: the value to filter with. can be any data type.
+
+        Returns:
+            a new SlurmLog object containing only the slurm log entries where entry.additonal_metadata[key] == value
+        """
         return SlurmLog(*[x for x in self.log_list
                           if key in x.additional_metadata and x.additional_metadata[key] == value])
 
-    def append(self, obj: SlurmLogEntry):
+    def append(self, e: SlurmLogEntry):
+        """
+        Appends a new entry to the slurm log
+
+        Args:
+            e: the new entry
+        """
         # if our log is empty or this new entry is after the last entry, this is easy
-        if len(self.log_list) == 0 or obj.job_submit_date > self.log_list[-1].job_submit_date:
-            self.log_list.append(obj)
+        if len(self.log_list) == 0 or e.job_submit_date > self.log_list[-1].job_submit_date:
+            self.log_list.append(e)
         else: # *sigh*
-            self.log_list.insert(self.find_idx(obj.job_submit_date)+1, obj)
+            self.log_list.insert(self.find_idx(e.job_submit_date) + 1, e)
 
         # if we assume linear tim
 
     def __len__(self):
+        """
+        Returns:
+            the number of entries in the slurm log
+        """
         return len(self.log_list)
 
-    def serialize(self):
+    def to_list(self):
         """
-        getter for inner list
+        Returns:
+            a list containing all log entries, where each log entry is converted to a dict
+
         """
         return [e.to_dict() for e in self.log_list]

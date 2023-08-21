@@ -40,6 +40,9 @@ class SlurmLogEntry:
                  notes: str = "",
                  additional_metadata: dict = {},
                  start_date: Union[str, datetime] = datetime.now()):
+        """
+        Constructor for SlurmLogEntry
+        """
         if isinstance(start_date, datetime):
             self.job_submit_date = start_date
         else:
@@ -59,6 +62,10 @@ class SlurmLogEntry:
         self.additional_metadata = additional_metadata
 
     def get_log_txt(self) -> str:
+        """
+        Returns:
+             the text of the log file created by the slurm job associated with this entry
+        """
         try:
             with self.log_path.open("r") as f:
                 return f.read()
@@ -66,6 +73,10 @@ class SlurmLogEntry:
             return f"No file {str(self.log_path)}"
 
     def to_dict(self):
+        """
+        Returns:
+            self, as a dict
+        """
         return {
             "job_type": self.job_type,
             "pid": self.job_id,
@@ -78,6 +89,10 @@ class SlurmLogEntry:
         }
 
     def __str__(self):
+        """
+        Returns:
+            a string representation of this log entry
+        """
         metadata_str = '\n'.join([f"\t\t{key}: {value}" for key, value in self.additional_metadata.items()])
         return "Slurm log entry:\n" \
                f"\tjob type: {self.job_type}\n" \

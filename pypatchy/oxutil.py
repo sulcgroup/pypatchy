@@ -23,13 +23,19 @@ def write_configuration_header(f: IO, conf):
     f.write(f"E = {' '.join(conf.energy.astype(str))}\n")
 
 
-def write_configuration(f, conf):
+def write_configuration(f: IO, conf):
+    """
+    Writes a conformation file I guess
+    """
     for p, a1, a3 in zip(conf.positions, conf.a1s, conf.a3s):
         f.write('{} {} {} 0.0 0.0 0.0 0.0 0.0 0.0\n'.format(' '.join(p.astype(str)), ' '.join(a1.astype(str)),
                                                             ' '.join(a3.astype(str))))
 
 
 def read_top(path: Union[str, Path]):
+    """
+    Reads an oxDNA topology file???
+    """
     base2strand = {}
     if isinstance(path, str):
         path = Path(path)  # i swear i'm a real scientist

@@ -17,27 +17,45 @@ class ClusterCategory(Enum):
 
 
 class YieldAnalysisTarget:
-    # very simple wrapper class for yield target
+    """
+    very simple wrapper class for yield target
+    The yield analysis target is a particle cluster represented as a graph.
+    The yield of a cluster is the number of nodes in the largest possible subgraph of the target which
+    is isomorphic to the cluster graph
+    """
     name: str
     graph: nx.Graph
 
     def __init__(self, name: str, graph: Union[nx.Graph, None] = None):
+        """
+        Constructor
+        """
         self.name = name
         if not graph:
             graph = graphShape(get_input_dir() / "targets" / f"{name}.json")
         self.graph = graph
 
     def __len__(self) -> int:
+        """
+        Returns:
+            the length of the graph representation of this analysis target
+        """
         return len(self.graph)
 
     def compare(self, g: nx.Graph) -> tuple[ClusterCategory, float]:
+        """
+        Compares a cluster graph to the analysis target and returns a classification of the cluster and its yield
+
+        Args:
+            g: a graph
+
+        Returns:
+             a tuple where the first element is the category of the cluster, and the seonc element is a float representation of the yield
+        """
         # compute size fraction
         sizeFrac = len(g) / len(self)
         # check if g is a subgraph of the target graph
         if len(ig.Graph.from_networkx(self.graph).get_subisomorphisms_vf2(ig.Graph.from_networkx(g))) > 0:
-        # if isomorphism.GraphMatcher(nx.line_graph(self.graph),
-        #                             nx.line_graph(g)
-        #                             ).subgraph_is_isomorphic():
             if sizeFrac == 1:
                 cat = ClusterCategory.MATCH
             else:

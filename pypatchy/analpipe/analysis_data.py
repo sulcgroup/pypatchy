@@ -52,6 +52,9 @@ class PipelineData(ABC):
 
 
 class PDPipelineData(PipelineData):
+    """
+    Data stored in a pandas dataframe
+    """
     # the time range from begin of data to end
     # store in np.ndarray to handle missing data at timepoints
     # _trange array length should match length of unique timepoints
@@ -111,7 +114,7 @@ def load_cached_pd_data(_, f: Path) -> PDPipelineData:
 
 class RawPipelineData:
     """
-
+    Raw oxDNA data (eg not from an Observable). todo: flesh out
     """
     data: Any  # TODO: flesh out
     _trange = np.ndarray
@@ -143,6 +146,10 @@ class RawPipelineData:
 #
 
 class GraphPipelineData(PipelineData):
+    """
+    Data composed of lists of graphs at each timepoint
+    """
+
     # keys are timepoints, each value is
     data: dict[int, list[nx.Graph]]
 

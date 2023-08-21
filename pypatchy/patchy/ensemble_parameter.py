@@ -63,6 +63,9 @@ class ParameterValue:
 
 
 class EnsembleParameter:
+    """
+    Class for a varialbe parameter in a simulation ensemble
+    """
     param_key: str
     param_value_set: list[ParameterValue]  # sorry
     param_value_map: dict[str, ParameterValue]
