@@ -1,6 +1,7 @@
 import math
 from typing import Union
 
+import matplotlib.colors
 import matplotlib.pyplot as plt
 import networkx as nx
 import pandas as pd
@@ -61,11 +62,16 @@ def plot_analysis_data(e: PatchySimulationEnsemble,
 
     data_source = e.get_data(analysis_data_source, tuple(other_spec))
     data = data_source.get().copy()
+
     if norm:
-        for row in data.index:
-            sim = data_source.get().iloc[row].drop([TIMEPOINT_KEY, data_source_key]).to_dict()
+        def normalize_row(row):
+            sim = row.drop([TIMEPOINT_KEY, data_source_key]).to_dict()
+            # sim = data_source.get().iloc[row].drop([TIMEPOINT_KEY, data_source_key]).to_dict()
             sim = e.get_simulation(**sim)
-            data.loc[row, data_source_key] /= e.sim_get_param(sim, norm)
+            return row[data_source_key] / e.sim_get_param(sim, norm)
+            # data.loc[row, data_source_key] /= e.sim_get_param(sim, norm)
+        data[data_source_key] = data.apply(normalize_row, axis=1)
+
     data.rename(mapper={TIMEPOINT_KEY: "steps"}, axis="columns", inplace=True)
 
     fig = sb.relplot(data,
@@ -74,6 +80,14 @@ def plot_analysis_data(e: PatchySimulationEnsemble,
                      **plt_args)
     fig.set(title=f"{e.export_name} - {analysis_data_source}")
     return fig
+
+
+def shared_ensemble(es: list[PatchySimulationEnsemble]) -> list[tuple[ParameterValue]]:
+    es = [
+        set([tuple([p for p in s]) for s in e.ensemble()]) for e in es
+    ]
+    shared_sims = set.intersection(*es)
+    return list(shared_sims)
 
 
 def compare_ensembles(es: list[PatchySimulationEnsemble],
@@ -105,12 +119,14 @@ def compare_ensembles(es: list[PatchySimulationEnsemble],
     if isinstance(plot_line_stroke, str):
         plt_args["style"] = plot_line_stroke
 
-    all_data = []
+    all_data: list[pd.DataFrame] = []
+    # get sim specs shared among all ensembles
+    shared_sims = shared_ensemble(es)
     for e in es:
         if other_spec is None:  # unlikely
             other_spec = list()
 
-        data_source = e.get_data(analysis_data_source, tuple(other_spec))
+        data_source = e.get_data(analysis_data_source, shared_sims)
         data = data_source.get().copy()
         if norm:
             for row in data.index:
@@ -120,7 +136,13 @@ def compare_ensembles(es: list[PatchySimulationEnsemble],
         data.rename(mapper={TIMEPOINT_KEY: "steps"}, axis="columns", inplace=True)
         data["ensemble"] = e.export_name
         all_data.append(data)
+    # compute timepoints shared between all ensembles
+    shared_timepoints = set.intersection(*[set(d.timepoint.data) for d in all_data])
     data = pd.concat(all_data, ignore_index=True)
+
+    data.set_index(TIMEPOINT_KEY)
+    data = data.loc[shared_timepoints]
+    data.reset_index()
     fig = sb.relplot(data,
                      x="steps",
                      y=data_source_key,
@@ -129,13 +151,26 @@ def compare_ensembles(es: list[PatchySimulationEnsemble],
     return fig
 
 
+def get_particle_color(ptypeidx: int):
+    """
+    returns an rgb color consistant with the usage in polycubes
+    """
+    hue = ptypeidx * 137.508
+    return matplotlib.colors.hsv_to_rgb((hue / 360, .5, .5))
+
+
 def show_clusters(e: PatchySimulationEnsemble,
                   sim: PatchySimulation,
                   timepoint: int,
                   analysis_step: GraphsFromClusterTxt,
                   figsize=4
                   ) -> plt.Figure:
-    # are we indexing by raw timepoint or by increment?
+    # load particle id data from top file
+    # todo: automate more?
+    with (e.folder_path(sim) / "init.top").open('r') as f:
+        f.readline()  # clear first line
+        particle_types = [int(p) for p in f.readline().split()]
+
     tr = range(timepoint * analysis_step.output_tstep,
                (timepoint + 1) * analysis_step.output_tstep,
                analysis_step.output_tstep)
@@ -143,8 +178,21 @@ def show_clusters(e: PatchySimulationEnsemble,
     nclusters = len(graphs)
     r = math.ceil(math.sqrt(nclusters))
     fig, axs = plt.subplots(nrows=r, ncols=r, figsize=(r * figsize, r * figsize))
+
     for i, cluster in enumerate(graphs):
+        # axs coords
         x = i % r
         y = int(i / r)
-        nx.draw(cluster, ax=axs[x, y])
+
+        ptypemap = [get_particle_color(particle_types[j]) for j in cluster.nodes]
+
+        nx.draw(cluster,
+                ax=axs[x, y],
+                with_labels=True,
+                node_color=ptypemap)
+    # clear remaining axes for style reasons
+    for i in range(len(graphs), r ** 2):
+        x = i % r
+        y = int(i / r)
+        axs[x, y].remove()
     return fig

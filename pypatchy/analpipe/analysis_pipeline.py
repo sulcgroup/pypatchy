@@ -251,3 +251,6 @@ class AnalysisPipeline:
         """
         return step_name in self.name_map
 
+    def __str__(self):
+        return
+
