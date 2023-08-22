@@ -84,7 +84,7 @@ class AnalysisPipelineStep(ABC):
                 f["trange"] = pd.Series(data.trange())
         elif self.get_output_data_type() == PipelineDataType.PIPELINE_DATATYPE_GRAPH:
             with open(file_path, "wb") as f:
-                pickle.dump(data.get(), f)
+                pickle.dump(data, f)
         else:
             raise Exception("Invalid data type!!!!")
 
