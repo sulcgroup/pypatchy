@@ -78,7 +78,9 @@ def plot_analysis_data(e: PatchySimulationEnsemble,
                      x="steps",
                      y=data_source_key,
                      **plt_args)
-    fig.set(title=f"{e.export_name} - {analysis_data_source}")
+    if norm:
+        fig.set(ylim=(0.0, 1.0))
+    fig.fig.suptitle(f"{e.export_name} - {analysis_data_source}")
     return fig
 
 
@@ -195,4 +197,11 @@ def show_clusters(e: PatchySimulationEnsemble,
         x = i % r
         y = int(i / r)
         axs[x, y].remove()
+
     return fig
+
+def plot_total_graph(e: PatchySimulationEnsemble,
+                     analysis_data_source: GraphsFromClusterTxt,
+                     grid_rows: Union[None, str] = None,
+                     grid_cols: Union[None, str] = None):
+    pass
