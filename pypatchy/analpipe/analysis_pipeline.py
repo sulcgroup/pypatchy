@@ -242,3 +242,12 @@ class AnalysisPipeline:
         for u, v in state["edges"]:
             self._add_pipe_between(self.name_map[u], self.name_map[v])
 
+    def step_exists(self, step_name: str) -> bool:
+        """
+        Args:
+            step_name: a name to test for is in pipeline
+        Returns:
+            True if the analysis pipeline contains a step with the provided name, false otherwise
+        """
+        return step_name in self.name_map
+

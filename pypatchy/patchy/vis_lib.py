@@ -1,6 +1,12 @@
+import math
 from typing import Union
 
+import matplotlib.pyplot as plt
+import networkx as nx
 import pandas as pd
+from pypatchy.patchy.analysis_lib import GraphsFromClusterTxt
+
+from pypatchy.patchy.simulation_specification import PatchySimulation
 
 from ..analpipe.analysis_data import TIMEPOINT_KEY
 from .ensemble_parameter import EnsembleParameter, ParameterValue
@@ -67,4 +73,78 @@ def plot_analysis_data(e: PatchySimulationEnsemble,
                      y=data_source_key,
                      **plt_args)
     fig.set(title=f"{e.export_name} - {analysis_data_source}")
+    return fig
+
+
+def compare_ensembles(es: list[PatchySimulationEnsemble],
+                      analysis_data_source: str,
+                      data_source_key: str,
+                      other_spec: Union[None, list[ParameterValue]] = None,
+                      grid_cols: Union[None, EnsembleParameter] = None,
+                      plot_line_color: Union[None, str, EnsembleParameter] = None,
+                      plot_line_stroke: Union[None, str, EnsembleParameter] = None,
+                      norm: Union[None, str] = None
+                      ) -> sb.FacetGrid:
+    """
+    Compares data from different ensembles
+    """
+    assert all([
+        e.analysis_pipeline.step_exists(analysis_data_source)
+        for e in es
+    ]), f"Not all provided ensembles have analysis pipelines with step named {analysis_data_source}"
+
+    plt_args = {
+        "row": "ensemble",
+        "kind": "line",
+        "errorbar": "sd"
+    }
+    if isinstance(grid_cols, str):
+        plt_args["col"] = grid_cols
+    if isinstance(plot_line_color, str):
+        plt_args["hue"] = plot_line_color
+    if isinstance(plot_line_stroke, str):
+        plt_args["style"] = plot_line_stroke
+
+    all_data = []
+    for e in es:
+        if other_spec is None:  # unlikely
+            other_spec = list()
+
+        data_source = e.get_data(analysis_data_source, tuple(other_spec))
+        data = data_source.get().copy()
+        if norm:
+            for row in data.index:
+                sim = data_source.get().iloc[row].drop([TIMEPOINT_KEY, data_source_key]).to_dict()
+                sim = e.get_simulation(**sim)
+                data.loc[row, data_source_key] /= e.sim_get_param(sim, norm)
+        data.rename(mapper={TIMEPOINT_KEY: "steps"}, axis="columns", inplace=True)
+        data["ensemble"] = e.export_name
+        all_data.append(data)
+    data = pd.concat(all_data, ignore_index=True)
+    fig = sb.relplot(data,
+                     x="steps",
+                     y=data_source_key,
+                     **plt_args)
+    fig.set(title=f"Comparison of {analysis_data_source} Data")
+    return fig
+
+
+def show_clusters(e: PatchySimulationEnsemble,
+                  sim: PatchySimulation,
+                  timepoint: int,
+                  analysis_step: GraphsFromClusterTxt,
+                  figsize=4
+                  ) -> plt.Figure:
+    # are we indexing by raw timepoint or by increment?
+    tr = range(timepoint * analysis_step.output_tstep,
+               (timepoint + 1) * analysis_step.output_tstep,
+               analysis_step.output_tstep)
+    graphs: list[nx.Graph] = e.get_data(analysis_step, sim, tr).get()[timepoint * analysis_step.output_tstep]
+    nclusters = len(graphs)
+    r = math.ceil(math.sqrt(nclusters))
+    fig, axs = plt.subplots(nrows=r, ncols=r, figsize=(r * figsize, r * figsize))
+    for i, cluster in enumerate(graphs):
+        x = i % r
+        y = int(i / r)
+        nx.draw(cluster, ax=axs[x, y])
     return fig
