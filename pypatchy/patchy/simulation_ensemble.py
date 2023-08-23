@@ -1378,73 +1378,37 @@ def process_simulation_data(args):
     ensemble, step, s, time_steps = args
     return ensemble.get_data(step, s, time_steps)
 
-#
-# def ensemble_from_export_settings(export_settings_file_path: Union[Path, str],
-#                                   targets_file_path: Union[Path, str] = None) -> PatchySimulationEnsemble:
-#     """
-#     Constructs a PatchySimulationEnsemble object from the `patchy_export_settings.json` format
-#     """
-#     with open(export_settings_file_path, "r") as f:
-#         export_setup_dict = json.load(f)
-#
-#     # Grab list of narrow types
-#     narrow_types = export_setup_dict['narrow_types']
-#     # grab list of temperatures
-#     temperatures = export_setup_dict['temperatures']
-#
-#     rule = PolycubesRule(rule_str=export_setup_dict["rule_json"])
-#
-#     # make sure that all export groups have the same set of narrow types, duplicates,
-#     # densities, and temperatures
-#     assert all([
-#         all_equal([
-#             export_group[key]
-#             for export_group in export_setup_dict['export_groups']
-#         ])
-#         for key in ["temperatures", "num_duplicates", "particle_density", "narrow_types"]
-#     ])
-#
-#     particle_type_level_groups_list = [
-#         {
-#             "name": export_group["exportGroupName"],
-#             "value": {
-#                 "particle_type_levels": {
-#                     p.name(): export_group["particle_type_levels"]
-#                     for p in rule.particles()
-#                 }
-#             }
-#         }
-#         for export_group in export_setup_dict['export_groups']
-#     ]
-#
-#     cfg_dict = {
-#         EXPORT_NAME_KEY: export_setup_dict['export_name'],
-#         PARTICLES_KEY: rule,
-#         DEFAULT_PARAM_SET_KEY: "default.json",
-#         OBSERABLES_KEY: ["plclustertopology"],
-#         CONST_PARAMS_KEY: {
-#             DENSITY_KEY: export_setup_dict["particle_density"] if "particle_density" else 0.1,
-#             DENTAL_RADIUS_KEY: 0,
-#             NUM_TEETH_KEY: 1,
-#             "torsion": True
-#         },
-#         ENSEMBLE_PARAMS_KEY: [
-#             (
-#                 "T",
-#                 temperatures
-#             ),
-#             (
-#                 "narrow_type",
-#                 narrow_types
-#             ),
-#             (
-#                 "type_level_group",
-#                 particle_type_level_groups_list
-#             ),
-#             (
-#                 "duplicate",
-#
-#             )
-#         ],
-#     }
-#     return PatchySimulationEnsemble(cfg_dict=cfg_dict)
+def shared_ensemble(es: list[PatchySimulationEnsemble]) -> list[list[PatchySimulation]]:
+    """
+    Computes the simulation specs that are shared between the provided ensembles
+    Args:
+        es: a list of simulation ensembles
+
+    Returns:
+        a list of lists of patchy sim specs where each list of specs corresponds to an ensemble in the args
+    """
+
+    ensembles = [e.ensemble() for e in es]
+    e0 = ensembles[0]
+    shared = [[] for _ in es]
+    for sim in e0:
+        flag_missing = False
+        # construct list of simulations in each ensemble equivelant to the one in e0
+        equivelance_group = [sim]
+        for group in ensembles[1:]:
+            equiv = None
+            for sim2 in group:
+                if sim.equivelant(sim2):
+                    equiv = sim2
+                    break
+            if equiv:
+                equivelance_group.append(e0)
+            else:
+                # missing equivalent simulation.
+                flag_missing = True
+                break
+        if not flag_missing:
+            for i, m in enumerate(shared):
+                m.append(equivelance_group[i])
+    return shared
+

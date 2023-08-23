@@ -4,14 +4,18 @@ from typing import Union
 import matplotlib.colors
 import matplotlib.pyplot as plt
 import networkx as nx
+import numpy as np
 import pandas as pd
-from pypatchy.patchy.analysis_lib import GraphsFromClusterTxt
+import pylab as p
+
+from pypatchy.patchy.analysis_lib import GraphsFromClusterTxt, ClassifyClusters
 
 from pypatchy.patchy.simulation_specification import PatchySimulation
+from .analysis.analyseClusters import ClusterCategory
 
 from ..analpipe.analysis_data import TIMEPOINT_KEY
 from .ensemble_parameter import EnsembleParameter, ParameterValue
-from .simulation_ensemble import PatchySimulationEnsemble, PipelineStepDescriptor, describe_param_vals
+from .simulation_ensemble import PatchySimulationEnsemble, PipelineStepDescriptor, describe_param_vals, shared_ensemble
 
 import seaborn as sb
 
@@ -70,6 +74,7 @@ def plot_analysis_data(e: PatchySimulationEnsemble,
             sim = e.get_simulation(**sim)
             return row[data_source_key] / e.sim_get_param(sim, norm)
             # data.loc[row, data_source_key] /= e.sim_get_param(sim, norm)
+
         data[data_source_key] = data.apply(normalize_row, axis=1)
 
     data.rename(mapper={TIMEPOINT_KEY: "steps"}, axis="columns", inplace=True)
@@ -82,14 +87,6 @@ def plot_analysis_data(e: PatchySimulationEnsemble,
         fig.set(ylim=(0.0, 1.0))
     fig.fig.suptitle(f"{e.export_name} - {analysis_data_source}")
     return fig
-
-
-def shared_ensemble(es: list[PatchySimulationEnsemble]) -> list[tuple[ParameterValue]]:
-    es = [
-        set([tuple([p for p in s]) for s in e.ensemble()]) for e in es
-    ]
-    shared_sims = set.intersection(*es)
-    return list(shared_sims)
 
 
 def compare_ensembles(es: list[PatchySimulationEnsemble],
@@ -123,18 +120,20 @@ def compare_ensembles(es: list[PatchySimulationEnsemble],
 
     all_data: list[pd.DataFrame] = []
     # get sim specs shared among all ensembles
-    shared_sims = shared_ensemble(es)
-    for e in es:
+    shared_sims: list[list[PatchySimulation]] = shared_ensemble(es)
+    for i, e in enumerate(es):
         if other_spec is None:  # unlikely
             other_spec = list()
 
-        data_source = e.get_data(analysis_data_source, shared_sims)
+        data_source = e.get_data(analysis_data_source, shared_sims[i])
         data = data_source.get().copy()
         if norm:
-            for row in data.index:
-                sim = data_source.get().iloc[row].drop([TIMEPOINT_KEY, data_source_key]).to_dict()
+            def normalize_row(row):
+                sim = row.drop([TIMEPOINT_KEY, data_source_key]).to_dict()
                 sim = e.get_simulation(**sim)
-                data.loc[row, data_source_key] /= e.sim_get_param(sim, norm)
+                return row[data_source_key] / e.sim_get_param(sim, norm)
+
+            data[data_source_key] = data.apply(normalize_row, axis=1)
         data.rename(mapper={TIMEPOINT_KEY: "steps"}, axis="columns", inplace=True)
         data["ensemble"] = e.export_name
         all_data.append(data)
@@ -200,8 +199,54 @@ def show_clusters(e: PatchySimulationEnsemble,
 
     return fig
 
+
 def plot_total_graph(e: PatchySimulationEnsemble,
-                     analysis_data_source: GraphsFromClusterTxt,
+                     analysis_data_source: PipelineStepDescriptor,
                      grid_rows: Union[None, str] = None,
-                     grid_cols: Union[None, str] = None):
+                     grid_cols: Union[None, str] = None,
+                     line_color: Union[None, str] = None):
+    """
+    Plots the total size of all the graphs in the simulation over time
+    """
+    assert isinstance(analysis_data_source, ClassifyClusters)
+    # get data all at once to standardize timeframe
+    raw_data = e.get_data(analysis_data_source, ()).get()
+    # if no_overreach:
+    #     raw_data = raw_data.loc[
+    #         raw_data[ClassifyClusters.CLUSTER_CATEGORY_KEY].isin([ClusterCategory.MATCH.value, ClusterCategory.SUBSET.value])]
+
+    data = []
+    for sim in e.ensemble():
+        sim_data: pd.DataFrame = raw_data.loc[np.all([
+            raw_data[param.param_name] == param.value_name for param in sim
+        ], axis=0)]
+        sim_data = sim_data.groupby(TIMEPOINT_KEY)["sizeratio"].sum().reset_index()
+        for param in sim:
+            # sim_data.insert(len(sim_data.columns) - 1, param.param_name, param.value_name)
+            sim_data[param.param_name] = [param.value_name] * len(sim_data.index)
+        data.append(sim_data)
+    data = pd.concat(data)
+    data.rename(mapper={TIMEPOINT_KEY: "steps", "sizeratio": "size"}, axis="columns", inplace=True)
+
+    plt_args = {
+        "kind": "line",
+        "errorbar": "sd"
+    }
+
+    if isinstance(grid_rows, str):
+        plt_args["row"] = grid_rows
+    if isinstance(grid_cols, str):
+        plt_args["col"] = grid_cols
+    if isinstance(line_color, str):
+        plt_args["hue"] = line_color
+
+    fig = sb.relplot(data,
+                     x="steps",
+                     y="size",
+                     **plt_args)
+    return fig
+
+
+def plot_compare_analysis_outputs(e: PatchySimulationEnsemble,
+                                  sources: list[PipelineStepDescriptor]):
     pass
