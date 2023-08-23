@@ -10,6 +10,11 @@ from pypatchy.util import get_input_dir
 
 
 class ClusterCategory(Enum):
+    """
+    NEVER actually use one of these objects directly!
+    Otherwise comparisons will fail because Pandas is very badly coded!
+    [censored swearing profusely]
+    """
     OVER = 0
     SMALLER_NOT_SUB = 1
     SUBSET = 2
@@ -42,7 +47,7 @@ class YieldAnalysisTarget:
         """
         return len(self.graph)
 
-    def compare(self, g: nx.Graph) -> tuple[ClusterCategory, float]:
+    def compare(self, g: nx.Graph) -> tuple[int, float]:
         """
         Compares a cluster graph to the analysis target and returns a classification of the cluster and its yield
 
@@ -57,14 +62,14 @@ class YieldAnalysisTarget:
         # check if g is a subgraph of the target graph
         if len(ig.Graph.from_networkx(self.graph).get_subisomorphisms_vf2(ig.Graph.from_networkx(g))) > 0:
             if sizeFrac == 1:
-                cat = ClusterCategory.MATCH
+                cat = ClusterCategory.MATCH.value
             else:
-                cat = ClusterCategory.SUBSET
+                cat = ClusterCategory.SUBSET.value
         else:
             if sizeFrac < 1:
-                cat = ClusterCategory.SMALLER_NOT_SUB
+                cat = ClusterCategory.SMALLER_NOT_SUB.value
             else:
-                cat = ClusterCategory.OVER
+                cat = ClusterCategory.OVER.value
         return cat, sizeFrac
 
 

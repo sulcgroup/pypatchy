@@ -17,7 +17,9 @@ class PatchySimulation(LogEntryObject):
     parameter_values is a list of (key,value) tuples where the key is a string identifier
     and the value is a ParameterValue object
     """
+    # ordered list of parameter values that specify this simulation
     param_vals: list[ParameterValue]
+
     parameter_dict: dict[str, Any]
 
 
@@ -57,6 +59,25 @@ class PatchySimulation(LogEntryObject):
             p.param_name: p.value_name
             for p in self.param_vals
         }
-    
+
+    def equivelant(self, other: PatchySimulation) -> bool:
+        """
+        order-independant version of __equals__
+        probably a better way to write this but frankly i am operating on 3 hours of sleep
+        """
+        for p1 in other.param_vals:
+            found_param = False
+            for p2 in self.param_vals:
+                if p1.param_name == p2.param_name:
+                    if p1.value_name != p2.value_name:
+                        return False
+                    else:
+                        found_param = True
+                        break
+            if not found_param:
+                return False
+
+        return True
+
     def __eq__(self, other: PatchySimulation) -> bool:
         return repr(self) == repr(other)
