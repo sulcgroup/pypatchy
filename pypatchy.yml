@@ -3,12 +3,11 @@ channels:
   - defaults
   - conda-forge
 dependencies:
-  - h5py
-  - altair
-  - jupyter
-  - nb_conda_kernels
-  - networkx
-  - matplotlib
+  - h5py=3.6
+  - altair=4.1
+  - jupyter>=1.0
+  - networkx>=2.7
+  - matplotlib>=3.5
   - biopython
   - sympy
   - seaborn
