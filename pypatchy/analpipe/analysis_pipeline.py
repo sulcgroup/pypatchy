@@ -91,6 +91,7 @@ class AnalysisPipeline:
         # self.pipeline_steps.append(newStep)
         if origin_step is not None:
             self._add_pipe_between(origin_step, newStep)
+        print(f"Adding step {newStep.name}")
         return newStep
 
     def get_pipeline_step(self, step: Union[str, AnalysisPipelineStep]) -> AnalysisPipelineStep:
@@ -149,15 +150,27 @@ class AnalysisPipeline:
         edgeset = [*newPipes]
         count = 0
         newpipe = copy.deepcopy(self)
+        # test that all steps either have a source node or are pipeline head nodes
+        for step in stepqueue:
+            assert issubclass(type(step), AnalysisPipelineHead) or any([v == step.name for _,v in edgeset]), f"Missing data source for step {step.name}"
+            
         while len(stepqueue) > 0 and count < math.pow(len(newSteps), 2):
             step = stepqueue[0]
-            for u, v in newPipes:
-                if v == step.name and u in newpipe:
-                    newpipe.add_step(newpipe[u], step)
-                    stepqueue = stepqueue[1:]
-                    break
+            if issubclass(type(step), AnalysisPipelineHead):
+                newpipe.add_step(None, step)
+                stepqueue = stepqueue[1:]
+            else:
+                found_pipe = False
+                for u, v in newPipes:
+                    if v == step.name and u in newpipe:
+                        newpipe.add_step(newpipe[u], step)
+                        stepqueue = stepqueue[1:]
+                        found_pipe = True
+                        break
+                if not found_pipe:
+                    stepqueue.append(stepqueue.pop(0))
             count += 1
-        assert len(stepqueue) == 0, "Malformed steps!!!"
+        assert len(stepqueue) == 0, f"Malformed steps!!! {len(stepqueue)} extraneous steps, starting with {stepqueue[0].name}"
         for u, v in edgeset:
             if (u, v) not in newpipe.pipeline_graph.edges:
                 assert u in newpipe, f"{u} not in pipeline {str(newpipe)}!"
