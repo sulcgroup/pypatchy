@@ -85,7 +85,7 @@ def plot_analysis_data(e: PatchySimulationEnsemble,
                      **plt_args)
     if norm:
         fig.set(ylim=(0.0, 1.0))
-    fig.fig.suptitle(f"{e.export_name} - {analysis_data_source}")
+    fig.fig.suptitle(f"{e.export_name} - {analysis_data_source}", y=0.8)
     return fig
 
 
@@ -148,7 +148,7 @@ def compare_ensembles(es: list[PatchySimulationEnsemble],
                      x="steps",
                      y=data_source_key,
                      **plt_args)
-    fig.set(title=f"Comparison of {analysis_data_source} Data")
+    fig.fig.suptitle(f"Comparison of {analysis_data_source} Data", top=0.8)
     return fig
 
 

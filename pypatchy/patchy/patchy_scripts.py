@@ -10,7 +10,8 @@ from scipy.spatial.transform import Rotation as R
 
 from pypatchy.patchy.plpatchy import PLPatchyParticle, PLPatch, load_patches, load_particles, export_interaction_matrix
 from pypatchy.patchy_base_particle import BaseParticleSet
-from pypatchy.util import rotation_matrix, get_input_dir
+from pypatchy.polycubeutil.polycubesRule import PolycubesRule
+from pypatchy.util import rotation_matrix, get_input_dir, to_xyz
 
 
 def convert_multidentate(particles: list[PLPatchyParticle],
@@ -74,7 +75,6 @@ def convert_udt_files_to_mdt(patches_file: Union[str, Path],
                              dental_radius: Union[float, str] = "0.5",
                              num_teeth: Union[int, str] = "4",
                              follow_surf: Union[str, bool] = "false"):
-
     # standardize args
     if isinstance(patches_file, str):
         patches_file = Path(patches_file)
@@ -159,10 +159,10 @@ def to_PL(particle_set: BaseParticleSet,
             pl_color = patch.color() - 20 if patch.color() < 0 else patch.color() + 20
             assert patch.get_id() == len(patches) + len(particle_patches)
             particle_patches.append(PLPatch(patch.get_id(),
-                                    pl_color,
-                                    relPosition,
-                                    patch.position(),
-                                    patch.alignDir()))
+                                            pl_color,
+                                            relPosition,
+                                            patch.position(),
+                                            patch.alignDir()))
         patches.extend(particle_patches)
         # convert to pl particle
         particle = PLPatchyParticle(type_id=particle.get_id(), index_=particle.get_id())
@@ -175,3 +175,27 @@ def to_PL(particle_set: BaseParticleSet,
         particles, patches = convert_multidentate(particles, dental_radius, num_teeth)
 
     return particles, patches
+
+
+def PL_to_rule(particles: list[PLPatchyParticle], ) -> Union[None, PolycubesRule]:
+    """
+    Tries to convert the provided set of particles and patches to a Polycubes Rule.
+    TODO: include dynamic effects!!!! somehow.
+    Args:
+        particles: a list of PLPatchyParticle objects
+    Returns:
+        the set of particles provided as a Polycubes rule if possible. none if not possible
+    """
+    return PolycubesRule(rule_json=[
+        {
+            "patches": [
+                {
+                    "dir": to_xyz(np.round((patch.position() / particle.radius()))),
+                    "alignDir": to_xyz(np.round(patch.a2())),
+                    "color": patch.color() - 20 if patch.color() > 0 else patch.color() + 20,
+                    "state_var": 0,
+                    "activation_var": 0
+                }
+                for patch in particle.patches()]
+        }
+        for particle in particles])

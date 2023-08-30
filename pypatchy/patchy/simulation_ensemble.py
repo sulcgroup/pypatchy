@@ -572,20 +572,20 @@ class PatchySimulationEnsemble:
         for param in self.ensemble_params:
             print("\t" + str(param))
 
-        print("\nHelpful analpipe functions:")
-        print("Function `has_pipeline`")
-        print("\ttell me if there's an analpipe pipeline")
-        print("Function `show_pipeline_graph`")
-        print("missing_analysis_data")
-        print("\tdisplay a visual representation of the analpipe pipeline graph")
-        print("Function `show_analysis_status`")
-        print("\tdisplay the status of the analpipe pipeline")
-        print("Function `ensemble`")
-        print("Function `show_last_conf`")
-        print("Function `all_folders_exist`")
-        print("Function `folder_path`")
-        print("Function `tld`")
-        print("Function `list_folder_files`")
+        # print("\nHelpful analysis functions:")
+        # print("Function `has_pipeline`")
+        # print("\ttell me if there's an analysis pipeline")
+        # print("Function `show_pipeline_graph`")
+        # print("missing_analysis_data")
+        # print("\tdisplay a visual representation of the analysis pipeline graph")
+        # print("Function `show_analysis_status`")
+        # print("\tdisplay the status of the analysis pipeline")
+        # print("Function `ensemble`")
+        # print("Function `show_last_conf`")
+        # print("Function `all_folders_exist`")
+        # print("Function `folder_path`")
+        # print("Function `tld`")
+        # print("Function `list_folder_files`")
 
     def has_pipeline(self) -> bool:
         return len(self.analysis_pipeline) != 0
@@ -1126,13 +1126,19 @@ class PatchySimulationEnsemble:
 
     def add_analysis_steps(self, *args):
         """
-        Adds steps to the analpipe pipeline
+        Adds steps to the analysis pipeline
         """
         if isinstance(args[0], AnalysisPipeline):
             new_steps = args[0]
         else:
             new_steps = AnalysisPipeline(args[0], *args[1:])
-        if new_steps not in self.analysis_pipeline:
+            # if the above line didn't work
+        newPipes = [a for a in args if isinstance(a, tuple)]
+        newSteps = [a for a in args if isinstance(a, AnalysisPipelineStep)]
+        if new_steps.num_pipes() != len(newPipes) or new_steps.num_pipeline_steps() != len(newSteps):
+            self.analysis_pipeline = self.analysis_pipeline.extend(newSteps, newPipes)
+            self.dump_metadata()
+        elif new_steps not in self.analysis_pipeline:
             self.get_logger().info(f"Adding {len(new_steps)} steps "
                                    f"and {len(new_steps.pipeline_graph.edges)} to the analysis pipeline")
             self.analysis_pipeline = self.analysis_pipeline + new_steps

@@ -50,7 +50,7 @@ def load_patches(filename: Union[str, Path],
     return patches
 
 
-def load_particles(filename: Union[str],
+def load_particles(filename: Union[str, Path],
                    patch_types: list[PLPatch],
                    num_particles=0) -> list[PLPatchyParticle]:
     particles: list[PLPatchyParticle] = [PLPatchyParticle() for _ in range(num_particles)]
@@ -516,7 +516,7 @@ class PLPatchyParticle(PatchyBaseParticleType):
             if len(line) > 1 and line[0] != '#':
                 if "type" in line:
                     vals = int(line.split('=')[1])
-                    self._uid = vals
+                    self._type_id = vals
                 if 'patches' in line:
                     vals = line.split('=')[1]
                     self._patch_ids = [int(g) for g in vals.split(',')]

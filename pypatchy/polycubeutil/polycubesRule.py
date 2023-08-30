@@ -310,6 +310,13 @@ class PolycubeRuleCubeType(PatchyBaseParticleType):
 
 class PolycubesRule(BaseParticleSet):
     def __init__(self, **kwargs):
+        """
+        Extremely flexable and occassionally-misbehaving constructor for a Polycubes rule
+        Kwargs:
+            rule_str: a string representation of the rule
+            rule_json: a list of dict representations of cube types
+
+        """
         super().__init__()
         # WARNING: I actually have no idea if this code will always behave correctly if given
         # static formulation strings!! for this reason you should play it safe and Not Do That

@@ -5,11 +5,14 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Union
 
+import numpy as np
 import pandas as pd
 
 from pypatchy.patchy.simulation_specification import PatchySimulation
 from pypatchy.patchy.ensemble_parameter import EnsembleParameter, ParameterValue
 from .analysis_data import PipelineData, PipelineDataType
+
+import drawsvg as draw
 
 
 class AnalysisPipelineStep(ABC):
@@ -18,12 +21,6 @@ class AnalysisPipelineStep(ABC):
     """
     # the name of this step on the analpipe pipeline
     name: str
-
-    # specifier for data that will be taken as input by this object
-    input_data: PipelineDataType
-
-    # specifier for output data.
-    output_data: PipelineDataType
 
     # steps immediately feeding into this step
 
@@ -119,6 +116,32 @@ class AnalysisPipelineStep(ABC):
         """
         pass
 
+    def draw(self) -> tuple[tuple[int, int], draw.Group]:
+        """
+        This method isn't abstract but it's highly recommended that you override it
+        """
+        g = draw.Group()
+        w = 180
+        y = 0
+        # draw step name
+        g.append(draw.Rectangle(0, y, w, 16, stroke="black", stroke_width=1, fill="tan"))
+        g.append(draw.Text(f"Name: {self.name}", text_anchor='middle', font_size=12, x=w/2, y=14))
+        y += 16
+        # draw step input
+        g.append(draw.Rectangle(0, y, w/2, 16, stroke="black", stroke_width=1, fill="beige"))
+        tstep = "{:e}".format(self.input_tstep)
+        g.append(draw.Text(f"Input Freq: {tstep}", text_anchor='begin', font_size=7, x=1, y=y+7))
+        # if not isinstance(self, AnalysisPipelineHead):
+        #     input_dt = ["Raw", "Observable", "DataFrame", "Graph"][self.input_data.value]
+        #     g.append(draw.Text(f"Input Data Type: {input_dt}", text_anchor='begin', font_size="14", x=0, y=28))
+        # draw step output
+        g.append(draw.Rectangle(w/2, y, w/2, 16, stroke="black", stroke_width=1, fill="beige"))
+        tstep = "{:e}".format(self.output_tstep)
+        g.append(draw.Text(f"Output Freq: {tstep}", text_anchor='end', font_size=7, x=w-1, y=y+7))
+        output_dt = ["Raw", "Observable", "DataFrame", "Graph"][self.get_output_data_type().value]
+        g.append(draw.Text(f"Output DT: {output_dt}", text_anchor='end', font_size=7, x=w-1, y=y+15))
+        y += 16
+        return (w, y), g
 
 class AnalysisPipelineHead(AnalysisPipelineStep, ABC):
     """
