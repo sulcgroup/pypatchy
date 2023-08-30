@@ -148,7 +148,7 @@ def compare_ensembles(es: list[PatchySimulationEnsemble],
                      x="steps",
                      y=data_source_key,
                      **plt_args)
-    fig.fig.suptitle(f"Comparison of {analysis_data_source} Data", top=0.8)
+    fig.fig.suptitle(f"Comparison of {analysis_data_source} Data", y=1)
     return fig
 
 
@@ -248,5 +248,56 @@ def plot_total_graph(e: PatchySimulationEnsemble,
 
 
 def plot_compare_analysis_outputs(e: PatchySimulationEnsemble,
-                                  sources: list[PipelineStepDescriptor]):
-    pass
+                                  sources: list[PipelineStepDescriptor],
+                                  data_source_key: str,
+                                  orientation="col",
+                                  **kwargs):
+    plt_args = {
+        "kind": "line",
+        "errorbar": "sd",
+        orientation: "data_source"
+    }
+    if "col" in kwargs:
+        assert orientation != "col", "Trying to specify two different variables for columns!"
+        plt_args["col"] = kwargs["col"]
+    if "row" in kwargs:
+        assert orientation != "row", "Trying to specify two different variables for rows!"
+        plt_args["row"] = kwargs["row"]
+    if "color" in kwargs:
+        plt_args["hue"] = kwargs["color"]
+    if "stroke" in kwargs:
+        plt_args["style"] = kwargs["stroke"]
+
+    other_spec = kwargs["other_spec"] if "other_spec" in kwargs else list()
+    norm = kwargs["norm"] if "norm" in kwargs else None
+
+    data_big = []
+    for analysis_data_source in sources:
+        data_source = e.get_data(analysis_data_source, tuple(other_spec))
+        data = data_source.get().copy()
+
+        if norm:
+            def normalize_row(row):
+                sim = row.drop([TIMEPOINT_KEY, data_source_key]).to_dict()
+                # sim = data_source.get().iloc[row].drop([TIMEPOINT_KEY, data_source_key]).to_dict()
+                sim = e.get_simulation(**sim)
+                return row[data_source_key] / e.sim_get_param(sim, norm)
+                # data.loc[row, data_source_key] /= e.sim_get_param(sim, norm)
+
+            data[data_source_key] = data.apply(normalize_row, axis=1)
+
+        data.rename(mapper={TIMEPOINT_KEY: "steps"}, axis="columns", inplace=True)
+        data.insert(1, "data_source", e.get_pipeline_step(analysis_data_source).name)
+        data_big.append(data)
+    data = pd.concat(data_big, ignore_index=True, axis=0)
+    fig = sb.relplot(data,
+                     x="steps",
+                     y=data_source_key,
+                     **plt_args)
+    if norm:
+        fig.set(ylim=(0.0, 1.0))
+    fig.fig.suptitle(f"{e.export_name} Data", y=1.0)
+    return fig
+
+
+
