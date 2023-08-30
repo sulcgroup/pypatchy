@@ -61,7 +61,7 @@ class PatchySimObservable:
         input_file.write(f"\tprint_every = {self.print_every}\n")  # TODO: configure to deal with nonlinear time
         if self.start_observe_stepnum > 0:
             input_file.write(f"\tstart_from = {self.start_observe_stepnum}\n")
-        if self.start_observe_stepnum is not None:
+        if self.stop_observe_stepnum is not None:
             input_file.write(f"\tstop_at = {self.stop_observe_stepnum}\n")
         if self.only_write_last:
             input_file.write("\tonly_last = 1\n")
