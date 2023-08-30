@@ -221,6 +221,7 @@ class PatchySimulationEnsemble:
                 # update metadata dict from file
                 with open(self.metadata_file, "r") as f:
                     self.metadata.update(json.load(f))
+                    sim_cfg.update(self.metadata["ensemble_config"])
 
         # name of simulation set
         self.export_name: str = sim_cfg[EXPORT_NAME_KEY]
@@ -271,7 +272,7 @@ class PatchySimulationEnsemble:
 
         # handle potential weird stuff??
 
-        # load analpipe pipeline
+        # load analysis pipeline
         self.analysis_pipeline = AnalysisPipeline()
 
         # if the metadata specifies a pickle file of a stored analywsis pathway, use it
@@ -1134,7 +1135,7 @@ class PatchySimulationEnsemble:
             new_steps = AnalysisPipeline(args[0], *args[1:])
             # if the above line didn't work
         newPipes = [a for a in args if isinstance(a, tuple)]
-        newSteps = [a for a in args if isinstance(a, AnalysisPipelineStep)]
+        newSteps = [a for a in args if issubclass(type(a), AnalysisPipelineStep)]
         if new_steps.num_pipes() != len(newPipes) or new_steps.num_pipeline_steps() != len(newSteps):
             self.analysis_pipeline = self.analysis_pipeline.extend(newSteps, newPipes)
             self.dump_metadata()
