@@ -106,7 +106,7 @@ class EnsembleParameter:
         return iter(self.param_value_set)
 
     def __str__(self) -> str:
-        return f"{self.param_key}: [{','.join([str(p) for p in self.param_value_set])}]"
+        return f"{self.param_key}: [{','.join([p.value_name for p in self.param_value_set])}]"
 
     def __len__(self):
         return len(self.param_value_set)

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import copy
+import math
+import drawsvg as draw
 from typing import Union, Generator
 
 import networkx as nx
@@ -139,6 +141,29 @@ class AnalysisPipeline:
         """
         return nx.weakly_connected_components(self.pipeline_graph)
 
+    def extend(self, newSteps: list[AnalysisPipelineStep], newPipes: list[tuple[str, str]]) -> AnalysisPipeline:
+        """
+        Extends the analysis pipeline by adding the new steps and pipes within
+        """
+        stepqueue = [*newSteps]
+        edgeset = [*newPipes]
+        count = 0
+        newpipe = copy.deepcopy(self)
+        while len(stepqueue) > 0 and count < math.pow(len(newSteps), 2):
+            step = stepqueue[0]
+            for u, v in newPipes:
+                if v == step.name and u in newpipe:
+                    newpipe.add_step(newpipe[u], step)
+                    stepqueue = stepqueue[1:]
+                    break
+            count += 1
+        assert len(stepqueue) == 0, "Malformed steps!!!"
+        for u, v in edgeset:
+            if (u, v) not in newpipe.pipeline_graph.edges:
+                assert u in newpipe, f"{u} not in pipeline {str(newpipe)}!"
+                assert v in newpipe, f"{v} not in pipeline {str(newpipe)}!"
+                newpipe._add_pipe_between(newpipe[u], newpipe[v])
+        return newpipe
     def validate(self):
         """
         Checks if the pipeline is okay, makes it everyone's problem if not
@@ -254,3 +279,79 @@ class AnalysisPipeline:
     def __str__(self):
         return
 
+    def num_pipes(self) -> int:
+        return len(self.pipeline_graph.edges)
+
+    def draw_pipeline(self, scale=120) -> draw.Drawing:
+        dw = scale * self.num_pipeline_steps()
+        dh = scale * .6 * self.num_pipeline_steps()
+        drawing = draw.Drawing(width=dw,
+                               height=dh,
+                               origin=(-120, -dh/2))
+        levels = {}
+        level = 0
+        levelpops = {}
+        ys = {}
+        to_visit = [n.name for n in self.head_nodes()]
+        lvlidx = 0
+        while to_visit:
+            next_level = []
+            for node in to_visit:
+                levels[node] = level
+                lvlidx += 1
+                if level not in levelpops:
+                    levelpops[level] = 1
+                else:
+                    levelpops[level] += 1
+                if len(list(self.pipeline_graph.predecessors(node))) > 0:
+                    parent = list(self.pipeline_graph.predecessors(node))[0]
+                    sibs = list(self.pipeline_graph.successors(parent))
+                    ys[node] = (sibs.index(node) - (len(sibs) - 1) / 2) + ys[parent]
+                else:
+                    ys[node] = 0
+                next_level.extend([n for n in self.pipeline_graph.successors(node) if n not in levels])
+            to_visit = next_level
+            level += 1
+            lvlidx = 0
+        pos = {}
+        for node in self.pipeline_graph.nodes():
+            x = levels[node]
+            pos[node] = (levels[node], ys[node])
+
+        # pos = nx.spring_layout(self.pipeline_graph, pos=pos, iterations=40) # k=1/self.num_pipeline_steps())
+        ws = {}
+        hs = {}
+        for step_name in self.pipeline_graph.nodes:
+            step = self.name_map[step_name]
+            (w, h), g = step.draw()
+            ws[step_name] = w
+            hs[step_name] = h
+            x, y = pos[step_name]
+            x *= w * 1.25
+            y *= h * 1.25
+            pos[step_name] = (x,y)
+            gg = draw.Group(transform=f"translate({x - w / 2}, {y - h / 2})")
+            gg.append(g)
+            drawing.append(gg)
+        arrow = draw.Marker(-0.8, -0.51, 0.2, 0.5, scale=4, orient='auto')
+        arrow.append(draw.Lines(-0.8, 0.5, -1.0, -0.5, 0.2, 0, fill='black', close=True))
+        drawing.append(arrow)
+        for u, v in self.pipeline_graph.edges:
+            # start of path
+            x0, y0 = pos[u]
+            x0 = x0 + ws[u] / 2
+            y0 = y0 - hs[u] / 2 + 0.1 * ws[u]
+            # first crtl pt
+            cx1, cy1 = x0 + 50, y0
+            # end of path
+            ex, ey = pos[v]
+            ex = ex - ws[v] / 2 - 2
+            ey = ey - hs[v] / 2 + 0.1 * ws[v]
+            # second ctrl pt
+            cx2, cy2 = ex - 50, ey
+            # draw
+            p = draw.Path(stroke="black", stroke_width=1.8, fill='none', marker_end=arrow)
+            p.M(x=x0, y=y0)
+            p.C(cx1, cy1, cx2, cy2, ex, ey)
+            drawing.append(p)
+        return drawing

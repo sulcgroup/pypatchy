@@ -19,6 +19,7 @@ from pypatchy.analpipe.yield_analysis_target import YieldAnalysisTarget
 from ..analpipe.analysis_data import PDPipelineData, GraphPipelineData, TIMEPOINT_KEY, load_cached_pd_data, \
     load_cached_graph_data
 
+import drawsvg as draw
 
 # this file contains classes that are useful in analpipe, but aren't required by other PyPatchy modules
 # all classes in this document should extend AnalysisPipelineStep
@@ -122,6 +123,13 @@ class LoadParticlesTraj(AnalysisPipelineHead):
         data = pd.DataFrame.from_records(time_data)
         return PDPipelineData(data, tr=np.array(timepoints))
 
+    def draw(self) -> tuple[tuple[int, int], draw.Group]:
+        (w, y), g = super().draw()
+        g.append(draw.Rectangle(0, y, w, 40, stroke="black", stroke_width=1, fill="tan"))
+        g.append(draw.Text("TODO: write description!", font_size=7, x=1, y=y+7))
+        y += 40
+        return (w, y), g
+
 
 class GraphsFromClusterTxt(AnalysisPipelineHead):
     """
@@ -181,8 +189,14 @@ class GraphsFromClusterTxt(AnalysisPipelineHead):
     def get_output_data_type(self):
         return PipelineDataType.PIPELINE_DATATYPE_GRAPH
 
-    def can_parallelize(self):
-        return True
+    def draw(self) -> tuple[tuple[int, int], draw.Group]:
+        (w, y), g = super().draw()
+        g.append(draw.Rectangle(0, y, w, 40, stroke="black", stroke_width=1, fill="tan"))
+        g.append(draw.Text(f"Source Observable: {self.source_observable.name}", font_size=7, x=1, y=y+7))  # TODO: more info?
+        y += 10
+        g.append(draw.Text("TODO: write description!", font_size=7, x=1, y=y+7))
+        y += 28
+        return (w, y), g
 
 
 class ClassifyClusters(AnalysisPipelineStep):
@@ -196,8 +210,6 @@ class ClassifyClusters(AnalysisPipelineStep):
         size ratio (size of graph / size of target)
         category (see ClusterCategory enum at the top of this file)
     """
-
-    target_name: YieldAnalysisTarget
 
     def __init__(self,
                  name: str,
@@ -240,6 +252,15 @@ class ClassifyClusters(AnalysisPipelineStep):
 
     def get_output_data_type(self):
         return PipelineDataType.PIPELINE_DATATYPE_DATAFRAME
+
+    def draw(self) -> tuple[tuple[int, int], draw.Group]:
+        (w, y), g = super().draw()
+        g.append(draw.Rectangle(0, y, w, 40, stroke="black", stroke_width=1, fill="tan"))
+        g.append(draw.Text(f"Target topology: {self.target.name}", font_size=7, x=1, y=y+7))
+        y += 12
+        g.append(draw.Text("TODO: write description!", font_size=7, x=1, y=y+7))
+        y += 28
+        return (w, y), g
 
 
 # class SmartClassifyClusters(ClassifyClusters):
@@ -347,12 +368,16 @@ class ComputeClusterYield(AnalysisPipelineStep):
         """
         return PipelineDataType.PIPELINE_DATATYPE_DATAFRAME
 
-    def can_parallelize(self):
-        """
-        Returns:
-            True
-        """
-        return True
+    def draw(self) -> tuple[tuple[int, int], draw.Group]:
+        (w, y), g = super().draw()
+        g.append(draw.Rectangle(0, y, w, 40, stroke="black", stroke_width=1, fill="tan"))
+        g.append(draw.Text(f"Cutoff: {self.cutoff}", font_size=7, x=1, y=y+7))
+        y += 10
+        g.append(draw.Text(f"Overreach: {self.overreach}", font_size=7, x=1, y=y+7))
+        y += 10
+        g.append(draw.Text("TODO: write description!", font_size=7, x=1, y=y+7))
+        y += 16
+        return (w, y), g
 
 
 class ComputeClusterSizeData(AnalysisPipelineStep):
@@ -407,12 +432,14 @@ class ComputeClusterSizeData(AnalysisPipelineStep):
         """
         return PipelineDataType.PIPELINE_DATATYPE_DATAFRAME
 
-    def can_parallelize(self):
-        """
-        Returns:
-            True
-        """
-        return True
+    def draw(self) -> tuple[tuple[int, int], draw.Group]:
+        (w, y), g = super().draw()
+        g.append(draw.Rectangle(0, y, w, 40, stroke="black", stroke_width=1, fill="tan"))
+        g.append(draw.Text(f"Min Cluster Size: {self.minsize}", font_size=7, x=1, y=y+7))
+        y += 10
+        g.append(draw.Text("TODO: write description!", font_size=7, x=1, y=y+7))
+        y += 30
+        return (w, y), g
 
 
 class ComputeSpecGroupClusterYield(AggregateAnalysisPipelineStep):
@@ -453,8 +480,8 @@ class ComputeSpecGroupClusterYield(AggregateAnalysisPipelineStep):
         gb = yield_data.get().groupby(TIMEPOINT_KEY)
         data = pd.DataFrame(
             index=pd.RangeIndex(
-                start=yield_data[TIMEPOINT_KEY].min(),
-                stop=yield_data[TIMEPOINT_KEY].max(),
+                start=yield_data.get()[TIMEPOINT_KEY].min(),
+                stop=yield_data.get()[TIMEPOINT_KEY].max(),
                 step=self.output_tstep),
             columns=[self.MIN_KEY, self.MAX_KEY, self.AVG_KEY, self.STD_KEY])
         data.update(gb.min().rename({YIELD_KEY: self.MIN_KEY}))
