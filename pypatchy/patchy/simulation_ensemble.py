@@ -450,7 +450,7 @@ class PatchySimulationEnsemble:
         """
         Shorthand to get a simulation data file
         """
-        return self.paramfile(sim, paramname)
+        return self.folder_path(sim) / self.sim_get_param(sim, paramname)
 
     def get_input_file_param(self, paramname: str):
         """
