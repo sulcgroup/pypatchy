@@ -109,10 +109,10 @@ class AnalysisPipeline:
             f"Pipeline has no step called {step}. Pipeline steps: {', '.join(self.name_map.keys())}"
         return step if isinstance(step, AnalysisPipelineStep) else self.name_map[step]
 
-    def steps_before(self, step: AnalysisPipelineStep) -> list[int]:
+    def steps_before(self, step: AnalysisPipelineStep) -> list[AnalysisPipelineStep]:
         """
         Args:
-            step: an analyis pipeline step to get preceding steps for
+            step: an analyis pipeline step to get directly preceding steps for
         Returns:
             a list of steps that provide data to the step passed
         """
@@ -120,13 +120,27 @@ class AnalysisPipeline:
         assert not isinstance(step, AnalysisPipelineHead)
         return [u for u, v in self.pipeline_graph.in_edges(step.name)]
 
+    def ancestors(self, step: AnalysisPipelineStep) -> list[AnalysisPipelineStep]:
+        """
+        Returns:
+            a list of steps that provide data - perhaps through intermediaries - to the passed step
+        """
+        return [self.name_map[n] for n in nx.ancestors(self.pipeline_graph, step.name)]
+
+    def is_force_recompute(self, step: AnalysisPipelineStep) -> bool:
+        """
+        Returns:
+            true if the passed step requires a recompute, false otherwise
+        """
+        return step.force_recompute or any([s.force_recompute for s in self.ancestors(step)])
+
     def head_nodes(self) -> list[AnalysisPipelineHead]:
         """
         Returns:
             a list of steps in the pipeline that don't recieve data from other steps
         """
-        return [self.name_map[str(n)] for n in self.pipeline_graph.nodes
-                if isinstance(self.name_map[str(n)], AnalysisPipelineHead)]
+        return [self.name_map[n] for n in self.pipeline_graph.nodes
+                if isinstance(self.name_map[n], AnalysisPipelineHead)]
 
     def num_distinct_pipelines(self) -> int:
         """
