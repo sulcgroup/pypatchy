@@ -7,6 +7,7 @@ import os
 import itertools
 import pickle
 import sys
+import tempfile
 import time
 from json import JSONDecodeError
 from pathlib import Path
@@ -21,8 +22,11 @@ import logging
 
 from matplotlib import pyplot as plt
 
+# import oat stuff
 from oxDNA_analysis_tools.UTILS.oxview import from_path
 from oxDNA_analysis_tools.file_info import file_info
+from oxDNA_analysis_tools.UTILS.RyeReader import get_confs, describe, write_conf
+from oxDNA_analysis_tools.UTILS.data_structures import Configuration
 
 from pypatchy.analpipe.analysis_pipeline import AnalysisPipeline
 from ..analpipe.analysis_data import PDPipelineData, TIMEPOINT_KEY
@@ -188,7 +192,8 @@ class PatchySimulationEnsemble:
                     # if metadata file exists for this date
                     if "sim_date" in sim_cfg and \
                             (get_input_dir() / (cfg_file_name + sim_cfg["sim_date"] + "_metadata.json")).is_file():
-                        self.load_metadata_from(get_input_dir() / (cfg_file_name + sim_cfg["sim_date"] + "_metadata.json"))
+                        self.load_metadata_from(
+                            get_input_dir() / (cfg_file_name + sim_cfg["sim_date"] + "_metadata.json"))
                     else:  # if no metadata file exists, just go for it
                         cfg_file_name = cfg_file_name + ".json"
                         with open(get_input_dir() / cfg_file_name, 'r') as f:
@@ -346,7 +351,7 @@ class PatchySimulationEnsemble:
         params = [
             ParameterValue(key, value) if not self.ensemble_param_name_map[key].is_grouped_params()
             else ParameterValue(key, {
-                    "name": value,
+                "name": value,
                 "value": self.ensemble_param_name_map[key].lookup(value).param_value
             })
             for key, value in args
@@ -440,6 +445,12 @@ class PatchySimulationEnsemble:
             if paramname in paramgroup:
                 return paramgroup[paramname]
         raise Exception(f"Parameter {paramname} not found ANYWHERE!!!")
+
+    def paramfile(self, sim: PatchySimulation, paramname: str) -> Path:
+        """
+        Shorthand to get a simulation data file
+        """
+        return self.paramfile(sim, paramname)
 
     def get_input_file_param(self, paramname: str):
         """
@@ -545,7 +556,7 @@ class PatchySimulationEnsemble:
             else:
                 counter = 0
             if counter == 0:
-                traj_file = self.folder_path(sim) / self.sim_get_param(sim, "trajectory_file")
+                traj_file = self.paramfile(sim, "trajectory_file")
             else:
                 traj_file_name = self.sim_get_param(sim, 'trajectory_file')
                 traj_file_name = traj_file_name[:traj_file_name.rfind(".")] + \
@@ -572,7 +583,9 @@ class PatchySimulationEnsemble:
         print("Ensemble Params")
         for param in self.ensemble_params:
             print("\t" + str(param))
-
+        print(f"Const Simulation Params")
+        for param in self.const_params:
+            print("\t" + str(param))
         # print("\nHelpful analysis functions:")
         # print("Function `has_pipeline`")
         # print("\ttell me if there's an analysis pipeline")
@@ -634,13 +647,56 @@ class PatchySimulationEnsemble:
                     self.exec_continue(sim)
             self.dump_metadata()
 
-    def show_last_conf(self, sim: PatchySimulation):
-        from_path(self.folder_path(sim) / "last_conf.dat",
-                  self.folder_path(sim) / "init.top",
-                  self.folder_path(sim) / "particles.txt",
-                  self.folder_path(sim) / "patches.txt")
+    def show_last_conf(self, sim: Union[PatchySimulation, None] = None, **kwargs):
+        """
+        Displays the final configuration of a simulation
+        """
+        if len(kwargs) > 0:
+            self.sim_get_param(self.get_simulation(**kwargs))
+        else:
+            assert sim is not None, "No simulation provided!"
+            from_path(self.paramfile(sim, "lastconf_file"),
+                      self.paramfile(sim, "topology"),
+                      self.paramfile(sim, "particle_file"),
+                      self.paramfile(sim, "patches_file"))
 
-    def show_analysis_status(self) -> pd.DataFrame:
+    def get_conf(self, sim: PatchySimulation, timepoint: int) -> Configuration:
+        """
+        Returns:
+            a Configuration object showing the conf of the given simulation at the given timepoint
+        """
+        assert self.time_length(sim) < timepoint, f"Specified timepoint {timepoint} exceeds simulation length" \
+                                                  f"{self.time_length(sim)}"
+        if timepoint > self.sim_get_param(sim, "print_conf_interval"):
+            # this means that we're dealing with tidxs not step numbers
+            self.show_conf(sim, int(timepoint / self.sim_get_param(sim, "print_conf_interval")))
+        else:
+            # it's possible there's a better way to do this
+            # create temporary conf file
+            traj_file = self.sim_get_param(sim, "trajectory_file")
+            top_info, traj_info = describe(
+                str(self.paramfile(sim, "topology")),
+                str(self.paramfile(sim, "trajectory_file"))
+            )
+            conf = get_confs(
+                traj_info=traj_info,
+                top_info=top_info,
+                start_conf=timepoint,
+                n_confs=1
+            )[0]
+            return conf
+
+    def show_conf(self, sim: PatchySimulation, timepoint: int):
+        conf = self.get_conf(sim, timepoint)
+
+        with tempfile.TemporaryFile() as temp_conf:
+            write_conf(temp_conf, conf, include_vel=False)  # skip velocities for speed
+            from_path(temp_conf,
+                      self.paramfile(sim, "topology"),
+                      self.paramfile(sim, "particle_file"),
+                      self.paramfile(sim, "patches_file"))
+
+    def analysis_status(self) -> pd.DataFrame:
         """
         Returns a Pandas dataframe showing the status of every simulation in the ensemble
         at each step on the analysis pipeline
@@ -700,7 +756,7 @@ class PatchySimulationEnsemble:
         if isinstance(step, str):
             return self.missing_analysis_data(self.analysis_pipeline.name_map[step])
         else:
-            return self.show_analysis_status().loc[~self.show_analysis_status()[step.name]]
+            return self.analysis_status().loc[~self.analysis_status()[step.name]]
 
     def merge_topologies(self,
                          sim_selector: Union[None, PatchySimulation, list[PatchySimulation]] = None,
@@ -1249,7 +1305,7 @@ class PatchySimulationEnsemble:
                                                              f"not consistant with {step} output time " \
                                                              f"interval {step.output_tstep}"
         # check if we have cached data for this step already
-        if not step.force_recompute and self.has_data_file(step, sim):
+        if not self.analysis_pipeline.is_force_recompute(step) and self.has_data_file(step, sim):
             self.get_logger().info(
                 f"Cache file for simulation {get_descriptor_key(sim)} and step {step} exists! Loading...")
             cache_file_path = self.get_cache_file(step, sim)
@@ -1385,6 +1441,7 @@ def process_simulation_data(args):
     ensemble, step, s, time_steps = args
     return ensemble.get_data(step, s, time_steps)
 
+
 def shared_ensemble(es: list[PatchySimulationEnsemble]) -> list[list[PatchySimulation]]:
     """
     Computes the simulation specs that are shared between the provided ensembles
@@ -1418,4 +1475,3 @@ def shared_ensemble(es: list[PatchySimulationEnsemble]) -> list[list[PatchySimul
             for i, m in enumerate(shared):
                 m.append(equivelance_group[i])
     return shared
-
