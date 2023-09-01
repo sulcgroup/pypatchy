@@ -258,7 +258,11 @@ class ClassifyClusters(AnalysisPipelineStep):
         g.append(draw.Rectangle(0, y, w, 40, stroke="black", stroke_width=1, fill="tan"))
         g.append(draw.Text(f"Target topology: {self.target.name}", font_size=7, x=1, y=y+7))
         y += 12
-        g.append(draw.Text("TODO: write description!", font_size=7, x=1, y=y+7))
+        g.append(draw.Text("This step classifies cluster graphs as 'match', 'smaller subset',\n"
+                           "'smaller not subset', or 'non-match'. The step uses igraph's \n"
+                           "`get_subisomorphisms_vf2` function. The step produces a dataframe \n"
+                           "where each row is a cluster with columns for category, size ratio, \n"
+                           "and timepoint.", font_size=7, x=1, y=y+7))
         y += 28
         return (w, y), g
 
