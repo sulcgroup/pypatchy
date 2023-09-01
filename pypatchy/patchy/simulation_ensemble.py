@@ -287,7 +287,7 @@ class PatchySimulationEnsemble:
             file_path = self.tld() / "analysis_pipeline.pickle"
             self.metadata["analysis_file"] = str(file_path)
 
-        # construct analpipe data dict in case we need it
+        # construct analysis data dict in case we need it
         self.analysis_data = dict()
 
     def load_metadata_from(self, metadata_file_path: Path):
@@ -567,7 +567,7 @@ class PatchySimulationEnsemble:
         prints help text, for non-me people or if I forget
         might replace later with pydoc
         """
-        print(f"Ensemble of simulations of {self.export_name} set up on {self.sim_init_date.strftime('%Y-%m-%s')}")
+        print(f"Ensemble of simulations of {self.export_name} set up on {self.sim_init_date.strftime('%Y-%m-%d')}")
         print(f"Particle info: {str(self.particle_set)}")
         print("Ensemble Params")
         for param in self.ensemble_params:
@@ -643,7 +643,7 @@ class PatchySimulationEnsemble:
     def show_analysis_status(self) -> pd.DataFrame:
         """
         Returns a Pandas dataframe showing the status of every simulation in the ensemble
-        at each step on the analpipe pipeline
+        at each step on the analysis pipeline
         """
         return pd.DataFrame.from_dict({
             tuple(v.value_name for v in sim.param_vals):
@@ -1043,7 +1043,7 @@ class PatchySimulationEnsemble:
     def dump_metadata(self):
         """
         Saves metadata stored in `self.metadata` to a metadata file
-        Also saves the analpipe pathway
+        Also saves the analysis pathway
         """
         self.metadata["slurm_log"] = self.slurm_log.to_list()
         # dump metadata dict to file
@@ -1119,7 +1119,7 @@ class PatchySimulationEnsemble:
     # ------------- ANALYSIS FUNCTIONS --------------------- #
     def clear_pipeline(self, reset_analysis_file_path: bool = False):
         """
-        deletes all steps from the analpipe pipeline
+        deletes all steps from the analysis pipeline
         """
         if reset_analysis_file_path:
             del self.metadata["analysis_file"]
@@ -1177,7 +1177,7 @@ class PatchySimulationEnsemble:
         """
         Returns data for a step, doing any/all required calculations
         Parameters:
-            :param step an analpipe step
+            :param step an analysis step
             :param sim a patchy simulation object, descriptor of a PatchySimulation object,
             list of PatchySimulation object, or tuple of ParameterValues that indicates a PatchySimulation
             object
@@ -1228,7 +1228,7 @@ class PatchySimulationEnsemble:
         if is_slurm_job():
             slurm_job_info = self.slurm_job_info()
             self.append_slurm_log(SlurmLogEntry(
-                job_type="analpipe",
+                job_type="analysis",
                 pid=int(slurm_job_info["JobId"]),
                 simulation=sim,
                 script_path=slurm_job_info["Command"],
