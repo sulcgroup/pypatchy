@@ -121,7 +121,7 @@ def compare_ensembles(es: list[PatchySimulationEnsemble],
     all_data: list[pd.DataFrame] = []
     # get sim specs shared among all ensembles
     shared_sims: list[list[PatchySimulation]] = shared_ensemble(es)
-    for i, e in enumerate(es):
+    for sims, e in zip(shared_sims, es):
         if other_spec is None:  # unlikely
             other_spec = list()
 
@@ -298,6 +298,4 @@ def plot_compare_analysis_outputs(e: PatchySimulationEnsemble,
         fig.set(ylim=(0.0, 1.0))
     fig.fig.suptitle(f"{e.export_name} Data", y=1.0)
     return fig
-
-
 
