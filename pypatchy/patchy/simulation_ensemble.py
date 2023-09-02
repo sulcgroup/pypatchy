@@ -1442,36 +1442,45 @@ def process_simulation_data(args):
     return ensemble.get_data(step, s, time_steps)
 
 
-def shared_ensemble(es: list[PatchySimulationEnsemble]) -> list[list[PatchySimulation]]:
+def shared_ensemble(es: list[PatchySimulationEnsemble]) -> Union[list[list[PatchySimulation]], None]:
     """
     Computes the simulation specs that are shared between the provided ensembles
     Args:
         es: a list of simulation ensembles
 
     Returns:
-        a list of lists of patchy sim specs where each list of specs corresponds to an ensemble in the args
     """
 
-    ensembles = [e.ensemble() for e in es]
-    e0 = ensembles[0]
-    shared = [[] for _ in es]
-    for sim in e0:
-        flag_missing = False
-        # construct list of simulations in each ensemble equivelant to the one in e0
-        equivelance_group = [sim]
-        for group in ensembles[1:]:
-            equiv = None
-            for sim2 in group:
-                if sim.equivelant(sim2):
-                    equiv = sim2
-                    break
-            if equiv:
-                equivelance_group.append(e0)
-            else:
-                # missing equivalent simulation.
-                flag_missing = True
-                break
-        if not flag_missing:
-            for i, m in enumerate(shared):
-                m.append(equivelance_group[i])
-    return shared
+    names = set()
+    name_vals: dict[str, set] = dict()
+    for e in es:
+        names.update([p.name for p in e.const_params])
+        for p in e.const_params:
+            if p.name not in name_vals:
+                name_vals[p.name] = set()
+            name_vals[p.name] = name_vals[p.name].intersection([p.value_name])
+        names.update([p.param_key for p in e.ensemble_params])
+        for p in e.ensemble_params:
+            if p.param_key not in name_vals:
+                name_vals[p.param_key] = set()
+            name_vals[p.param_key] = name_vals[p.param_key].intersection([pv.value_name for pv in p.param_value_set])
+
+    # if any simulation is missing a parameter
+    if not all([len(name_vals[name]) > 0 for name in names]):
+        return None
+
+    ensembles = []
+    for e in es:
+        valset: list[list[ParameterValue]] = []
+        for name in names:
+            if len(name_vals[name]) == 1:
+                continue  # name is a const param in all ensembles
+            # make sure to order ensemble parameters correctly
+            for p in e.ensemble_params:
+                union_vals = name_vals[p.param_key]
+                vals = [pv for pv in p if pv.value_name in union_vals]
+                valset.append(vals)
+
+        ensembles.append([PatchySimulation(sim) for sim in itertools.product(valset)])
+
+    return ensembles
