@@ -47,7 +47,7 @@ class YieldAnalysisTarget:
         """
         return len(self.graph)
 
-    def compare(self, g: nx.Graph) -> tuple[int, float]:
+    def compare(self, g: nx.Graph) -> tuple[ClusterCategory, float]:
         """
         Compares a cluster graph to the analysis target and returns a classification of the cluster and its yield
 
@@ -62,16 +62,15 @@ class YieldAnalysisTarget:
         # check if g is a subgraph of the target graph
         if len(ig.Graph.from_networkx(self.graph).get_subisomorphisms_vf2(ig.Graph.from_networkx(g))) > 0:
             if sizeFrac == 1:
-                cat = ClusterCategory.MATCH.value
+                cat = ClusterCategory.MATCH
             else:
-                cat = ClusterCategory.SUBSET.value
+                cat = ClusterCategory.SUBSET
         else:
             if sizeFrac < 1:
-                cat = ClusterCategory.SMALLER_NOT_SUB.value
+                cat = ClusterCategory.SMALLER_NOT_SUB
             else:
-                cat = ClusterCategory.OVER.value
+                cat = ClusterCategory.OVER
         return cat, sizeFrac
-
 
 def graphShape(shapePath):
     with open(shapePath, 'r') as f:

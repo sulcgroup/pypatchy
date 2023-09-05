@@ -97,7 +97,7 @@ def compare_ensembles(es: list[PatchySimulationEnsemble],
                       plot_line_color: Union[None, str, EnsembleParameter] = None,
                       plot_line_stroke: Union[None, str, EnsembleParameter] = None,
                       norm: Union[None, str] = None
-                      ) -> Union[sb.FacetGrid, False]:
+                      ) -> Union[sb.FacetGrid, bool]:
     """
     Compares data from different ensembles
     """
@@ -127,7 +127,7 @@ def compare_ensembles(es: list[PatchySimulationEnsemble],
         if other_spec is None:  # unlikely
             other_spec = list()
 
-        data_source = e.get_data(analysis_data_source, shared_sims[i])
+        data_source = e.get_data(analysis_data_source, sims)
         data = data_source.get().copy()
         if norm:
             def normalize_row(row):
