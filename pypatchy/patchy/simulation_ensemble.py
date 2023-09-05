@@ -192,13 +192,13 @@ class PatchySimulationEnsemble:
                     cfg_file_name = cfg_file_name + ".json"
                     with open(get_input_dir() / cfg_file_name, 'r') as f:
                         sim_cfg.update(json.load(f))
-                    # if metadata file exists for this date
-                    if "sim_date" in sim_cfg and \
-                            (get_input_dir() / (sim_cfg[EXPORT_NAME_KEY] + "_" + sim_cfg["sim_date"] + "_metadata.json")).is_file():
-                        self.load_metadata_from(
-                            get_input_dir() / (sim_cfg[EXPORT_NAME_KEY] + "_" + sim_cfg["sim_date"] + "_metadata.json"))
-                    else:
-                        print("Warning: Metadata file not found!")
+                    if "sim_date" in sim_cfg:
+                        # if metadata file exists for this date
+                        metadata_file = get_input_dir() / (sim_cfg[EXPORT_NAME_KEY] + "_" + sim_cfg["sim_date"] + "_metadata.json")
+                        if "sim_date" in sim_cfg and metadata_file.is_file():
+                            self.load_metadata_from(metadata_file)
+                        else:
+                            print(f"Warning: Metadata file {str(metadata_file)} not found!")
 
                 else:
                     with open(get_input_dir() / cfg_file_name, 'r') as f:
@@ -757,6 +757,7 @@ class PatchySimulationEnsemble:
             self.start_simulation(simulation_selector,
                                   script_name="dna_analysis.sh",
                                   job_type="dna_analysis")
+            self.dump_metadata()
 
     def missing_analysis_data(self, step: Union[AnalysisPipelineStep, str]) -> pd.DataFrame:
         if isinstance(step, str):
@@ -1111,7 +1112,7 @@ class PatchySimulationEnsemble:
         # dump metadata dict to file
         with open(self.metadata_file, "w") as f:
             json.dump(self.metadata, fp=f, indent=4)
-        # dump analysis pipeline as pickle
+        # dump analysis pipevline as pickle
         with open(self.metadata["analysis_file"], "wb") as f:
             pickle.dump(self.analysis_pipeline, f)
 
