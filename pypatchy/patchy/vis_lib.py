@@ -85,7 +85,7 @@ def plot_analysis_data(e: PatchySimulationEnsemble,
                      **plt_args)
     if norm:
         fig.set(ylim=(0.0, 1.0))
-    fig.fig.suptitle(f"{e.export_name} - {analysis_data_source}", y=0.8)
+    fig.fig.suptitle(f"{e.export_name} - {analysis_data_source}", y=1)
     return fig
 
 
@@ -97,7 +97,7 @@ def compare_ensembles(es: list[PatchySimulationEnsemble],
                       plot_line_color: Union[None, str, EnsembleParameter] = None,
                       plot_line_stroke: Union[None, str, EnsembleParameter] = None,
                       norm: Union[None, str] = None
-                      ) -> sb.FacetGrid:
+                      ) -> Union[sb.FacetGrid, False]:
     """
     Compares data from different ensembles
     """
@@ -121,6 +121,8 @@ def compare_ensembles(es: list[PatchySimulationEnsemble],
     all_data: list[pd.DataFrame] = []
     # get sim specs shared among all ensembles
     shared_sims: list[list[PatchySimulation]] = shared_ensemble(es)
+    if shared_sims is None:
+        return False
     for sims, e in zip(shared_sims, es):
         if other_spec is None:  # unlikely
             other_spec = list()
@@ -162,10 +164,11 @@ def get_particle_color(ptypeidx: int):
 
 def show_clusters(e: PatchySimulationEnsemble,
                   sim: PatchySimulation,
-                  timepoint: int,
                   analysis_step: GraphsFromClusterTxt,
+                  timepoint: int = -1,
                   figsize=4
                   ) -> plt.Figure:
+
     # load particle id data from top file
     # todo: automate more?
     with (e.folder_path(sim) / "init.top").open('r') as f:
