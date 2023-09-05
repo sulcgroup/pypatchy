@@ -1442,28 +1442,32 @@ def process_simulation_data(args):
     return ensemble.get_data(step, s, time_steps)
 
 
-def shared_ensemble(es: list[PatchySimulationEnsemble]) -> Union[list[list[PatchySimulation]], None]:
+def shared_ensemble(es: list[PatchySimulationEnsemble], ignores: set = set()) -> Union[list[list[PatchySimulation]], None]:
     """
     Computes the simulation specs that are shared between the provided ensembles
     Args:
         es: a list of simulation ensembles
-
+        ignores: a set of const parameter names to ignore when constructing simulation overlap
     Returns:
     """
 
     names = set()
     name_vals: dict[str, set] = dict()
     for e in es:
-        names.update([p.name for p in e.const_params])
-        for p in e.const_params:
-            if p.name not in name_vals:
-                name_vals[p.name] = set()
-            name_vals[p.name] = name_vals[p.name].intersection([p.value_name])
+        names.update([key for key in e.const_params if key not in ignores])
+        for param_key in e.const_params:
+            if param_key in ignores:
+                continue
+            if param_key not in name_vals:
+                name_vals[param_key] = {e.const_params[param_key]}
+            else:
+                name_vals[param_key] = name_vals[param_key].intersection([e.const_params[param_key]])
         names.update([p.param_key for p in e.ensemble_params])
         for p in e.ensemble_params:
             if p.param_key not in name_vals:
-                name_vals[p.param_key] = set()
-            name_vals[p.param_key] = name_vals[p.param_key].intersection([pv.value_name for pv in p.param_value_set])
+                name_vals[p.param_key] = {pv.value_name for pv in p.param_value_set}
+            else:
+                name_vals[p.param_key] = name_vals[p.param_key].intersection([pv.value_name for pv in p.param_value_set])
 
     # if any simulation is missing a parameter
     if not all([len(name_vals[name]) > 0 for name in names]):
@@ -1472,15 +1476,12 @@ def shared_ensemble(es: list[PatchySimulationEnsemble]) -> Union[list[list[Patch
     ensembles = []
     for e in es:
         valset: list[list[ParameterValue]] = []
-        for name in names:
-            if len(name_vals[name]) == 1:
-                continue  # name is a const param in all ensembles
-            # make sure to order ensemble parameters correctly
-            for p in e.ensemble_params:
-                union_vals = name_vals[p.param_key]
-                vals = [pv for pv in p if pv.value_name in union_vals]
-                valset.append(vals)
+        # make sure to order ensemble parameters correctly
+        for p in e.ensemble_params:
+            union_vals = name_vals[p.param_key]
+            vals = [pv for pv in p if pv.value_name in union_vals]
+            valset.append(vals)
 
-        ensembles.append([PatchySimulation(sim) for sim in itertools.product(valset)])
+        ensembles.append([PatchySimulation(sim) for sim in itertools.product(*valset)])
 
     return ensembles
