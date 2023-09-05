@@ -242,3 +242,9 @@ class SlurmLog:
 
         """
         return [e.to_dict() for e in self.log_list]
+
+    def __iter__(self):
+        return iter(self.log_list)
+
+    def __repr__(self):
+        return "\n\n".join(str(entry for entry in self))
