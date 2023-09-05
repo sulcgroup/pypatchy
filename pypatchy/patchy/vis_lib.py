@@ -1,3 +1,4 @@
+import itertools
 import math
 from typing import Union
 
@@ -89,15 +90,16 @@ def plot_analysis_data(e: PatchySimulationEnsemble,
     return fig
 
 
-def compare_ensembles(es: list[PatchySimulationEnsemble],
-                      analysis_data_source: str,
-                      data_source_key: str,
-                      other_spec: Union[None, list[ParameterValue]] = None,
-                      grid_cols: Union[None, EnsembleParameter] = None,
-                      plot_line_color: Union[None, str, EnsembleParameter] = None,
-                      plot_line_stroke: Union[None, str, EnsembleParameter] = None,
-                      norm: Union[None, str] = None
-                      ) -> Union[sb.FacetGrid, bool]:
+def plot_compare_ensembles(es: list[PatchySimulationEnsemble],
+                           analysis_data_source: str,
+                           data_source_key: str,
+                           other_spec: Union[None, list[ParameterValue]] = None,
+                           rows: Union[None, str, EnsembleParameter] = None,
+                           cols: Union[None, str, EnsembleParameter] = None,
+                           color: Union[None, str, EnsembleParameter] = None,
+                           stroke: Union[None, str, EnsembleParameter] = None,
+                           norm: Union[None, str] = None
+                           ) -> Union[sb.FacetGrid, bool]:
     """
     Compares data from different ensembles
     """
@@ -107,28 +109,36 @@ def compare_ensembles(es: list[PatchySimulationEnsemble],
     ]), f"Not all provided ensembles have analysis pipelines with step named {analysis_data_source}"
 
     plt_args = {
-        "row": "ensemble",
         "kind": "line",
         "errorbar": "sd"
     }
-    if isinstance(grid_cols, str):
-        plt_args["col"] = grid_cols
-    if isinstance(plot_line_color, str):
-        plt_args["hue"] = plot_line_color
-    if isinstance(plot_line_stroke, str):
-        plt_args["style"] = plot_line_stroke
+
+    if isinstance(rows, str):
+        plt_args["row"] = rows
+    if isinstance(cols, str):
+        plt_args["col"] = cols
+    if isinstance(color, str):
+        plt_args["hue"] = color
+    if isinstance(stroke, str):
+        plt_args["style"] = stroke
 
     all_data: list[pd.DataFrame] = []
     # get sim specs shared among all ensembles
-    shared_sims: list[list[PatchySimulation]] = shared_ensemble(es)
+    shared_sims: list[list[PatchySimulation]] = shared_ensemble(es, ignores={"particle_type_levels"})
     if shared_sims is None:
         return False
-    for sims, e in zip(shared_sims, es):
+    data_sources = [e.get_data(analysis_data_source, sims) for e, sims in zip(es, shared_sims)]
+    for sims, e, data_source in zip(shared_sims, es, data_sources):
         if other_spec is None:  # unlikely
             other_spec = list()
 
-        data_source = e.get_data(analysis_data_source, sims)
-        data = data_source.get().copy()
+        some_data = []  # avoid reusing name all_data
+        for sim, sim_data in zip(sims, data_source):
+            data = sim_data.get()
+            for param in sim:
+                data.insert(0, param.param_name, param.value_name)
+            some_data.append(data)
+        data = pd.concat(some_data, ignore_index=True)
         if norm:
             def normalize_row(row):
                 sim = row.drop([TIMEPOINT_KEY, data_source_key]).to_dict()
@@ -136,21 +146,24 @@ def compare_ensembles(es: list[PatchySimulationEnsemble],
                 return row[data_source_key] / e.sim_get_param(sim, norm)
 
             data[data_source_key] = data.apply(normalize_row, axis=1)
-        data.rename(mapper={TIMEPOINT_KEY: "steps"}, axis="columns", inplace=True)
         data["ensemble"] = e.export_name
         all_data.append(data)
     # compute timepoints shared between all ensembles
-    shared_timepoints = set.intersection(*[set(d.timepoint.data) for d in all_data])
+    shared_timepoints = set.intersection(*[set(d.trange()) for d in itertools.chain.from_iterable(data_sources)])
     data = pd.concat(all_data, ignore_index=True)
 
-    data.set_index(TIMEPOINT_KEY)
+    data.set_index(TIMEPOINT_KEY, inplace=True)
     data = data.loc[shared_timepoints]
-    data.reset_index()
+    data.reset_index(inplace=True)
+    data.rename(mapper={TIMEPOINT_KEY: "steps"}, axis="columns", inplace=True)
+
     fig = sb.relplot(data,
                      x="steps",
                      y=data_source_key,
                      **plt_args)
     fig.fig.suptitle(f"Comparison of {analysis_data_source} Data", y=1)
+    if norm:
+        fig.set(ylim=(0.0, 1.0))
     return fig
 
 
@@ -168,7 +181,6 @@ def show_clusters(e: PatchySimulationEnsemble,
                   timepoint: int = -1,
                   figsize=4
                   ) -> plt.Figure:
-
     # load particle id data from top file
     # todo: automate more?
     with (e.folder_path(sim) / "init.top").open('r') as f:
@@ -301,4 +313,3 @@ def plot_compare_analysis_outputs(e: PatchySimulationEnsemble,
         fig.set(ylim=(0.0, 1.0))
     fig.fig.suptitle(f"{e.export_name} Data", y=1.0)
     return fig
-
