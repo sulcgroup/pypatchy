@@ -195,9 +195,9 @@ def show_clusters(e: PatchySimulationEnsemble,
     elif timepoint == -1:  # timepoint from step
         timepoint = step * analysis_step.output_tstep
 
-    tr = range(timepoint,
-               timepoint + analysis_step.output_tstep,
-               analysis_step.output_tstep)
+    tr = range(int(timepoint),
+               int(timepoint + analysis_step.output_tstep),
+               int(analysis_step.output_tstep))
     graphs: list[nx.Graph] = e.get_data(analysis_step, sim, tr).get()[timepoint]
     nclusters = len(graphs)
     if nclusters == 0:
