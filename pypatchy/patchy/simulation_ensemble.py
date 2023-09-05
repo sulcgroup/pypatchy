@@ -663,8 +663,8 @@ class PatchySimulationEnsemble:
             assert sim is not None, "No simulation provided!"
             from_path(self.paramfile(sim, "lastconf_file"),
                       self.paramfile(sim, "topology"),
-                      self.paramfile(sim, "particle_file"),
-                      self.paramfile(sim, "patches_file"))
+                      self.folder_path(sim) / "particles.txt",
+                      self.folder_path(sim) / "patches.txt")
 
     def get_conf(self, sim: PatchySimulation, timepoint: int) -> Configuration:
         """
