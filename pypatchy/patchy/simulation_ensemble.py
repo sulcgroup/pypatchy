@@ -189,15 +189,17 @@ class PatchySimulationEnsemble:
                 cfg_file_name: str = kwargs["cfg_file_name"]
                 # if filename was provided without a json extension
                 if cfg_file_name.find(".") == -1:
+                    cfg_file_name = cfg_file_name + ".json"
+                    with open(get_input_dir() / cfg_file_name, 'r') as f:
+                        sim_cfg.update(json.load(f))
                     # if metadata file exists for this date
                     if "sim_date" in sim_cfg and \
-                            (get_input_dir() / (cfg_file_name + sim_cfg["sim_date"] + "_metadata.json")).is_file():
+                            (get_input_dir() / (sim_cfg[EXPORT_NAME_KEY] + "_" + sim_cfg["sim_date"] + "_metadata.json")).is_file():
                         self.load_metadata_from(
-                            get_input_dir() / (cfg_file_name + sim_cfg["sim_date"] + "_metadata.json"))
-                    else:  # if no metadata file exists, just go for it
-                        cfg_file_name = cfg_file_name + ".json"
-                        with open(get_input_dir() / cfg_file_name, 'r') as f:
-                            sim_cfg.update(json.load(f))
+                            get_input_dir() / (sim_cfg[EXPORT_NAME_KEY] + "_" + sim_cfg["sim_date"] + "_metadata.json"))
+                    else:
+                        print("Warning: Metadata file not found!")
+
                 else:
                     with open(get_input_dir() / cfg_file_name, 'r') as f:
                         sim_cfg.update(json.load(f))
@@ -311,7 +313,7 @@ class PatchySimulationEnsemble:
         """
         This is a very flexable method for returning PatchySimulation objects
         but is also very complex, due to the range of inputs accepted
-        
+
         given a list of parameter values, returns a PatchySimulation object
         """
         # sim_params = args
@@ -519,6 +521,10 @@ class PatchySimulationEnsemble:
     def folder_path(self, sim: PatchySimulation) -> Path:
         return self.tld() / sim.get_folder_path()
 
+    def get_analysis_step(self, step: Union[str, AnalysisPipelineStep]) -> AnalysisPipelineStep:
+        """
+        Alias for PatchySimulationEnsemble.get_pipeline_step
+        """
     def get_pipeline_step(self, step: Union[str, AnalysisPipelineStep]) -> AnalysisPipelineStep:
         """
         Returns a step in the analysis pipeline
@@ -693,8 +699,8 @@ class PatchySimulationEnsemble:
             write_conf(temp_conf, conf, include_vel=False)  # skip velocities for speed
             from_path(temp_conf,
                       self.paramfile(sim, "topology"),
-                      self.paramfile(sim, "particle_file"),
-                      self.paramfile(sim, "patches_file"))
+                      self.folder_path(sim) / "particles.txt",
+                      self.folder_path(sim) / "patches.txt")
 
     def analysis_status(self) -> pd.DataFrame:
         """

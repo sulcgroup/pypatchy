@@ -91,7 +91,7 @@ class AnalysisPipeline:
         # self.pipeline_steps.append(newStep)
         if origin_step is not None:
             self._add_pipe_between(origin_step, newStep)
-        print(f"Adding step {newStep.name}")
+        # print(f"Adding step {newStep.name}")
         return newStep
 
     def get_pipeline_step(self, step: Union[str, AnalysisPipelineStep]) -> AnalysisPipelineStep:

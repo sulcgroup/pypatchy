@@ -180,18 +180,26 @@ def show_clusters(e: PatchySimulationEnsemble,
                   analysis_step: GraphsFromClusterTxt,
                   timepoint: int = -1,
                   figsize=4
-                  ) -> plt.Figure:
+                  ) -> Union[plt.Figure, None]:
     # load particle id data from top file
     # todo: automate more?
     with (e.folder_path(sim) / "init.top").open('r') as f:
         f.readline()  # clear first line
         particle_types = [int(p) for p in f.readline().split()]
 
+    if timepoint == -1:
+        timepoint = e.time_length(sim)
+    if timepoint % analysis_step.output_tstep == 0: # timepoint is in steps?
+        timepoint /= analysis_step.output_tstep
+
     tr = range(timepoint * analysis_step.output_tstep,
                (timepoint + 1) * analysis_step.output_tstep,
                analysis_step.output_tstep)
     graphs: list[nx.Graph] = e.get_data(analysis_step, sim, tr).get()[timepoint * analysis_step.output_tstep]
     nclusters = len(graphs)
+    if nclusters == 0:
+        print(f"No clusters at step {timepoint*analysis_step.output_tstep}")
+        return None
     r = math.ceil(math.sqrt(nclusters))
     fig, axs = plt.subplots(nrows=r, ncols=r, figsize=(r * figsize, r * figsize))
 
