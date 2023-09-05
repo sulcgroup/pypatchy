@@ -340,12 +340,12 @@ class ComputeClusterYield(AnalysisPipelineStep):
         """
         # filter off-target graphs
         data: pd.DataFrame = cluster_categories.get()[
-            cluster_categories.get()[ClassifyClusters.CLUSTER_CATEGORY_KEY] != ClusterCategory.SMALLER_NOT_SUB.value]
+            cluster_categories.get()[ClassifyClusters.CLUSTER_CATEGORY_KEY] != ClusterCategory.SMALLER_NOT_SUB]
         # filter too-small graphs
         data = data[data[ClassifyClusters.SIZE_RATIO_KEY] >= self.cutoff]
         if not self.overreach:
             # filter clusters that are larger than the largest clusters
-            data = data[data[ClassifyClusters.CLUSTER_CATEGORY_KEY] != ClusterCategory.OVER.value]
+            data = data[data[ClassifyClusters.CLUSTER_CATEGORY_KEY] != ClusterCategory.OVER]
         else:  # not something I'm currently using by may be useful later
             # max cluster yield should be 1.0
             data[ClassifyClusters.SIZE_RATIO_KEY] = data[ClassifyClusters.SIZE_RATIO_KEY].apply(np.ceil)
