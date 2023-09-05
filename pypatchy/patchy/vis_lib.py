@@ -25,10 +25,10 @@ def plot_analysis_data(e: PatchySimulationEnsemble,
                        analysis_data_source: PipelineStepDescriptor,
                        data_source_key: str,
                        other_spec: Union[None, list[ParameterValue]] = None,
-                       plot_grid_cols: Union[None, str, EnsembleParameter] = None,
-                       plot_grid_rows: Union[None, str, EnsembleParameter] = None,
-                       plot_line_color: Union[None, str, EnsembleParameter] = None,
-                       plot_line_stroke: Union[None, str, EnsembleParameter] = None,
+                       cols: Union[None, str, EnsembleParameter] = None,
+                       rows: Union[None, str, EnsembleParameter] = None,
+                       color: Union[None, str, EnsembleParameter] = None,
+                       stroke: Union[None, str, EnsembleParameter] = None,
                        norm: Union[None, str] = None
                        ) -> sb.FacetGrid:
     """
@@ -41,10 +41,10 @@ def plot_analysis_data(e: PatchySimulationEnsemble,
         analysis_data_source: the pipeline step (can be str or object) to draw data from. the step output datatype should be a pandas DataFrame
         data_source_key: the key in the step output dataframe to use for data
         other_spec:  ensemble parameter values that will be constant across the figure
-        plot_line_stroke: ensemble parameter to use for the plot line stroke
-        plot_grid_rows: ensemble parameter to use for the plot grid rows
-        plot_line_color: ensemble parameter to use for the plot line
-        plot_grid_cols: ensemble parameter to use for the plot grid cols
+        stroke: ensemble parameter to use for the plot line stroke
+        rows: ensemble parameter to use for the plot grid rows
+        color: ensemble parameter to use for the plot line
+        cols: ensemble parameter to use for the plot grid cols
         norm: simulation parameter to use to normalize the data, or none for no data normalization
 
     """
@@ -56,14 +56,14 @@ def plot_analysis_data(e: PatchySimulationEnsemble,
         "kind": "line",
         "errorbar": "sd"
     }
-    if isinstance(plot_grid_cols, str):
-        plt_args["col"] = plot_grid_cols
-    if isinstance(plot_grid_rows, str):
-        plt_args["row"] = plot_grid_rows
-    if isinstance(plot_line_color, str):
-        plt_args["hue"] = plot_line_color
-    if isinstance(plot_line_stroke, str):
-        plt_args["style"] = plot_line_stroke
+    if isinstance(cols, str):
+        plt_args["col"] = cols
+    if isinstance(rows, str):
+        plt_args["row"] = rows
+    if isinstance(color, str):
+        plt_args["hue"] = color
+    if isinstance(stroke, str):
+        plt_args["style"] = stroke
 
     data_source = e.get_data(analysis_data_source, tuple(other_spec))
     data = data_source.get().copy()
