@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="pypatchy",
-    version="0.1",
+    version="0.1.1",
     packages=find_packages(),
     author="Joshua Evans",
     author_email="jrevan21@asu.edu",
