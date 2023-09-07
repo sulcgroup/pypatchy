@@ -196,7 +196,7 @@ def find_ensemble(*args: str, **kwargs) -> PatchySimulationEnsemble:
                     f"No metadata file at for simulation {metadata_file_name}")
             with metadata_file_path.open("r") as mdt_file:
                 mdt = json.load(mdt_file)
-                return build_ensemble(mdt)
+                return build_ensemble(mdt["ensemble_config"], mdt, metadata_file_path)
 
         # grab date arg
         if any([key in kwargs for key in ["sim_date", "date"]]):
