@@ -898,7 +898,7 @@ class PatchySimulationEnsemble:
         Returns:
             a Configuration object showing the conf of the given simulation at the given timepoint
         """
-        assert self.time_length(sim) < timepoint, f"Specified timepoint {timepoint} exceeds simulation length" \
+        assert self.time_length(sim) > timepoint, f"Specified timepoint {timepoint} exceeds simulation length" \
                                                   f"{self.time_length(sim)}"
         if timepoint > self.sim_get_param(sim, "print_conf_interval"):
             # this means that we're dealing with tidxs not step numbers
@@ -922,9 +922,9 @@ class PatchySimulationEnsemble:
     def show_conf(self, sim: PatchySimulation, timepoint: int):
         conf = self.get_conf(sim, timepoint)
 
-        with tempfile.TemporaryFile() as temp_conf:
-            write_conf(temp_conf, conf, include_vel=False)  # skip velocities for speed
-            from_path(temp_conf,
+        with tempfile.NamedTemporaryFile() as temp_conf:
+            write_conf(temp_conf.name, conf, include_vel=False)  # skip velocities for speed
+            from_path(temp_conf.name,
                       self.paramfile(sim, "topology"),
                       self.folder_path(sim) / "particles.txt",
                       self.folder_path(sim) / "patches.txt")
