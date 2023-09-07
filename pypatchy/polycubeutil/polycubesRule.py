@@ -199,7 +199,12 @@ class PolycubeRuleCubeType(PatchyBaseParticleType):
         return {p.dirIdx() for p in self.patches()}
 
     def get_patch_by_idx(self, i: int) -> PolycubesPatch:
-        return self.patch(i)
+        """
+        Does NOT use direction indexes!
+        Returns:
+            the ith patch in the particle's patch list.
+        """
+        return self._patches[i]
 
     def add_patch(self, patch: PolycubesPatch):
         self._patches.append(patch)

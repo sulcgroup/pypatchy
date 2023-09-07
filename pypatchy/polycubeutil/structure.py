@@ -8,6 +8,7 @@ from scipy.spatial.transform import Rotation
 import networkx as nx
 import numpy as np
 from collections import defaultdict
+import igraph as ig
 
 from ..util import getRotations, enumerateRotations, from_xyz
 
@@ -103,7 +104,7 @@ class Structure:
             (lmap[u], du, lmap[v], dv) for u, du, v, dv in self.bindings_list if u in lmap and v in lmap
         ])
 
-    def cycles_by_size(self) -> dict[int: list[int]]:
+    def cycles_by_size(self, filter_repeat_nodes=True) -> dict[int: list[int]]:
         """
         Code partially written by ChatGPT
         Construct a list of unique cycles in the graph,
@@ -115,10 +116,14 @@ class Structure:
         """
 
         # Use simple_cycles to get all cycles in the graph
-        all_cycles = list(nx.simple_cycles(self.graph))
+        # chatgpt gave me this method from igraph, which i think may not be real
+        all_cycles = list(ig.Graph.from_networkx(nx.simple_cycles(self.graph)).get_all_simple_cycles())
 
         # Filter out cycles with fewer than 3 nodes and cycles that visit any node more than once
-        cycles = [cycle for cycle in all_cycles if len(cycle) > 2 and len(cycle) == len(set(cycle))]
+        # (since the graph is undirected, any edge is also a "cycle" so filter those out)
+        cycles = [cycle for cycle in all_cycles if len(cycle) > 2]
+        if filter_repeat_nodes:
+            cycles = [cycle for cycle in cycles if len(cycle) == len(set(cycle))]
 
         # Remove duplicates from the cycles (ignoring the order of nodes)
         unique_cycles = list(set(frozenset(cycle) for cycle in cycles))

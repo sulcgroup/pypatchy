@@ -20,6 +20,10 @@ from .simulation_ensemble import PatchySimulationEnsemble, PipelineStepDescripto
 
 import seaborn as sb
 
+DEFAULT_SB_ARGS = {
+    "kind": "line",
+    "errorbar": "sd" # standard deviation
+}
 
 def plot_analysis_data(e: PatchySimulationEnsemble,
                        analysis_data_source: PipelineStepDescriptor,
@@ -52,10 +56,7 @@ def plot_analysis_data(e: PatchySimulationEnsemble,
     # validate inputs
     if other_spec is None:
         other_spec = list()
-    plt_args = {
-        "kind": "line",
-        "errorbar": "sd"
-    }
+    plt_args = DEFAULT_SB_ARGS.copy()
     if isinstance(cols, str):
         plt_args["col"] = cols
     if isinstance(rows, str):
@@ -108,10 +109,7 @@ def plot_compare_ensembles(es: list[PatchySimulationEnsemble],
         for e in es
     ]), f"Not all provided ensembles have analysis pipelines with step named {analysis_data_source}"
 
-    plt_args = {
-        "kind": "line",
-        "errorbar": "sd"
-    }
+    plt_args = DEFAULT_SB_ARGS.copy()
 
     if isinstance(rows, str):
         plt_args["row"] = rows
@@ -141,9 +139,9 @@ def plot_compare_ensembles(es: list[PatchySimulationEnsemble],
         data = pd.concat(some_data, ignore_index=True)
         if norm:
             def normalize_row(row):
-                sim = row.drop([TIMEPOINT_KEY, data_source_key]).to_dict()
-                sim = e.get_simulation(**sim)
-                return row[data_source_key] / e.sim_get_param(sim, norm)
+                s = row.drop([TIMEPOINT_KEY, data_source_key]).to_dict()
+                s = e.get_simulation(**s)
+                return row[data_source_key] / e.sim_get_param(s, norm)
 
             data[data_source_key] = data.apply(normalize_row, axis=1)
         data["ensemble"] = e.export_name
@@ -254,10 +252,7 @@ def plot_total_graph(e: PatchySimulationEnsemble,
     data = pd.concat(data)
     data.rename(mapper={TIMEPOINT_KEY: "steps", "sizeratio": "size"}, axis="columns", inplace=True)
 
-    plt_args = {
-        "kind": "line",
-        "errorbar": "sd"
-    }
+    plt_args = DEFAULT_SB_ARGS.copy()
 
     if isinstance(grid_rows, str):
         plt_args["row"] = grid_rows
@@ -279,10 +274,10 @@ def plot_compare_analysis_outputs(e: PatchySimulationEnsemble,
                                   orientation="col",
                                   **kwargs):
     plt_args = {
-        "kind": "line",
-        "errorbar": "sd",
+        **DEFAULT_SB_ARGS,
         orientation: "data_source"
     }
+
     if "col" in kwargs:
         assert orientation != "col", "Trying to specify two different variables for columns!"
         plt_args["col"] = kwargs["col"]

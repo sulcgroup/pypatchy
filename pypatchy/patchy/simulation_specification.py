@@ -8,7 +8,7 @@ from .ensemble_parameter import ParameterValue
 from ..slurm_log_entry import LogEntryObject
 
 
-class PatchySimulation(LogEntryObject):
+class ParamSet(LogEntryObject):
     """
     Specifies a execution of a Patchy Particle simulation run with the specific set of parameters
 
@@ -21,7 +21,6 @@ class PatchySimulation(LogEntryObject):
     param_vals: list[ParameterValue]
 
     parameter_dict: dict[str, Any]
-
 
     def __init__(self, parameter_values: Iterable[ParameterValue]):
         self.param_vals = list(parameter_values)
@@ -79,5 +78,8 @@ class PatchySimulation(LogEntryObject):
 
         return True
 
-    def __eq__(self, other: PatchySimulation) -> bool:
+    def __eq__(self, other: ParamSet) -> bool:
         return repr(self) == repr(other)
+
+
+PatchySimulation = ParamSet  # alias for backwards compatibility

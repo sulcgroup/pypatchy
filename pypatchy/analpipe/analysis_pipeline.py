@@ -13,7 +13,6 @@ from pypatchy.analpipe.analysis_pipeline_step import AnalysisPipelineStep, Analy
 # def analysis_step_idx(step: Union[int, AnalysisPipelineStep]) -> int:
 #     return step if isinstance(step, int) else step.idx
 
-
 class AnalysisPipeline:
     """
     A pipeline for analyzing patchy particle data.
