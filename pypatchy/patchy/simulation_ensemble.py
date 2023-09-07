@@ -129,7 +129,7 @@ def find_ensemble(*args: str, **kwargs) -> PatchySimulationEnsemble:
     if len(args) > 0:
         simname = args[0]
         if len(args) == 2:
-            sim_init_date: datetime.datetime = normalize_date(args[2])
+            sim_init_date: datetime.datetime = normalize_date(args[1])
         else:
             sim_init_date = datetime.datetime.now()
         if metadata_file_exist(simname, sim_init_date):
@@ -154,7 +154,7 @@ def find_ensemble(*args: str, **kwargs) -> PatchySimulationEnsemble:
         else:
             sim_init_date: datetime.datetime = datetime.datetime.now()
         if metadata_file_exist(simname, sim_init_date):
-            return find_ensemble(metadata=simname, date=sim_init_date)
+            return find_ensemble(mdf=simname, date=sim_init_date)
         else:
             print(f"Warning: could not find metadata file for {simname} at {sim_init_date.strftime('%Y-%m-%d')}")
             return find_ensemble(cfg=simname, date=sim_init_date)
@@ -183,11 +183,12 @@ def find_ensemble(*args: str, **kwargs) -> PatchySimulationEnsemble:
                 "setup_date": sim_init_date.strftime("%Y-%m-%d"),
             })
 
-    elif any([key in kwargs for key in ["metadata_file_name", "metadata_file", "mdf", "metedata"]]):
+    elif any([key in kwargs for key in ["metadata_file_name", "metadata_file", "mdf", "mdt", "metadata"]]):
         metadata_file_name: str = [kwargs[key] for key in ["metadata_file_name",
                                                            "metadata_file",
                                                            "mdf",
-                                                           "metedata"] if key in kwargs][0]
+                                                           "mdt",
+                                                           "metadata"] if key in kwargs][0]
         if metadata_file_name.endswith(".json"):
             # assume - incorrectly - that the user knows what they're doing
             metadata_file_path = get_input_dir() / metadata_file_name
@@ -197,21 +198,22 @@ def find_ensemble(*args: str, **kwargs) -> PatchySimulationEnsemble:
             with metadata_file_path.open("r") as mdt_file:
                 mdt = json.load(mdt_file)
                 return build_ensemble(mdt["ensemble_config"], mdt, metadata_file_path)
-
-        # grab date arg
-        if any([key in kwargs for key in ["sim_date", "date"]]):
-            sim_init_date = normalize_date(
-                [kwargs[key] for key in ["sim_date", "date"] if key in kwargs][0]
-            )
         else:
-            # no default! we're assuming the user is looking for a SPECIFIC file!
-            raise Exception("Missing date information for metadata sim lookup!")
-        # two options: date-included and date-excluded
-        if metadata_file_name.find("metadata") == -1:  # please please do not name a file that isn't metadata "metadata"
-            metadata_file_name = metadata_file_name + "_" + sim_init_date.strftime("%Y-%m-%d") + "_metadata"
-        metadata_file_name += ".json"
-        return find_ensemble(mdt=metadata_file_name)  # recurse to strong literal behavior
-
+            # grab date arg
+            if any([key in kwargs for key in ["sim_date", "date"]]):
+                sim_init_date = normalize_date(
+                    [kwargs[key] for key in ["sim_date", "date"] if key in kwargs][0]
+                )
+            else:
+                # no default! we're assuming the user is looking for a SPECIFIC file!
+                raise Exception("Missing date information for metadata sim lookup!")
+            # two options: date-included and date-excluded
+            if metadata_file_name.find("metadata") == -1:  # please please do not name a file that isn't metadata "metadata"
+                metadata_file_name = metadata_file_name + "_" + sim_init_date.strftime("%Y-%m-%d") + "_metadata"
+            metadata_file_name += ".json"
+            return find_ensemble(mdt=metadata_file_name)  # recurse to strong literal behavior
+    else:
+        raise Exception("Missing required identifier for simulation!")
 
 def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
                    mdtfile: Union[Path, None] = None) -> PatchySimulationEnsemble:
@@ -306,7 +308,9 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
     )
     if "slurm_log" in mdt:
         for entry in mdt["slurm_log"]:
-            entry["simulation"] = ensemble.get_simulation(*entry["simulation"].items())
+            sim = ensemble.get_simulation(**entry["simulation"])
+            assert sim is not None, f"Slurm log included a record for invalid simulation {str(entry['simulation'])}"
+            entry["simulation"] = sim
         ensemble.slurm_log = SlurmLog(*[SlurmLogEntry(**e) for e in mdt["slurm_log"]])
     return ensemble
 
@@ -902,7 +906,7 @@ class PatchySimulationEnsemble:
                                                   f"{self.time_length(sim)}"
         if timepoint > self.sim_get_param(sim, "print_conf_interval"):
             # this means that we're dealing with tidxs not step numbers
-            self.show_conf(sim, int(timepoint / self.sim_get_param(sim, "print_conf_interval")))
+            return self.get_conf(sim, int(timepoint / self.sim_get_param(sim, "print_conf_interval")))
         else:
             # it's possible there's a better way to do this
             # create temporary conf file
@@ -917,12 +921,13 @@ class PatchySimulationEnsemble:
                 start_conf=timepoint,
                 n_confs=1
             )[0]
+            assert conf is not None
             return conf
 
     def show_conf(self, sim: PatchySimulation, timepoint: int):
         conf = self.get_conf(sim, timepoint)
 
-        with tempfile.NamedTemporaryFile() as temp_conf:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".conf") as temp_conf:
             write_conf(temp_conf.name, conf, include_vel=False)  # skip velocities for speed
             from_path(temp_conf.name,
                       self.paramfile(sim, "topology"),
@@ -1544,7 +1549,7 @@ class PatchySimulationEnsemble:
                                                              f"interval {step.output_tstep}"
         # DATA CACHING
         # check if data is already loaded
-        if (step, sim,) in self.analysis_data[(step, sim)].matches_trange(time_steps):
+        if (step, sim,) in self.analysis_data and self.analysis_data[(step, sim)].matches_trange(time_steps):
             return self.analysis_data[(step, sim)]  # i don't care enough to load partial data
 
         # check if we have cached data for this step already

@@ -59,6 +59,9 @@ class ParamSet(LogEntryObject):
             for p in self.param_vals
         }
 
+    def __hash__(self) -> int:
+        return hash(str(self))
+
     def equivelant(self, other: PatchySimulation) -> bool:
         """
         order-independant version of __equals__
