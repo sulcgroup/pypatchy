@@ -165,7 +165,8 @@ def to_PL(particle_set: BaseParticleSet,
                                             patch.alignDir()))
         patches.extend(particle_patches)
         # convert to pl particle
-        particle = PLPatchyParticle(type_id=particle.get_id(), index_=particle.get_id())
+        # reuse type ids here, unfortunately
+        particle = PLPatchyParticle(type_id=particle.type_id(), index_=particle.type_id())
         particle.set_patches(particle_patches)
 
         particles.append(particle)

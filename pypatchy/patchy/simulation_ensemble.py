@@ -39,7 +39,7 @@ from ..slurmlog import SlurmLog
 from ..util import get_param_set, simulation_run_dir, get_server_config, get_log_dir, get_input_dir, \
     get_babysitter_refresh, is_slurm_job
 from .ensemble_parameter import EnsembleParameter, ParameterValue
-from .simulation_specification import PatchySimulation
+from .simulation_specification import PatchySimulation, ParamSet
 from .plpatchy import export_interaction_matrix
 from .patchy_scripts import to_PL
 from ..polycubeutil.polycubesRule import PolycubesRule
@@ -107,6 +107,210 @@ def list_simulation_ensembles():
             print(f"\tJSON file `{file.name} is malformed. Skipping...")
 
 
+def metadata_file_exist(name: str, date: datetime.datetime) -> bool:
+    return metadata_file(name, date).exists()
+
+
+def metadata_file(name: str, date: datetime.datetime) -> Path:
+    if name.endswith(".json"):
+        name = name[:name.rfind(".")]
+    return get_input_dir() / (name + "_" + date.strftime("%Y-%m-%d") + "_metadata.json")
+
+
+def normalize_date(d):
+    return d if isinstance(d, datetime.datetime) else datetime.datetime.strptime(d, "%Y-%m-%d")
+
+
+def find_ensemble(*args: str, **kwargs) -> PatchySimulationEnsemble:
+    """
+    External method to construct PatchySimulationEnsemble objects
+    """
+
+    if len(args) > 0:
+        simname = args[0]
+        if len(args) == 2:
+            sim_init_date: datetime.datetime = normalize_date(args[2])
+        else:
+            sim_init_date = datetime.datetime.now()
+        if metadata_file_exist(simname, sim_init_date):
+            # if metadata file exists, load from it
+            return find_ensemble(metadata=simname, date=sim_init_date)
+        else:
+            # load from cfg file
+            return find_ensemble(cfg=simname, date=sim_init_date)
+
+    elif "name" in kwargs:
+        # flexable option. if name is provided, will look for metadata file but default to using the cfg file
+        simname: str = kwargs["name"]
+
+        if simname.endswith(".json"):
+            raise Exception("Do not pass file name as the `name` parameter in this method! "
+                            "Use `cfg_file` or `cfg` to specify a cfg file name.")
+
+        if any([key in kwargs for key in ["sim_date", "date"]]):
+            sim_init_date = normalize_date(
+                [kwargs[key] for key in ["sim_date", "date"] if key in kwargs][0])
+        # default: today
+        else:
+            sim_init_date: datetime.datetime = datetime.datetime.now()
+        if metadata_file_exist(simname, sim_init_date):
+            return find_ensemble(metadata=simname, date=sim_init_date)
+        else:
+            print(f"Warning: could not find metadata file for {simname} at {sim_init_date.strftime('%Y-%m-%d')}")
+            return find_ensemble(cfg=simname, date=sim_init_date)
+
+    elif any([key in kwargs for key in ["cfg_file_name", "cfg_file", "cfg"]]):
+        # if the user is specifying a cfg file
+        cfg_file_name: str = [kwargs[key] for key in ["cfg_file_name", "cfg_file", "cfg"] if key in kwargs][0]
+        # if user passed a date
+        if any([key in kwargs for key in ["sim_date", "date"]]):
+            sim_init_date = normalize_date(
+                [kwargs[key] for key in ["sim_date", "date"] if key in kwargs][0]
+            )
+        # default: today
+        else:
+            sim_init_date = datetime.datetime.now()
+        if metadata_file_exist(cfg_file_name, sim_init_date):
+            print("Warning! Metadata already exists for this ensemble but will NOT be loaded!")
+        if not cfg_file_name.endswith(".json"):
+            cfg_file_name = cfg_file_name + ".json"
+        cfg_file_path = (get_input_dir() / cfg_file_name)
+        if not cfg_file_path.exists():
+            raise FileNotFoundError("Ensamble configureation file ")
+        with cfg_file_path.open("r") as cfg_file:
+            cfg = json.load(cfg_file)
+            return build_ensemble(cfg, {
+                "setup_date": sim_init_date.strftime("%Y-%m-%d"),
+            })
+
+    elif any([key in kwargs for key in ["metadata_file_name", "metadata_file", "mdf", "metedata"]]):
+        metadata_file_name: str = [kwargs[key] for key in ["metadata_file_name",
+                                                           "metadata_file",
+                                                           "mdf",
+                                                           "metedata"] if key in kwargs][0]
+        if metadata_file_name.endswith(".json"):
+            # assume - incorrectly - that the user knows what they're doing
+            metadata_file_path = get_input_dir() / metadata_file_name
+            if not metadata_file_path.is_file():
+                raise Exception(
+                    f"No metadata file at for simulation {metadata_file_name}")
+            with metadata_file_path.open("r") as mdt_file:
+                mdt = json.load(mdt_file)
+                return build_ensemble(mdt)
+
+        # grab date arg
+        if any([key in kwargs for key in ["sim_date", "date"]]):
+            sim_init_date = normalize_date(
+                [kwargs[key] for key in ["sim_date", "date"] if key in kwargs][0]
+            )
+        else:
+            # no default! we're assuming the user is looking for a SPECIFIC file!
+            raise Exception("Missing date information for metadata sim lookup!")
+        # two options: date-included and date-excluded
+        if metadata_file_name.find("metadata") == -1:  # please please do not name a file that isn't metadata "metadata"
+            metadata_file_name = metadata_file_name + "_" + sim_init_date.strftime("%Y-%m-%d") + "_metadata"
+        metadata_file_name += ".json"
+        return find_ensemble(mdt=metadata_file_name)  # recurse to strong literal behavior
+
+
+def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
+                   mdtfile: Union[Path, None] = None) -> PatchySimulationEnsemble:
+    export_name = cfg[EXPORT_NAME_KEY]  # grab export name
+
+    # normalize setup date (wrong word)
+    setup_date: datetime.datetime = normalize_date(mdt["setup_date"])
+
+    # if metadata filename wasn't manually provided
+    if mdtfile is None:
+        mdtfile = f"{export_name}_{setup_date.strftime('%Y-%m-%d')}_metadata.json"
+
+    if "ensemble_config" not in mdt:
+        mdt["ensemble_config"] = cfg
+
+    if "analysis_file" in mdt:
+        file_path = Path(mdt["analysis_file"])
+        if file_path.exists():
+            with open(file_path, "rb") as f:
+                analysis_pipeline = pickle.load(f)
+        elif (get_input_dir() / file_path).is_file():
+            with open(file_path, "rb") as f:
+                analysis_pipeline = pickle.load(f)
+        else:
+            print(f"Analysis file specified in metadata but path {file_path} does not exist!")
+    else:
+        analysis_pipeline = AnalysisPipeline()
+    if isinstance(mdt["setup_date"], datetime.datetime):
+        mdt["setup_date"] = setup_date.strftime("%Y-%m-%d")
+
+    # too difficult to make this one a ParamSet object
+    default_param_set = get_param_set(
+        cfg[DEFAULT_PARAM_SET_KEY] if DEFAULT_PARAM_SET_KEY in cfg else "default")
+
+    # load const params from cfg
+    if CONST_PARAMS_KEY in cfg:
+        params = []
+        counter = 1  #style
+        for key, val in cfg[CONST_PARAMS_KEY].items():
+            if isinstance(val, dict):
+                # backwards compatibility w/ questionable life choices
+                param_val = {
+                    "name": f"const{counter}",
+                    "value": val
+                }
+                counter += 1
+            else:
+                param_val = val
+            params.append(ParameterValue(key, param_val))
+        const_parameters = ParamSet(params)
+    else:
+        const_parameters = ParamSet([])
+
+    # load ensemble params from cfg
+    # there should always be ensemble params in the cfg
+    ensemble_parameters = [
+        EnsembleParameter(*p) for p in cfg[ENSEMBLE_PARAMS_KEY]
+    ]
+
+    # observables are optional
+    # TODO: integrate oxpy
+    observables: dict[str: PatchySimObservable] = {}
+
+    if OBSERABLES_KEY in cfg:
+        for obs_name in cfg[OBSERABLES_KEY]:
+            observables[obs_name] = observable_from_file(obs_name)
+
+    # load particles
+    if PARTICLES_KEY in cfg:
+        particles: PolycubesRule = PolycubesRule(rule_json=cfg[PARTICLES_KEY])
+    elif "cube_types" in cfg:
+        if len(cfg["cube_types"]) > 0 and isinstance(cfg["cube_types"][0], dict):
+            particles: PolycubesRule = PolycubesRule(rule_json=cfg["cube_types"])
+        else:
+            particles = cfg["cube_types"]
+    elif "rule" in cfg:  # 'rule' tag assumes serialized rule string
+        particles: PolycubesRule = PolycubesRule(rule_str=cfg["rule"])
+    else:
+        raise Exception("Missing particle info!")
+
+    ensemble = PatchySimulationEnsemble(
+        export_name,
+        setup_date,
+        particles,
+        mdtfile,
+        analysis_pipeline,
+        default_param_set,
+        const_parameters,
+        ensemble_parameters,
+        observables,
+        mdt
+    )
+    if "slurm_log" in mdt:
+        for entry in mdt["slurm_log"]:
+            entry["simulation"] = ensemble.get_simulation(*entry["simulation"].items())
+        ensemble.slurm_log = SlurmLog(*[SlurmLogEntry(**e) for e in mdt["slurm_log"]])
+    return ensemble
+
+
 class PatchySimulationEnsemble:
     """
     Stores data for a group of related simulation
@@ -138,7 +342,7 @@ class PatchySimulationEnsemble:
     # ------------ SETUP STUFF -------------#
 
     # simulation parameters which are constant over the entire ensemble
-    const_params: dict
+    const_params: ParamSet
 
     # parameter values to use if not specified in `const_params` or in the
     # simulation specification params
@@ -151,161 +355,202 @@ class PatchySimulationEnsemble:
     analysis_pipeline: AnalysisPipeline
 
     # dict to store loaded analysis data
-    analysis_data: dict[tuple[str, str]: PipelineData]
+    analysis_data: dict[tuple[AnalysisPipelineStep, ParamSet], PipelineData]
 
     # log of slurm jobs
     slurm_log: SlurmLog
 
-    def __init__(self, *args: str, **kwargs):
-        """
-        Very flexable constructor
-        Options are:
-            PatchySimulationEnsemble(cfg_file_name="input_file_name.json", [sim_date="yyyy-mm-dd"])
-            PatchySimulationEnsemble(sim_metadata_file="metadata_file.json)
-            PatchySimulationEnsemble(export_name="a-simulation-name", particles=[{.....)
-        """
+    def __init__(self,
+                 export_name: str,
+                 setup_date: datetime.datetime,
+                 particle_set: BaseParticleSet,
+                 metadata_file_name: str,
+                 analysis_pipeline: AnalysisPipeline,
+                 default_param_set: dict,
+                 const_params: ParamSet,
+                 ensemble_params: list[EnsembleParameter],
+                 observables: dict[str, PatchySimObservable],
+                 metadata_dict: dict  # dict of serialized metadata, to preserve it
+                 ):
+        self.export_name = export_name
+        self.sim_init_date = setup_date
 
-        # optional positional arguements are a file name string and an optional date string
-        if len(args) > 0:
-            # assign vals in cfg dict
-            kwargs["cfg_file_name"] = args[0]
-            if len(args) == 2:
-                kwargs["sim_date"] = args[1]
-
-        assert "cfg_file_name" in kwargs or METADATA_FILE_KEY in kwargs
-
-        # initialize metadata dict
-        self.metadata: dict = {}
-        self.slurm_log = SlurmLog()
-        sim_cfg = kwargs
-
-        if METADATA_FILE_KEY in kwargs or "cfg_file_name" in kwargs:
-            # if an execution metadata file was provided
-            if METADATA_FILE_KEY in kwargs:
-                sim_cfg = self.load_metadata_from(get_input_dir() / kwargs[METADATA_FILE_KEY])
-
-            # if a config file name was provided
-            elif "cfg_file_name" in kwargs:
-                cfg_file_name: str = kwargs["cfg_file_name"]
-                # if filename was provided without a json extension
-                if cfg_file_name.find(".") == -1:
-                    cfg_file_name = cfg_file_name + ".json"
-                    with open(get_input_dir() / cfg_file_name, 'r') as f:
-                        sim_cfg.update(json.load(f))
-                    if "sim_date" in sim_cfg:
-                        # if metadata file exists for this date
-                        metadata_file = get_input_dir() / (sim_cfg[EXPORT_NAME_KEY] + "_" + sim_cfg["sim_date"] + "_metadata.json")
-                        if "sim_date" in sim_cfg and metadata_file.is_file():
-                            self.load_metadata_from(metadata_file)
-                        else:
-                            print(f"Warning: Metadata file {str(metadata_file)} not found!")
-
-                else:
-                    with open(get_input_dir() / cfg_file_name, 'r') as f:
-                        sim_cfg.update(json.load(f))
-
-        # if a date string was provided
-        if "sim_date" in sim_cfg:
-            self.sim_init_date = sim_cfg["sim_date"]
-            if isinstance(self.sim_init_date, str):
-                self.sim_init_date = datetime.datetime.strptime(self.sim_init_date, "%Y-%m-%d")
-
-        else:
-            # save current date
-            self.sim_init_date: datetime.datetime = datetime.datetime.now()
-
-        # whether it was just set from kwaargs or gen'd from today, make init date str
-        # to identify this ensemble
-        datestr = self.sim_init_date.strftime("%Y-%m-%d")
-
-        # if no metadata file was provided in the keyword arguements
-        if METADATA_FILE_KEY not in kwargs:
-            self.metadata["setup_date"] = datestr
-            self.metadata["ensemble_config"] = sim_cfg
-            self.metadata_file = get_input_dir() / f"{sim_cfg[EXPORT_NAME_KEY]}_{datestr}_metadata.json"
-            # if a metadata file exists at the default path
-            if self.metadata_file.exists():
-                # update metadata dict from file
-                with open(self.metadata_file, "r") as f:
-                    self.metadata.update(json.load(f))
-                    sim_cfg.update(self.metadata["ensemble_config"])
-
-        # name of simulation set
-        self.export_name: str = sim_cfg[EXPORT_NAME_KEY]
-
-        # configure logging
+        # configure logging ASAP
         logger: logging.Logger = logging.getLogger(self.export_name)
         logger.setLevel(logging.INFO)
         logger.addHandler(logging.FileHandler(get_log_dir() /
-                                              f"log_{self.export_name}_{self.sim_init_date.strftime('%Y-%m-%d')}.log"))
+                                              f"log_{self.export_name}_{self.datestr()}.log", mode="a"))
         logger.addHandler(logging.StreamHandler(sys.stdout))
 
-        # load particles
-        if "rule" not in sim_cfg and "cube_types" not in sim_cfg:
-            if isinstance(sim_cfg[PARTICLES_KEY], BaseParticleSet):
-                self.particle_set = sim_cfg[PARTICLES_KEY]
-            else:
-                self.particle_set: PolycubesRule = PolycubesRule(rule_json=sim_cfg[PARTICLES_KEY])
-        else:
-            if "cube_types" in sim_cfg:
-                if len(sim_cfg["cube_types"]) > 0 and isinstance(sim_cfg["cube_types"][0], dict):
-                    self.particle_set: PolycubesRule = PolycubesRule(rule_json=sim_cfg["cube_types"])
-                else:
-                    self.particle_set = sim_cfg["cube_types"]
-            else:
-                self.particle_set: PolycubesRule = PolycubesRule(rule_str=sim_cfg["rule"])
+        self.particle_set = particle_set
 
-        # default simulation parameters
-        self.default_param_set = get_param_set(
-            sim_cfg[DEFAULT_PARAM_SET_KEY] if DEFAULT_PARAM_SET_KEY in sim_cfg else "default")
-        self.const_params = sim_cfg[CONST_PARAMS_KEY] if CONST_PARAMS_KEY in sim_cfg else {}
+        self.metadata = metadata_dict
+        self.slurm_log = SlurmLog()
+        self.analysis_pipeline = analysis_pipeline
 
-        self.ensemble_params = [EnsembleParameter(*p) if not isinstance(p, EnsembleParameter) else p for p in
-                                sim_cfg[ENSEMBLE_PARAMS_KEY]]
+        self.metadata_file = metadata_file_name
+
+        self.default_param_set = default_param_set
+        self.const_params = const_params
+
+        self.ensemble_params = ensemble_params
         self.ensemble_param_name_map = {p.param_key: p for p in self.ensemble_params}
-
-        if "slurm_log" in self.metadata:
-            for entry in self.metadata["slurm_log"]:
-                entry["simulation"] = self.lookup_simulation(*entry["simulation"].items())
-            self.slurm_log = SlurmLog(*[SlurmLogEntry(**e) for e in self.metadata["slurm_log"]])
-
-        # observables are optional
-        # TODO: integrate oxpy
-        self.observables: dict[str: PatchySimObservable] = {}
-
-        if OBSERABLES_KEY in sim_cfg:
-            for obs_name in sim_cfg[OBSERABLES_KEY]:
-                self.observables[obs_name] = observable_from_file(obs_name)
-
-        # handle potential weird stuff??
-
-        # load analysis pipeline
-        self.analysis_pipeline = AnalysisPipeline()
-
-        # if the metadata specifies a pickle file of a stored analywsis pathway, use it
-        if "analysis_file" in self.metadata:
-            file_path = Path(self.metadata["analysis_file"])
-            if file_path.exists():
-                with open(file_path, "rb") as f:
-                    self.analysis_pipeline = self.analysis_pipeline + pickle.load(f)
-            else:
-                self.get_logger().warning(f"Analysis file specified in metadata but path {file_path} does not exist!")
-        else:  # if not, use a default one and cache it
-            file_path = self.tld() / "analysis_pipeline.pickle"
-            self.metadata["analysis_file"] = str(file_path)
+        self.observables = observables
 
         # construct analysis data dict in case we need it
         self.analysis_data = dict()
 
-    def load_metadata_from(self, metadata_file_path: Path):
-        assert metadata_file_path.is_file(), f"File {metadata_file_path} does not exist!"
-        self.metadata_file = metadata_file_path
-        try:
-            with metadata_file_path.open("r") as f:
-                self.metadata.update(json.load(f))
-                return self.metadata["ensemble_config"]
-        except JSONDecodeError as e:
-            raise Exception(f"File {metadata_file_path} is malformed!")
+    # def __init__(self, *args: str, **kwargs):
+    #     """
+    #     Very flexable constructor
+    #     Options are:
+    #         PatchySimulationEnsemble(cfg_file_name="input_file_name.json", [sim_date="yyyy-mm-dd"])
+    #         PatchySimulationEnsemble(sim_metadata_file="metadata_file.json)
+    #         PatchySimulationEnsemble(export_name="a-simulation-name", particles=[{.....)
+    #     """
+    #
+    #     # optional positional arguements are a file name string and an optional date string
+    #     if len(args) > 0:
+    #         # assign vals in cfg dict
+    #         kwargs["cfg_file_name"] = args[0]
+    #         if len(args) == 2:
+    #             kwargs["sim_date"] = args[1]
+    #
+    #     assert "cfg_file_name" in kwargs or METADATA_FILE_KEY in kwargs
+    #
+    #     # initialize metadata dict
+    #     self.metadata: dict = {}
+    #     self.slurm_log = SlurmLog()
+    #     sim_cfg = kwargs
+    #
+    #     if METADATA_FILE_KEY in kwargs or "cfg_file_name" in kwargs:
+    #         # if an execution metadata file was provided
+    #         if METADATA_FILE_KEY in kwargs:
+    #             sim_cfg = self.load_metadata_from(get_input_dir() / kwargs[METADATA_FILE_KEY])
+    #
+    #         # if a config file name was provided
+    #         elif "cfg_file_name" in kwargs:
+    #             cfg_file_name: str = kwargs["cfg_file_name"]
+    #             # if filename was provided without a json extension
+    #             if cfg_file_name.find(".") == -1:
+    #                 cfg_file_name = cfg_file_name + ".json"
+    #                 with open(get_input_dir() / cfg_file_name, 'r') as f:
+    #                     sim_cfg.update(json.load(f))
+    #                 if "sim_date" in sim_cfg:
+    #                     # if metadata file exists for this date
+    #                     metadata_file = get_input_dir() / (
+    #                             sim_cfg[EXPORT_NAME_KEY] + "_" + sim_cfg["sim_date"] + "_metadata.json")
+    #                     if "sim_date" in sim_cfg and metadata_file.is_file():
+    #                         self.load_metadata_from(metadata_file)
+    #                     else:
+    #                         print(f"Warning: Metadata file {str(metadata_file)} not found!")
+    #
+    #             else:
+    #                 with open(get_input_dir() / cfg_file_name, 'r') as f:
+    #                     sim_cfg.update(json.load(f))
+    #
+    #     # if a date string was provided
+    #     if "sim_date" in sim_cfg:
+    #         self.sim_init_date = sim_cfg["sim_date"]
+    #         if isinstance(self.sim_init_date, str):
+    #             self.sim_init_date = datetime.datetime.strptime(self.sim_init_date, "%Y-%m-%d")
+    #
+    #     else:
+    #         # save current date
+    #         self.sim_init_date: datetime.datetime = datetime.datetime.now()
+    #
+    #     # whether it was just set from kwaargs or gen'd from today, make init date str
+    #     # to identify this ensemble
+    #     datestr = self.sim_init_date.strftime("%Y-%m-%d")
+    #
+    #     # if no metadata file was provided in the keyword arguements
+    #     if METADATA_FILE_KEY not in kwargs:
+    #         self.metadata["setup_date"] = datestr
+    #         self.metadata["ensemble_config"] = sim_cfg
+    #         self.metadata_file = get_input_dir() / f"{sim_cfg[EXPORT_NAME_KEY]}_{datestr}_metadata.json"
+    #         # if a metadata file exists at the default path
+    #         if self.metadata_file.exists():
+    #             # update metadata dict from file
+    #             with open(self.metadata_file, "r") as f:
+    #                 self.metadata.update(json.load(f))
+    #                 sim_cfg.update(self.metadata["ensemble_config"])
+    #
+    #     # name of simulation set
+    #     self.export_name: str = sim_cfg[EXPORT_NAME_KEY]
+    #
+    #     # configure logging
+    #     logger: logging.Logger = logging.getLogger(self.export_name)
+    #     logger.setLevel(logging.INFO)
+    #     logger.addHandler(logging.FileHandler(get_log_dir() /
+    #                                           f"log_{self.export_name}_{self.sim_init_date.strftime('%Y-%m-%d')}.log"))
+    #     logger.addHandler(logging.StreamHandler(sys.stdout))
+    #
+    #     # load particles
+    #     if "rule" not in sim_cfg and "cube_types" not in sim_cfg:
+    #         if isinstance(sim_cfg[PARTICLES_KEY], BaseParticleSet):
+    #             self.particle_set = sim_cfg[PARTICLES_KEY]
+    #         else:
+    #             self.particle_set: PolycubesRule = PolycubesRule(rule_json=sim_cfg[PARTICLES_KEY])
+    #     else:
+    #         if "cube_types" in sim_cfg:
+    #             if len(sim_cfg["cube_types"]) > 0 and isinstance(sim_cfg["cube_types"][0], dict):
+    #                 self.particle_set: PolycubesRule = PolycubesRule(rule_json=sim_cfg["cube_types"])
+    #             else:
+    #                 self.particle_set = sim_cfg["cube_types"]
+    #         else:
+    #             self.particle_set: PolycubesRule = PolycubesRule(rule_str=sim_cfg["rule"])
+    #
+    #     # default simulation parameters
+    #     self.default_param_set = get_param_set(
+    #         sim_cfg[DEFAULT_PARAM_SET_KEY] if DEFAULT_PARAM_SET_KEY in sim_cfg else "default")
+    #     self.const_params = sim_cfg[CONST_PARAMS_KEY] if CONST_PARAMS_KEY in sim_cfg else {}
+    #
+    #     self.ensemble_params = [EnsembleParameter(*p) if not isinstance(p, EnsembleParameter) else p for p in
+    #                             sim_cfg[ENSEMBLE_PARAMS_KEY]]
+    #     self.ensemble_param_name_map = {p.param_key: p for p in self.ensemble_params}
+    #
+    #     if "slurm_log" in self.metadata:
+    #         for entry in self.metadata["slurm_log"]:
+    #             entry["simulation"] = self.get_simulation(*entry["simulation"].items())
+    #         self.slurm_log = SlurmLog(*[SlurmLogEntry(**e) for e in self.metadata["slurm_log"]])
+    #
+    #     # observables are optional
+    #     # TODO: integrate oxpy
+    #     self.observables: dict[str: PatchySimObservable] = {}
+    #
+    #     if OBSERABLES_KEY in sim_cfg:
+    #         for obs_name in sim_cfg[OBSERABLES_KEY]:
+    #             self.observables[obs_name] = observable_from_file(obs_name)
+    #
+    #     # handle potential weird stuff??
+    #
+    #     # load analysis pipeline
+    #     self.analysis_pipeline = AnalysisPipeline()
+    #
+    #     # if the metadata specifies a pickle file of a stored analywsis pathway, use it
+    #     if "analysis_file" in self.metadata:
+    #         file_path = Path(self.metadata["analysis_file"])
+    #         if file_path.exists():
+    #             with open(file_path, "rb") as f:
+    #                 self.analysis_pipeline = self.analysis_pipeline + pickle.load(f)
+    #         else:
+    #             self.get_logger().warning(f"Analysis file specified in metadata but path {file_path} does not exist!")
+    #     else:  # if not, use a default one and cache it
+    #         file_path = self.tld() / "analysis_pipeline.pickle"
+    #         self.metadata["analysis_file"] = str(file_path)
+    #
+    #     # construct analysis data dict in case we need it
+    #     self.analysis_data = dict()
+
+    # def load_metadata_from(self, metadata_file_path: Path):
+    #     assert metadata_file_path.is_file(), f"File {metadata_file_path} does not exist!"
+    #     self.metadata_file = metadata_file_path
+    #     try:
+    #         with metadata_file_path.open("r") as f:
+    #             self.metadata.update(json.load(f))
+    #             return self.metadata["ensemble_config"]
+    #     except JSONDecodeError as e:
+    #         raise Exception(f"File {metadata_file_path} is malformed!")
 
     # --------------- Accessors and Mutators -------------------------- #
     def get_simulation(self, *args: Union[tuple[str, Any], ParameterValue], **kwargs) -> Union[
@@ -346,22 +591,11 @@ class PatchySimulationEnsemble:
         else:
             return PatchySimulation([p for p, in sim_params])  # de-listify
 
-    def lookup_simulation(self, *args: tuple[str, Union[str, int, float, bool]]):
-        """
-        Similar to get_simulation but with more thought involved
-        """
-        params = [
-            ParameterValue(key, value) if not self.ensemble_param_name_map[key].is_grouped_params()
-            else ParameterValue(key, {
-                "name": value,
-                "value": self.ensemble_param_name_map[key].lookup(value).param_value
-            })
-            for key, value in args
-        ]
-        return PatchySimulation(params)
+    def datestr(self) -> str:
+        return self.sim_init_date.strftime("%Y-%m-%d")
 
     def long_name(self) -> str:
-        return f"{self.export_name}_{self.sim_init_date.strftime('%Y-%m-%d')}"
+        return f"{self.export_name}_{self.datestr()}"
 
     def get_logger(self) -> logging.Logger:
         return logging.getLogger(self.export_name)
@@ -485,14 +719,6 @@ class PatchySimulationEnsemble:
     def num_patch_types(self, sim: PatchySimulation) -> int:
         return self.particle_set.num_patches() * self.sim_get_param(sim, NUM_TEETH_KEY)
 
-    # def paths_list(self) -> list[str]:
-    #     return [
-    #         os.sep.join(combo)
-    #         for combo in itertools.product(*[
-    #             p.dir_names() for p in self.ensemble_params
-    #         ])
-    #     ]
-
     """
     Returns a list of lists of tuples,
     """
@@ -525,6 +751,7 @@ class PatchySimulationEnsemble:
         """
         Alias for PatchySimulationEnsemble.get_pipeline_step
         """
+
     def get_pipeline_step(self, step: Union[str, AnalysisPipelineStep]) -> AnalysisPipelineStep:
         """
         Returns a step in the analysis pipeline
@@ -763,7 +990,7 @@ class PatchySimulationEnsemble:
         if isinstance(step, str):
             return self.missing_analysis_data(self.analysis_pipeline.name_map[step])
         else:
-            return self.analysis_status().loc[~self.analysis_status()[step.name]]
+            return ~self.analysis_status().loc[~self.analysis_status()[step.name]]
 
     def merge_topologies(self,
                          sim_selector: Union[None, PatchySimulation, list[PatchySimulation]] = None,
@@ -1113,6 +1340,8 @@ class PatchySimulationEnsemble:
         with open(self.metadata_file, "w") as f:
             json.dump(self.metadata, fp=f, indent=4)
         # dump analysis pipevline as pickle
+        if "analysis_file" not in self.metadata:
+            self.metadata["analysis_file"] = get_input_dir() / (self.export_name + "_analysis_pipeline.pickle")
         with open(self.metadata["analysis_file"], "wb") as f:
             pickle.dump(self.analysis_pipeline, f)
 
@@ -1262,8 +1491,9 @@ class PatchySimulationEnsemble:
             else:
                 return [self.get_data(step, s, time_steps) for s in sim]
 
+        # DATA AGGREGATION!!!
         # second thing: check if the provided simulation selector is incomplete, a
-        # nd that this isn't an aggregate step (which expects incomplete selectors
+        # nd that this isn't an aggregate step (which expects incomplete selectors)
         if (isinstance(step, AggregateAnalysisPipelineStep) and self.is_multiselect(sim, step.params_aggregate_over)) \
                 or (not isinstance(step, AggregateAnalysisPipelineStep) and self.is_multiselect(sim)):
             # if the simulation selector provided doesn't line up with the aggregation params
@@ -1302,6 +1532,7 @@ class PatchySimulationEnsemble:
                 }
             ))
 
+        # TIMESTEPS!!!!
         # if timesteps were not specified
         if time_steps is None:
             # time steps generally do not start from step 0
@@ -1311,6 +1542,11 @@ class PatchySimulationEnsemble:
             assert time_steps.step % step.output_tstep == 0, f"Specified step interval {time_steps} " \
                                                              f"not consistant with {step} output time " \
                                                              f"interval {step.output_tstep}"
+        # DATA CACHING
+        # check if data is already loaded
+        if (step, sim,) in self.analysis_data[(step, sim)].matches_trange(time_steps):
+            return self.analysis_data[(step, sim)]  # i don't care enough to load partial data
+
         # check if we have cached data for this step already
         if not self.analysis_pipeline.is_force_recompute(step) and self.has_data_file(step, sim):
             self.get_logger().info(
@@ -1343,11 +1579,10 @@ class PatchySimulationEnsemble:
         try:
             self.get_logger().info(f"Caching data in file `{self.get_cache_file(step, sim)}`")
             step.cache_data(data, self.get_cache_file(step, sim))
-            self.analysis_data[(step.name, get_descriptor_key(sim))] = data
         finally:
             if self.is_do_analysis_parallel():
                 lock.release()
-
+        self.analysis_data[step, sim] = data
         return data
 
     def get_step_input_data(self,
@@ -1449,7 +1684,8 @@ def process_simulation_data(args):
     return ensemble.get_data(step, s, time_steps)
 
 
-def shared_ensemble(es: list[PatchySimulationEnsemble], ignores: set = set()) -> Union[list[list[PatchySimulation]], None]:
+def shared_ensemble(es: list[PatchySimulationEnsemble], ignores: set = set()) -> Union[
+    list[list[PatchySimulation]], None]:
     """
     Computes the simulation specs that are shared between the provided ensembles
     Args:
@@ -1474,7 +1710,8 @@ def shared_ensemble(es: list[PatchySimulationEnsemble], ignores: set = set()) ->
             if p.param_key not in name_vals:
                 name_vals[p.param_key] = {pv.value_name for pv in p.param_value_set}
             else:
-                name_vals[p.param_key] = name_vals[p.param_key].intersection([pv.value_name for pv in p.param_value_set])
+                name_vals[p.param_key] = name_vals[p.param_key].intersection(
+                    [pv.value_name for pv in p.param_value_set])
 
     # if any simulation is missing a parameter
     if not all([len(name_vals[name]) > 0 for name in names]):
