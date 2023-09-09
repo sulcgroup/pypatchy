@@ -1043,12 +1043,12 @@ class PatchySimulationEnsemble:
                 Path(self.folder_path(sim)).mkdir(parents=True)
             else:
                 self.get_logger().info(f"Folder {self.folder_path(sim)} already exists. Continuing...")
-            # write input file
-            self.get_logger().info("Writing input files...")
-            self.write_input_file(sim)
             # write requisite top, patches, particles files
             self.get_logger().info("Writing .top, .txt, etc. files...")
-            self.write_sim_top_particles_patches(sim)
+            input_file_stuff = self.write_sim_top_particles_patches(sim)
+            # write input file
+            self.get_logger().info("Writing input files...")
+            self.write_input_file(sim, extras=input_file_stuff)
             # write observables.json if applicble
             if EXTERNAL_OBSERVABLES:
                 self.get_logger().info("Writing observable json, as nessecary...")
@@ -1190,7 +1190,7 @@ class PatchySimulationEnsemble:
                     for i, obsrv in enumerate(self.observables.values()):
                         obsrv.write_input(inputfile, i, analysis)
 
-    def write_sim_top_particles_patches(self, sim: PatchySimulation):
+    def write_sim_top_particles_patches(self, sim: PatchySimulation) -> dict:
         """
         Writes the topology file (.top) and the files speficying particle
         and patch behavior for a simulation in the ensemble
@@ -1200,12 +1200,13 @@ class PatchySimulationEnsemble:
 
         # oh hey it's the worst line of code I've ever seen
         self.writer.set_write_directory(self.folder_path(sim))
-        self.writer.write(self.particle_set, {
+        files, values = self.writer.write(self.particle_set, {
             p.type_id(): self.get_sim_particle_count(sim, p.type_id()) for p in self.particle_set.particles()
         },
                      **{
                          a: self.sim_get_param(sim, a) for a in self.writer.reqd_args()
                      })
+        return values
 
 
         # deleted in favor of patchy io

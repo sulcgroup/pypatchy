@@ -4,10 +4,12 @@ from typing import Union, IO
 from abc import ABC, abstractmethod
 from pathlib import Path
 
+import numpy as np
+
 from pypatchy.patchy.patchy_scripts import to_PL
 from pypatchy.patchy.plpatchy import PLPatchyParticle, export_interaction_matrix
 from pypatchy.patchy_base_particle import PatchyBaseParticleType
-from build.lib.pypatchy.patchy_base_particle import BaseParticleSet
+from pypatchy.patchy_base_particle import BaseParticleSet
 from pypatchy.polycubeutil.polycubesRule import PolycubeRuleCubeType
 from pypatchy.util import get_server_config, PATCHY_FILE_FORMAT_KEY
 
@@ -50,6 +52,9 @@ class BasePatchyWriter(ABC):
 
 
 class FWriter(BasePatchyWriter):
+    """
+    Class for writing files in the Flavian style, which uses particles.txt, patches.txt, and the Coliseum
+    """
     def write(self,
               particles: BaseParticleSet,
               particle_type_counts: dict[int, int],
@@ -75,7 +80,7 @@ class FWriter(BasePatchyWriter):
                     # we have to be VERY careful here with indexing to account for multidentate simulations
                     # adjust for patch multiplier from multidentate
 
-                    patches_file.write(patch_obj.save_to_string())
+                    patches_file.write(self.save_patch_to_str(patch_obj))
 
         return (
             [
@@ -93,6 +98,36 @@ class FWriter(BasePatchyWriter):
 
     def reqd_args(self) -> list[str]:
         return []
+    
+    def save_patch_to_str(self, patch, extras={}) -> str:
+        # print self._type,self._type,self._color,1.0,self._position,self._a1,self._a2
+
+        position_str = np.array2string(patch.position(),
+                                       precision=3,
+                                       separator=",", 
+                                       suppress_small=True)[1:-1]
+        a1_str = np.array2string(patch.a1(), separator=",",
+                                 precision=3,
+                                 suppress_small=True)[1:-1]
+        if patch.a2() is not None:  # tolerate missing a2s
+            a2_str = np.array2string(patch.a2(), separator=",",
+                                      precision=3,
+                                     suppress_small=True)[1:-1]
+        else:
+            # make shit up
+            a2_str = np.array2string(np.array([0,0,0]), separator=",",  precision=3)[1:-1]
+        
+        outs = f'patch_{patch.type_id()} = ' + '{\n ' \
+                                              f'\tid = {patch.type_id()}\n' \
+                                              f'\tcolor = {patch.color()}\n' \
+                                              f'\tstrength = {patch.strength()}\n' \
+                                              f'\tposition = {position_str}\n' \
+                                              f'\ta1 = {a1_str}\n' \
+                                              f'\ta2 = {a2_str}\n'
+
+        outs += "\n".join([f"t\t{key} = {extras[key]}" for key in extras])
+        outs += "\n}\n"
+        return outs
 
 
 class JWriter(BasePatchyWriter, ABC):
@@ -137,7 +172,7 @@ class JWriter(BasePatchyWriter, ABC):
                     patch_idx = int(i / kwargs[NUM_TEETH_KEY])
 
                     extradict = self.get_patch_extras(particle_type, patch_idx)
-                    patches_file.write(patch_obj.save_to_string(extradict))
+                    patches_file.write(self.save_patch_to_str(patch_obj, extradict))
 
                 particles_file.write(self.get_particle_extras(particle_patchy, particle_type))
         return (
@@ -155,7 +190,8 @@ class JWriter(BasePatchyWriter, ABC):
         )
 
 
-class JFWriter(JWriter):
+# inherit from FWriter so can use class methods 
+class JFWriter(JWriter, FWriter):
     def get_particle_extras(self, plpartcle: PLPatchyParticle, particle_type: PatchyBaseParticleType) -> str:
         return plpartcle.save_type_to_string()
 
