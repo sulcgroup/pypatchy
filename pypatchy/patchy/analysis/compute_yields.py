@@ -33,7 +33,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     print(f"Computing yields of data in folder {args.path} against target {args.target} with interval {args.interval}")
     
-    if not re.fullmatch(f"{re.escape(str(simulation_analysis_dir()))}[^\/]*\/[\w_-]+_duplicate_\d+\/nt[0-4]\/T_[\.\d]*", args.path):
+    if not re.fullmatch(f"{re.escape(str(simulation_run_dir()))}[^\/]*\/[\w_-]+_duplicate_\d+\/nt[0-4]\/T_[\.\d]*", args.path):
         raise BadSimulationDirException(args.path)
         
     dataset_name = args.path.split(os.sep)[-4]

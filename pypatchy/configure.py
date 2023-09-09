@@ -20,12 +20,6 @@ def create_default_config():
     # Add some default values
     config['ANALYSIS'] = {
         "simulation_data_dir": "/scratch/jrevan21/patchysimulations",
-        "analysis_data_dir": "/scratch/jrevan21/analysis_space",
-        "sample_every": 10,
-        "cluster_file": "clusters.txt",
-        "export_setting_file_name": "patchy_export_setup.json",
-        "init_top_file_name": "init.top",
-        "analysis_params_file_name": "analysis_params.json"
     }
 
     config["SETUP"] = {
@@ -61,7 +55,7 @@ def create_default_config():
             os.makedirs(target_file_dir, exist_ok=True)
             shutil.copyfile(source_file_path, target_file_path)
 
-    os.makedirs(pypatchy_dir / "input", exist_ok=True)
+    os.makedirs(pypatchy_dir / "input" / "targets", exist_ok=True)
     os.makedirs(pypatchy_dir / "output" / "logs", exist_ok=True)
 
 if __name__ == '__main__':

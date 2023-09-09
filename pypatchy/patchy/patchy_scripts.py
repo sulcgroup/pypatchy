@@ -155,14 +155,22 @@ def to_PL(particle_set: BaseParticleSet,
         particle_patches = []
         # convert to pl patch
         for patch in particle.patches():
-            relPosition = patch.position() / 2
-            pl_color = patch.color() - 20 if patch.color() < 0 else patch.color() + 20
+            relPosition = patch.position()
+            pl_color = patch.colornum() - 20 if patch.colornum() < 0 else patch.colornum() + 20
             assert patch.get_id() == len(patches) + len(particle_patches)
-            particle_patches.append(PLPatch(patch.get_id(),
-                                            pl_color,
-                                            relPosition,
-                                            patch.position(),
-                                            patch.alignDir()))
+            if patch.num_key_points() == 1:
+                particle_patches.append(PLPatch(patch.get_id(),
+                                                pl_color,
+                                                relPosition,
+                                                patch.position()))
+            elif patch.num_key_points() == 2:
+                particle_patches.append(PLPatch(patch.get_id(),
+                                                pl_color,
+                                                relPosition,
+                                                patch.position(),
+                                                patch.alignDir()))
+            else:
+                raise Exception("No idea how to handle whatever you're throwing at me")
         patches.extend(particle_patches)
         # convert to pl particle
         # reuse type ids here, unfortunately

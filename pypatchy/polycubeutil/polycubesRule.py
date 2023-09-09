@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import typing
 from typing import Union
 
 import numpy as np
@@ -72,6 +73,9 @@ class PolycubesPatch(BasePatchType):
 
     def position(self) -> np.ndarray:
         return self.direction() / 2  # assume radius is 0.5
+
+    def colornum(self) -> int:
+        return self.color()
 
     def direction(self) -> np.ndarray:
         return self._key_points[0]
@@ -367,6 +371,8 @@ class PolycubesRule(BaseParticleSet):
 
                     patch_components = patch_str.split(":")
                     color = int(patch_components[0])
+                    if color == 0:
+                        continue
                     stateVar = 0
                     activationVar = 0
                     if len(patch_components) > 1:

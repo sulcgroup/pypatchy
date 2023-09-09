@@ -127,6 +127,9 @@ class PLPatch(BasePatchType):
     def set_position(self, newposition: np.ndarray):
         self._key_points[0] = newposition
 
+    def colornum(self) -> int:
+        return self.color()
+
     def a1(self) -> np.ndarray:
         return self._key_points[1]
 
@@ -150,8 +153,12 @@ class PLPatch(BasePatchType):
                                               f'\tcolor = {self.color()}\n' \
                                               f'\tstrength = {self.strength()}\n' \
                                               f'\tposition = {np.array2string(self.position(), separator=",")[1:-1]}\n' \
-                                              f'\ta1 = {np.array2string(self.a1(), separator=",")[1:-1]}\n' \
-                                              f'\ta2 = {np.array2string(self.a2(), separator=",")[1:-1]}\n'
+                                              f'\ta1 = {np.array2string(self.a1(), separator=",")[1:-1]}\n'
+        if self.a2() is not None:  # tolerate missing a2s
+            outs += f'\ta2 = {np.array2string(self.a2(), separator=",")[1:-1]}\n'
+        else:
+            # make shit up
+            outs += f'\ta2 = {np.array2string(np.array([0,0,0]), separator=",")[1:-1]}\n'
         outs += "\n".join([f"t\t{key} = {extras[key]}" for key in extras])
         outs += "\n}\n"
         return outs
@@ -219,6 +226,9 @@ class PLPatchyParticle(PatchyBaseParticleType):
         self.L = np.array([0., 0., 0.])
         self.a1 = None
         self.a3 = None
+
+    def name(self) -> str:
+        return f"particletype_{self.type_id()}"
 
     def radius(self, normal: np.ndarray = np.zeros(shape=(3,))) -> float:
         """
