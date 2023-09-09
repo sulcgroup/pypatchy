@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 import os
 from datetime import timedelta
@@ -43,10 +45,6 @@ cfg.read(get_local_dir() / 'settings.cfg')
 
 def simulation_run_dir() -> Path:
     return Path(cfg['ANALYSIS']['simulation_data_dir'])
-
-
-def simulation_analysis_dir() -> Path:
-    return Path(cfg['ANALYSIS']["analysis_data_dir"])
 
 
 def get_sample_every() -> int:
@@ -253,3 +251,6 @@ def all_equal(iterable):
 
 def is_slurm_job() -> bool:
     return os.environ.get("SLURM_JOB_ID") is not None
+
+
+PATCHY_FILE_FORMAT_KEY = "patchy_format"

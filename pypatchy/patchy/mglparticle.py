@@ -12,7 +12,7 @@ from pypatchy.patchy_base_particle import BaseParticleSet, BasePatchType, Patchy
 # todo: bidict?
 MGL_COLORS = [
     "blue",
-    "green"
+    "green",
     "red",
     "darkblue",
     "darkgreen",
@@ -42,6 +42,9 @@ class MGLParticle(PatchyBaseParticleType):
 
     def color(self) -> str:
         return self._particle_color
+
+    def name(self) -> str:
+        return self.color()
 
     def color_idx(self) -> int:
         return MGL_COLORS.index(self.color())
@@ -74,7 +77,7 @@ class MGLPatch(BasePatchType):
     def width(self):
         return self._width
 
-    def color_idx(self):
+    def colornum(self):
         return MGL_COLORS.index(self.color())
 
     def position(self) -> np.ndarray:
@@ -121,10 +124,18 @@ class MGLScene:
         """
         particle_set = BaseParticleSet()
         colors = set()
+        particle_type_counter = 0
+        patch_type_counter = 0
         for particle in self._particles:
             if particle.color() not in colors:
                 colors.add(particle.color())
-                particle_set.add_particle(deepcopy(particle))
+                pcopy = deepcopy(particle)
+                pcopy.set_id(particle_type_counter)
+                particle_type_counter += 1
+                for patch in pcopy.patches():
+                    patch.set_id(patch_type_counter)
+                    patch_type_counter += 1
+                particle_set.add_particle(pcopy)
 
         return particle_set
 

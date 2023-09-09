@@ -175,13 +175,15 @@ def get_particle_color(ptypeidx: int):
 
 def show_clusters(e: PatchySimulationEnsemble,
                   sim: PatchySimulation,
-                  analysis_step: GraphsFromClusterTxt,
+                  analysis_step: Union[GraphsFromClusterTxt,str],
                   timepoint: int = -1,
                   step: int = -1,
                   figsize=4
                   ) -> Union[plt.Figure, None]:
     # load particle id data from top file
     # todo: automate more?
+    if isinstance(analysis_step, str):
+        analysis_step = e.get_analysis_step(analysis_step)
     with (e.folder_path(sim) / "init.top").open('r') as f:
         f.readline()  # clear first line
         particle_types = [int(p) for p in f.readline().split()]

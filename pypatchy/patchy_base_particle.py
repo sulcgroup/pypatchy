@@ -35,6 +35,10 @@ class PatchyBaseParticleType(ABC):
         """
         self._type_id = new_id
 
+    @abstractmethod
+    def name(self) -> str:
+        pass
+
     def num_patches(self) -> int:
         """
         Returns:
@@ -110,12 +114,19 @@ class BasePatchType(ABC):
     def get_key_point(self, idx: int) -> np.ndarray:
         return self._key_points[idx]
 
+    def num_key_points(self) -> int:
+        return len(self._key_points)
+
     @abstractmethod
     def position(self) -> np.ndarray:
         pass  # neeed to make this method abstract for compatibility with different patch types
 
     def color(self) -> Any:
         return self._color
+
+    @abstractmethod
+    def colornum(self) -> int:
+        pass
 
     def set_color(self, value: int):
         self._color = value
