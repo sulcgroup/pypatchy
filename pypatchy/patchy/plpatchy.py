@@ -148,6 +148,8 @@ class PLPatch(BasePatchType):
     def save_to_string(self, extras={}) -> str:
         # print self._type,self._type,self._color,1.0,self._position,self._a1,self._a2
 
+        
+        
         outs = f'patch_{self.type_id()} = ' + '{\n ' \
                                               f'\tid = {self.type_id()}\n' \
                                               f'\tcolor = {self.color()}\n' \
