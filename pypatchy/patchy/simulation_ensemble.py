@@ -11,7 +11,7 @@ import tempfile
 import time
 from json import JSONDecodeError
 from pathlib import Path
-from typing import Any, Union
+from typing import Any, Uniondo_
 
 import networkx as nx
 import numpy as np
