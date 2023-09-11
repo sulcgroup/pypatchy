@@ -13,6 +13,14 @@ from pypatchy.patchy_base_particle import BaseParticleSet
 from pypatchy.polycubeutil.polycubesRule import PolycubeRuleCubeType
 from pypatchy.util import get_server_config, PATCHY_FILE_FORMAT_KEY
 
+# this approach was suggested by chatGPT.
+# I kind of hate it but if it works it works
+def custom_formatter(x):
+    if x.is_integer():
+        return str(int(x))
+    else:
+        return str(x)
+
 
 class BasePatchyWriter(ABC):
     """
@@ -105,17 +113,21 @@ class FWriter(BasePatchyWriter):
         position_str = np.array2string(patch.position(),
                                        precision=3,
                                        separator=",", 
-                                       suppress_small=True)[1:-1]
+                                       suppress_small=True,
+                                      formatter={'float_kind': custom_formatter})[1:-1]
         a1_str = np.array2string(patch.a1(), separator=",",
                                  precision=3,
-                                 suppress_small=True)[1:-1]
+                                 suppress_small=True,
+                                 formatter={'float_kind': custom_formatter})[1:-1]
         if patch.a2() is not None:  # tolerate missing a2s
             a2_str = np.array2string(patch.a2(), separator=",",
                                       precision=3,
-                                     suppress_small=True)[1:-1]
+                                     suppress_small=True,
+                                    formatter={'float_kind': custom_formatter})[1:-1]
         else:
             # make shit up
-            a2_str = np.array2string(np.array([0,0,0]), separator=",",  precision=3)[1:-1]
+            a2_str = np.array2string(np.array([0,0,0]), separator=",",  precision=3,
+                                    )[1:-1]
         
         outs = f'patch_{patch.type_id()} = ' + '{\n ' \
                                               f'\tid = {patch.type_id()}\n' \
