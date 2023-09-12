@@ -99,7 +99,9 @@ def plot_compare_ensembles(es: list[PatchySimulationEnsemble],
                            cols: Union[None, str, EnsembleParameter] = None,
                            color: Union[None, str, EnsembleParameter] = None,
                            stroke: Union[None, str, EnsembleParameter] = None,
-                           norm: Union[None, str] = None
+                           norm: Union[None, str] = None,
+                           trange: Union[range, None] = None,
+                           ignores: Union[set[str], None] = None
                            ) -> Union[sb.FacetGrid, bool]:
     """
     Compares data from different ensembles
@@ -122,10 +124,13 @@ def plot_compare_ensembles(es: list[PatchySimulationEnsemble],
 
     all_data: list[pd.DataFrame] = []
     # get sim specs shared among all ensembles
-    shared_sims: list[list[PatchySimulation]] = shared_ensemble(es, ignores={"particle_type_levels"})
+    shared_sims: list[list[PatchySimulation]] = shared_ensemble(es, ignores)
     if shared_sims is None:
         return False
-    data_sources = [e.get_data(analysis_data_source, sims) for e, sims in zip(es, shared_sims)]
+    if trange is not None:
+        data_sources = [e.get_data(analysis_data_source, sims, trange) for e, sims in zip(es, shared_sims)]
+    else:
+        data_sources = [e.get_data(analysis_data_source, sims) for e, sims in zip(es, shared_sims)]
     for sims, e, data_source in zip(shared_sims, es, data_sources):
         if other_spec is None:  # unlikely
             other_spec = list()
