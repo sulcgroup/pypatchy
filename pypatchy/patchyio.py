@@ -137,7 +137,7 @@ class FWriter(BasePatchyWriter):
                                               f'\ta1 = {a1_str}\n' \
                                               f'\ta2 = {a2_str}\n'
 
-        outs += "\n".join([f"t\t{key} = {extras[key]}" for key in extras])
+        outs += "\n".join([f"\t{key} = {extras[key]}" for key in extras])
         outs += "\n}\n"
         return outs
 
@@ -182,7 +182,6 @@ class JWriter(BasePatchyWriter, ABC):
                     # we have to be VERY careful here with indexing to account for multidentate simulations
                     # adjust for patch multiplier from multidentate
                     patch_idx = int(i / kwargs[NUM_TEETH_KEY])
-
                     extradict = self.get_patch_extras(particle_type, patch_idx)
                     patches_file.write(self.save_patch_to_str(patch_obj, extradict))
 
@@ -202,8 +201,9 @@ class JWriter(BasePatchyWriter, ABC):
         )
 
 
-# inherit from FWriter so can use class methods 
+# inherit from FWriter so can use class methods
 class JFWriter(JWriter, FWriter):
+
     def get_particle_extras(self, plpartcle: PLPatchyParticle, particle_type: PatchyBaseParticleType) -> str:
         return plpartcle.save_type_to_string()
 
