@@ -14,6 +14,8 @@ from colorsys import hsv_to_rgb
 import numpy as np
 import math
 
+# global slurm job info cache
+SLURM_JOB_CACHE = dict[dict[str, str]] = {}
 
 def get_local_dir() -> Path:
     return Path.home() / ".pypatchy/"
