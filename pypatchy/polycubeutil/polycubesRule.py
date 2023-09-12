@@ -210,6 +210,15 @@ class PolycubeRuleCubeType(PatchyBaseParticleType):
         """
         return self._patches[i]
 
+    def patch_index_in(self, p: PolycubesPatch) -> int:
+        """
+        Returns the index in self._patches of the provided patch
+        """
+        for i, pp in enumerate(self.patches()):
+            if p.get_id() == pp.get_id():
+                return i
+        return -1
+
     def add_patch(self, patch: PolycubesPatch):
         self._patches.append(patch)
     def get_patch_state_var(self, key: Union[int, str, np.ndarray],
@@ -263,8 +272,13 @@ class PolycubeRuleCubeType(PatchyBaseParticleType):
         if isinstance(effects_lists[0], StringConditionalEffect):
             assert len(effects_lists) == 1, "Multiple string conditionals for one patch is not supported"
             if minimize:
-                print("Please don't.")
-            return effects_lists[0].conditional()
+                def replacer(match):
+                    n = int(match.group(1))  # Extract the integer n
+                    value = self.patch_index_in(self.patch(n))
+                    return str(value)
+                return re.sub(r'b\[(\d+)]', replacer, effects_lists[0].conditional())
+            else:
+                return effects_lists[0].conditional()
         effect_strs = []
         for e in effects_lists:
             # forward-proof for environmental effects, which should be ignored for our purposes here
