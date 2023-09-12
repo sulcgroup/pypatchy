@@ -1740,8 +1740,9 @@ def shared_ensemble(es: list[PatchySimulationEnsemble], ignores: set = set()) ->
     names = set()
     name_vals: dict[str, set] = dict()
     for e in es:
-        names.update([key for key in e.const_params if key not in ignores])
-        for param_key in e.const_params:
+        names.update([p.param_name for p in e.const_params if p.param_name not in ignores])
+        for p in e.const_params:
+            param_key = p.param_name
             if param_key in ignores:
                 continue
             if param_key not in name_vals:
