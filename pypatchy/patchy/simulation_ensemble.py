@@ -38,7 +38,7 @@ from ..patchyio import NUM_TEETH_KEY, DENTAL_RADIUS_KEY, get_writer, BasePatchyW
 from ..slurm_log_entry import SlurmLogEntry
 from ..slurmlog import SlurmLog
 from ..util import get_param_set, simulation_run_dir, get_server_config, get_log_dir, get_input_dir, \
-    get_babysitter_refresh, is_slurm_job, PATCHY_FILE_FORMAT_KEY, SLURM_JOB_CACHE
+    get_babysitter_refresh, is_slurm_job, PATCHY_FILE_FORMAT_KEY
 from .ensemble_parameter import EnsembleParameter, ParameterValue
 from .simulation_specification import PatchySimulation, ParamSet
 from .plpatchy import export_interaction_matrix
@@ -1702,27 +1702,17 @@ class PatchySimulationEnsemble:
         else:
             return self.ensemble()
 
-    def slurm_job_info(self, jobid: int = -1, ignore_cache=False, reties=3) -> Union[dict, None]:
+    def slurm_job_info(self, jobid: int = -1) -> Union[dict, None]:
         if jobid == -1:  # retrieve job ID from current job
             retr_id = os.environ.get("SLURM_JOB_ID")
             assert retr_id is not None  # if we didn't pass a job ID and don't have one in the script, get extremely mad
             jobid = int(retr_id)
-        if not ignore_cache and jobid in SLURM_JOB_CACHE:
-            return SLURM_JOB_CACHE[jobid]
-
-        for i in range(reties):
-            jobinfo = self.bash_exec(f"scontrol show job {jobid}")
-            # if the job is completed, no further info can be extracted for some goddamn reason
-            if jobinfo == "slurm_load_jobs error: Invalid job id specified":
-                return None
-            elif jobinfo:
-                jobinfo = jobinfo.split()
-                jobinfo = {key: value for key, value in [x.split("=", 1) for x in jobinfo]}
-                SLURM_JOB_CACHE[jobid] = jobinfo
-                return jobinfo
-            else:
-                time.sleep(0.1 * (2 ** i))
-        return None
+        jobinfo = self.bash_exec(f"scontrol show job {jobid}")
+        # if the job is completed, no further info can be extracted for some goddamn reason
+        if jobinfo == "slurm_load_jobs error: Invalid job id specified":
+            return None
+        jobinfo = jobinfo.split()
+        return {key: value for key, value in [x.split("=", 1) for x in jobinfo]}
 
     def bash_exec(self, command: str):
         """
