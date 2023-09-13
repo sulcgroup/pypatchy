@@ -73,6 +73,12 @@ PatchySimDescriptor = Union[tuple[ParameterValue, ...],
                             list[Union[tuple[ParameterValue, ...], PatchySimulation],
                             ]]
 
+# Custom LogRecord that includes 'long_name'
+class PyPatchyLogRecord(logging.LogRecord):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.long_name = kwargs.get('extra', {}).get('long_name', 'N/A')
+
 
 def get_descriptor_key(sim: PatchySimDescriptor) -> str:
     """
@@ -762,6 +768,7 @@ class PatchySimulationEnsemble:
         """
         Alias for PatchySimulationEnsemble.get_pipeline_step
         """
+        return self.get_pipeline_step(step)
 
     def get_pipeline_step(self, step: Union[str, AnalysisPipelineStep]) -> AnalysisPipelineStep:
         """
@@ -830,6 +837,10 @@ class PatchySimulationEnsemble:
         print(f"Const Simulation Params")
         for param in self.const_params:
             print(f"\t{param.param_name}: {param.value_name}")
+
+        if len(self.analysis_pipeline) > 0:
+            print(f"Has analysis pipeline with {self.analysis_pipeline.num_pipeline_steps()} steps and {self.analysis_pipeline.num_pipes()} pipes.")
+            print(f"Pipeline steps")
         # print("\nHelpful analysis functions:")
         # print("Function `has_pipeline`")
         # print("\ttell me if there's an analysis pipeline")
@@ -1045,10 +1056,10 @@ class PatchySimulationEnsemble:
                 self.get_logger().info(f"Folder {self.folder_path(sim)} already exists. Continuing...")
             # write requisite top, patches, particles files
             self.get_logger().info("Writing .top, .txt, etc. files...")
-            input_file_stuff = self.write_sim_top_particles_patches(sim)
+            self.write_sim_top_particles_patches(sim)
             # write input file
             self.get_logger().info("Writing input files...")
-            self.write_input_file(sim, extras=input_file_stuff)
+            self.write_input_file(sim)
             # write observables.json if applicble
             if EXTERNAL_OBSERVABLES:
                 self.get_logger().info("Writing observable json, as nessecary...")
@@ -1153,6 +1164,14 @@ class PatchySimulationEnsemble:
                         val = replacer_dict[key]
                     inputfile.write(f"{key} = {val}\n")
 
+            writerargs = self.writer.get_input_file_data(self.particle_set, {
+                    p.type_id(): self.get_sim_particle_count(sim, p.type_id()) for p in self.particle_set.particles()
+                }, **{
+                         a: self.sim_get_param(sim, a) for a in self.writer.reqd_args()
+                     })
+            for key, val in writerargs:
+                inputfile.write(f"{key} = {val}\n")
+
             # deprecated in favor of patchyio
             # # if josh_flavio or josh_lorenzo
             # if server_config[PATCHY_FILE_FORMAT_KEY].find("josh") > -1:
@@ -1190,7 +1209,7 @@ class PatchySimulationEnsemble:
                     for i, obsrv in enumerate(self.observables.values()):
                         obsrv.write_input(inputfile, i, analysis)
 
-    def write_sim_top_particles_patches(self, sim: PatchySimulation) -> dict:
+    def write_sim_top_particles_patches(self, sim: PatchySimulation):
         """
         Writes the topology file (.top) and the files speficying particle
         and patch behavior for a simulation in the ensemble
@@ -1200,13 +1219,12 @@ class PatchySimulationEnsemble:
 
         # oh hey it's the worst line of code I've ever seen
         self.writer.set_write_directory(self.folder_path(sim))
-        files, values = self.writer.write(self.particle_set, {
+        files = self.writer.write(self.particle_set, {
             p.type_id(): self.get_sim_particle_count(sim, p.type_id()) for p in self.particle_set.particles()
         },
                      **{
                          a: self.sim_get_param(sim, a) for a in self.writer.reqd_args()
                      })
-        return values
 
 
         # deleted in favor of patchy io
