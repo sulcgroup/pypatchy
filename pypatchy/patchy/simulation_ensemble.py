@@ -719,16 +719,20 @@ class PatchySimulationEnsemble:
 
     def get_sim_particle_count(self, sim: PatchySimulation,
                                particle_idx: int) -> int:
-        particle_lvl = 1  # mainly to shut up my IDE
         # grab particle name
         particle_name = self.particle_set.particle(particle_idx).name()
-        if PARTICLE_TYPE_LVLS_KEY in self.const_params and particle_name in self.const_params[PARTICLE_TYPE_LVLS_KEY]:
-            particle_lvl = self.const_params[PARTICLE_TYPE_LVLS_KEY][particle_name]
-        if PARTICLE_TYPE_LVLS_KEY in sim:
-            spec = self.sim_get_param(sim, PARTICLE_TYPE_LVLS_KEY)
-            if particle_name in spec:
-                particle_lvl = spec[particle_name]
-        return particle_lvl * self.sim_get_param(sim, NUM_ASSEMBLIES_KEY)
+        # if PARTICLE_TYPE_LVLS_KEY in self.const_params and particle_name in self.const_params[PARTICLE_TYPE_LVLS_KEY]:
+        #     particle_lvl = self.const_params[PARTICLE_TYPE_LVLS_KEY][particle_name]
+        # if PARTICLE_TYPE_LVLS_KEY in sim:
+        #     spec = self.sim_get_param(sim, PARTICLE_TYPE_LVLS_KEY)
+        #     if particle_name in spec:
+        #         particle_lvl = spec[particle_name]
+        return self.sim_get_param(sim, particle_name) * self.sim_get_param(sim, NUM_ASSEMBLIES_KEY)
+
+    def get_sim_particle_counts(self, sim: PatchySimulation):
+        return {
+            p.type_id(): self.get_sim_particle_count(sim, p.type_id()) for p in self.particle_set.particles()
+        }
 
     def get_sim_total_num_particles(self, sim: PatchySimulation) -> int:
         return sum([self.get_sim_particle_count(sim, i) for i in range(self.num_particle_types())])
@@ -1219,9 +1223,8 @@ class PatchySimulationEnsemble:
 
         # oh hey it's the worst line of code I've ever seen
         self.writer.set_write_directory(self.folder_path(sim))
-        files = self.writer.write(self.particle_set, {
-            p.type_id(): self.get_sim_particle_count(sim, p.type_id()) for p in self.particle_set.particles()
-        },
+        files = self.writer.write(self.particle_set,
+                                 self.get_sim_particle_counts(sim),
                      **{
                          a: self.sim_get_param(sim, a) for a in self.writer.reqd_args()
                      })
