@@ -1391,7 +1391,7 @@ class PatchySimulationEnsemble:
         """
         self.metadata["slurm_log"] = self.slurm_log.to_list()
         # dump metadata dict to file
-        with open(self.metadata_file, "w") as f:
+        with open(get_input_dir() / self.metadata_file, "w") as f:
             json.dump(self.metadata, fp=f, indent=4)
         # dump analysis pipevline as pickle
         if "analysis_file" not in self.metadata:
