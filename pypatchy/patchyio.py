@@ -13,6 +13,7 @@ from pypatchy.patchy_base_particle import BaseParticleSet
 from pypatchy.polycubeutil.polycubesRule import PolycubeRuleCubeType
 from pypatchy.util import get_server_config, PATCHY_FILE_FORMAT_KEY
 
+
 # this approach was suggested by chatGPT.
 # I kind of hate it but if it works it works
 def custom_formatter(x):
@@ -32,6 +33,16 @@ class BasePatchyWriter(ABC):
     def __init__(self):
         pass
 
+    @abstractmethod
+    def get_input_file_data(self,
+                            particles: BaseParticleSet,
+                            particle_type_counts: dict[int, int],
+                            **kwargs) -> list[tuple[str, str]]:
+        """
+        Returns a set of tuples of str,str which should be added
+        to oxDNA input files
+        """
+
     def set_write_directory(self, directory):
         self._writing_directory = directory
 
@@ -50,7 +61,7 @@ class BasePatchyWriter(ABC):
               particles: BaseParticleSet,
               particle_type_counts: dict[int, int],
               **kwargs
-              ) -> tuple[list[Path], dict[str, Union[str, float, int]]]:
+              ) -> list[Path]:
         """
         Returns:
             a tuple the first element of which is a list of the paths of files this method just created,
@@ -63,10 +74,21 @@ class FWriter(BasePatchyWriter):
     """
     Class for writing files in the Flavian style, which uses particles.txt, patches.txt, and the Coliseum
     """
+
+    def get_input_file_data(self, particles: BaseParticleSet, particle_type_counts: dict[int, int], **kwargs) -> list[
+        tuple[str, str]]:
+
+        return [
+            ("patchy_file", "patches.txt"),
+            ("particle_file", "particles.txt"),
+            ("particle_types_N", f"{len(particles)}"),
+            ("patch_types_N", f"{particles.num_patches()}")
+        ]
+
     def write(self,
               particles: BaseParticleSet,
               particle_type_counts: dict[int, int],
-              **kwargs) -> tuple[list[Path], dict[str, Union[str, float, int]]]:
+              **kwargs) -> list[Path]:
         # write top and particles/patches spec files
         # first convert particle json into PLPatchy objects (cf plpatchy.py)
         plparticles, patches = to_PL(particles, 1, 0)
@@ -90,52 +112,41 @@ class FWriter(BasePatchyWriter):
 
                     patches_file.write(self.save_patch_to_str(patch_obj))
 
-        return (
-            [
+        return [
                 self.directory() / "init.top",
                 self.directory() / "particles.txt",
                 self.directory() / "patches.txt"
             ],
-            {
-                "patchy_file": "patches.txt",
-                "particle_file": "particles.txt",
-                "particle_types_N": len(particles),
-                "patch_types_N": particles.num_patches()
-            }
-        )
+
 
     def reqd_args(self) -> list[str]:
         return []
-    
+
     def save_patch_to_str(self, patch, extras={}) -> str:
         # print self._type,self._type,self._color,1.0,self._position,self._a1,self._a2
 
-        position_str = np.array2string(patch.position(),
-                                       precision=3,
-                                       separator=",", 
-                                       suppress_small=True,
-                                      formatter={'float_kind': custom_formatter})[1:-1]
-        a1_str = np.array2string(patch.a1(), separator=",",
-                                 precision=3,
-                                 suppress_small=True,
-                                 formatter={'float_kind': custom_formatter})[1:-1]
+        fmtargs = {
+            "precision": 3,
+            "separator": ",",
+            "suppress_small": True,
+            "formatter": {'float_kind': custom_formatter}
+        }
+
+        position_str = np.array2string(patch.position(), **fmtargs)[1:-1]
+        a1_str = np.array2string(patch.a1(), **fmtargs)[1:-1]
         if patch.a2() is not None:  # tolerate missing a2s
-            a2_str = np.array2string(patch.a2(), separator=",",
-                                      precision=3,
-                                     suppress_small=True,
-                                    formatter={'float_kind': custom_formatter})[1:-1]
+            a2_str = np.array2string(patch.a2(), **fmtargs)[1:-1]
         else:
             # make shit up
-            a2_str = np.array2string(np.array([0,0,0]), separator=",",  precision=3,
-                                    )[1:-1]
-        
+            a2_str = np.array2string(np.array([0, 0, 0]), **fmtargs)[1:-1]
+
         outs = f'patch_{patch.type_id()} = ' + '{\n ' \
-                                              f'\tid = {patch.type_id()}\n' \
-                                              f'\tcolor = {patch.color()}\n' \
-                                              f'\tstrength = {patch.strength()}\n' \
-                                              f'\tposition = {position_str}\n' \
-                                              f'\ta1 = {a1_str}\n' \
-                                              f'\ta2 = {a2_str}\n'
+                                               f'\tid = {patch.type_id()}\n' \
+                                               f'\tcolor = {patch.color()}\n' \
+                                               f'\tstrength = {patch.strength()}\n' \
+                                               f'\tposition = {position_str}\n' \
+                                               f'\ta1 = {a1_str}\n' \
+                                               f'\ta2 = {a2_str}\n'
 
         outs += "\n".join([f"\t{key} = {extras[key]}" for key in extras])
         outs += "\n}\n"
@@ -145,6 +156,17 @@ class FWriter(BasePatchyWriter):
 class JWriter(BasePatchyWriter, ABC):
     def reqd_args(self) -> list[str]:
         return [NUM_TEETH_KEY, DENTAL_RADIUS_KEY]
+
+    def get_input_file_data(self,
+                            particles: BaseParticleSet,
+                            particle_type_counts: dict[int, int],
+                            **kwargs) -> list[tuple[str, str]]:
+        return [
+                ("patchy_file", "patches.txt"),
+                ("particle_file", "particles.txt"),
+                ("particle_types_N", str(len(particles))),
+                ("patch_types_N", str(particles.num_patches() * kwargs[NUM_TEETH_KEY]))
+            ]
 
     @abstractmethod
     def get_patch_extras(self, particle_type: PatchyBaseParticleType, patch_idx: int) -> dict:
@@ -158,7 +180,7 @@ class JWriter(BasePatchyWriter, ABC):
               particles: BaseParticleSet,
               particle_type_counts: dict[int, int],
               **kwargs
-              ) -> tuple[list[Path], dict[str, Union[str, float, int]]]:
+              ) -> list[Path]:
         # write top and particles/patches spec files
         # first convert particle json into PLPatchy objects (cf plpatchy.py)
         plparticles, patches = to_PL(particles,
@@ -186,19 +208,12 @@ class JWriter(BasePatchyWriter, ABC):
                     patches_file.write(self.save_patch_to_str(patch_obj, extradict))
 
                 particles_file.write(self.get_particle_extras(particle_patchy, particle_type))
-        return (
-            [
+        return [
                 self.directory() / "init.top",
                 self.directory() / "particles.txt",
                 self.directory() / "patches.txt"
-            ],
-            {
-                "patchy_file": "patches.txt",
-                "particle_file": "particles.txt",
-                "particle_types_N": len(particles),
-                "patch_types_N": particles.num_patches()
-            }
-        )
+            ]
+
 
 
 # inherit from FWriter so can use class methods
@@ -229,6 +244,10 @@ class JLWriter(JWriter):
 
 
 class LWriter(BasePatchyWriter):
+    def get_input_file_data(self, particles: BaseParticleSet, particle_type_counts: dict[int, int], **kwargs) -> list[
+        tuple[str, str]]:
+        return [("DPS_interaction_matrix_file", "interactions.txt")]
+
     def reqd_args(self) -> list[str]:
         return [NUM_TEETH_KEY, DENTAL_RADIUS_KEY]
 
@@ -236,7 +255,7 @@ class LWriter(BasePatchyWriter):
               particles: BaseParticleSet,
               particle_type_counts: dict[int, int],
               **kwargs
-              ) -> tuple[list[Path], dict[str, Union[str, float, int]]]:
+              ) -> list[Path]:
         particles, patches = to_PL(particles,
                                    kwargs[NUM_TEETH_KEY],
                                    kwargs[DENTAL_RADIUS_KEY])
@@ -252,16 +271,12 @@ class LWriter(BasePatchyWriter):
         interactions_file = self.directory() / "interactions.txt"
         export_interaction_matrix(patches, interactions_file)
 
-        return (
-            [
+        return [
                 self.directory() / "init.top",
                 *particles_txts_files,
                 interactions_file
-            ],
-            {
-                "DPS_interaction_matrix_file": "interactions.txt"
-            }
-        )
+            ]
+
 
 
 __writers = {
