@@ -87,10 +87,6 @@ def get_descriptor_key(sim: PatchySimDescriptor) -> str:
     return sim if isinstance(sim, str) else str(sim) if isinstance(sim, PatchySimulation) else describe_param_vals(*sim)
 
 
-def print_help():
-    pass
-
-
 def list_simulation_ensembles():
     print("Simulations:")
     sim_paths = [ensemble_dir
@@ -133,6 +129,9 @@ def find_ensemble(*args: str, **kwargs) -> PatchySimulationEnsemble:
         simname = args[0]
         if len(args) == 2:
             sim_init_date: datetime.datetime = normalize_date(args[1])
+        elif any([key in kwargs for key in ["sim_date", "date"]]):
+            sim_init_date = normalize_date(
+                [kwargs[key] for key in ["sim_date", "date"] if key in kwargs][0])
         else:
             sim_init_date = datetime.datetime.now()
         if metadata_file_exist(simname, sim_init_date):
@@ -302,6 +301,12 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
     else:
         raise Exception("Missing particle info!")
 
+    if "analysis_file" in mdt:
+        analysis_file = mdt["analysis_file"]
+    else:
+        analysis_file = export_name + "_analysis_pipeline.pickle"
+        mdt["analysis_file"] = analysis_file
+
     ensemble = PatchySimulationEnsemble(
         export_name,
         setup_date,
@@ -312,6 +317,7 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
         const_parameters,
         ensemble_parameters,
         observables,
+        analysis_file,
         mdt
     )
     if "slurm_log" in mdt:
@@ -368,6 +374,7 @@ class PatchySimulationEnsemble:
 
     # dict to store loaded analysis data
     analysis_data: dict[tuple[AnalysisPipelineStep, ParamSet], PipelineData]
+    analysis_file: str
 
     # log of slurm jobs
     slurm_log: SlurmLog
@@ -385,23 +392,42 @@ class PatchySimulationEnsemble:
                  const_params: ParamSet,
                  ensemble_params: list[EnsembleParameter],
                  observables: dict[str, PatchySimObservable],
+                 analysis_file: str,
                  metadata_dict: dict  # dict of serialized metadata, to preserve it
                  ):
         self.export_name = export_name
         self.sim_init_date = setup_date
 
         # configure logging ASAP
+        # File handler with a higher level (ERROR)
         logger: logging.Logger = logging.getLogger(self.export_name)
-        logger.setLevel(logging.INFO)
-        logger.addHandler(logging.FileHandler(get_log_dir() /
-                                              f"log_{self.export_name}_{self.datestr()}.log", mode="a"))
-        logger.addHandler(logging.StreamHandler(sys.stdout))
+        logger.setLevel(logging.DEBUG)
+
+        file_handler = logging.FileHandler(get_log_dir() / f"log_{self.export_name}_{self.datestr()}_{str(datetime.datetime.now())}.log", mode="a")
+        file_handler.setLevel(logging.ERROR)
+        file_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+        file_handler.setFormatter(file_formatter)
+        logger.addHandler(file_handler)
+
+        # Stream handler with a lower level (INFO)
+        stream_handler = logging.StreamHandler()
+        stream_handler.setLevel(logging.INFO)
+        stream_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+        stream_handler.setFormatter(stream_formatter)
+        logger.addHandler(stream_handler)
+
+        # logger: logging.Logger = logging.getLogger(self.export_name)
+        # logger.setLevel(logging.INFO)
+        # logger.addHandler(logging.FileHandler(get_log_dir() /
+        #                                       f"log_{self.export_name}_{self.datestr()}.log", mode="a"))
+        # logger.addHandler(logging.StreamHandler(sys.stdout))
 
         self.particle_set = particle_set
 
         self.metadata = metadata_dict
         self.slurm_log = SlurmLog()
         self.analysis_pipeline = analysis_pipeline
+        self.analysis_file = analysis_file
 
         self.metadata_file = metadata_file_name
 
@@ -416,6 +442,7 @@ class PatchySimulationEnsemble:
         self.analysis_data = dict()
 
         self.writer = get_writer()
+        self.dump_metadata()
 
     # def __init__(self, *args: str, **kwargs):
     #     """
@@ -618,7 +645,39 @@ class PatchySimulationEnsemble:
         return logging.getLogger(self.export_name)
 
     def is_do_analysis_parallel(self) -> bool:
+        """
+        Returns:
+            true if the analysis is set up to run in parallel using multiprocessing.Pool
+            and false otherwise.
+        """
         return "parallel" in self.metadata and self.metadata["parallel"]
+
+    def set_analysis_pipeline(self,
+                              src: Union[str, Path],
+                              clear_old_pipeline=True,
+                              link_file=True):
+        """
+        Sets the ensemble's analysis pipeline from an existing analysis pipeline file
+        Args:
+            src: a string or path object indicating the file to set from
+            clear_old_pipeline: if set to True, the existing analysis pipleine will be replaced with the pipeline from the file. otherwise, the new pipeline will be appended
+            link_file: if set to True, the provided source file will be linked to this ensemble, so changes made to this analysis pipeline will apply to all ensembles that source from that file
+        """
+        if isinstance(src, str):
+            if src.endswith(".pickle"):
+                src = get_input_dir() / src
+            else:
+                src = get_input_dir() / (src + ".pickle")
+        if clear_old_pipeline:
+            self.analysis_pipeline = AnalysisPipeline()
+        try:
+            with open(src, "rb") as f:
+                self.analysis_pipeline = self.analysis_pipeline + pickle.load(f)
+            if link_file:
+                self.analysis_file = src
+        except FileNotFoundError:
+            logging.error(f"No analysis pipeline found at {str(src)}.")
+        self.dump_metadata()
 
     def n_processes(self):
         return self.metadata["parallel"]
@@ -628,10 +687,10 @@ class PatchySimulationEnsemble:
         Appends an entry to the slurm log, also writes a brief description
         to the logger
         """
-        self.get_logger().info(str(item))
+        self.get_logger().debug(str(item))
         self.slurm_log.append(item)
 
-    def set_metadata_attr(self, key, val):
+    def set_metadata_attr(self, key: str, val: Any):
         """
         Sets a metadata value, and
         saves the metadata file if a change has been made
@@ -677,7 +736,8 @@ class PatchySimulationEnsemble:
         """
         return len(self.particle_set)
 
-    def sim_get_param(self, sim: PatchySimulation,
+    def sim_get_param(self,
+                      sim: PatchySimulation,
                       paramname: str) -> Any:
         """
         Returns the value of a parameter
@@ -1394,9 +1454,9 @@ class PatchySimulationEnsemble:
         with open(get_input_dir() / self.metadata_file, "w") as f:
             json.dump(self.metadata, fp=f, indent=4)
         # dump analysis pipevline as pickle
-        if "analysis_file" not in self.metadata:
-            self.metadata["analysis_file"] = get_input_dir() / (self.export_name + "_analysis_pipeline.pickle")
-        with open(self.metadata["analysis_file"], "wb") as f:
+        # if "analysis_file" not in self.metadata:
+        #     self.metadata["analysis_file"] = get_input_dir() / (self.export_name + "_analysis_pipeline.pickle")
+        with open(get_input_dir() / self.analysis_file, "wb") as f:
             pickle.dump(self.analysis_pipeline, f)
 
     def start_simulations(self):
@@ -1545,6 +1605,7 @@ class PatchySimulationEnsemble:
             else:
                 return [self.get_data(step, s, time_steps) for s in sim]
 
+
         # DATA AGGREGATION!!!
         # second thing: check if the provided simulation selector is incomplete, a
         # nd that this isn't an aggregate step (which expects incomplete selectors)
@@ -1571,6 +1632,7 @@ class PatchySimulationEnsemble:
             else:
                 raise Exception("Attempting to merge non-mergable data type")
 
+
         # check if this is a slurm job (should always be true I guess? even if it's a jupyter notebook)
         if is_slurm_job():
             slurm_job_info = self.slurm_job_info()
@@ -1596,9 +1658,12 @@ class PatchySimulationEnsemble:
             assert time_steps.step % step.output_tstep == 0, f"Specified step interval {time_steps} " \
                                                              f"not consistant with {step} output time " \
                                                              f"interval {step.output_tstep}"
+
+        self.get_logger().info(f"Retrieving data for analysis step {step.name} and simulation(s) {str(sim)} over timeframe {time_steps}")
         # DATA CACHING
         # check if data is already loaded
         if (step, sim,) in self.analysis_data and self.analysis_data[(step, sim)].matches_trange(time_steps):
+            self.get_logger().info("Data already loaded!")
             return self.analysis_data[(step, sim)]  # i don't care enough to load partial data
 
         # check if we have cached data for this step already
@@ -1721,7 +1786,7 @@ class PatchySimulationEnsemble:
         """
         Executes a bash command and returns the output
         """
-        self.get_logger().info(f">`{command}`")
+        self.get_logger().debug(f">`{command}`")
         response = subprocess.run(command,
                                   shell=True,
                                   capture_output=True,
@@ -1729,7 +1794,7 @@ class PatchySimulationEnsemble:
                                   check=False)
         # response = subprocess.check_output(command, shell=True, stderr=subprocess.STDOUT, check=False,
         # universal_newlines=True)
-        self.get_logger().info(f"`{response.stdout}`")
+        self.get_logger().debug(f"`{response.stdout}`")
         return response.stdout
 
 
