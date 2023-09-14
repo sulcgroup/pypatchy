@@ -126,7 +126,7 @@ class FWriter(BasePatchyWriter):
         # print self._type,self._type,self._color,1.0,self._position,self._a1,self._a2
 
         fmtargs = {
-            "precision": 3,
+            # "precision": 3,
             "separator": ",",
             "suppress_small": True,
             "formatter": {'float_kind': custom_formatter}
