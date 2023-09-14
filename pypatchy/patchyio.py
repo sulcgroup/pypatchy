@@ -17,6 +17,8 @@ from pypatchy.util import get_server_config, PATCHY_FILE_FORMAT_KEY
 # this approach was suggested by chatGPT.
 # I kind of hate it but if it works it works
 def custom_formatter(x):
+    if abs(x) < 1e-9:
+        return "0"
     if x.is_integer():
         return str(int(x))
     else:
