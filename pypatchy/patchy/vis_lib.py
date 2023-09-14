@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 import pylab as p
 
-from pypatchy.patchy.analysis_lib import GraphsFromClusterTxt, ClassifyClusters
+from pypatchy.patchy.analysis_lib import GraphsFromClusterTxt, ClassifyClusters, YIELD_KEY
 
 from pypatchy.patchy.simulation_specification import PatchySimulation
 from .analysis.analyseClusters import ClusterCategory
@@ -17,6 +17,7 @@ from .analysis.analyseClusters import ClusterCategory
 from ..analpipe.analysis_data import TIMEPOINT_KEY
 from .ensemble_parameter import EnsembleParameter, ParameterValue
 from .simulation_ensemble import PatchySimulationEnsemble, PipelineStepDescriptor, describe_param_vals, shared_ensemble
+
 
 import seaborn as sb
 
