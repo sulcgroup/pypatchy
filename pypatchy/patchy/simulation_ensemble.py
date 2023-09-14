@@ -683,6 +683,12 @@ class PatchySimulationEnsemble:
     def n_processes(self):
         return self.metadata["parallel"]
 
+    def is_nocache(self) -> bool:
+        return "nocache" in self.metadata and self.metadata["nocache"]
+
+    def set_nocache(self, bNewVal: bool):
+        self.metadata["nocache"] = bNewVal
+
     def append_slurm_log(self, item: SlurmLogEntry):
         """
         Appends an entry to the slurm log, also writes a brief description
@@ -1663,7 +1669,7 @@ class PatchySimulationEnsemble:
         self.get_logger().info(f"Retrieving data for analysis step {step.name} and simulation(s) {str(sim)} over timeframe {time_steps}")
         # DATA CACHING
         # check if data is already loaded
-        if (step, sim,) in self.analysis_data and self.analysis_data[(step, sim)].matches_trange(time_steps):
+        if not self.is_nocache() and (step, sim,) in self.analysis_data and self.analysis_data[(step, sim)].matches_trange(time_steps):
             self.get_logger().info("Data already loaded!")
             return self.analysis_data[(step, sim)]  # i don't care enough to load partial data
 
@@ -1702,7 +1708,8 @@ class PatchySimulationEnsemble:
         finally:
             if self.is_do_analysis_parallel():
                 lock.release()
-        self.analysis_data[step, sim] = data
+        if not self.is_nocache():
+            self.analysis_data[step, sim] = data
         return data
 
     def get_step_input_data(self,
