@@ -133,7 +133,7 @@ def find_ensemble(*args: str, **kwargs) -> PatchySimulationEnsemble:
             sim_init_date = normalize_date(
                 [kwargs[key] for key in ["sim_date", "date"] if key in kwargs][0])
         else:
-            sim_init_date = datetime.datetime.now()
+            return find_ensemble(name=simname)
         if not simname.endswith(".json"):
             return find_ensemble(name=simname, date=sim_init_date)
         elif metadata_file_exist(simname, sim_init_date):
@@ -732,9 +732,6 @@ class PatchySimulationEnsemble:
                 if self.time_length(sim) < desired_sim_length:
                     sims_that_need_attn.append(sim)
         return sims_that_need_attn
-
-    def get_sim_set_root(self) -> Path:
-        return simulation_run_dir() / self.export_name
 
     def num_particle_types(self) -> int:
         """

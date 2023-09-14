@@ -20,6 +20,8 @@ class PipelineDataType(Enum):
     PIPELINE_DATATYPE_DATAFRAME = 2
     # list of graphs
     PIPELINE_DATATYPE_GRAPH = 3
+    # objects
+    PIPELINE_DATATYPE_OBJECTS = 4
 
 
 class PipelineData(ABC):
@@ -145,18 +147,18 @@ class RawPipelineData:
 #         return self.data
 #
 
-class GraphPipelineData(PipelineData):
+class ObjectPipelineData(PipelineData):
     """
     Data composed of lists of graphs at each timepoint
     """
 
     # keys are timepoints, each value is
-    data: dict[int, list[nx.Graph]]
+    data: dict[int, list[Any]]
 
     def __init__(self, data):
         self.data = data
 
-    def get(self) -> dict[int, list[nx.Graph]]:
+    def get(self) -> dict[int, list[Any]]:
         return self.data
 
     def compare_tranges(self, tr: range) -> np.array:
@@ -175,7 +177,7 @@ class GraphPipelineData(PipelineData):
             self.data = pickle.load(f)
 
 
-def load_cached_graph_data(_, f: Path) -> GraphPipelineData:
+def load_cached_graph_data(_, f: Path) -> ObjectPipelineData:
     assert f.is_file()
     with f.open("rb") as datafile:
         return pickle.load(datafile)
