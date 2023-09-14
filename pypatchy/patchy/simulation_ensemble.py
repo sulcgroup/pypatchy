@@ -134,7 +134,9 @@ def find_ensemble(*args: str, **kwargs) -> PatchySimulationEnsemble:
                 [kwargs[key] for key in ["sim_date", "date"] if key in kwargs][0])
         else:
             sim_init_date = datetime.datetime.now()
-        if metadata_file_exist(simname, sim_init_date):
+        if not simname.endswith(".json"):
+            return find_ensemble(name=simname, date=sim_init_date)
+        elif metadata_file_exist(simname, sim_init_date):
             # if metadata file exists, load from it
             return find_ensemble(metadata=simname, date=sim_init_date)
         else:
@@ -158,8 +160,15 @@ def find_ensemble(*args: str, **kwargs) -> PatchySimulationEnsemble:
         if metadata_file_exist(simname, sim_init_date):
             return find_ensemble(mdf=simname, date=sim_init_date)
         else:
-            print(f"Warning: could not find metadata file for {simname} at {sim_init_date.strftime('%Y-%m-%d')}")
-            return find_ensemble(cfg=simname, date=sim_init_date)
+            # try loading a cfg file with that name
+            if (get_input_dir() / (simname + ".json")).exists():
+                with open( (get_input_dir() / (simname + ".json")), "r") as f:
+                    exportname = json.load(f)["export_name"]
+                if metadata_file_exist(exportname, sim_init_date):
+                    return find_ensemble(exportname, sim_init_date)
+            else:
+                print(f"Warning: could not find metadata file for {simname} at {sim_init_date.strftime('%Y-%m-%d')}")
+                return find_ensemble(cfg=simname, date=sim_init_date)
 
     elif any([key in kwargs for key in ["cfg_file_name", "cfg_file", "cfg"]]):
         # if the user is specifying a cfg file
@@ -234,19 +243,17 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
         mdt["ensemble_config"] = cfg
 
     if "analysis_file" in mdt:
-        file_path = Path(mdt["analysis_file"])
-        if file_path.exists():
-            with open(file_path, "rb") as f:
-                analysis_pipeline = pickle.load(f)
-        elif (get_input_dir() / file_path).is_file():
-            with open(file_path, "rb") as f:
+        analysis_file = mdt["analysis_file"]
+        if (get_input_dir() / analysis_file).is_file():
+            with open(get_input_dir() / analysis_file, "rb") as f:
                 analysis_pipeline = pickle.load(f)
         else:
-            print(f"Analysis file specified in metadata but path {file_path} does not exist!")
-            del mdt["analysis_file"]
+            print(f"Analysis file specified in metadata but path {analysis_file} does not exist!")
             analysis_pipeline = AnalysisPipeline()
     else:
+        analysis_file = f"{export_name}_analysis_pipeline.pickle"
         analysis_pipeline = AnalysisPipeline()
+
     if isinstance(mdt["setup_date"], datetime.datetime):
         mdt["setup_date"] = setup_date.strftime("%Y-%m-%d")
 
@@ -300,12 +307,6 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
         particles: PolycubesRule = PolycubesRule(rule_str=cfg["rule"])
     else:
         raise Exception("Missing particle info!")
-
-    if "analysis_file" in mdt:
-        analysis_file = mdt["analysis_file"]
-    else:
-        analysis_file = export_name + "_analysis_pipeline.pickle"
-        mdt["analysis_file"] = analysis_file
 
     ensemble = PatchySimulationEnsemble(
         export_name,
