@@ -1,3 +1,4 @@
+import pickle
 import re
 from pathlib import Path
 from typing import Union
@@ -16,7 +17,7 @@ from pypatchy.analpipe.yield_analysis_target import ClusterCategory
 
 from pypatchy.analpipe.yield_analysis_target import YieldAnalysisTarget
 
-from ..analpipe.analysis_data import PDPipelineData, GraphPipelineData, TIMEPOINT_KEY, load_cached_pd_data, \
+from ..analpipe.analysis_data import PDPipelineData, ObjectPipelineData, TIMEPOINT_KEY, load_cached_pd_data, \
     load_cached_graph_data
 
 import drawsvg as draw
@@ -131,10 +132,73 @@ class LoadParticlesTraj(AnalysisPipelineHead):
         return (w, y), g
 
 
+class BlobsFromClusters(AnalysisPipelineHead):
+    """
+    Analysis operation that reads in the text file produced by the observable PLCluster
+    and produces a list of lists of lists of particle types
+    """
+
+    def get_data_in_filenames(self) -> list[str]:
+        return [self.source_observable.name]
+
+    def load_cached_files(self, f: Path) -> PipelineData:
+        assert f.is_file()
+        with f.open("rb") as datafile:
+            return pickle.load(datafile)
+
+    def exec(self, din: Path) -> PipelineData:
+        clusters_lists = {}
+        stepcounter = 0
+        with open(din, "r") as f:
+            # iterate lines in the graph file
+            for line in f:
+                # skip timepoints that aren't multiples of the specified timestep
+                if stepcounter % self.output_tstep == 0:
+
+                    time_clusters = []
+                    # Match all the patterns that look like (numbers)
+                    for match in re.findall(r'\(([^)]+)\)', line):
+                        # Split the string by space and convert each element to an integer
+                        inner_list = list(map(int, match.split()))
+                        time_clusters.append(inner_list)
+                    clusters_lists[stepcounter] = []
+                stepcounter += self.source_observable.print_every
+        return ObjectPipelineData(clusters_lists)
+
+    def get_output_data_type(self) -> PipelineDataType:
+        return PipelineDataType.PIPELINE_DATATYPE_OBJECTS
+
+    source_observable: PatchySimObservable
+
+    def __init__(self,
+                 name: str,
+                 source: PatchySimObservable,
+                 output_tstep: Union[int, None] = None):
+        super().__init__(name, int(source.print_every), output_tstep)
+        self.source_observable = source
+
+
+class GraphsToStructures(AnalysisPipelineHead):
+    """
+    Returns a list of Structure objects from an observable
+    """
+    def get_data_in_filenames(self) -> list[str]:
+        pass
+
+    def load_cached_files(self, f: Path) -> PipelineData:
+        pass
+
+    def exec(self, *args: Union[PipelineData, AnalysisPipelineStep]) -> PipelineData:
+        pass
+
+    def get_output_data_type(self) -> PipelineDataType:
+        pass
+
+
 class GraphsFromClusterTxt(AnalysisPipelineHead):
     """
     Analysis operation that reads in the text file produced by the observable
-    PLPatchyTopology and outputs a dict where they keys are timepoints and the
+    PLClusterTopology and outputs a dict where they keys are timepoints and the
     values are the list of cluster graphs at each of those timepoints
     """
 
@@ -149,7 +213,7 @@ class GraphsFromClusterTxt(AnalysisPipelineHead):
 
     load_cached_files = load_cached_graph_data
 
-    def exec(self, _, __, din: Path) -> GraphPipelineData:
+    def exec(self, _, __, din: Path) -> ObjectPipelineData:
         graphs = {}
         stepcounter = 0
         with open(din, "r") as f:
@@ -181,7 +245,7 @@ class GraphsFromClusterTxt(AnalysisPipelineHead):
                         clusterGraphs.append(G)
                     graphs[stepcounter] = clusterGraphs
                 stepcounter += self.source_observable.print_every
-        return GraphPipelineData(graphs)
+        return ObjectPipelineData(graphs)
 
     def get_data_in_filenames(self):
         return [self.source_observable.name]
@@ -226,7 +290,7 @@ class ClassifyClusters(AnalysisPipelineStep):
 
     load_cached_files = load_cached_pd_data
 
-    def exec(self, input_data: GraphPipelineData) -> PDPipelineData:
+    def exec(self, input_data: ObjectPipelineData) -> PDPipelineData:
         cluster_cats_data = {
             TIMEPOINT_KEY: [],
             self.CLUSTER_CATEGORY_KEY: [],
@@ -407,7 +471,7 @@ class ComputeClusterSizeData(AnalysisPipelineStep):
     load_cached_files = load_cached_pd_data
 
 
-    def exec(self, input_graphs: GraphPipelineData) -> PDPipelineData:
+    def exec(self, input_graphs: ObjectPipelineData) -> PDPipelineData:
 
         cluster_size_data = {
             TIMEPOINT_KEY: [],

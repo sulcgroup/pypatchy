@@ -133,7 +133,7 @@ def find_ensemble(*args: str, **kwargs) -> PatchySimulationEnsemble:
             sim_init_date = normalize_date(
                 [kwargs[key] for key in ["sim_date", "date"] if key in kwargs][0])
         else:
-            sim_init_date = datetime.datetime.now()
+            return find_ensemble(name=simname)
         if not simname.endswith(".json"):
             return find_ensemble(name=simname, date=sim_init_date)
         elif metadata_file_exist(simname, sim_init_date):
@@ -405,7 +405,7 @@ class PatchySimulationEnsemble:
         logger.setLevel(logging.DEBUG)
 
         file_handler = logging.FileHandler(get_log_dir() / f"log_{self.export_name}_{self.datestr()}_{str(datetime.datetime.now())}.log", mode="a")
-        file_handler.setLevel(logging.ERROR)
+        file_handler.setLevel(logging.DEBUG)
         file_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
         file_handler.setFormatter(file_formatter)
         logger.addHandler(file_handler)
@@ -733,9 +733,6 @@ class PatchySimulationEnsemble:
                     sims_that_need_attn.append(sim)
         return sims_that_need_attn
 
-    def get_sim_set_root(self) -> Path:
-        return simulation_run_dir() / self.export_name
-
     def num_particle_types(self) -> int:
         """
         num_particle_types should be constant across all simulations. some particle
@@ -911,7 +908,12 @@ class PatchySimulationEnsemble:
 
         if len(self.analysis_pipeline) > 0:
             print(f"Has analysis pipeline with {self.analysis_pipeline.num_pipeline_steps()} steps and {self.analysis_pipeline.num_pipes()} pipes.")
+            print(f"Pipeline is saved in file {self.analysis_file}")
             print(f"Pipeline steps")
+
+        if len(self.analysis_data) > 0:
+            print(f"Has {len(self.analysis_data)} entries of analysis data loaded (each entry is data for a specific "
+                  f"analysis step and simulation)")
         # print("\nHelpful analysis functions:")
         # print("Function `has_pipeline`")
         # print("\ttell me if there's an analysis pipeline")
@@ -931,23 +933,7 @@ class PatchySimulationEnsemble:
         return len(self.analysis_pipeline) != 0
 
     def show_pipeline_graph(self):
-        # Increase the figure size
-        plt.figure(figsize=(8, 8))
-
-        # Define the layout. Here we use spring_layout but you can try other layouts like shell_layout, random_layout etc.
-        pos = nx.spring_layout(self.analysis_pipeline.pipeline_graph, 0.8)
-
-        # Draw the nodes
-        nx.draw_networkx_nodes(self.analysis_pipeline.pipeline_graph, pos, node_size=500)
-
-        # Draw the edges
-        nx.draw_networkx_edges(self.analysis_pipeline.pipeline_graph, pos, arrowstyle='->', arrowsize=20,
-                               edge_cmap=plt.cm.Blues, width=2)
-
-        # Draw the labels
-        nx.draw_networkx_labels(self.analysis_pipeline.pipeline_graph, pos, font_size=8)
-
-        plt.show()
+        return self.analysis_pipeline.draw_pipeline()
 
     def babysit(self):
         """
@@ -1554,7 +1540,7 @@ class PatchySimulationEnsemble:
             self.dump_metadata()
         elif new_steps not in self.analysis_pipeline:
             self.get_logger().info(f"Adding {len(new_steps)} steps "
-                                   f"and {len(new_steps.pipeline_graph.edges)} to the analysis pipeline")
+                                   f"and {len(new_steps.pipeline_graph.edges)} pipes to the analysis pipeline")
             self.analysis_pipeline = self.analysis_pipeline + new_steps
             self.dump_metadata()
         else:
