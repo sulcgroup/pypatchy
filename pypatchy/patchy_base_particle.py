@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import abc
 from abc import ABC, abstractmethod
+from copy import deepcopy
 from typing import Union, Any, Iterable
 
 import numpy as np
@@ -175,7 +176,12 @@ class BaseParticleSet(abc.ABC):
         self._particle_types.append(particle)
         for patch in particle.patches():
             if patch not in self.patches():
-                self.add_patch(patch)
+                if patch.get_id() != self.num_patches():
+                    pp = deepcopy(patch)
+                    pp.set_id(self.num_patches())
+                    self.add_patch(pp)
+                else:
+                    self.add_patch(patch)
 
     def add_patches(self, patches):
         self._patch_types.extend(patches)

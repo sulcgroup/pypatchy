@@ -34,7 +34,7 @@ from ..analpipe.analysis_pipeline_step import AnalysisPipelineStep, PipelineData
     AnalysisPipelineHead, PipelineStepDescriptor, PipelineDataType
 from .patchy_sim_observable import PatchySimObservable, observable_from_file
 from ..patchy_base_particle import BaseParticleSet
-from ..patchyio import NUM_TEETH_KEY, DENTAL_RADIUS_KEY, get_writer, BasePatchyWriter
+from ..patchyio import NUM_TEETH_KEY, get_writer, BasePatchyWriter
 from ..slurm_log_entry import SlurmLogEntry
 from ..slurmlog import SlurmLog
 from ..util import get_param_set, simulation_run_dir, get_server_config, get_log_dir, get_input_dir, \
@@ -296,7 +296,7 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
 
     # load particles
     if PARTICLES_KEY in cfg:
-        particles: ParticleSet = ParticleSet(cfg[PARTICLES_KEY])
+        particles: BaseParticleSet = BaseParticleSet(cfg[PARTICLES_KEY])
         # particles: PolycubesRule = PolycubesRule(rule_json=cfg[PARTICLES_KEY])
     elif "cube_types" in cfg:
         if len(cfg["cube_types"]) > 0 and isinstance(cfg["cube_types"][0], dict):
@@ -720,7 +720,7 @@ class PatchySimulationEnsemble:
         """
         sims_that_need_attn = []
         for sim in self.ensemble():
-            entries = self.slurm_log.by_entry_subject(sim)
+            entries = self.slurm_log.by_subject(sim)
             if len(entries) == 0:
                 continue
             desired_sim_length = self.sim_get_param(sim, "steps")
@@ -783,6 +783,13 @@ class PatchySimulationEnsemble:
 
     def get_sim_particle_count(self, sim: PatchySimulation,
                                particle_idx: int) -> int:
+        """
+        Args:
+            sim: the patchy simulation to count for
+            particle_idx: the index of the particle to get the count for
+        Returns:
+            the int
+        """
         # grab particle name
         particle_name = self.particle_set.particle(particle_idx).name()
         # if PARTICLE_TYPE_LVLS_KEY in self.const_params and particle_name in self.const_params[PARTICLE_TYPE_LVLS_KEY]:
@@ -794,6 +801,9 @@ class PatchySimulationEnsemble:
         return self.sim_get_param(sim, particle_name) * self.sim_get_param(sim, NUM_ASSEMBLIES_KEY)
 
     def get_sim_particle_counts(self, sim: PatchySimulation):
+        """
+        Returns: the number of particles in the simulation
+        """
         return {
             p.type_id(): self.get_sim_particle_count(sim, p.type_id()) for p in self.particle_set.particles()
         }
@@ -802,11 +812,10 @@ class PatchySimulationEnsemble:
         return sum([self.get_sim_particle_count(sim, i) for i in range(self.num_particle_types())])
 
     def num_patch_types(self, sim: PatchySimulation) -> int:
+        """
+        Returns: the total number of patches in the simulation
+        """
         return self.particle_set.num_patches() * self.sim_get_param(sim, NUM_TEETH_KEY)
-
-    """
-    Returns a list of lists of tuples,
-    """
 
     def ensemble(self) -> list[PatchySimulation]:
         """
@@ -860,7 +869,7 @@ class PatchySimulationEnsemble:
             if len(self.slurm_log.by_type("oxdna")) > 0:
                 # get the last continue log step before this
                 counter = self.get_last_continue_step(sim)
-                previous_step_records = self.slurm_log.by_entry_subject(sim).by_type(["oxdna_continue", "oxdna"])
+                previous_step_records = self.slurm_log.by_subject(sim).by_type(["oxdna_continue", "oxdna"])
                 if counter > 0:
                     last_step_end = previous_step_records.by_other("continue_count", counter)
                     assert len(last_step_end) == 1
@@ -1357,7 +1366,7 @@ class PatchySimulationEnsemble:
         Returns the number of times this simulation has been "continued" after the slurm
         controller timed it out
         """
-        entries = self.slurm_log.by_entry_subject(sim)
+        entries = self.slurm_log.by_subject(sim)
         continue_entries = entries.by_type("oxdna_continue")
         if len(continue_entries) > 0:
             # return counter for most recent continue step
@@ -1378,7 +1387,7 @@ class PatchySimulationEnsemble:
                 self.write_continue_files(sim)
         else:
             counter = self.get_last_continue_step(sim)
-            previous_step_records = self.slurm_log.by_entry_subject(sim).by_type(["oxdna_continue", "oxdna"])
+            previous_step_records = self.slurm_log.by_subject(sim).by_type(["oxdna_continue", "oxdna"])
             if counter > 0:
                 last_step_end = previous_step_records.by_other("continue_count", counter)
                 assert len(last_step_end) == 1
@@ -1452,11 +1461,13 @@ class PatchySimulationEnsemble:
         with open(get_input_dir() / self.analysis_file, "wb") as f:
             pickle.dump(self.analysis_pipeline, f)
 
-    def start_simulations(self):
+    def start_simulations(self, e: Union[None, list[PatchySimulation]]):
         """
         Starts all simulations
         """
-        for sim in self.ensemble():
+        if e is None:
+            e = self.ensemble()
+        for sim in e:
             self.start_simulation(sim)
         self.dump_metadata()
 
