@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import math
 import typing
 from typing import Union
@@ -158,6 +159,9 @@ class PolycubeRuleCubeType(PatchyBaseParticleType):
     def name(self) -> str:
         return self._name
 
+    def set_name(self, newName: str):
+        self._name = newName
+
     def set_state_size(self, newVal: int):
         self._stateSize = newVal
 
@@ -221,6 +225,7 @@ class PolycubeRuleCubeType(PatchyBaseParticleType):
 
     def add_patch(self, patch: PolycubesPatch):
         self._patches.append(patch)
+        assert len(self.patches()) <= 6
     def get_patch_state_var(self, key: Union[int, str, np.ndarray],
                             make_if_0=False) -> int:
         """
@@ -329,6 +334,28 @@ class PolycubeRuleCubeType(PatchyBaseParticleType):
         # TODO: consider making this more specific
         # each patch is distance 1.0 units from center but that's not the radius per se
         return 1.0
+
+    # def __deepcopy__(self, memo) -> PolycubeRuleCubeType:
+    #     return PolycubeRuleCubeType(self.type_id(),
+    #                                 [
+    #         copy.deepcopy(p) for p in self.patches()
+    #     ], self.state_size(), [copy.deepcopy(e) for e in self.effects()], self.name())
+
+    def shift_state(self, nvars: int):
+        """
+        Shifts the entire state to the right by nvars
+        """
+        self._stateSize += nvars
+
+        for p in self.patches():
+            if p.state_var():
+                p.set_state_var(p.state_var() + nvars)
+            if p.activation_var():
+                p.set_activation_var(p.activation_var() + nvars if p.activation_var() > 0 else p.activation_var() - nvars)
+
+        for e in self.effects():
+            e.set_target(e.target() + nvars)
+            e.set_sources([i + nvars if i > 0 else i - nvars for i in e.sources()])
 
 
 class PolycubesRule(BaseParticleSet):

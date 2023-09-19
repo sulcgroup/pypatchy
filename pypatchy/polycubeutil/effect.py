@@ -7,6 +7,9 @@ class Effect:
     def __init__(self, target: int):
         self._target = target
 
+    def set_target(self, newVal: int):
+        self._target = newVal
+
     def target(self) -> int:
         return self._target
 
@@ -48,6 +51,9 @@ class DynamicEffect(Effect):
 
     def sources(self) -> list[int]:
         return self._vars
+
+    def set_sources(self, newSources: list[int]):
+        self._vars = newSources
 
     def __str__(self) -> str:
         return f"[{','.join([str(s) for s in self.sources()])}]>{str(self.target())}"

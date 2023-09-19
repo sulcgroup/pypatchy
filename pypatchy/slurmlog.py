@@ -187,7 +187,7 @@ class SlurmLog:
         else:
             return SlurmLog(*[x for x in self.log_list if x.job_type in entry_type])
 
-    def by_entry_subject(self, subject: LogEntryObject) -> SlurmLog:
+    def by_subject(self, subject: LogEntryObject) -> SlurmLog:
         """
         Filters the slurm log by simulation
 
@@ -247,4 +247,4 @@ class SlurmLog:
         return iter(self.log_list)
 
     def __repr__(self):
-        return "\n\n".join(str(entry for entry in self))
+        return "\n\n".join([str(entry) for entry in self])
