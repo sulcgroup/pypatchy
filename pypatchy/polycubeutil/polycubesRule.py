@@ -564,6 +564,10 @@ class PolycubesRule(BaseParticleSet):
         self._patch_types = [p for p in self.patches() if any([p in ct.patches() for ct in self.particles()])]
         # TODO: handle particle and patch IDs!!!
 
+    def reindex(self):
+        for i, particle_type in enumerate(self._particle_types):
+            particle_type.set_id(i)
+
     def __len__(self) -> int:
         return self.num_particle_types()
 
