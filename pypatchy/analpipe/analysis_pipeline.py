@@ -213,6 +213,10 @@ class AnalysisPipeline:
             self.set_input_tstep(self.get_pipeline_step(step), propegate_fwd, propegate_back, new_val, factor)
         else:
             assert not factor or not new_val, "Specify either a scale factor or a new tstep value, not both"
+            if new_val:
+                step.input_tstep = new_val
+            else:
+                step.input_tstep = int(step.input_tstep * factor)
             # do backwards propegation - depth-first search halting at aggregate or head nodes
             if propegate_back:
                 # loop predecessors
@@ -249,7 +253,7 @@ class AnalysisPipeline:
             if new_val:
                 step.output_tstep = new_val
             else:
-                step.output_tstep *= factor
+                step.output_tstep = int(step.output_tstep * factor)
             # do backwards propegation - depth-first search halting at aggregate or head nodes
             if propegate_back:
                 # set input freq for this step
@@ -418,6 +422,10 @@ class AnalysisPipeline:
         ys = {}
         to_visit = [n.name for n in self.head_nodes()]
         lvlidx = 0
+        x_max = 0
+        y_max = 0
+        x_min = math.inf
+        y_min = math.inf
         while to_visit:
             next_level = []
             for node in to_visit:
@@ -445,6 +453,7 @@ class AnalysisPipeline:
         # pos = nx.spring_layout(self.pipeline_graph, pos=pos, iterations=40) # k=1/self.num_pipeline_steps())
         ws = {}
         hs = {}
+        # draw steps
         for step_name in self.pipeline_graph.nodes:
             step = self.name_map[step_name]
             (w, h), g = step.draw()
@@ -457,9 +466,15 @@ class AnalysisPipeline:
             gg = draw.Group(transform=f"translate({x - w / 2}, {y - h / 2})")
             gg.append(g)
             drawing.append(gg)
+            # update drawing mins and maxs
+            x_min = min(x_min, x)
+            y_min = min(y_min, y)
+            x_max = max(x_max, x + w)
+            y_max = max(y_max, y + h)
         arrow = draw.Marker(-0.8, -0.51, 0.2, 0.5, scale=4, orient='auto')
         arrow.append(draw.Lines(-0.8, 0.5, -1.0, -0.5, 0.2, 0, fill='black', close=True))
         drawing.append(arrow)
+        # draw pipes
         for u, v in self.pipeline_graph.edges:
             # start of path
             x0, y0 = pos[u]
@@ -478,4 +493,6 @@ class AnalysisPipeline:
             p.M(x=x0, y=y0)
             p.C(cx1, cy1, cx2, cy2, ex, ey)
             drawing.append(p)
+        drawing.width = x_max - x_min + 0.1 * scale
+        drawing.height = y_max - y_min + 0.1 * scale
         return drawing

@@ -23,7 +23,7 @@
             "time_scale": "linear",
             "PATCHY_alpha": 0.12,
             "no_multipatch": 1,
-            "steps": 5e9,
+            "steps": 5e8,
             "check_energy_every": 10000,
             "check_energy_threshold": 0.0001,
             "refresh_vel": 1
