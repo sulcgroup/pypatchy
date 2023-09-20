@@ -327,6 +327,7 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
             assert sim is not None, f"Slurm log included a record for invalid simulation {str(entry['simulation'])}"
             entry["simulation"] = sim
         ensemble.slurm_log = SlurmLog(*[SlurmLogEntry(**e) for e in mdt["slurm_log"]])
+    ensemble.dump_metadata()
     return ensemble
 
 
@@ -443,7 +444,6 @@ class PatchySimulationEnsemble:
         self.analysis_data = dict()
 
         self.writer = get_writer()
-        self.dump_metadata()
 
     # def __init__(self, *args: str, **kwargs):
     #     """
@@ -945,7 +945,7 @@ class PatchySimulationEnsemble:
     def has_pipeline(self) -> bool:
         return len(self.analysis_pipeline) != 0
 
-    def show_pipeline_graph(self):
+    def show_analysis_pipeline(self):
         return self.analysis_pipeline.draw_pipeline()
 
     def babysit(self):
@@ -1459,6 +1459,7 @@ class PatchySimulationEnsemble:
         Also saves the analysis pathway
         """
         self.metadata["slurm_log"] = self.slurm_log.to_list()
+        self.metadata["analysis_file"] = self.analysis_file
         # dump metadata dict to file
         with open(get_input_dir() / self.metadata_file, "w") as f:
             json.dump(self.metadata, fp=f, indent=4)
@@ -1534,12 +1535,10 @@ class PatchySimulationEnsemble:
         return self.folder_path(sim) / "init.conf"
 
     # ------------- ANALYSIS FUNCTIONS --------------------- #
-    def clear_pipeline(self, reset_analysis_file_path: bool = False):
+    def clear_pipeline(self):
         """
         deletes all steps from the analysis pipeline
         """
-        if reset_analysis_file_path:
-            del self.metadata["analysis_file"]
         self.analysis_pipeline = AnalysisPipeline()
 
     def add_analysis_steps(self, *args):
