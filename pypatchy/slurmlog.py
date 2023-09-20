@@ -223,7 +223,7 @@ class SlurmLog:
         # if our log is empty or this new entry is after the last entry, this is easy
         if len(self.log_list) == 0 or e.job_submit_date > self.log_list[-1].job_submit_date:
             self.log_list.append(e)
-        else: # *sigh*
+        else:  # *sigh*
             self.log_list.insert(self.find_idx(e.job_submit_date) + 1, e)
 
         # if we assume linear tim

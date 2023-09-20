@@ -908,6 +908,7 @@ class PatchySimulationEnsemble:
         """
         print(f"Ensemble of simulations of {self.export_name} set up on {self.sim_init_date.strftime('%Y-%m-%d')}")
         print(f"Particle info: {str(self.particle_set)}")
+        print(f"Metadata stored in file {self.metadata_file}")
         print("Ensemble Params")
         for param in self.ensemble_params:
             print("\t" + str(param))
@@ -920,9 +921,12 @@ class PatchySimulationEnsemble:
             print(f"Pipeline is saved in file {self.analysis_file}")
             print(f"Pipeline steps")
 
+
+
         if len(self.analysis_data) > 0:
             print(f"Has {len(self.analysis_data)} entries of analysis data loaded (each entry is data for a specific "
                   f"analysis step and simulation)")
+
         # print("\nHelpful analysis functions:")
         # print("Function `has_pipeline`")
         # print("\ttell me if there's an analysis pipeline")
@@ -1045,6 +1049,9 @@ class PatchySimulationEnsemble:
         """
         if isinstance(observable, str):
             observable = self.observables[observable]
+        elif not isinstance(observable, PatchySimObservable):
+            print("You definately forgot to put the observable first again. Gonna stop before you do any more damage")
+            return
         if simulation_selector is None:
             simulation_selector = self.ensemble()
         if isinstance(simulation_selector, list):
@@ -1582,7 +1589,7 @@ class PatchySimulationEnsemble:
 
     def get_data(self,
                  step: PipelineStepDescriptor,
-                 sim: PatchySimDescriptor,
+                 sim: Union[PatchySimDescriptor, None] = None,
                  time_steps: range = None) -> Union[PipelineData, list[PipelineData]]:
         """
         Returns data for a step, doing any/all required calculations
@@ -1600,6 +1607,9 @@ class PatchySimulationEnsemble:
         step = self.get_pipeline_step(step)
 
         #  if we've provided a list of simulations
+        if sim is None:
+            return self.get_data(step, tuple(), time_steps)
+
         if isinstance(sim, list):
             if self.is_do_analysis_parallel():
                 self.get_logger().info(f"Assembling pool of {self.n_processes()} processes")

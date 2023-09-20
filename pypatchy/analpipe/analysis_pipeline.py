@@ -7,7 +7,8 @@ from typing import Union, Generator
 
 import networkx as nx
 
-from pypatchy.analpipe.analysis_pipeline_step import AnalysisPipelineStep, AnalysisPipelineHead
+from pypatchy.analpipe.analysis_pipeline_step import AnalysisPipelineStep, AnalysisPipelineHead, \
+    AggregateAnalysisPipelineStep
 
 
 # def analysis_step_idx(step: Union[int, AnalysisPipelineStep]) -> int:
@@ -104,7 +105,7 @@ class AnalysisPipeline:
         Returns:
               an analysis pipeline step
         """
-        assert isinstance(step,AnalysisPipelineStep) or step in self.name_map,\
+        assert isinstance(step, AnalysisPipelineStep) or step in self.name_map, \
             f"Pipeline has no step called {step}. Pipeline steps: {', '.join(self.name_map.keys())}"
         return step if isinstance(step, AnalysisPipelineStep) else self.name_map[step]
 
@@ -126,12 +127,18 @@ class AnalysisPipeline:
         """
         return [self.name_map[n] for n in nx.ancestors(self.pipeline_graph, step.name)]
 
-    def is_force_recompute(self, step: AnalysisPipelineStep) -> bool:
+    def descendants(self, step: AnalysisPipelineStep) -> list[AnalysisPipelineStep]:
+        return [self.name_map[n] for n in nx.descendants(self.pipeline_graph, step.name)]
+
+    def is_force_recompute(self, step: Union[AnalysisPipelineStep, str]) -> bool:
         """
         Returns:
             true if the passed step requires a recompute, false otherwise
         """
-        return step.force_recompute or any([s.force_recompute for s in self.ancestors(step)])
+        if isinstance(step, str):
+            return self.is_force_recompute(self.get_pipeline_step(step))
+        else:
+            return step.force_recompute or any([s.force_recompute for s in self.ancestors(step)])
 
     def head_nodes(self) -> list[AnalysisPipelineHead]:
         """
@@ -165,8 +172,9 @@ class AnalysisPipeline:
         newpipe = copy.deepcopy(self)
         # test that all steps either have a source node or are pipeline head nodes
         for step in stepqueue:
-            assert issubclass(type(step), AnalysisPipelineHead) or any([v == step.name for _,v in edgeset]), f"Missing data source for step {step.name}"
-            
+            assert issubclass(type(step), AnalysisPipelineHead) or any(
+                [v == step.name for _, v in edgeset]), f"Missing data source for step {step.name}"
+
         while len(stepqueue) > 0 and count < math.pow(len(newSteps), 2):
             step = stepqueue[0]
             if issubclass(type(step), AnalysisPipelineHead):
@@ -183,13 +191,103 @@ class AnalysisPipeline:
                 if not found_pipe:
                     stepqueue.append(stepqueue.pop(0))
             count += 1
-        assert len(stepqueue) == 0, f"Malformed steps!!! {len(stepqueue)} extraneous steps, starting with {stepqueue[0].name}"
+        assert len(
+            stepqueue) == 0, f"Malformed steps!!! {len(stepqueue)} extraneous steps, starting with {stepqueue[0].name}"
         for u, v in edgeset:
             if (u, v) not in newpipe.pipeline_graph.edges:
                 assert u in newpipe, f"{u} not in pipeline {str(newpipe)}!"
                 assert v in newpipe, f"{v} not in pipeline {str(newpipe)}!"
                 newpipe._add_pipe_between(newpipe[u], newpipe[v])
         return newpipe
+
+    def set_input_tstep(self,
+                        step: Union[str, AnalysisPipelineStep],
+                        propegate_fwd: bool,
+                        propegate_back: bool,
+                        new_val: int = 0,
+                        factor: float = 0,
+                        visited_nodes: Union[set[str], None] = None):
+        if visited_nodes is None:
+            visited_nodes = set()
+        if isinstance(step, str):
+            self.set_input_tstep(self.get_pipeline_step(step), propegate_fwd, propegate_back, new_val, factor)
+        else:
+            assert not factor or not new_val, "Specify either a scale factor or a new tstep value, not both"
+            # do backwards propegation - depth-first search halting at aggregate or head nodes
+            if propegate_back:
+                # loop predecessors
+                for predecessor_name in self.pipeline_graph.predecessors(step.name):
+                    # avoid double-counting
+                    if predecessor_name not in visited_nodes:
+                        visited_nodes.add(predecessor_name)
+                        n = self.name_map[predecessor_name]
+                        self.set_output_tstep(n, False, False, new_val, factor)
+                        if not issubclass(type(n), AnalysisPipelineHead) and not issubclass(type(n), AggregateAnalysisPipelineStep):
+                            self.set_input_tstep(n, True, False, new_val, factor, visited_nodes)
+            # do forwards propegation - depth-first search halting at aggregate nodes
+            if propegate_fwd:
+                for successor_name in self.pipeline_graph.successors(step):
+                    # avoid double-counting
+                    if successor_name not in visited_nodes:
+                        visited_nodes.add(successor_name)
+                        n = self.name_map[successor_name]
+
+    def set_output_tstep(self,
+                         step: Union[str, AnalysisPipelineStep],
+                         propegate_fwd: bool,
+                         propegate_back: bool,
+                         new_val: int = 0,
+                         factor: float = 0,
+                         visited_nodes: Union[set[str], None] = None):
+        if visited_nodes is None:
+            visited_nodes = set()
+        if isinstance(step, str):
+            self.set_output_tstep(self.get_pipeline_step(step), propegate_fwd, propegate_back, new_val, factor)
+        else:
+            assert not factor or not new_val, "Specify either a scale factor or a new tstep value, not both"
+            assert factor or new_val, "Either factor or new_val must be specified otherwise we aren't doing anything"
+            if new_val:
+                step.output_tstep = new_val
+            else:
+                step.output_tstep *= factor
+            # do backwards propegation - depth-first search halting at aggregate or head nodes
+            if propegate_back:
+                # set input freq for this step
+                self.set_input_tstep(step, False, False, new_val, factor)
+                # loop immediate predecessors
+                for ancestor_name in self.pipeline_graph.predecessors(step.name):
+                    # skip nodes we've already handled (important for recursion)
+                    if ancestor_name not in visited_nodes:
+                        # flag visited
+                        visited_nodes.add(ancestor_name)
+                        # get node object
+                        a = self.name_map[ancestor_name]
+                        # check if step is an aggregate step or a head step
+                        if issubclass(type(a), AggregateAnalysisPipelineStep) or issubclass(type(a), AnalysisPipelineHead):
+                            # set the output step, but stop otherwise
+                            self.set_output_tstep(a, False, False, new_val, factor)
+                        else:
+                            # set node input timestep
+                            self.set_input_tstep(a, False, False, new_val, factor)
+                            # set node output timestep, continue propegating backwards
+                            self.set_output_tstep(a, False, True, new_val, factor, visited_nodes)
+            # do forward propegation - depth-first search halting at aggregate nodes
+            if propegate_fwd:
+                # loop immediate successors
+                for descendent_name in self.pipeline_graph.successors(step.name):
+                    # avoid double-counting
+                    if descendent_name not in visited_nodes:
+                        # flag descendant as visited
+                        visited_nodes.add(descendent_name)
+                        # get node object
+                        a = self.name_map[descendent_name]
+                        # if node is an aggregate
+                        self.set_input_tstep(a, False, False, new_val, factor)
+                        # if the node is not an aggregation step
+                        if not issubclass(type(a), AggregateAnalysisPipelineStep):
+                            # continue propegating
+                            self.set_output_tstep(a, True, False, new_val, factor, visited_nodes)
+
     def validate(self):
         """
         Checks if the pipeline is okay, makes it everyone's problem if not
@@ -313,7 +411,7 @@ class AnalysisPipeline:
         dh = scale * .6 * self.num_pipeline_steps()
         drawing = draw.Drawing(width=dw,
                                height=dh,
-                               origin=(-120, -dh/2))
+                               origin=(-120, -dh / 2))
         levels = {}
         level = 0
         levelpops = {}
@@ -355,7 +453,7 @@ class AnalysisPipeline:
             x, y = pos[step_name]
             x *= w * 1.25
             y *= h * 1.25
-            pos[step_name] = (x,y)
+            pos[step_name] = (x, y)
             gg = draw.Group(transform=f"translate({x - w / 2}, {y - h / 2})")
             gg.append(g)
             drawing.append(gg)

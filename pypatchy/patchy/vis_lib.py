@@ -69,7 +69,10 @@ def plot_analysis_data(e: PatchySimulationEnsemble,
 
     data_source = e.get_data(analysis_data_source, tuple(other_spec))
     data = data_source.get().copy()
-
+    if len(data_source.trange()) == 1:
+        raise Exception("Error: only one timepoint included in data range! Check your analysis pipeline tsteps and/or data completeness.")
+    elif len(data_source.trange()) < 10:
+        print(f"Warning: only {len(data_source.trange())} timepoints in data range! You can continue I guess but it's not GREAT.")
     if norm:
         def normalize_row(row):
             sim = row.drop([TIMEPOINT_KEY, data_source_key]).to_dict()
