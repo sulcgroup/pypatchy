@@ -493,6 +493,6 @@ class AnalysisPipeline:
             p.M(x=x0, y=y0)
             p.C(cx1, cy1, cx2, cy2, ex, ey)
             drawing.append(p)
-        drawing.width = x_max - x_min + 0.1 * scale
-        drawing.height = y_max - y_min + 0.1 * scale
+        drawing.width = x_max - x_min + 40
+        drawing.height = y_max - y_min + 40
         return drawing
