@@ -190,6 +190,8 @@ class PolycubeRuleCubeType(PatchyBaseParticleType):
         else:
             return patches[0]
 
+
+
     def has_patch(self, arg: Union[int, np.ndarray]) -> bool:
         if isinstance(arg, int):  # direction index
             return any([p.dirIdx() == arg for p in self.patches()])
@@ -250,7 +252,7 @@ class PolycubeRuleCubeType(PatchyBaseParticleType):
         """
         Returns a list containing all the effects on this cube type that target a given variable
         """
-        return [e for e in self._effects if e.target() == v]
+        return [e for e in self._effects if e.target() == abs(v)]
 
     def add_effect(self, effect: EFFECT_CLASSES):
         # if isinstance(effect, StringConditionalEffect):
@@ -284,23 +286,44 @@ class PolycubeRuleCubeType(PatchyBaseParticleType):
                 return re.sub(r'b\[(\d+)]', replacer, effects_lists[0].conditional())
             else:
                 return effects_lists[0].conditional()
-        effect_strs = []
-        for e in effects_lists:
+        return self.var_conditional(patch.activation_var())
+
+    def var_conditional(self, var: int, minimize=True):
+        # loop dynamic effects that contribute to the activation variable
+        in_strs = []
+        if self.is_patch_state_var(var):
+            if minimize:
+                if var > 0:
+                    state_var_str = str(self.patches().index(self.get_patch_by_state_var(abs(var))))
+                else:
+                    state_var_str = "!" + str(self.patches().index(self.get_patch_by_state_var(abs(var))))
+            else:
+                if var > 0:
+                    state_var_str = str(self.get_patch_by_state_var(abs(var)).dirIdx())
+                else:
+                    state_var_str = "!" + str(self.get_patch_by_state_var(abs(var)).dirIdx())
+            in_strs.append(state_var_str)
+        # ideally state vars controlled by patches and by effects should be mutually exclusive but...
+        for e in self.effects_targeting(var):
             # forward-proof for environmental effects, which should be ignored for our purposes here
             if isinstance(e, DynamicEffect):
-                if minimize:
-                    patches_in = [str(self.patches().index(self.get_patch_by_state_var(abs(input_state_var)))) if input_state_var > 0
-                                  else "!" + str(self.patches().index(self.get_patch_by_state_var(abs(input_state_var))))
-                                  for input_state_var in e.sources()]
-                else:
-                    patches_in = [str(self.get_patch_by_state_var(abs(input_state_var)).dirIdx()) if input_state_var > 0
-                                  else "!"+str(self.get_patch_by_state_var(abs(input_state_var)).dirIdx())
-                                  for input_state_var in e.sources()]
-                if len(patches_in) > 1:
-                    effect_strs.append("(" + "&".join(patches_in) + ")")
-                else:
-                    effect_strs.append(patches_in[0])
-        return "|".join(effect_strs)
+                state_var_strs: list[str] = []
+                # if the input variable is set from a patch
+                for input_state_var in e.sources():
+                    in_strs.append(self.var_conditional(input_state_var, minimize))
+
+        if len(in_strs) > 1:
+            var_effects_str = "(" + "&".join(in_strs) + ")"
+        else:
+            var_effects_str = in_strs[0]
+
+        if var < 0:
+            var_effects_str = "!" + var_effects_str
+        return var_effects_str
+
+    def is_patch_state_var(self, var: int) -> bool:
+        return self.get_patch_by_state_var(var) is not None
+
 
     def __str__(self) -> str:
         return self.to_string()
