@@ -1469,7 +1469,7 @@ class PatchySimulationEnsemble:
         with open(get_input_dir() / self.analysis_file, "wb") as f:
             pickle.dump(self.analysis_pipeline, f)
 
-    def start_simulations(self, e: Union[None, list[PatchySimulation]]):
+    def start_simulations(self, e: Union[None, list[PatchySimulation]]=None):
         """
         Starts all simulations
         """

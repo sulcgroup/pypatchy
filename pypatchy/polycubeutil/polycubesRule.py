@@ -290,7 +290,7 @@ class PolycubeRuleCubeType(PatchyBaseParticleType):
 
     def var_conditional(self, var: int, minimize=True):
         # loop dynamic effects that contribute to the activation variable
-        in_strs = []
+        in_strs: list[str] = []
         if self.is_patch_state_var(var):
             if minimize:
                 if var > 0:
@@ -313,7 +313,7 @@ class PolycubeRuleCubeType(PatchyBaseParticleType):
                     in_strs.append(self.var_conditional(input_state_var, minimize))
 
         if len(in_strs) > 1:
-            var_effects_str = "(" + "&".join(in_strs) + ")"
+            var_effects_str = "(" + "|".join(in_strs) + ")"
         else:
             var_effects_str = in_strs[0]
 
