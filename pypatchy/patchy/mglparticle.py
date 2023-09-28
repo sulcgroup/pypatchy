@@ -7,7 +7,7 @@ from pathlib import Path
 
 import numpy as np
 
-from pypatchy.patchy_base_particle import BaseParticleSet, BasePatchType, PatchyBaseParticleType
+from pypatchy.patchy_base_particle import BasePatchType, PatchyBaseParticleType, Scene
 
 # todo: bidict?
 MGL_COLORS = [
@@ -91,13 +91,12 @@ class MGLPatch(BasePatchType):
         return self.color().endswith(other.color()) or other.color().endswith(self.color())
 
 
-class MGLScene:
+class MGLScene(Scene):
     _box_size: np.ndarray
     _particles: list[MGLParticle]
 
     def __init__(self, box_size: np.ndarray=np.zeros((3,))):
         self._box_size = box_size
-        self._particles = []
 
     def box_size(self) -> np.ndarray:
         return self._box_size
@@ -105,39 +104,8 @@ class MGLScene:
     def box_valid(self) -> bool:
         return not (self.box_size() != 0).any()
 
-    def particles(self) -> list[MGLParticle]:
-        """
-        Returns a list of individual particles in this scene
-        """
-        return self._particles
-
     def add_particle(self, p: MGLParticle):
         self._particles.append(p)
-
-    def num_particlees(self) -> int:
-        return len(self._particles)
-
-    def particle_set(self) -> BaseParticleSet:
-        """
-        Returns a BaseParticleSet containing the particle types (as defined by color) in this scene
-        WARNING: does not check if particles are actually identical - just checks particle colors!!!
-        """
-        particle_set = BaseParticleSet()
-        colors = set()
-        particle_type_counter = 0
-        patch_type_counter = 0
-        for particle in self._particles:
-            if particle.color() not in colors:
-                colors.add(particle.color())
-                pcopy = deepcopy(particle)
-                pcopy.set_id(particle_type_counter)
-                particle_type_counter += 1
-                for patch in pcopy.patches():
-                    patch.set_id(patch_type_counter)
-                    patch_type_counter += 1
-                particle_set.add_particle(pcopy)
-
-        return particle_set
 
     def type_level_map(self) -> dict[str, int]:
         """
@@ -149,7 +117,7 @@ class MGLScene:
             particle.color(): 0
             for particle in self.particle_set().particles()
         }
-        for particle in self.particles():
+        for particle in self._particles():
             particle_map[particle.color()] += 1
         return particle_map
 
@@ -158,12 +126,12 @@ class MGLScene:
         Returns the center of the scene as defined as the average of all the particle
         positions of the scene
         """
-        return np.mean([p.position() for p in self.particles()])
+        return np.mean([p.position() for p in self._particles()])
 
     def recenter(self) -> MGLScene:
         new_scene = MGLScene()
         center = self.center()
-        for p in self.particles():
+        for p in self._particles():
             p = deepcopy(p)
             p.set_position(p.position() - center)
             new_scene.add_particle(p)
@@ -171,7 +139,7 @@ class MGLScene:
 
     def patch_ids_unique(self) -> bool:
         patch_ids = list(itertools.chain.from_iterable(
-            [[patch.get_id() for patch in particle.patches()] for particle in self.particles()]))
+            [[patch.get_id() for patch in particle.patches()] for particle in self._particles()]))
         if min(patch_ids) != 0 or max(patch_ids) != len(patch_ids) - 1:
             return False
         if len(np.unique(patch_ids)) != len(patch_ids):

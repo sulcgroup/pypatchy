@@ -38,7 +38,7 @@ from ..patchyio import NUM_TEETH_KEY, get_writer, BasePatchyWriter
 from ..slurm_log_entry import SlurmLogEntry
 from ..slurmlog import SlurmLog
 from ..util import get_param_set, simulation_run_dir, get_server_config, get_log_dir, get_input_dir, \
-    get_babysitter_refresh, is_slurm_job, PATCHY_FILE_FORMAT_KEY
+    get_babysitter_refresh, is_slurm_job, PATCHY_FILE_FORMAT_KEY, is_server_slurm
 from .ensemble_parameter import EnsembleParameter, ParameterValue
 from .simulation_specification import PatchySimulation, ParamSet
 from .plpatchy import export_interaction_matrix
@@ -72,6 +72,7 @@ PatchySimDescriptor = Union[tuple[ParameterValue, ...],
                             PatchySimulation,
                             list[Union[tuple[ParameterValue, ...], PatchySimulation],
                             ]]
+
 
 # Custom LogRecord that includes 'long_name'
 class PyPatchyLogRecord(logging.LogRecord):
@@ -162,7 +163,7 @@ def find_ensemble(*args: str, **kwargs) -> PatchySimulationEnsemble:
         else:
             # try loading a cfg file with that name
             if (get_input_dir() / (simname + ".json")).exists():
-                with open( (get_input_dir() / (simname + ".json")), "r") as f:
+                with open((get_input_dir() / (simname + ".json")), "r") as f:
                     exportname = json.load(f)["export_name"]
                 if metadata_file_exist(exportname, sim_init_date):
                     return find_ensemble(exportname, sim_init_date)
@@ -405,7 +406,8 @@ class PatchySimulationEnsemble:
         logger: logging.Logger = logging.getLogger(self.export_name)
         logger.setLevel(logging.DEBUG)
 
-        file_handler = logging.FileHandler(get_log_dir() / f"log_{self.export_name}_{self.datestr()}_{str(datetime.datetime.now())}.log", mode="a")
+        file_handler = logging.FileHandler(
+            get_log_dir() / f"log_{self.export_name}_{self.datestr()}_{str(datetime.datetime.now())}.log", mode="a")
         file_handler.setLevel(logging.DEBUG)
         file_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
         file_handler.setFormatter(file_formatter)
@@ -917,11 +919,10 @@ class PatchySimulationEnsemble:
             print(f"\t{param.param_name}: {param.value_name}")
 
         if len(self.analysis_pipeline) > 0:
-            print(f"Has analysis pipeline with {self.analysis_pipeline.num_pipeline_steps()} steps and {self.analysis_pipeline.num_pipes()} pipes.")
+            print(
+                f"Has analysis pipeline with {self.analysis_pipeline.num_pipeline_steps()} steps and {self.analysis_pipeline.num_pipes()} pipes.")
             print(f"Pipeline is saved in file {self.analysis_file}")
             print(f"Pipeline steps")
-
-
 
         if len(self.analysis_data) > 0:
             print(f"Has {len(self.analysis_data)} entries of analysis data loaded (each entry is data for a specific "
@@ -1238,10 +1239,10 @@ class PatchySimulationEnsemble:
                     inputfile.write(f"{key} = {val}\n")
 
             writerargs = self.writer.get_input_file_data(self.particle_set, {
-                    p.type_id(): self.get_sim_particle_count(sim, p.type_id()) for p in self.particle_set.particles()
-                }, **{
-                         a: self.sim_get_param(sim, a) for a in self.writer.reqd_args()
-                     })
+                p.type_id(): self.get_sim_particle_count(sim, p.type_id()) for p in self.particle_set.particles()
+            }, **{
+                a: self.sim_get_param(sim, a) for a in self.writer.reqd_args()
+            })
             for key, val in writerargs:
                 inputfile.write(f"{key} = {val}\n")
 
@@ -1293,11 +1294,10 @@ class PatchySimulationEnsemble:
         # oh hey it's the worst line of code I've ever seen
         self.writer.set_write_directory(self.folder_path(sim))
         files = self.writer.write(self.particle_set,
-                                 self.get_sim_particle_counts(sim),
-                     **{
-                         a: self.sim_get_param(sim, a) for a in self.writer.reqd_args()
-                     })
-
+                                  self.get_sim_particle_counts(sim),
+                                  **{
+                                      a: self.sim_get_param(sim, a) for a in self.writer.reqd_args()
+                                  })
 
         # deleted in favor of patchy io
         # server_config = get_server_config()
@@ -1469,7 +1469,7 @@ class PatchySimulationEnsemble:
         with open(get_input_dir() / self.analysis_file, "wb") as f:
             pickle.dump(self.analysis_pipeline, f)
 
-    def start_simulations(self, e: Union[None, list[PatchySimulation]]=None):
+    def start_simulations(self, e: Union[None, list[PatchySimulation]] = None):
         """
         Starts all simulations
         """
@@ -1491,24 +1491,32 @@ class PatchySimulationEnsemble:
              script_name : the name of the slurm script file
              job_type : the label of the job type, for logging purposes
         """
-        command = f"sbatch --chdir={self.folder_path(sim)}"
+        if is_server_slurm():
+            command = f"sbatch --chdir={self.folder_path(sim)}"
+        else:
+            command = f"bash {script_name} > simulation.log"
 
         if not os.path.isfile(self.get_conf_file(sim)):
             confgen_slurm_jobid = self.run_confgen(sim)
-            command += f" --dependency=afterok:{confgen_slurm_jobid}"
-        command += f" {script_name}"
-        submit_txt = self.bash_exec(command)
+            if is_server_slurm():
+                command += f" --dependency=afterok:{confgen_slurm_jobid}"
+        if is_server_slurm():
+            command += f" {script_name}"
 
-        jobid = int(re.search(SUBMIT_SLURM_PATTERN, submit_txt).group(1))
-        self.append_slurm_log(SlurmLogEntry(
-            job_type=job_type,
-            pid=jobid,
-            simulation=sim,
-            script_path=self.folder_path(sim) / script_name,
-            log_path=self.folder_path(sim) / f"run{jobid}.out"
-        ))
-        os.chdir(self.tld())
-        return jobid
+        submit_txt = self.bash_exec(command, is_async=True, cwd=self.folder_path(sim))
+
+        if is_server_slurm():
+            jobid = int(re.search(SUBMIT_SLURM_PATTERN, submit_txt).group(1))
+            self.append_slurm_log(SlurmLogEntry(
+                job_type=job_type,
+                pid=jobid,
+                simulation=sim,
+                script_path=self.folder_path(sim) / script_name,
+                log_path=self.folder_path(sim) / f"run{jobid}.out"
+            ))
+            return jobid
+        else:
+            return -1
 
     # def get_run_oxdna_sh(self, sim: PatchySimulation) -> Path:
     #     """
@@ -1520,16 +1528,26 @@ class PatchySimulationEnsemble:
         return self.folder_path(sim) / "gen_conf.sh"
 
     def run_confgen(self, sim: PatchySimulation) -> int:
-        response = self.bash_exec(f"sbatch --chdir={self.folder_path(sim)} {self.folder_path(sim)}/gen_conf.sh")
-        jobid = int(re.search(SUBMIT_SLURM_PATTERN, response).group(1))
-        self.append_slurm_log(SlurmLogEntry(
-            pid=jobid,
-            simulation=sim,
-            job_type="confgen",
-            script_path=self.folder_path(sim) / "gen_conf.sh",
-            log_path=self.folder_path(sim) / f"run{jobid}.out"
-        ))
-        return jobid
+        """
+        Runs a conf generator. These are run as slurm jobs if you're on a slurm server,
+        or as non-background tasks otherwise
+        """
+        if is_server_slurm():
+            response = self.bash_exec(f"sbatch --chdir={self.folder_path(sim)} {self.folder_path(sim)}/gen_conf.sh")
+            jobid = int(re.search(SUBMIT_SLURM_PATTERN, response).group(1))
+            self.append_slurm_log(SlurmLogEntry(
+                pid=jobid,
+                simulation=sim,
+                job_type="confgen",
+                script_path=self.folder_path(sim) / "gen_conf.sh",
+                log_path=self.folder_path(sim) / f"run{jobid}.out"
+            ))
+            return jobid
+        else:
+            self.bash_exec(f"bash gen_conf.sh > confgenlog.out", cwd=self.folder_path(sim))
+            # jobid = re.search(r'\[\d+\]\s+(\d+)', response).group(1)
+            # slurm logs aren't valid when not on a slurm server
+            return -1
 
     def get_conf_file(self, sim: PatchySimulation) -> Path:
         return self.folder_path(sim) / "init.conf"
@@ -1618,7 +1636,6 @@ class PatchySimulationEnsemble:
             else:
                 return [self.get_data(step, s, time_steps) for s in sim]
 
-
         # DATA AGGREGATION!!!
         # second thing: check if the provided simulation selector is incomplete, a
         # nd that this isn't an aggregate step (which expects incomplete selectors)
@@ -1644,7 +1661,6 @@ class PatchySimulationEnsemble:
                 raise Exception("I haven't bothered trying to join graph data yet")
             else:
                 raise Exception("Attempting to merge non-mergable data type")
-
 
         # check if this is a slurm job (should always be true I guess? even if it's a jupyter notebook)
         if is_slurm_job():
@@ -1672,10 +1688,12 @@ class PatchySimulationEnsemble:
                                                              f"not consistant with {step} output time " \
                                                              f"interval {step.output_tstep}"
 
-        self.get_logger().info(f"Retrieving data for analysis step {step.name} and simulation(s) {str(sim)} over timeframe {time_steps}")
+        self.get_logger().info(
+            f"Retrieving data for analysis step {step.name} and simulation(s) {str(sim)} over timeframe {time_steps}")
         # DATA CACHING
         # check if data is already loaded
-        if not self.is_nocache() and (step, sim,) in self.analysis_data and self.analysis_data[(step, sim)].matches_trange(time_steps):
+        if not self.is_nocache() and (step, sim,) in self.analysis_data and self.analysis_data[
+            (step, sim)].matches_trange(time_steps):
             self.get_logger().info("Data already loaded!")
             return self.analysis_data[(step, sim)]  # i don't care enough to load partial data
 
@@ -1796,16 +1814,19 @@ class PatchySimulationEnsemble:
         jobinfo = jobinfo.split()
         return {key: value for key, value in [x.split("=", 1) for x in jobinfo]}
 
-    def bash_exec(self, command: str):
+    def bash_exec(self, command: str, is_async=False, cwd=None):
         """
         Executes a bash command and returns the output
         """
         self.get_logger().debug(f">`{command}`")
-        response = subprocess.run(command,
-                                  shell=True,
-                                  capture_output=True,
-                                  text=True,
-                                  check=False)
+        if not is_async:
+            response = subprocess.run(command,
+                                      shell=True,
+                                      capture_output=True,
+                                      text=True,
+                                      check=False)
+        else:
+            response = subprocess.Popen(command.split(), cwd=cwd)
         # response = subprocess.check_output(command, shell=True, stderr=subprocess.STDOUT, check=False,
         # universal_newlines=True)
         self.get_logger().debug(f"`{response.stdout}`")

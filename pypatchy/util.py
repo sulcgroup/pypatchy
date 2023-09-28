@@ -79,6 +79,11 @@ def get_babysitter_refresh() -> int:
     """
     return int(get_server_config()["babysitter_refresh"])
 
+def is_server_slurm() -> bool:
+    """
+    Returns whether the server is a slurm server. Defaults to true for legacy reasons.
+    """
+    return "is_slurm" not in get_server_config() or get_server_config()["is_slurm"]
 
 def get_param_set(filename) -> dict:
     return get_spec_json(filename, "input_files")
