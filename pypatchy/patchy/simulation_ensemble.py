@@ -34,11 +34,11 @@ from ..analpipe.analysis_pipeline_step import AnalysisPipelineStep, PipelineData
     AnalysisPipelineHead, PipelineStepDescriptor, PipelineDataType
 from .patchy_sim_observable import PatchySimObservable, observable_from_file
 from ..patchy_base_particle import BaseParticleSet
-from ..patchyio import NUM_TEETH_KEY, DENTAL_RADIUS_KEY, get_writer, BasePatchyWriter
+from ..patchyio import NUM_TEETH_KEY, get_writer, BasePatchyWriter
 from ..slurm_log_entry import SlurmLogEntry
 from ..slurmlog import SlurmLog
 from ..util import get_param_set, simulation_run_dir, get_server_config, get_log_dir, get_input_dir, \
-    get_babysitter_refresh, is_slurm_job, PATCHY_FILE_FORMAT_KEY
+    get_babysitter_refresh, is_slurm_job, PATCHY_FILE_FORMAT_KEY, is_server_slurm
 from .ensemble_parameter import EnsembleParameter, ParameterValue
 from .simulation_specification import PatchySimulation, ParamSet
 from .plpatchy import export_interaction_matrix
@@ -72,6 +72,7 @@ PatchySimDescriptor = Union[tuple[ParameterValue, ...],
                             PatchySimulation,
                             list[Union[tuple[ParameterValue, ...], PatchySimulation],
                             ]]
+
 
 # Custom LogRecord that includes 'long_name'
 class PyPatchyLogRecord(logging.LogRecord):
@@ -162,7 +163,7 @@ def find_ensemble(*args: str, **kwargs) -> PatchySimulationEnsemble:
         else:
             # try loading a cfg file with that name
             if (get_input_dir() / (simname + ".json")).exists():
-                with open( (get_input_dir() / (simname + ".json")), "r") as f:
+                with open((get_input_dir() / (simname + ".json")), "r") as f:
                     exportname = json.load(f)["export_name"]
                 if metadata_file_exist(exportname, sim_init_date):
                     return find_ensemble(exportname, sim_init_date)
@@ -296,7 +297,7 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
 
     # load particles
     if PARTICLES_KEY in cfg:
-        particles: ParticleSet = ParticleSet(cfg[PARTICLES_KEY])
+        particles: BaseParticleSet = BaseParticleSet(cfg[PARTICLES_KEY])
         # particles: PolycubesRule = PolycubesRule(rule_json=cfg[PARTICLES_KEY])
     elif "cube_types" in cfg:
         if len(cfg["cube_types"]) > 0 and isinstance(cfg["cube_types"][0], dict):
@@ -327,6 +328,7 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
             assert sim is not None, f"Slurm log included a record for invalid simulation {str(entry['simulation'])}"
             entry["simulation"] = sim
         ensemble.slurm_log = SlurmLog(*[SlurmLogEntry(**e) for e in mdt["slurm_log"]])
+    ensemble.dump_metadata()
     return ensemble
 
 
@@ -443,7 +445,6 @@ class PatchySimulationEnsemble:
         self.analysis_data = dict()
 
         self.writer = get_writer()
-        self.dump_metadata()
 
     # def __init__(self, *args: str, **kwargs):
     #     """
@@ -720,7 +721,7 @@ class PatchySimulationEnsemble:
         """
         sims_that_need_attn = []
         for sim in self.ensemble():
-            entries = self.slurm_log.by_entry_subject(sim)
+            entries = self.slurm_log.by_subject(sim)
             if len(entries) == 0:
                 continue
             desired_sim_length = self.sim_get_param(sim, "steps")
@@ -783,6 +784,13 @@ class PatchySimulationEnsemble:
 
     def get_sim_particle_count(self, sim: PatchySimulation,
                                particle_idx: int) -> int:
+        """
+        Args:
+            sim: the patchy simulation to count for
+            particle_idx: the index of the particle to get the count for
+        Returns:
+            the int
+        """
         # grab particle name
         particle_name = self.particle_set.particle(particle_idx).name()
         # if PARTICLE_TYPE_LVLS_KEY in self.const_params and particle_name in self.const_params[PARTICLE_TYPE_LVLS_KEY]:
@@ -794,6 +802,9 @@ class PatchySimulationEnsemble:
         return self.sim_get_param(sim, particle_name) * self.sim_get_param(sim, NUM_ASSEMBLIES_KEY)
 
     def get_sim_particle_counts(self, sim: PatchySimulation):
+        """
+        Returns: the number of particles in the simulation
+        """
         return {
             p.type_id(): self.get_sim_particle_count(sim, p.type_id()) for p in self.particle_set.particles()
         }
@@ -802,11 +813,10 @@ class PatchySimulationEnsemble:
         return sum([self.get_sim_particle_count(sim, i) for i in range(self.num_particle_types())])
 
     def num_patch_types(self, sim: PatchySimulation) -> int:
+        """
+        Returns: the total number of patches in the simulation
+        """
         return self.particle_set.num_patches() * self.sim_get_param(sim, NUM_TEETH_KEY)
-
-    """
-    Returns a list of lists of tuples,
-    """
 
     def ensemble(self) -> list[PatchySimulation]:
         """
@@ -860,7 +870,7 @@ class PatchySimulationEnsemble:
             if len(self.slurm_log.by_type("oxdna")) > 0:
                 # get the last continue log step before this
                 counter = self.get_last_continue_step(sim)
-                previous_step_records = self.slurm_log.by_entry_subject(sim).by_type(["oxdna_continue", "oxdna"])
+                previous_step_records = self.slurm_log.by_subject(sim).by_type(["oxdna_continue", "oxdna"])
                 if counter > 0:
                     last_step_end = previous_step_records.by_other("continue_count", counter)
                     assert len(last_step_end) == 1
@@ -899,6 +909,7 @@ class PatchySimulationEnsemble:
         """
         print(f"Ensemble of simulations of {self.export_name} set up on {self.sim_init_date.strftime('%Y-%m-%d')}")
         print(f"Particle info: {str(self.particle_set)}")
+        print(f"Metadata stored in file {self.metadata_file}")
         print("Ensemble Params")
         for param in self.ensemble_params:
             print("\t" + str(param))
@@ -907,13 +918,15 @@ class PatchySimulationEnsemble:
             print(f"\t{param.param_name}: {param.value_name}")
 
         if len(self.analysis_pipeline) > 0:
-            print(f"Has analysis pipeline with {self.analysis_pipeline.num_pipeline_steps()} steps and {self.analysis_pipeline.num_pipes()} pipes.")
+            print(
+                f"Has analysis pipeline with {self.analysis_pipeline.num_pipeline_steps()} steps and {self.analysis_pipeline.num_pipes()} pipes.")
             print(f"Pipeline is saved in file {self.analysis_file}")
             print(f"Pipeline steps")
 
         if len(self.analysis_data) > 0:
             print(f"Has {len(self.analysis_data)} entries of analysis data loaded (each entry is data for a specific "
                   f"analysis step and simulation)")
+
         # print("\nHelpful analysis functions:")
         # print("Function `has_pipeline`")
         # print("\ttell me if there's an analysis pipeline")
@@ -932,7 +945,7 @@ class PatchySimulationEnsemble:
     def has_pipeline(self) -> bool:
         return len(self.analysis_pipeline) != 0
 
-    def show_pipeline_graph(self):
+    def show_analysis_pipeline(self):
         return self.analysis_pipeline.draw_pipeline()
 
     def babysit(self):
@@ -1036,6 +1049,9 @@ class PatchySimulationEnsemble:
         """
         if isinstance(observable, str):
             observable = self.observables[observable]
+        elif not isinstance(observable, PatchySimObservable):
+            print("You definately forgot to put the observable first again. Gonna stop before you do any more damage")
+            return
         if simulation_selector is None:
             simulation_selector = self.ensemble()
         if isinstance(simulation_selector, list):
@@ -1222,10 +1238,10 @@ class PatchySimulationEnsemble:
                     inputfile.write(f"{key} = {val}\n")
 
             writerargs = self.writer.get_input_file_data(self.particle_set, {
-                    p.type_id(): self.get_sim_particle_count(sim, p.type_id()) for p in self.particle_set.particles()
-                }, **{
-                         a: self.sim_get_param(sim, a) for a in self.writer.reqd_args()
-                     })
+                p.type_id(): self.get_sim_particle_count(sim, p.type_id()) for p in self.particle_set.particles()
+            }, **{
+                a: self.sim_get_param(sim, a) for a in self.writer.reqd_args()
+            })
             for key, val in writerargs:
                 inputfile.write(f"{key} = {val}\n")
 
@@ -1277,11 +1293,10 @@ class PatchySimulationEnsemble:
         # oh hey it's the worst line of code I've ever seen
         self.writer.set_write_directory(self.folder_path(sim))
         files = self.writer.write(self.particle_set,
-                                 self.get_sim_particle_counts(sim),
-                     **{
-                         a: self.sim_get_param(sim, a) for a in self.writer.reqd_args()
-                     })
-
+                                  self.get_sim_particle_counts(sim),
+                                  **{
+                                      a: self.sim_get_param(sim, a) for a in self.writer.reqd_args()
+                                  })
 
         # deleted in favor of patchy io
         # server_config = get_server_config()
@@ -1357,7 +1372,7 @@ class PatchySimulationEnsemble:
         Returns the number of times this simulation has been "continued" after the slurm
         controller timed it out
         """
-        entries = self.slurm_log.by_entry_subject(sim)
+        entries = self.slurm_log.by_subject(sim)
         continue_entries = entries.by_type("oxdna_continue")
         if len(continue_entries) > 0:
             # return counter for most recent continue step
@@ -1378,7 +1393,7 @@ class PatchySimulationEnsemble:
                 self.write_continue_files(sim)
         else:
             counter = self.get_last_continue_step(sim)
-            previous_step_records = self.slurm_log.by_entry_subject(sim).by_type(["oxdna_continue", "oxdna"])
+            previous_step_records = self.slurm_log.by_subject(sim).by_type(["oxdna_continue", "oxdna"])
             if counter > 0:
                 last_step_end = previous_step_records.by_other("continue_count", counter)
                 assert len(last_step_end) == 1
@@ -1443,6 +1458,7 @@ class PatchySimulationEnsemble:
         Also saves the analysis pathway
         """
         self.metadata["slurm_log"] = self.slurm_log.to_list()
+        self.metadata["analysis_file"] = self.analysis_file
         # dump metadata dict to file
         with open(get_input_dir() / self.metadata_file, "w") as f:
             json.dump(self.metadata, fp=f, indent=4)
@@ -1452,11 +1468,13 @@ class PatchySimulationEnsemble:
         with open(get_input_dir() / self.analysis_file, "wb") as f:
             pickle.dump(self.analysis_pipeline, f)
 
-    def start_simulations(self):
+    def start_simulations(self, e: Union[None, list[PatchySimulation]] = None):
         """
         Starts all simulations
         """
-        for sim in self.ensemble():
+        if e is None:
+            e = self.ensemble()
+        for sim in e:
             self.start_simulation(sim)
         self.dump_metadata()
 
@@ -1472,24 +1490,32 @@ class PatchySimulationEnsemble:
              script_name : the name of the slurm script file
              job_type : the label of the job type, for logging purposes
         """
-        command = f"sbatch --chdir={self.folder_path(sim)}"
+        if is_server_slurm():
+            command = f"sbatch --chdir={self.folder_path(sim)}"
+        else:
+            command = f"bash {script_name} > simulation.log"
 
         if not os.path.isfile(self.get_conf_file(sim)):
             confgen_slurm_jobid = self.run_confgen(sim)
-            command += f" --dependency=afterok:{confgen_slurm_jobid}"
-        command += f" {script_name}"
-        submit_txt = self.bash_exec(command)
+            if is_server_slurm():
+                command += f" --dependency=afterok:{confgen_slurm_jobid}"
+        if is_server_slurm():
+            command += f" {script_name}"
 
-        jobid = int(re.search(SUBMIT_SLURM_PATTERN, submit_txt).group(1))
-        self.append_slurm_log(SlurmLogEntry(
-            job_type=job_type,
-            pid=jobid,
-            simulation=sim,
-            script_path=self.folder_path(sim) / script_name,
-            log_path=self.folder_path(sim) / f"run{jobid}.out"
-        ))
-        os.chdir(self.tld())
-        return jobid
+        submit_txt = self.bash_exec(command, is_async=True, cwd=self.folder_path(sim))
+
+        if is_server_slurm():
+            jobid = int(re.search(SUBMIT_SLURM_PATTERN, submit_txt).group(1))
+            self.append_slurm_log(SlurmLogEntry(
+                job_type=job_type,
+                pid=jobid,
+                simulation=sim,
+                script_path=self.folder_path(sim) / script_name,
+                log_path=self.folder_path(sim) / f"run{jobid}.out"
+            ))
+            return jobid
+        else:
+            return -1
 
     # def get_run_oxdna_sh(self, sim: PatchySimulation) -> Path:
     #     """
@@ -1501,27 +1527,35 @@ class PatchySimulationEnsemble:
         return self.folder_path(sim) / "gen_conf.sh"
 
     def run_confgen(self, sim: PatchySimulation) -> int:
-        response = self.bash_exec(f"sbatch --chdir={self.folder_path(sim)} {self.folder_path(sim)}/gen_conf.sh")
-        jobid = int(re.search(SUBMIT_SLURM_PATTERN, response).group(1))
-        self.append_slurm_log(SlurmLogEntry(
-            pid=jobid,
-            simulation=sim,
-            job_type="confgen",
-            script_path=self.folder_path(sim) / "gen_conf.sh",
-            log_path=self.folder_path(sim) / f"run{jobid}.out"
-        ))
-        return jobid
+        """
+        Runs a conf generator. These are run as slurm jobs if you're on a slurm server,
+        or as non-background tasks otherwise
+        """
+        if is_server_slurm():
+            response = self.bash_exec(f"sbatch --chdir={self.folder_path(sim)} {self.folder_path(sim)}/gen_conf.sh")
+            jobid = int(re.search(SUBMIT_SLURM_PATTERN, response).group(1))
+            self.append_slurm_log(SlurmLogEntry(
+                pid=jobid,
+                simulation=sim,
+                job_type="confgen",
+                script_path=self.folder_path(sim) / "gen_conf.sh",
+                log_path=self.folder_path(sim) / f"run{jobid}.out"
+            ))
+            return jobid
+        else:
+            self.bash_exec(f"bash gen_conf.sh > confgenlog.out", cwd=self.folder_path(sim))
+            # jobid = re.search(r'\[\d+\]\s+(\d+)', response).group(1)
+            # slurm logs aren't valid when not on a slurm server
+            return -1
 
     def get_conf_file(self, sim: PatchySimulation) -> Path:
         return self.folder_path(sim) / "init.conf"
 
     # ------------- ANALYSIS FUNCTIONS --------------------- #
-    def clear_pipeline(self, reset_analysis_file_path: bool = False):
+    def clear_pipeline(self):
         """
         deletes all steps from the analysis pipeline
         """
-        if reset_analysis_file_path:
-            del self.metadata["analysis_file"]
         self.analysis_pipeline = AnalysisPipeline()
 
     def add_analysis_steps(self, *args):
@@ -1571,7 +1605,7 @@ class PatchySimulationEnsemble:
 
     def get_data(self,
                  step: PipelineStepDescriptor,
-                 sim: PatchySimDescriptor,
+                 sim: Union[PatchySimDescriptor, None] = None,
                  time_steps: range = None) -> Union[PipelineData, list[PipelineData]]:
         """
         Returns data for a step, doing any/all required calculations
@@ -1589,6 +1623,9 @@ class PatchySimulationEnsemble:
         step = self.get_pipeline_step(step)
 
         #  if we've provided a list of simulations
+        if sim is None:
+            return self.get_data(step, tuple(), time_steps)
+
         if isinstance(sim, list):
             if self.is_do_analysis_parallel():
                 self.get_logger().info(f"Assembling pool of {self.n_processes()} processes")
@@ -1597,7 +1634,6 @@ class PatchySimulationEnsemble:
                     return pool.map(process_simulation_data, args)
             else:
                 return [self.get_data(step, s, time_steps) for s in sim]
-
 
         # DATA AGGREGATION!!!
         # second thing: check if the provided simulation selector is incomplete, a
@@ -1625,7 +1661,6 @@ class PatchySimulationEnsemble:
             else:
                 raise Exception("Attempting to merge non-mergable data type")
 
-
         # check if this is a slurm job (should always be true I guess? even if it's a jupyter notebook)
         if is_slurm_job():
             slurm_job_info = self.slurm_job_info()
@@ -1652,10 +1687,12 @@ class PatchySimulationEnsemble:
                                                              f"not consistant with {step} output time " \
                                                              f"interval {step.output_tstep}"
 
-        self.get_logger().info(f"Retrieving data for analysis step {step.name} and simulation(s) {str(sim)} over timeframe {time_steps}")
+        self.get_logger().info(
+            f"Retrieving data for analysis step {step.name} and simulation(s) {str(sim)} over timeframe {time_steps}")
         # DATA CACHING
         # check if data is already loaded
-        if not self.is_nocache() and (step, sim,) in self.analysis_data and self.analysis_data[(step, sim)].matches_trange(time_steps):
+        if not self.is_nocache() and (step, sim,) in self.analysis_data and self.analysis_data[
+            (step, sim)].matches_trange(time_steps):
             self.get_logger().info("Data already loaded!")
             return self.analysis_data[(step, sim)]  # i don't care enough to load partial data
 
@@ -1776,16 +1813,19 @@ class PatchySimulationEnsemble:
         jobinfo = jobinfo.split()
         return {key: value for key, value in [x.split("=", 1) for x in jobinfo]}
 
-    def bash_exec(self, command: str):
+    def bash_exec(self, command: str, is_async=False, cwd=None):
         """
         Executes a bash command and returns the output
         """
         self.get_logger().debug(f">`{command}`")
-        response = subprocess.run(command,
-                                  shell=True,
-                                  capture_output=True,
-                                  text=True,
-                                  check=False)
+        if not is_async:
+            response = subprocess.run(command,
+                                      shell=True,
+                                      capture_output=True,
+                                      text=True,
+                                      check=False)
+        else:
+            response = subprocess.Popen(command.split(), cwd=cwd)
         # response = subprocess.check_output(command, shell=True, stderr=subprocess.STDOUT, check=False,
         # universal_newlines=True)
         self.get_logger().debug(f"`{response.stdout}`")

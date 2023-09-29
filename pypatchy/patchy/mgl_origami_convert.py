@@ -1,17 +1,20 @@
 import math
+from copy import deepcopy
 from pathlib import Path
-from typing import Generator, Any
+from typing import Generator, Any, Iterable, Union
 
 import numpy as np
-from oxDNA_analysis_tools.UTILS.RyeReader import *
+from oxDNA_analysis_tools.UTILS.RyeReader import Configuration, linear_read, get_traj_info
 from Bio.SVDSuperimposer import SVDSuperimposer
+from pypatchy import oxutil
+
 from pypatchy.oxutil import generate_helix_coords, write_configuration_header, write_configuration, write_oxview, \
-    POS_BASE, generate_spacer, generate_3p_ids, assign_coords
-from pypatchy.oxutil import Base, merge_tops, read_top, write_top
+    POS_BASE, generate_spacer, assign_coords
 from random import choice
 import itertools
 
 from pypatchy.patchy.mglparticle import MGLScene, MGLParticle, MGLPatch
+from pypatchy.patchy_base_particle import Scene
 
 dist = lambda a, b: np.linalg.norm(a - b)
 normalize = lambda v: v / np.linalg.norm(v)
@@ -22,23 +25,27 @@ def rc(s):
     return "".join([mp[c] for c in s][::-1])
 
 
-
 # todo: MORE PARAMETERS
-def patch_positions_to_bind(patch_positions1,
-                            patch_positions2,
-                            conf1,
-                            conf2):
+def patch_positions_to_bind(patch_positions1: Iterable[int],
+                            patch_positions2: Iterable[int],
+                            conf1: Configuration,
+                            conf2: Configuration) -> list[tuple[int, int]]:
+    # get patch positions on particle 2 as an array
     pps2 = np.array([conf2.positions[pid] for pid in patch_positions2])
 
+    # get all possible permutations of patch positions on particle 1
     perms = np.array(list(itertools.permutations([conf1.positions[pid] for pid in patch_positions1])))
 
+    # compute vector difference between the particle 2 patch positions and the permutation matrix
     diffs = pps2[np.newaxis, :, :] - perms  # vector difference
     distancesqrd = np.sum(np.multiply(diffs, diffs), axis=(2,))  # dot product, gives us distance squared
+    # sum of squares
     sums = np.sum(distancesqrd, axis=(1,))
 
     bestmatch = np.argmin(sums)
+    best_patch1_positions: list[int] = list(itertools.permutations(patch_positions1))[bestmatch]
     return zip(
-        list(itertools.permutations(patch_positions1))[bestmatch],
+        best_patch1_positions,
         patch_positions2)
 
     # pairs = [] # we store pairs of corresponding indicesreverse
@@ -57,24 +64,25 @@ def patch_positions_to_bind(patch_positions1,
     # return pairs # the closest patches on the 2 particles provided
 
 
-def modify_strand3p(top, strand_id: int, seq: str):
-    connection_length = len(seq)
-    # we know we work with the 3 end so it's the beginning + sticky_length we have to modify
-    new_bases = [Base(t, b.p3, b.p5) for t, b in zip(seq, top.strands[strand_id].bases[0:connection_length])]
-    new_bases.extend(top.strands[strand_id].bases[connection_length:])
-    # empty previous bases as we work with tuples and we can't just reasign
-    top.strands[strand_id].bases.clear()
-    top.strands[strand_id].bases.extend(new_bases)
-
+def pairwise(iterable):
+    # because i'm stuck on python 3.8
+    a, b = itertools.tee(iterable)
+    next(b, None)
+    return zip(a, b)
 
 class DNAParticleType:
     """
     A DNA origami that will be used to make a particle in the output particle thing
     i'm very tired rn
     """
-    topology: Any
-    conf: Any
-    base2strand: dict
+    topology: oxutil.TopInfo
+    conf: Configuration
+
+    # list containing the id of the last base in each strand
+    strand_delims: list[int]
+
+    # list of list of base ids that are tips from which we can extend single strandedd overhangs
+    # not updated as top is modified!
     patch_positions: list[list[int]]
 
     def __init__(self, top_file: Path, dat_file: Path, patch_positions: list[list[int]]):
@@ -83,10 +91,18 @@ class DNAParticleType:
         in a multicomponent structure
         """
         # import the topology
-        self.topology, self.base2strand = read_top(top_file)
+        self.topology, base_2_strand = oxutil.read_top(top_file)
+        self.strand_delims = []
+        # compute strand deliminators
+        for (i1, s1), (i2, s2) in pairwise(base_2_strand.items()):
+            # if i1 is last element in strand1
+            if s1 != s2:
+                # put it on the list
+                self.strand_delims.append(i1)
 
         # now import  the origami
         self.conf = next(linear_read(get_traj_info(str(dat_file)), self.topology))[0]
+
         self.patch_positions = patch_positions
 
     def get_patch_cmss(self) -> np.ndarray:
@@ -120,6 +136,83 @@ class DNAParticleType:
             np.linalg.norm((self.get_patch_cmss() - self.conf_cms()), axis=1)
         )
 
+    def modify_strand3p(self, strand_id: int, seq: str) -> Iterable[int]:
+        """
+        Modifies a topology to add a sequence to the 3' end
+        Args:
+            strand_id : the ID of the strand to modify
+            seq : the seqence to append, in 5'->3' order
+
+        Returns:
+            the ids of the bases that have been added
+        """
+        # grab seq length
+        connection_length = len(seq)
+        strand_old_len = len(self.topology.strands[strand_id].bases)
+        assert connection_length < strand_old_len, "No I will not explain."
+        # # we know we work with the 3 end so it's the beginning + sticky_length we have to modify
+        # # construct list of bases with new identities at beginning of topology (b/c oxDNA thinks in 3'->5' for some reason?)
+        #
+        # new_bases = [oxutil.Base(t, b.p3, b.p5) for t, b in zip(seq, self.topology.strands[strand_id].bases[:connection_length])]
+        # # "shift" topology by appending the existing strand to our new bases
+        # new_bases.extend([oxutil.Base(
+        #     t,
+        #     p3 + connection_length if p3 != -1 else new_bases[-1].p3, # link end of old strand to new strand
+        #     p5 + connection_length if p5 != -1 else -1)
+        #                   for t, p3, p5 in self.topology.strands[strand_id].bases])
+        # # empty previous bases as we work with tuples and we can't just reasign
+        # # so clear strand bases
+        # self.topology.strands[strand_id].bases.clear()
+        # # and add our new copy strand (with our new sequence at the (3') beginning)
+        # self.topology.strands[strand_id].bases.extend(new_bases)
+        # assert len(self.topology.strands[strand_id].bases) == strand_old_len + connection_length
+
+        # get id of residue at strand head
+        start_id = self.topology.strands[strand_id].bases[1].p3
+        # make new strand
+        strand = oxutil.make_strand(strand_id, start_id, seq + oxutil.get_seq(self.topology.strands[strand_id]))
+        # assign to topology
+        self.topology.strands[strand_id] = strand
+        assert len(self.topology.strands[strand_id].bases) == strand_old_len + connection_length
+        # update num bases
+        self.topology.nbases += connection_length
+        # update strand delims
+        for i in range(strand_id, len(self.strand_delims)):
+            self.strand_delims[i] += connection_length
+            # skip the strand we are working on for shifting, because we have already done it
+            if i > strand_id:
+                # shift strand to the right
+                self.topology.strands[i] = self.topology.strands[i] >> connection_length
+
+        # update patch positions
+        self.patch_positions = [[
+            baseid if baseid < start_id else baseid + connection_length for baseid in patch]
+            for patch in self.patch_positions
+        ]
+
+        # update conf
+        # a1s
+        self.conf.a1s = np.resize(self.conf.a1s, (self.topology.nbases, 3)) # resize array
+        self.conf.a1s[start_id + connection_length:, :] = self.conf.a1s[start_id:-connection_length, :] # move data
+        self.conf.a1s[start_id: start_id+connection_length, :] = np.nan # wipe cells
+
+        # a3s
+        self.conf.a3s = np.resize(self.conf.a3s, (self.topology.nbases, 3)) # resize array
+        self.conf.a3s[start_id + connection_length:, :] = self.conf.a3s[start_id:-connection_length, :] # move data
+        self.conf.a3s[start_id: start_id+connection_length, :] = np.nan # wipe cells
+
+        # positions
+        self.conf.positions = np.resize(self.conf.positions, (self.topology.nbases, 3)) # resize array
+        self.conf.positions[start_id + connection_length:, :] = self.conf.positions[start_id:-connection_length, :] # move data
+        self.conf.positions[start_id: start_id+connection_length, :] = np.nan # wipe cells
+
+        return range(start_id, start_id + connection_length)
+
+
+    def generate_3p_ids(self, sid, num_ids):
+        strand_head_id = self.topology.strands[sid].bases[0].p5 - 1
+        return range(strand_head_id, strand_head_id + num_ids)
+
     def scale_factor(self, p: MGLParticle) -> float:
         """
         Computes the particle type's scale factor
@@ -136,6 +229,40 @@ class DNAParticleType:
         # hashtag ratio
         return center2patch / center2patch_conf
 
+    def base2strand(self, bid: int) -> int:
+        # loop start ids
+        for i, end_id in enumerate(self.strand_delims):
+            # if start id is less than the last base in this strand
+            if bid <= end_id:
+                return i
+        return len(self.strand_delims)
+
+
+def patch_idxs_to_bind(patch_id_1: int,
+                       patch_id_2: int,
+                       dna1: DNAParticleType,
+                       dna2: DNAParticleType) -> list[tuple[int, int]]:
+    patch_positions1 = dna1.patch_positions[patch_id_1]
+    patch_positions2 = dna2.patch_positions[patch_id_2]
+    conf1 = dna1.conf
+    conf2 = dna2.conf
+    # get patch positions on particle 2 as an array
+    pps2 = np.array([conf2.positions[pid] for pid in patch_positions2])
+
+    # get all possible permutations of patch positions on particle 1
+    perms = np.array(list(itertools.permutations([conf1.positions[pid] for pid in patch_positions1])))
+
+    # compute vector difference between the particle 2 patch positions and the permutation matrix
+    diffs = pps2[np.newaxis, :, :] - perms  # vector difference
+    distancesqrd = np.sum(np.multiply(diffs, diffs), axis=(2,))  # dot product, gives us distance squared
+    # sum of squares
+    sums = np.sum(distancesqrd, axis=(1,))
+
+    bestmatch = np.argmin(sums)
+    best_patch1_idxs: list[int] = list(itertools.permutations(range(len(patch_positions1))))[bestmatch]
+    return zip(
+        best_patch1_idxs,
+        range(len(patch_positions2)))
 
 class MGLOrigamiConverter:
     """
@@ -146,10 +273,11 @@ class MGLOrigamiConverter:
     color_sequences: dict[str, str]
     bondcount: int
     particle_structure: dict[str, DNAParticleType]
+    mgl_scene: Scene
 
     def __init__(self,
-                 mgl: MGLScene,
-                 particle_types: Union[DNAParticleType,
+                 mgl: Scene,
+                 particle_types: Union[Path, DNAParticleType,
                                        dict[str, DNAParticleType]],
                  # additional arguements (optional)
                  spacer_length: int = 16,
@@ -185,7 +313,7 @@ class MGLOrigamiConverter:
         # prep variables to use when building our structure
         self.color_sequences = {}
         self.color_match_overrides = {}
-        self.clusters = [{} for _ in range(len(mgl.particles()))]
+        self.clusters = [{} for _ in range(len(mgl._particles()))]
         self.bondcount = 0
         self.padding = padding
 
@@ -197,6 +325,7 @@ class MGLOrigamiConverter:
             self.particle_structure = {
                 particle.color(): particle_types for particle in self.mgl_scene.particle_set().particles()
             }
+
         else:  # forward-proof for heterogenous systems
             assert isinstance(particle_types, dict)
             self.particle_structure = particle_types
@@ -242,7 +371,7 @@ class MGLOrigamiConverter:
         """
         assert len(seq) == self.sticky_length, "Incompatible sequence length"
         self.color_sequences[colorstr] = seq
-        self.color_sequences[self.get_color_match(colorstr)] = seq
+        self.color_sequences[self.get_color_match(colorstr)] = rc(seq)
 
     def get_color_match(self, colorstr: str) -> str:
         if colorstr in self.color_match_overrides:
@@ -252,6 +381,9 @@ class MGLOrigamiConverter:
                 return colorstr[4:]
             else:
                 return f"dark{colorstr}"
+
+    def get_expected_pad_distance(self) -> float:
+        return (self.sticky_length + 2.0 * self.spacer_length) * POS_BASE
 
     def patches_can_bind(self,
                          patch1: MGLPatch,
@@ -271,13 +403,15 @@ class MGLOrigamiConverter:
         Positions particles?
         IDK
         """
-        particles = self.mgl_scene.particles()
+        # get scene particles
+        particles = self.mgl_scene._particles()
         placed_confs = []  # output prom_p
         # everyone's most favorite aligning tool
         sup = SVDSuperimposer()
         pl = len(particles)
         for i, particle in enumerate(particles):
-            origami = deepcopy(self.get_dna_origami(particle))
+            # clone dna particle
+            origami: DNAParticleType = deepcopy(self.get_dna_origami(particle))
             print(f"{i + 1}/{pl}", end="\r")
             mgl_patches = []  # start with centerpoint of the particle (assumed to be 0,0,0)
             # load each patch on the mgl particle
@@ -304,8 +438,10 @@ class MGLOrigamiConverter:
                     best_rms = sup.get_rms()
                     rot, tran = sup.get_rotran()
 
+            # iter through patches in best_order, skipping zeroth element (centroid)
             for j, pidx in enumerate(best_order[:-1]):
-                newval = particle.patch(pidx).add_key_point(origami.patch_positions[j])
+                residue_ids: list[int] = origami.patch_positions[j]
+                newval = particle.patch(pidx).add_key_point(residue_ids)
                 assert newval == 1
 
             # origami.patch_positions = [origami.patch_positions[x] for x in best_order if x != len(origami.patch_positions)]
@@ -337,8 +473,8 @@ class MGLOrigamiConverter:
         as defined by interaction range between centers of mass
         """
         handeled_candidates = set()
-        for i, p1 in enumerate(self.mgl_scene.particles()):
-            for j, p2 in enumerate(self.mgl_scene.particles()):
+        for i, p1 in enumerate(self.mgl_scene._particles()):
+            for j, p2 in enumerate(self.mgl_scene._particles()):
                 # if the particles are different and the distance is less than the maximum interaction distance
                 if i != j and dist(p1.cms(),
                                    p2.cms()) <= self.particle_delta:
@@ -412,26 +548,29 @@ class MGLOrigamiConverter:
 
     def bind_particles3p(self,
                          dna_particles: list[DNAParticleType]):
+        """
+        Creates double-stranded linkers to bind particles together
+        """
         assert self.mgl_scene.patch_ids_unique()
-        particles = self.mgl_scene.particles()
         # please please do not call this method with dna particles that don't correspond
         # in order to the mgl particles
 
         patch_occupancies = [False for _ in itertools.chain.from_iterable(
-            [[patch.get_id() for patch in particle.patches()] for particle in self.mgl_scene.particles()])]
+            [[patch.get_id() for patch in particle.patches()] for particle in self.mgl_scene._particles()])]
 
         # loop possible pairs of particles
         # patch_occupancies = [[False for _ in p.patches()] for p in particles]
         # there's probably an oxpy method to convert bp to oxdna distance units
-        expected_pad_distance = (self.sticky_length + 2.0 * self.spacer_length) * POS_BASE
+
         patchpaircount = 0
         # loop particles
         for p1, p2 in self.particle_pair_candidates():
+            # actually UIDs not type IDs
             i = p1.type_id()
             j = p2.type_id()
             assert i != j
-            p1_dna = dna_particles[i]
-            p2_dna = dna_particles[j]
+            p1_dna: DNAParticleType = dna_particles[i]
+            p2_dna: DNAParticleType = dna_particles[j]
             # loop through the patch pairs on each particle that can bind
             for (q, patch1), (z, patch2) in self.patches_to_bind(p1, p2):
                 assert -1 < patch1.get_id() < len(patch_occupancies)
@@ -442,85 +581,119 @@ class MGLOrigamiConverter:
                     patch_occupancies[patch1.get_id()] = patch_occupancies[patch2.get_id()] = True
 
                     conf1, conf2 = p1_dna.conf, p2_dna.conf
-                    top1, top2 = dna_particles[i].topology, dna_particles[j].topology
 
+                    # I've saved the residue indices in the mgl patches as key points, for some reason
+                    # not limited to 3 elements
                     p1_patch_idxs = patch1.get_key_point(1)
                     p2_patch_idxs = patch2.get_key_point(1)
                     # for the positions of each of the 2 patches that are about to bind to each other
-                    for patch_id1, patch_id2 in patch_positions_to_bind(p1_patch_idxs,
-                                                                        p2_patch_idxs,
-                                                                        conf1, conf2):
-                        # make sure both patch nucleotides are at the ends of their respective strands
-                        # TODO: make sure this is correct
-                        assert p1_dna.base2strand[patch_id1] != p1_dna.base2strand[patch_id1-1]
-                        assert p2_dna.base2strand[patch_id2] != p1_dna.base2strand[patch_id2-1]
-                        start_position1 = conf1.positions[patch_id1]
-                        start_position2 = conf2.positions[patch_id2]
-                        if dist(start_position1, start_position2) > 2 * expected_pad_distance:
-                            print(f"Distance between patches = {dist(start_position1, start_position2)}. "
-                                  f"Expected distance {expected_pad_distance}")
-
-                        # generate conf for sticky-end double helix
-                        # trust me, do this first
-                        midpoint = (start_position1 + start_position2) / 2
-                        coords1, coords2 = generate_helix_coords(self.sticky_length,
-                                                                 start_pos=midpoint,
-                                                                 helix_direction=start_position2 - start_position1,
-                                                                 perp=conf1.a1s[patch_id1])
-
-                        first_midpoint = (start_position1 + start_position2 - self.spacer_length * POS_BASE) / 3
-                        second_midpoint = first_midpoint * 2
-                        # construct spacer sequence and coords
-                        # scale the spacers to be evenly spaced between the origin point and
-                        # the sticky-end helix (hopefully this will make relax nicer?)
-                        t_coords1 = generate_spacer(self.spacer_length,
-                                                    start_position=start_position1,
-                                                    end_position=coords1[0][0],
-                                                    stretch=False)
-                        t_coords2 = generate_spacer(self.spacer_length,
-                                                    start_position=start_position2,
-                                                    end_position=coords2[0][0],
-                                                    stretch=False)
-                        spacer_ids1 = generate_3p_ids(patch_id1, self.spacer_length)
-                        spacer_ids2 = generate_3p_ids(patch_id2, self.spacer_length)
-
-                        # lets modify the topology somehow
-                        # 1st figure out the strand index
-                        sid1 = p1_dna.base2strand[patch_id1]
-                        sid2 = p2_dna.base2strand[patch_id2]
-
-                        # first modify strand to add spacer
-                        modify_strand3p(top1, sid1, "T" * self.spacer_length)
-                        modify_strand3p(top2, sid2, "T" * self.spacer_length)
-
-                        # retrieve sequences from map
-                        sticky_seq1 = self.color_sequence(patch1.color())
-                        sticky_seq2 = self.color_sequence(patch2.color())
-
-                        # then modify strand to add sticky ends
-                        modify_strand3p(top1, sid1, sticky_seq1)
-                        modify_strand3p(top2, sid2, sticky_seq2)
-
-                        # generate 3prime ids for sticky end sequences
-                        sticky_id1s = generate_3p_ids(patch_id1 + self.spacer_length, self.sticky_length)
-                        sticky_id2s = generate_3p_ids(patch_id2 + self.spacer_length, self.sticky_length)
-
-                        # update conf for spacer positions
-                        assign_coords(conf1, spacer_ids1, t_coords1)
-                        assign_coords(conf2, spacer_ids2, t_coords2)
-                        # make sure overhangs comply with the helix
-                        assign_coords(conf1, sticky_id1s, coords1)
-                        assign_coords(conf2, sticky_id2s, coords2)
-
-                        # add bond helix nucleotides to cluster lists
-                        for x in sticky_id1s:
-                            self.clusters[i][x] = self.bondcount + len(particles)
-                        for x in sticky_id2s:
-                            self.clusters[j][x] = self.bondcount + len(particles)
+                    for patch_idx1, patch_idx2 in patch_idxs_to_bind(q,
+                                                                        z,
+                                                                        p1_dna, p2_dna):
+                        patch_id1 = p1_dna.patch_positions[q][patch_idx1]
+                        patch_id2 = p2_dna.patch_positions[z][patch_idx2]
+                        self.bind_patches_3p(p1_dna,
+                                             p2_dna,
+                                             patch_id1,
+                                             patch_id2,
+                                             i,
+                                             j,
+                                             patch1,
+                                             patch2,
+                                             dna_particles)
                     self.bondcount += 1
                 else:
                     print("Patch occupied!")
         print(f"Created {self.bondcount} dna patch bonds")
+
+    def bind_patches_3p(self,
+                        p1_dna: DNAParticleType,
+                        p2_dna: DNAParticleType,
+                        patch_id1: int,
+                        patch_id2: int,
+                        i: int,
+                        j: int,
+                        patch1: MGLPatch,
+                        patch2: MGLPatch,
+                        particles: list
+                        ):
+        conf1, conf2 = p1_dna.conf, p2_dna.conf
+        top1, top2 = p1_dna.topology, p2_dna.topology
+
+        # make sure both patch nucleotides are at the ends of their respective strands
+        # TODO: make sure this is correct
+        assert patch_id1 == 0 or p1_dna.base2strand(patch_id1) != p1_dna.base2strand(patch_id1 - 1)
+        assert patch_id2 == 0 or p2_dna.base2strand(patch_id2) != p2_dna.base2strand(patch_id2 - 1)
+        # get positions of our patch strand origins
+        start_position1 = conf1.positions[patch_id1]
+        start_position2 = conf2.positions[patch_id2]
+        # check distances
+        if dist(start_position1, start_position2) > 2 * self.get_expected_pad_distance():
+            print(f"Distance between patches = {dist(start_position1, start_position2)}. "
+                  f"Expected distance {self.get_expected_pad_distance()}")
+
+        # generate conf (residue positions) for sticky-end double helix
+        # trust me, do this first
+        midpoint = (start_position1 + start_position2) / 2
+        coords1, coords2 = generate_helix_coords(self.sticky_length,
+                                                 start_pos=midpoint,
+                                                 helix_direction=start_position2 - start_position1)
+
+        # lets modify the topology somehow
+        # 1st figure out the strand index
+        sid1 = p1_dna.base2strand(patch_id1)
+        sid2 = p2_dna.base2strand(patch_id2)
+
+        # first_midpoint = (start_position1 + start_position2 - self.spacer_length * POS_BASE) / 3
+        # second_midpoint = first_midpoint * 2
+        # construct spacer sequence and coords
+        # scale the spacers to be evenly spaced between the origin point and
+        # the sticky-end helix (hopefully this will make relax nicer?)
+        p1_ids = p1_dna.generate_3p_ids(sid1, self.spacer_length + self.sticky_length)
+        p2_ids = p2_dna.generate_3p_ids(sid2, self.spacer_length + self.sticky_length)
+        if self.spacer_length > 0:
+            t_coords1 = generate_spacer(self.spacer_length,
+                                        start_position=start_position1,
+                                        end_position=coords1[0][0],
+                                        stretch=False)
+            t_coords2 = generate_spacer(self.spacer_length,
+                                        start_position=start_position2,
+                                        end_position=coords2[0][0],
+                                        stretch=False)
+            # spacer_ids1 = generate_3p_ids(patch_id1, self.spacer_length)
+            # spacer_ids2 = generate_3p_ids(patch_id2, self.spacer_length)
+
+            # first modify strand to add spacer
+            # modify_strand3p(top1, sid1, "T" * self.spacer_length)
+            # modify_strand3p(top2, sid2, "T" * self.spacer_length)
+
+        # retrieve sequences from map
+        sticky_seq1 = self.color_sequence(patch1.color())
+        sticky_seq2 = self.color_sequence(patch2.color())
+
+        # then modify strand to add sticky ends
+        p1_dna.modify_strand3p(sid1, sticky_seq1 + "T" * self.spacer_length)
+        p2_dna.modify_strand3p(sid2, sticky_seq2 + "T" * self.spacer_length)
+
+        # generate 3prime ids for sticky end sequences
+        # sticky_id1s = generate_3p_ids(patch_id1 + self.spacer_length, self.sticky_length)
+        # sticky_id2s = generate_3p_ids(patch_id2 + self.spacer_length, self.sticky_length)
+
+        # update conf for spacer positions
+
+        # single-stranded segments are prepended to top, so first section is sticky, seccond is spacer
+        if self.spacer_length > 0:
+            assign_coords(conf1, p1_ids[:self.spacer_length], t_coords1)
+            assign_coords(conf2, p2_ids[:self.spacer_length], t_coords2)
+        # make sure overhangs comply with the helix
+        assign_coords(conf1, p1_ids[self.spacer_length:], coords1)
+        assign_coords(conf2, p2_ids[self.spacer_length:], coords2)
+
+        # add bond helix nucleotides to cluster lists
+        for x in p1_ids[self.spacer_length:]:
+            self.clusters[i][x] = self.bondcount + len(particles)
+        for x in p2_ids[self.spacer_length:]:
+            self.clusters[j][x] = self.bondcount + len(particles)
 
     def convert(self,
                 write_top_path: Union[Path, None] = None,
@@ -539,7 +712,7 @@ class MGLOrigamiConverter:
         assert self.expected_num_edges == -1 or self.bondcount == self.expected_num_edges, "Wrong number of bonds created!"
 
         print("merging the topologies")
-        merged_tops = merge_tops([p.topology for p in particles])
+        merged_tops = oxutil.merge_tops([p.topology for p in particles])
         # spit out the topology
         if write_top_path:
             assert write_conf_path
@@ -547,9 +720,10 @@ class MGLOrigamiConverter:
             assert write_conf_path.parent.exists()
             if write_top_path.parent != write_conf_path.parent:
                 print("You're technically allowed to do this but I do wonder why")
-            write_top(
+            oxutil.write_top(
                 merged_tops, str(write_top_path)
             )
+            print(f"Wrote topopogy file to {str(write_top_path)}")
 
             print("printing confs")
             with write_conf_path.open("w") as file:
@@ -558,7 +732,9 @@ class MGLOrigamiConverter:
                 for i, p in enumerate(particles):
                     print(f"{i + 1}/{cl}", end="\r")
                     write_configuration(file, p.conf)
+            print(f"Wrote conf file to {str(write_top_path)}")
 
         if write_oxview_path:
             write_oxview([p.topology for p in particles],
                          [p.conf for p in particles], self.clusters, write_oxview_path)
+            print(f"Wrote OxView file to {str(write_oxview_path)}")

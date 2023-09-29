@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import math
 import typing
 from typing import Union
@@ -158,6 +159,9 @@ class PolycubeRuleCubeType(PatchyBaseParticleType):
     def name(self) -> str:
         return self._name
 
+    def set_name(self, newName: str):
+        self._name = newName
+
     def set_state_size(self, newVal: int):
         self._stateSize = newVal
 
@@ -185,6 +189,8 @@ class PolycubeRuleCubeType(PatchyBaseParticleType):
             return None
         else:
             return patches[0]
+
+
 
     def has_patch(self, arg: Union[int, np.ndarray]) -> bool:
         if isinstance(arg, int):  # direction index
@@ -221,6 +227,7 @@ class PolycubeRuleCubeType(PatchyBaseParticleType):
 
     def add_patch(self, patch: PolycubesPatch):
         self._patches.append(patch)
+        assert len(self.patches()) <= 6
     def get_patch_state_var(self, key: Union[int, str, np.ndarray],
                             make_if_0=False) -> int:
         """
@@ -245,7 +252,7 @@ class PolycubeRuleCubeType(PatchyBaseParticleType):
         """
         Returns a list containing all the effects on this cube type that target a given variable
         """
-        return [e for e in self._effects if e.target() == v]
+        return [e for e in self._effects if e.target() == abs(v)]
 
     def add_effect(self, effect: EFFECT_CLASSES):
         # if isinstance(effect, StringConditionalEffect):
@@ -279,23 +286,44 @@ class PolycubeRuleCubeType(PatchyBaseParticleType):
                 return re.sub(r'b\[(\d+)]', replacer, effects_lists[0].conditional())
             else:
                 return effects_lists[0].conditional()
-        effect_strs = []
-        for e in effects_lists:
+        return self.var_conditional(patch.activation_var())
+
+    def var_conditional(self, var: int, minimize=True):
+        # loop dynamic effects that contribute to the activation variable
+        in_strs: list[str] = []
+        if self.is_patch_state_var(var):
+            if minimize:
+                if var > 0:
+                    state_var_str = str(self.patches().index(self.get_patch_by_state_var(abs(var))))
+                else:
+                    state_var_str = "!" + str(self.patches().index(self.get_patch_by_state_var(abs(var))))
+            else:
+                if var > 0:
+                    state_var_str = str(self.get_patch_by_state_var(abs(var)).dirIdx())
+                else:
+                    state_var_str = "!" + str(self.get_patch_by_state_var(abs(var)).dirIdx())
+            in_strs.append(state_var_str)
+        # ideally state vars controlled by patches and by effects should be mutually exclusive but...
+        for e in self.effects_targeting(var):
             # forward-proof for environmental effects, which should be ignored for our purposes here
             if isinstance(e, DynamicEffect):
-                if minimize:
-                    patches_in = [str(self.patches().index(self.get_patch_by_state_var(abs(input_state_var)))) if input_state_var > 0
-                                  else "!" + str(self.patches().index(self.get_patch_by_state_var(abs(input_state_var))))
-                                  for input_state_var in e.sources()]
-                else:
-                    patches_in = [str(self.get_patch_by_state_var(abs(input_state_var)).dirIdx()) if input_state_var > 0
-                                  else "!"+str(self.get_patch_by_state_var(abs(input_state_var)).dirIdx())
-                                  for input_state_var in e.sources()]
-                if len(patches_in) > 1:
-                    effect_strs.append("(" + "&".join(patches_in) + ")")
-                else:
-                    effect_strs.append(patches_in[0])
-        return "|".join(effect_strs)
+                state_var_strs: list[str] = []
+                # if the input variable is set from a patch
+                for input_state_var in e.sources():
+                    in_strs.append(self.var_conditional(input_state_var, minimize))
+
+        if len(in_strs) > 1:
+            var_effects_str = "(" + "|".join(in_strs) + ")"
+        else:
+            var_effects_str = in_strs[0]
+
+        if var < 0:
+            var_effects_str = "!" + var_effects_str
+        return var_effects_str
+
+    def is_patch_state_var(self, var: int) -> bool:
+        return self.get_patch_by_state_var(var) is not None
+
 
     def __str__(self) -> str:
         return self.to_string()
@@ -329,6 +357,28 @@ class PolycubeRuleCubeType(PatchyBaseParticleType):
         # TODO: consider making this more specific
         # each patch is distance 1.0 units from center but that's not the radius per se
         return 1.0
+
+    # def __deepcopy__(self, memo) -> PolycubeRuleCubeType:
+    #     return PolycubeRuleCubeType(self.type_id(),
+    #                                 [
+    #         copy.deepcopy(p) for p in self.patches()
+    #     ], self.state_size(), [copy.deepcopy(e) for e in self.effects()], self.name())
+
+    def shift_state(self, nvars: int):
+        """
+        Shifts the entire state to the right by nvars
+        """
+        self._stateSize += nvars
+
+        for p in self.patches():
+            if p.state_var():
+                p.set_state_var(p.state_var() + nvars)
+            if p.activation_var():
+                p.set_activation_var(p.activation_var() + nvars if p.activation_var() > 0 else p.activation_var() - nvars)
+
+        for e in self.effects():
+            e.set_target(e.target() + nvars)
+            e.set_sources([i + nvars if i > 0 else i - nvars for i in e.sources()])
 
 
 class PolycubesRule(BaseParticleSet):
@@ -536,6 +586,10 @@ class PolycubesRule(BaseParticleSet):
         # remove patches that are no longer needed
         self._patch_types = [p for p in self.patches() if any([p in ct.patches() for ct in self.particles()])]
         # TODO: handle particle and patch IDs!!!
+
+    def reindex(self):
+        for i, particle_type in enumerate(self._particle_types):
+            particle_type.set_id(i)
 
     def __len__(self) -> int:
         return self.num_particle_types()

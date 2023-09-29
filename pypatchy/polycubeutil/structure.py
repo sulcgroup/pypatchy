@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 import itertools
 from typing import TypeVar, Generator
 
@@ -14,6 +15,7 @@ import igraph as ig
 from ..util import getRotations, enumerateRotations, from_xyz
 
 from pypatchy.polycubeutil.polycubesRule import *
+
 
 def get_nodes_overlap(homocycles: list[list[int]]) -> set[int]:
     """
@@ -61,15 +63,15 @@ class Structure:
             handled_set = set()
             # iter edges
             for u, v in self.graph.edges:
-                if (v,u) not in handled_set:
+                if (v, u) not in handled_set:
                     u_diridx = self.graph.get_edge_data(u, v)["dirIdx"]
                     assert (v, u) in self.graph.edges
                     v_diridx = self.graph.get_edge_data(v, u)["dirIdx"]
                     self.bindings_list.add((
-                            u, u_diridx,
-                            v, v_diridx
-                        ))
-                    handled_set.add((u, v)) # only add each edge once
+                        u, u_diridx,
+                        v, v_diridx
+                    ))
+                    handled_set.add((u, v))  # only add each edge once
 
         # if bindings aren't provided, the object is initialized empty
         # (useful for calls from subconstructor, see below)
@@ -216,11 +218,14 @@ class Structure:
     def edge_exists(self, v: int, delta: int) -> bool:
         return len([d for a, b, d in self.graph.out_edges(v, "dirIdx") if d == delta]) > 0
 
-    def is_connected(self):
+    def is_connected(self) -> bool:
         return nx.is_weakly_connected(self.graph)
 
-    def is_multifarious(self):
+    def is_multifarious(self) -> bool:
         return not self.is_connected()
+
+    def num_vertices(self) -> int:
+        return len(self.graph.nodes)
 
     def matrix(self) -> np.ndarray:
         """
@@ -236,7 +241,8 @@ class Structure:
         while len(processed_coords) < len(self):
             for v1, d1, v2, d2 in self.bindings_list:
                 # if this binding connects a cube which has been processed
-                if (v1 in processed_coords and v2 not in processed_coords) or (v2 in processed_coords and v1 not in processed_coords):
+                if (v1 in processed_coords and v2 not in processed_coords) or (
+                        v2 in processed_coords and v1 not in processed_coords):
                     if v1 in processed_coords:
                         origin = v1
                         destination = v2
@@ -305,11 +311,22 @@ def identity_homomorphism(s: Structure) -> StructuralHomomorphism:
     """
     return StructuralHomomorphism(s, s, 0, {i: i for i in s.graph.nodes})
 
-class PolycubeStructure(Structure):
+
+class TypedStructure(Structure, ABC):
+    """
+    Class representing a structure formed out of particles with defined types
+    """
+
+    @abstractmethod
+    def particle_type(self, particle_id: int) -> int:
+        pass
+
+
+class PolycubeStructure(TypedStructure):
     # mypy type specs
     rule: PolycubesRule
-    cubeList: list
-    cubeMap: dict
+    cubeList: list[PolycubesStructureCube]
+    cubeMap: dict[bytes, PolycubesStructureCube]
 
     def __init__(self, rule, structure):
         super(PolycubeStructure, self).__init__()
@@ -422,6 +439,9 @@ class PolycubeStructure(Structure):
 
     def get_arrow_local_diridx(self, n: int, adj: int) -> int:
         return self.cubeList[n].typedir(self.get_arrow_diridx(n, adj))
+
+    def particle_type(self, particle_id: int) -> int:
+        return self.cubeList[particle_id].get_type().type_id()
 
 
 class PolycubesStructureCube:

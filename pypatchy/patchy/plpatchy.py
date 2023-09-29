@@ -10,7 +10,8 @@ import copy
 
 from numpy.linalg import norm
 
-from pypatchy.patchy_base_particle import BasePatchType, PatchyBaseParticleType, BaseParticleSet
+from pypatchy.patchy_base_particle import BasePatchType, PatchyBaseParticleType, BaseParticleSet, Scene, \
+    PatchyBaseParticle
 
 myepsilon = 0.00001
 
@@ -204,7 +205,7 @@ class PLPatch(BasePatchType):
             return self.color() == other.color()
 
 
-class PLPatchyParticle(PatchyBaseParticleType):
+class PLPatchyParticle(PatchyBaseParticleType, PatchyBaseParticle):
     # HATE making the particle type and the particle the same class but refactoring is objectively not the
     # best use of my time
     cm_pos: np.ndarray
@@ -219,7 +220,7 @@ class PLPatchyParticle(PatchyBaseParticleType):
     all_letters = ['C', 'H', 'O', 'N', 'P', 'S', 'F', 'K', 'I', 'Y']
 
     def __init__(self, patches: list[PLPatch] = [], type_id=0, index_=0, position=np.array([0., 0., 0.]), radius=0.5):
-        super().__init__(type_id, patches)
+        super(PatchyBaseParticleType, self).__init__(type_id, patches)
         self.cm_pos = position
         self.unique_id = index_
         self._radius = radius
@@ -604,8 +605,7 @@ class PLPatchyParticle(PatchyBaseParticleType):
 
 
 # TODO: something with this class
-class PLPSimulation:
-    particles: list[PLPatchyParticle]
+class PLPSimulation(Scene):
     _box_size: np.ndarray
     N: int
     _particle_types: BaseParticleSet
@@ -619,23 +619,20 @@ class PLPSimulation:
     _colorbank: list[str]
 
     def __init__(self, seed=69):
+        super().__init__()
         self._box_size = np.array([0., 0., 0.])
         self.N = 0
         self._patch_types = []
-        self._particle_types = BaseParticleSet()
         self._E_tot = 0.
         self._E_pot = 0.
         self._E_kin = 0.
 
-
-
-        self.particles = []
         random.seed(seed)
 
         self._colorbank = []
 
     def set_radius(self, radius):
-        for p in self.particles:
+        for p in self._particles:
             p.set_radius(radius)
 
     def generate_random_color(self, particle_id=-1) -> str:
@@ -649,7 +646,7 @@ class PLPSimulation:
             return self._colorbank[particle_id]
 
     def translate(self, translation_vector: np.ndarray):
-        for p in self.particles:
+        for p in self._particles:
             p.translate(translation_vector)
 
     def set_box_size(self, box: Union[np.ndarray, list]):
@@ -721,7 +718,7 @@ class PLPSimulation:
                     index += 1
                     particles.append(particle)
 
-        self.particles = particles
+        self._particles = particles
 
         # types = [int(x) for x in line[1].split()]
         # print 'Critical', line[1].split()
@@ -730,7 +727,7 @@ class PLPSimulation:
         # print 'THERE ARE', len(self._particle_types), ' particle types '
 
         self.N = N
-        if N != len(self.particles):
+        if N != len(self._particles):
             raise IOError('Particle number mismatch while reading topology file')
 
     def load_input_file(self, input_file):
@@ -783,22 +780,22 @@ class PLPSimulation:
         # print types
         # print self._particle_types
         # print 'THERE ARE', len(self._particle_types), ' particle types '
-        self.particles = []
+        self._particles = []
         for index, particle_type in enumerate(particle_types):
             p = copy.deepcopy(self._particle_types[particle_type])
             p.unique_id = index
-            self.particles.append(p)
+            self._particles.append(p)
 
         handle.close()
         self.N = N
-        if N != len(self.particles):
+        if N != len(self._particles):
             raise IOError('Particle number mismatch while reading topology file')
 
     def save_topology(self, topology_file):
         handle = open(topology_file, 'w')
-        handle.write('%d %d\n' % (len(self.particles), self._N_particle_types))
+        handle.write('%d %d\n' % (len(self._particles), self._N_particle_types))
         outstr = ''
-        for p in self.particles:
+        for p in self._particles:
             outstr = outstr + str(p.type_id()) + ' '
         handle.write(outstr + '\n')
         handle.close()
@@ -819,7 +816,7 @@ class PLPSimulation:
 
     def check_for_particle_overlap(self, particle, dist_cutoff=1.0):
         # print 'Adding ', particle.cm_pos
-        for p in self.particles:
+        for p in self._particles:
             dist = p.distance_from(particle, self._box_size)
             # print ' Looking at distance from ', p.cm_pos,dist
             if dist <= dist_cutoff:
@@ -834,7 +831,7 @@ class PLPSimulation:
         handle = open(conf_name, 'w')
         handle.write('t = %f\nb = %f %f %f\nE = %f %f %f\n' % (
             t, self._box_size[0], self._box_size[1], self._box_size[2], self._E_pot, self._E_kin, self._E_tot))
-        for p in self.particles:
+        for p in self._particles:
             outs = p.save_conf_to_string()
             handle.write(outs)
         handle.close()
@@ -842,11 +839,11 @@ class PLPSimulation:
     def add_particles(self, particles, strict_check=True):
         # adds particles to the field, also initializes paricle types and patchy types based on these data
         # it overwrites any previosuly stored particle!!
-        self.particles = copy.deepcopy(particles)
+        self._particles = copy.deepcopy(particles)
         self.N = len(particles)
         # now treat types:
         saved_types = {}
-        for p in self.particles:
+        for p in self._particles:
             if p.type_id() not in saved_types.keys():
                 saved_types[p.type_id()] = copy.deepcopy(p)
         self._particle_types = []
@@ -877,7 +874,7 @@ class PLPSimulation:
         if check_overlap:
             if self.check_for_particle_overlap(particle):
                 return False
-        self.particles.append(particle)
+        self._particles.append(particle)
         self.N += 1
         if particle.type_id() not in [x.type_id() for x in self._particle_types]:
             self._particle_types.append(copy.deepcopy(particle))
@@ -939,12 +936,12 @@ class PLPSimulation:
 
         for i in range(self.N):
             ls = _conf.readline().split()
-            self.particles[i].fill_configuration(np.array(ls))
+            self._particles[i].fill_configuration(np.array(ls))
 
         return _conf
 
     def bring_in_box(self, all_positive=False):
-        for p in self.particles:
+        for p in self._particles:
             nx = np.rint(p.cm_pos[0] / float(self._box_size[0])) * self._box_size[0]
             ny = np.rint(p.cm_pos[1] / float(self._box_size[1])) * self._box_size[1]
             nz = np.rint(p.cm_pos[2] / float(self._box_size[2])) * self._box_size[2]
@@ -987,7 +984,7 @@ class PLPSimulation:
         out = open(filename, regime)
         sout = f".Box: {np.array2string(self._box_size, separator=',')[1:-1]}\n"
         # sout = ".Box:%f,%f,%f\n" % (self._box_size[0], self._box_size[1], self._box_size[2])
-        for p in self.particles:
+        for p in self._particles:
             patch_colors = [self.get_color(pat.color()) for pat in p.patches()]
             particle_color = self.get_color(p.type_id())
             sout = sout + p.export_to_mgl(patch_colors, particle_color) + '\n'
@@ -1005,7 +1002,7 @@ class PLPSimulation:
                                 icosahedron: bool = True):
         out = open(filename, regime)
         sout = ".Box:%f,%f,%f\n" % (self._box_size[0], self._box_size[1], self._box_size[2])
-        for p in self.particles:
+        for p in self._particles:
             patch_colors = [self.get_color(pat.color()) for pat in p.patches()]
             particle_color = self.get_color(p.type_id())
             sout = sout + p.export_to_lorenzian_mgl(patch_colors, particle_color) + '\n'
@@ -1022,7 +1019,7 @@ class PLPSimulation:
         with open(filename, regime) as fout:
             sout = f".Box:{np.array2string(self._box_size, separator=',')}\n"
             # sout = ".Box:%f,%f,%f\n" % (self._box_size[0], self._box_size[1], self._box_size[2])
-            for p in self.particles:
+            for p in self._particles:
                 patch_colors = [self.get_color(pat.color()) for pat in p.patches()]
                 particle_type = p.type_id()
                 patch_position_0 = p.cm_pos + p.get_patch_position(0)
@@ -1042,9 +1039,9 @@ class PLPSimulation:
                       regime: str = 'w'):
         with open(filename, regime) as fout:
 
-            sout = str(len(self.particles)) + '\n'
+            sout = str(len(self._particles)) + '\n'
             sout += "Box:%f,%f,%f\n" % (self._box_size[0], self._box_size[1], self._box_size[2])
-            for p in self.particles:
+            for p in self._particles:
                 sout = sout + p.export_to_xyz() + '\n'
 
             fout.write(sout)
