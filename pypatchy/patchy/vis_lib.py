@@ -1,6 +1,8 @@
 import itertools
 import math
-from typing import Union
+from typing import Union, Any
+
+from abc import ABC
 
 import matplotlib.colors
 import matplotlib.pyplot as plt
@@ -69,7 +71,10 @@ def plot_analysis_data(e: PatchySimulationEnsemble,
 
     data_source = e.get_data(analysis_data_source, tuple(other_spec))
     data = data_source.get().copy()
-
+    if len(data_source.trange()) == 1:
+        raise Exception("Error: only one timepoint included in data range! Check your analysis pipeline tsteps and/or data completeness.")
+    elif len(data_source.trange()) < 10:
+        print(f"Warning: only {len(data_source.trange())} timepoints in data range! You can continue I guess but it's not GREAT.")
     if norm:
         def normalize_row(row):
             sim = row.drop([TIMEPOINT_KEY, data_source_key]).to_dict()
@@ -327,3 +332,102 @@ def plot_compare_analysis_outputs(e: PatchySimulationEnsemble,
         fig.set(ylim=(0.0, 1.0))
     fig.fig.suptitle(f"{e.export_name} Data", y=1.0)
     return fig
+
+class PolycubesFigure (ABC):
+    """
+    Wrapper class to facilitate creating and showing figures. Extend to make specific figures
+    """
+    fig: sb.FacetGrid
+    def __init__(self,
+                 e: Union[PatchySimulationEnsemble, list[PatchySimulationEnsemble]],
+                 **kwargs):
+        pass
+
+    def __repr__(self):
+        return self.fig.fig
+
+class BaseYieldCurveFigure(PolycubesFigure, ABC):
+    """
+    Abstract base class. Wrapper class for figures that measure yield (or some other quantity) over a time period
+    """
+    plt_args: dict[str, Any]
+    def __init__(self,
+                 e: Union[PatchySimulationEnsemble,
+                                list[PatchySimulationEnsemble]],
+                 analysis_data_source: PipelineStepDescriptor,
+                 data_source_key: str = YIELD_KEY,
+                 **kwargs):
+        super().__init__(e, **kwargs)
+        self.plt_args = {}
+        # validate inputs
+
+        plt_args = DEFAULT_SB_ARGS.copy()
+        if "cols" in kwargs:
+            plt_args["col"] = kwargs["cols"]
+        elif "col" in kwargs:
+            plt_args["col"] = kwargs["cols"]
+        if "rows" in kwargs:
+            plt_args["row"] = kwargs["rows"]
+        elif "row" in kwargs:
+            plt_args["row"] = kwargs["row"]
+        if "color" in kwargs:
+            plt_args["hue"] = kwargs["color"]
+        if "stroke" in kwargs:
+            plt_args["style"] = kwargs["stroke"]
+
+
+class YieldCurveFigure(BaseYieldCurveFigure):
+    def __init__(self, e: PatchySimulationEnsemble,
+                 analysis_data_source: PipelineStepDescriptor,
+                 data_source_key: str = YIELD_KEY,
+                 other_spec: Union[None, list[Union[ParameterValue, tuple[str, Any]]]] = None,
+                 norm=None,
+                 **kwargs):
+        """
+        Uses seaborn to construct a plot of data provided with the output values on the y axis
+        and the time on the x axis
+        This method will plot the output of a single analysis pipeline step
+
+        Args:
+            e: the dataset to draw data from
+            analysis_data_source: the pipeline step (can be str or object) to draw data from. the step output datatype should be a pandas DataFrame
+            data_source_key: the key in the step output dataframe to use for data
+            other_spec:  ensemble parameter values that will be constant across the figure
+            stroke: ensemble parameter to use for the plot line stroke
+            rows: ensemble parameter to use for the plot grid rows
+            color: ensemble parameter to use for the plot line
+            cols: ensemble parameter to use for the plot grid cols
+            norm: simulation parameter to use to normalize the data, or none for no data normalization
+
+        """
+        super().__init__(e, analysis_data_source, data_source_key, **kwargs)
+        if other_spec is None:
+            other_spec = list()
+
+        data_source = e.get_data(analysis_data_source, tuple(other_spec))
+        data = data_source.get().copy()
+        if len(data_source.trange()) == 1:
+            raise Exception(
+                "Error: only one timepoint included in data range! Check your analysis pipeline tsteps and/or data completeness.")
+        elif len(data_source.trange()) < 10:
+            print(f"Warning: only {len(data_source.trange())} timepoints in data range! You can continue I guess but it's not GREAT.")
+
+        if norm:
+            def normalize_row(row):
+                sim = row.drop([TIMEPOINT_KEY, data_source_key]).to_dict()
+                # sim = data_source.get().iloc[row].drop([TIMEPOINT_KEY, data_source_key]).to_dict()
+                sim = e.get_simulation(**sim)
+                return row[data_source_key] / e.sim_get_param(sim, norm)
+                # data.loc[row, data_source_key] /= e.sim_get_param(sim, norm)
+
+            data[data_source_key] = data.apply(normalize_row, axis=1)
+
+        data.rename(mapper={TIMEPOINT_KEY: "steps"}, axis="columns", inplace=True)
+
+        self.fig = sb.relplot(data,
+                         x="steps",
+                         y=data_source_key,
+                         **self.plt_args)
+        if norm:
+            self.fig.set(ylim=(0.0, 1.0))
+        self.fig.fig.suptitle(f"{e.export_name} - {analysis_data_source}", y=1)

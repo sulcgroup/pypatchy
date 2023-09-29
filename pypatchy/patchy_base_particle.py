@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import abc
 from abc import ABC, abstractmethod
+from copy import deepcopy
 from typing import Union, Any, Iterable
 
 import numpy as np
@@ -160,6 +161,9 @@ class BaseParticleSet(abc.ABC):
     def patches(self):
         return self._patch_types
 
+    def patch(self, i: int) -> Any:
+        return self._patch_types[i]
+
     def num_patches(self):
         return len(self._patch_types)
 
@@ -175,7 +179,12 @@ class BaseParticleSet(abc.ABC):
         self._particle_types.append(particle)
         for patch in particle.patches():
             if patch not in self.patches():
-                self.add_patch(patch)
+                if patch.get_id() != self.num_patches():
+                    pp = deepcopy(patch)
+                    pp.set_id(self.num_patches())
+                    self.add_patch(pp)
+                else:
+                    self.add_patch(patch)
 
     def add_patches(self, patches):
         self._patch_types.extend(patches)
@@ -185,3 +194,45 @@ class BaseParticleSet(abc.ABC):
 
     def __len__(self):
         return len(self.particles())
+
+
+class PatchyBaseParticle:
+    _type_id: int
+    _position: np.array
+
+class Scene:
+    _particles: list[PatchyBaseParticle]
+    def __init__(self):
+        self._particles = []
+        self._particle_types = BaseParticleSet()
+
+    def particles(self) -> list[PatchyBaseParticleType]:
+        """
+        Returns a list of individual particles in this scene
+        """
+        return self._particles
+
+    def num_particles(self) -> int:
+        return len(self._particles)
+
+    def particle_set(self) -> BaseParticleSet:
+        """
+        Returns a BaseParticleSet containing the particle types (as defined by color) in this scene
+        WARNING: does not check if particles are actually identical - just checks particle colors!!!
+        """
+        particle_set = BaseParticleSet()
+        colors = set()
+        particle_type_counter = 0
+        patch_type_counter = 0
+        for particle in self._particles:
+            if particle.color() not in colors:
+                colors.add(particle.color())
+                pcopy = deepcopy(particle)
+                pcopy.set_id(particle_type_counter)
+                particle_type_counter += 1
+                for patch in pcopy.patches():
+                    patch.set_id(patch_type_counter)
+                    patch_type_counter += 1
+                particle_set.add_particle(pcopy)
+
+        return particle_set

@@ -187,7 +187,7 @@ class SlurmLog:
         else:
             return SlurmLog(*[x for x in self.log_list if x.job_type in entry_type])
 
-    def by_entry_subject(self, subject: LogEntryObject) -> SlurmLog:
+    def by_subject(self, subject: LogEntryObject) -> SlurmLog:
         """
         Filters the slurm log by simulation
 
@@ -223,7 +223,7 @@ class SlurmLog:
         # if our log is empty or this new entry is after the last entry, this is easy
         if len(self.log_list) == 0 or e.job_submit_date > self.log_list[-1].job_submit_date:
             self.log_list.append(e)
-        else: # *sigh*
+        else:  # *sigh*
             self.log_list.insert(self.find_idx(e.job_submit_date) + 1, e)
 
         # if we assume linear tim
@@ -247,4 +247,4 @@ class SlurmLog:
         return iter(self.log_list)
 
     def __repr__(self):
-        return "\n\n".join(str(entry for entry in self))
+        return "\n\n".join([str(entry) for entry in self])

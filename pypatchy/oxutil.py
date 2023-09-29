@@ -2,6 +2,7 @@
 # Some of this might be redundant with oxpy or oat
 # some of this might be candidates for merging with oxpy or oat
 # who knows? the universe is a complecated and confusing place
+from dataclasses import dataclass
 from pathlib import Path
 from typing import IO, Iterable, Union
 
@@ -12,9 +13,44 @@ from datetime import datetime
 
 from pypatchy.util import rotation_matrix
 
-TopInfo = namedtuple('TopInfo', ['nbases', 'nstrands', 'strands'])
-Strand = namedtuple('Strand', ['id', 'bases'])
+# Absolutely hate these
+# shadow names from oxDNA_analysis_tools.UTIL.data_structures
+# they're ALMOST the same but NOT QUITE
+
 Base = namedtuple('Base', ['type', 'p3', 'p5'])
+
+
+@dataclass
+class Strand:
+    id: int
+    bases: list[Base]
+
+    def __rshift__(self, other: int):
+        return Strand(self.id, [
+           Base(base.type,
+                base.p3 + other if base.p3 != -1 else -1,
+                base.p5 + other if base.p5 != -1 else -1) for base in self.bases
+        ])
+
+@dataclass
+class TopInfo:
+    nbases: int
+    nstrands: int
+    strands: list
+
+
+def make_strand(sid: int, start_id: int, seq: str) -> Strand:
+    return Strand(sid, [
+        Base(seq[0], -1, start_id + 1),
+        *[
+            Base(x, i + start_id - 1, i + start_id + 1) for i,x in list(enumerate(seq))[1:-1]
+        ],
+        Base(seq[-1], len(seq) - 2, -1)
+    ])
+
+
+def get_seq(s: Strand) -> str:
+    return "".join([b.type for b in s.bases])
 
 
 def write_configuration_header(f: IO, conf):
@@ -35,6 +71,7 @@ def write_configuration(f: IO, conf):
 def read_top(path: Union[str, Path]):
     """
     Reads an oxDNA topology file???
+    Isn't there an oat method for this?
     """
     base2strand = {}
     if isinstance(path, str):
@@ -312,7 +349,7 @@ def generate_spacer(spacer_length: int,
         stretch_factor = spacer_length * POS_BASE / seq_coords_magnitude
         coords = [
             (
-                (pos - start_position) * stretch_factor + + start_position,
+                (pos - start_position) * stretch_factor + start_position,
                 a1,
                 a3
             ) for pos, a1, a3 in coords
@@ -320,11 +357,11 @@ def generate_spacer(spacer_length: int,
     return coords
 
 
-def generate_3p_ids(patch_id, seq_length):
-    """
-    Returns the 3-prime residue IDs of nucleotides in the sticky end starting at the provided residue IDs
-    """
-    return range(patch_id, patch_id + seq_length)
+# def generate_3p_ids(patch_id, seq_length):
+#     """
+#     Returns the 3-prime residue IDs of nucleotides in the sticky end starting at the provided residue IDs
+#     """
+#     return range(patch_id, patch_id + seq_length)
 
 
 def assign_coords(conf,
@@ -338,4 +375,3 @@ def assign_coords(conf,
         conf.positions[idx] = cds[0]
         conf.a1s[idx] = cds[1]
         conf.a3s[idx] = cds[2]
-

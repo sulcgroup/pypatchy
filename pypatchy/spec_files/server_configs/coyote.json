@@ -1,0 +1,17 @@
+{
+	"slurm_bash_flags": {
+
+	},
+	"slurm_includes": [
+
+	],
+	"input_file_params": {
+		"backend": "CPU",
+        "backend_precision": "double",
+		"interaction_type": "PatchyShapeInteraction",
+        "plugin_search_path": "/home/jrevan21/alloassembly/contrib/romano"
+	},
+	"oxdna_path": "/home/jrevan21/alloassembly",
+	"patchy_format": "josh_flavio",
+	"is_slurm": false
+}
