@@ -3,9 +3,11 @@ from __future__ import annotations
 import abc
 from abc import ABC, abstractmethod
 from copy import deepcopy
+from pathlib import Path
 from typing import Union, Any, Iterable
 
 import numpy as np
+from oxDNA_analysis_tools.UTILS.data_structures import Configuration, TopInfo
 
 
 class PatchyBaseParticleType(ABC):
@@ -137,7 +139,7 @@ class BasePatchType(ABC):
         pass
 
 
-class BaseParticleSet(abc.ABC):
+class BaseParticleSet:
     """
     Base class for patches to inherit from
     """
@@ -196,17 +198,61 @@ class BaseParticleSet(abc.ABC):
         return len(self.particles())
 
 
-class PatchyBaseParticle:
+class PatchyBaseParticle(ABC):
+    """Abstract base class for particle instances"""
+    _uid: int
     _type_id: int
     _position: np.array
 
-class Scene:
+    def __init__(self, uid: int, type_id: int, position: np.ndarray):
+        self._uid = uid
+        self._type_id = type_id
+        self._position = position
+
+    def get_type(self) -> int:
+        """
+        Returns id number of particle's type
+        """
+        return self._type_id
+
+    @abstractmethod
+    def rotation(self) -> Any:
+        """
+        return type depends on implementation
+        """
+        pass
+
+    def position(self) -> np.ndarray:
+        return self._position
+
+    def set_position(self, newval: np.ndarray):
+        """
+        suggest not using directly; Scene objects should implement their own
+        set_position methods with parameter validity checking
+        """
+        self._position = newval
+
+    @abstractmethod
+    def patches(self):
+        """
+        Accessor for particle patches. implementation-dependant.
+        """
+        pass
+
+    def translate(self, translation_vector: np.ndarray):
+        self._position += translation_vector
+
+    @abstractmethod
+    def rotate(self, rotation: Any):
+        pass
+
+
+class Scene(ABC):
     _particles: list[PatchyBaseParticle]
     def __init__(self):
         self._particles = []
-        self._particle_types = BaseParticleSet()
 
-    def particles(self) -> list[PatchyBaseParticleType]:
+    def particles(self) -> list[PatchyBaseParticle]:
         """
         Returns a list of individual particles in this scene
         """
@@ -215,24 +261,20 @@ class Scene:
     def num_particles(self) -> int:
         return len(self._particles)
 
-    def particle_set(self) -> BaseParticleSet:
-        """
-        Returns a BaseParticleSet containing the particle types (as defined by color) in this scene
-        WARNING: does not check if particles are actually identical - just checks particle colors!!!
-        """
-        particle_set = BaseParticleSet()
-        colors = set()
-        particle_type_counter = 0
-        patch_type_counter = 0
-        for particle in self._particles:
-            if particle.color() not in colors:
-                colors.add(particle.color())
-                pcopy = deepcopy(particle)
-                pcopy.set_id(particle_type_counter)
-                particle_type_counter += 1
-                for patch in pcopy.patches():
-                    patch.set_id(patch_type_counter)
-                    patch_type_counter += 1
-                particle_set.add_particle(pcopy)
+    def add_particle(self, p: PatchyBaseParticle):
+        self._particles.append(p)
 
-        return particle_set
+    @abstractmethod
+    def from_top_conf(self, top: TopInfo, conf: Configuration):
+        pass
+
+    @abstractmethod
+    def to_top_conf(self, top_path: Path, conf_path: Path) -> tuple[TopInfo, Configuration]:
+        pass
+
+    def add_particles(self, particles: Iterable[PatchyBaseParticle]):
+        self._particles.extend(particles)
+
+    @abstractmethod
+    def num_particle_types(self) -> int:
+        pass

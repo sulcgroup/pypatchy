@@ -6,8 +6,10 @@ from copy import deepcopy
 from pathlib import Path
 
 import numpy as np
+from oxDNA_analysis_tools.UTILS.data_structures import TopInfo, Configuration
 
-from pypatchy.patchy_base_particle import BasePatchType, PatchyBaseParticleType, Scene
+from pypatchy.patchy_base_particle import BasePatchType, PatchyBaseParticleType, Scene, PatchyBaseParticle, \
+    BaseParticleSet
 
 # todo: bidict?
 MGL_COLORS = [
@@ -20,7 +22,7 @@ MGL_COLORS = [
 ]
 
 
-class MGLParticle(PatchyBaseParticleType):
+class MGLParticle(PatchyBaseParticleType, PatchyBaseParticle):
     """
     The MGL specification doesn't really 'do' particle type
     The closest approximation is particle colors (see above) but even those aren't guarentees of anything
@@ -35,7 +37,8 @@ class MGLParticle(PatchyBaseParticleType):
                  color: str,
                  uid: int,
                  patches: list[BasePatchType]):
-        super().__init__(uid, patches)
+        PatchyBaseParticleType.__init__(self, uid, patches)
+        PatchyBaseParticle.__init__(self, uid, position)
         self._position = position
         self._particle_color = color
         self._radius = radius
@@ -71,7 +74,7 @@ class MGLPatch(BasePatchType):
 
     def __init__(self, uid: int, color: str, position: np.ndarray, width: float):
         super().__init__(uid, color)
-        self._key_points = [position,]
+        self._key_points = [position, ]
         self._width = width
 
     def width(self):
@@ -93,9 +96,9 @@ class MGLPatch(BasePatchType):
 
 class MGLScene(Scene):
     _box_size: np.ndarray
-    _particles: list[MGLParticle]
 
-    def __init__(self, box_size: np.ndarray=np.zeros((3,))):
+    def __init__(self, box_size: np.ndarray = np.zeros((3,))):
+        super().__init__()
         self._box_size = box_size
 
     def box_size(self) -> np.ndarray:
@@ -117,7 +120,7 @@ class MGLScene(Scene):
             particle.color(): 0
             for particle in self.particle_set().particles()
         }
-        for particle in self._particles():
+        for particle in self.particles():
             particle_map[particle.color()] += 1
         return particle_map
 
@@ -126,12 +129,12 @@ class MGLScene(Scene):
         Returns the center of the scene as defined as the average of all the particle
         positions of the scene
         """
-        return np.mean([p.position() for p in self._particles()])
+        return np.mean([p.position() for p in self.particles()])
 
     def recenter(self) -> MGLScene:
         new_scene = MGLScene()
         center = self.center()
-        for p in self._particles():
+        for p in self.particles():
             p = deepcopy(p)
             p.set_position(p.position() - center)
             new_scene.add_particle(p)
@@ -139,7 +142,7 @@ class MGLScene(Scene):
 
     def patch_ids_unique(self) -> bool:
         patch_ids = list(itertools.chain.from_iterable(
-            [[patch.get_id() for patch in particle.patches()] for particle in self._particles()]))
+            [[patch.get_id() for patch in particle.patches()] for particle in self.particles()]))
         if min(patch_ids) != 0 or max(patch_ids) != len(patch_ids) - 1:
             return False
         if len(np.unique(patch_ids)) != len(patch_ids):
@@ -148,6 +151,34 @@ class MGLScene(Scene):
 
     def avg_pad_bind_distance(self):
         pass
+
+    def particle_set(self) -> BaseParticleSet:
+        """
+        Returns a BaseParticleSet containing the particle types (as defined by color) in this scene
+        WARNING: does not check if particles are actually identical - just checks particle colors!!!
+        """
+        particle_set = BaseParticleSet()
+        colors = set()
+        particle_type_counter = 0
+        patch_type_counter = 0
+        for particle in self._particles:
+            if particle.color() not in colors:
+                colors.add(particle.color())
+                pcopy = deepcopy(particle)
+                pcopy.set_id(particle_type_counter)
+                particle_type_counter += 1
+                for patch in pcopy.patches():
+                    patch.set_id(patch_type_counter)
+                    patch_type_counter += 1
+                particle_set.add_particle(pcopy)
+
+        return particle_set
+
+    def from_top_conf(self, top: TopInfo, conf: Configuration):
+        pass  # TODO
+
+    def to_top_conf(self, top_path: Path, conf_path: Path) -> tuple[TopInfo, Configuration]:
+        pass  # TODO
 
 
 def load_mgl(file_path: Path) -> MGLScene:

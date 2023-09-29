@@ -7,8 +7,8 @@ from pathlib import Path
 import numpy as np
 
 from pypatchy.patchy.patchy_scripts import to_PL
-from pypatchy.patchy.plpatchy import PLPatchyParticle, export_interaction_matrix
-from pypatchy.patchy_base_particle import PatchyBaseParticleType
+from pypatchy.patchy.plpatchy import PLPatchyParticle, export_interaction_matrix, PLPatch
+from pypatchy.patchy_base_particle import PatchyBaseParticleType, Scene
 from pypatchy.patchy_base_particle import BaseParticleSet
 from pypatchy.polycubeutil.polycubesRule import PolycubeRuleCubeType
 from pypatchy.util import get_server_config, PATCHY_FILE_FORMAT_KEY
@@ -70,6 +70,13 @@ class BasePatchyWriter(ABC):
             the second of which is a dict to append to oxdna input file
         """
         pass
+    @abstractmethod
+    def read_top(self, fp: Path, scene: Scene):
+        pass
+
+    @abstractmethod
+    def write_top(self, fp: Path, scene: Scene):
+        pass
 
 
 class FWriter(BasePatchyWriter):
@@ -118,7 +125,7 @@ class FWriter(BasePatchyWriter):
                 self.directory() / "init.top",
                 self.directory() / "particles.txt",
                 self.directory() / "patches.txt"
-            ],
+            ]
 
 
     def reqd_args(self) -> list[str]:
@@ -154,6 +161,53 @@ class FWriter(BasePatchyWriter):
         outs += "\n}\n"
         return outs
 
+    def read_top(self, fp: Path, scene: Scene):
+        """
+        Reads a Flavian-style topology file
+        """
+        with fp.open("r") as handle:
+            lines = handle.readlines()
+            vals = lines[0].split()
+            N = int(vals[0])
+            type_counts = []
+            # for c in range(len(patches.keys())):
+            particles = []  # [None for x in range(N)]
+
+            for pid, line in enumerate(lines[1:]):
+                if len(line.split()) >= 2:
+                    vals = line.split()
+                    count = int(vals[0])
+                    type_counts.append(count)
+                    pcount = int(vals[1])
+                    ptypes = vals[2]
+                    ptypes = [int(x) for x in ptypes.strip().split(',')]
+                    pgeometry = vals[3]
+                    patches = []
+                    index = 0
+                    for i, p in enumerate(ptypes):
+                        patch = PLPatch()
+                        patch.set_color(p)
+                        patch.init_from_dps_file(pgeometry, i)
+                        patches.append(patch)
+                    for j in range(count):
+                        particle = PLPatchyParticle()
+                        particle._type = pid
+                        particle._patch_ids = ptypes
+                        particle._patches = patches
+                        particle.unique_id = index
+                        index += 1
+                        particles.append(particle)
+
+            scene.add_particles(particles)
+
+    def write_top(self, fp: Path, s: Scene):
+        with fp.open("w") as handle:
+            # write num particles, num types
+            handle.write(f"{s.num_particles()} {s.num_particle_types()}")
+            # write types
+            handle.write(" ".join([str(p.get_type()) for p in s.particles()]))
+            # write trailing newline
+            handle.write("\n")
 
 class JWriter(BasePatchyWriter, ABC):
     def reqd_args(self) -> list[str]:
