@@ -404,7 +404,7 @@ class PatchySimulationEnsemble:
         logger: logging.Logger = logging.getLogger(self.export_name)
         logger.setLevel(logging.DEBUG)
 
-        file_handler = logging.FileHandler(get_log_dir() / f"log_{self.export_name}_{self.datestr()}_{str(datetime.datetime.now())}.log", mode="a")
+        file_handler = logging.FileHandler(get_log_dir() / f"log_{self.export_name}_{self.datestr()}_at{datetime.datetime.now().strftime('%Y-%m-%d-%H-%M')}.log", mode="a")
         file_handler.setLevel(logging.DEBUG)
         file_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
         file_handler.setFormatter(file_formatter)
