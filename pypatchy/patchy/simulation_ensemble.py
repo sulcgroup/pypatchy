@@ -29,19 +29,20 @@ from oxDNA_analysis_tools.UTILS.RyeReader import get_confs, describe, write_conf
 from oxDNA_analysis_tools.UTILS.data_structures import Configuration
 
 from pypatchy.analpipe.analysis_pipeline import AnalysisPipeline
+from .stage import Stage
 from ..analpipe.analysis_data import PDPipelineData, TIMEPOINT_KEY
 from ..analpipe.analysis_pipeline_step import AnalysisPipelineStep, PipelineData, AggregateAnalysisPipelineStep, \
     AnalysisPipelineHead, PipelineStepDescriptor, PipelineDataType
 from .patchy_sim_observable import PatchySimObservable, observable_from_file
 from ..patchy_base_particle import BaseParticleSet
-from ..patchyio import NUM_TEETH_KEY, get_writer, BasePatchyWriter
+from ..patchyio import NUM_TEETH_KEY, get_writer, BasePatchyWriter, DENTAL_RADIUS_KEY
 from ..slurm_log_entry import SlurmLogEntry
 from ..slurmlog import SlurmLog
 from ..util import get_param_set, simulation_run_dir, get_server_config, get_log_dir, get_input_dir, \
     get_babysitter_refresh, is_slurm_job, PATCHY_FILE_FORMAT_KEY, is_server_slurm
 from .ensemble_parameter import EnsembleParameter, ParameterValue
 from .simulation_specification import PatchySimulation, ParamSet
-from .plpatchy import export_interaction_matrix
+from .plpatchy import export_interaction_matrix, PLPSimulation
 from .patchy_scripts import to_PL
 from ..polycubeutil.polycubesRule import PolycubesRule
 
@@ -309,6 +310,7 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
     else:
         raise Exception("Missing particle info!")
 
+
     ensemble = PatchySimulationEnsemble(
         export_name,
         setup_date,
@@ -320,7 +322,7 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
         ensemble_parameters,
         observables,
         analysis_file,
-        mdt
+        mdt,
     )
     if "slurm_log" in mdt:
         for entry in mdt["slurm_log"]:
@@ -396,7 +398,7 @@ class PatchySimulationEnsemble:
                  ensemble_params: list[EnsembleParameter],
                  observables: dict[str, PatchySimObservable],
                  analysis_file: str,
-                 metadata_dict: dict  # dict of serialized metadata, to preserve it
+                 metadata_dict: dict,  # dict of serialized metadata, to preserve it
                  ):
         self.export_name = export_name
         self.sim_init_date = setup_date
@@ -813,6 +815,53 @@ class PatchySimulationEnsemble:
     def get_sim_total_num_particles(self, sim: PatchySimulation) -> int:
         return sum([self.get_sim_particle_count(sim, i) for i in range(self.num_particle_types())])
 
+    def get_sim_stages(self, sim: PatchySimulation) -> list[Stage]:
+        """
+        Computes stages
+        """
+        stages_info = self.sim_get_param(sim, "stages")
+        num_assemblies = self.sim_get_param(sim, "num_assemblies")
+        stages = [
+            Stage(i,
+                  t=stage["time"],
+                  # TODO: break down this line of code
+                  particles=list(itertools.chain.from_iterable([[self.particle_set.particle(pname)] * (stage["particles"][pname] * num_assemblies)
+                                                                for pname in stage["particles"]])),
+                  ) for i, stage in enumerate(stages_info)
+        ]
+        # assign box sizes
+        for stage, stage_info in zip(stages, stages_info):
+            # if box size is specified explicitly
+            if "box_size" in stage_info:
+                stage.set_box_size(stage_info["box_size"])
+            # if box size is specified relative to number of particles
+            else:
+                num_particles = len(stage.particles_to_add())
+                # if we are to use all particles (not changing volume)
+                if "calc_fwd" in stage_info and stage_info["calc_fwd"]:
+                    # make sure there are stages after this one
+                    if stage.idx() + 1 != len(stages):
+                        # sum of particles to add in future stages
+                        num_particles += sum([len(s.particles_to_add()) for s in stages[stage.idx()+1:]])
+                # do NOT incorporate num assemblies - already did above!
+
+                if "rel_volume" in stage_info:
+                    relvol = stage_info["rel_volume"]
+                    box_side = (relvol * num_particles) ** .3
+
+                # if density format
+                elif "density" in stage_info:
+                    # box side length = cube root of n / density
+                    density = stage_info["density"]
+                    box_side = (num_particles / density) ** .3
+
+                stage.set_box_size(np.array((box_side, box_side, box_side)))
+
+            if stage.idx() > 0:
+                assert (stages[stage.idx()-1].box_size() <= stage.box_size()).all(), "Shrinking box size not allowed!"
+
+        return stages
+
     def num_patch_types(self, sim: PatchySimulation) -> int:
         """
         Returns: the total number of patches in the simulation
@@ -1128,6 +1177,7 @@ class PatchySimulationEnsemble:
                 Path(self.folder_path(sim)).mkdir(parents=True)
             else:
                 self.get_logger().info(f"Folder {self.folder_path(sim)} already exists. Continuing...")
+
             # write requisite top, patches, particles files
             self.get_logger().info("Writing .top, .txt, etc. files...")
             self.write_sim_top_particles_patches(sim)
@@ -1291,13 +1341,30 @@ class PatchySimulationEnsemble:
         recommended to be used in other contexts
         """
 
-        # oh hey it's the worst line of code I've ever seen
+        stage = self.get_sim_stages(sim)[0]
+        assert stage.idx() == 0
+        assert stage.get_time() == 0
         self.writer.set_write_directory(self.folder_path(sim))
+
+        # oh hey it's the worst line of code I've ever seen
         files = self.writer.write(self.particle_set,
                                   self.get_sim_particle_counts(sim),
                                   **{
                                       a: self.sim_get_param(sim, a) for a in self.writer.reqd_args()
                                   })
+
+        # generate conf
+        scene = PLPSimulation()
+        particle_set = BaseParticleSet()
+        particles, patches = to_PL(self.particle_set,
+                                   self.sim_get_param(sim, NUM_TEETH_KEY),
+                                   self.sim_get_param(sim, DENTAL_RADIUS_KEY))
+        particle_set.add_particles(particles)
+        # patches will be added automatically
+        scene.set_particle_types(particle_set)
+
+        stage.apply(scene)
+
 
         # deleted in favor of patchy io
         # server_config = get_server_config()
@@ -1449,7 +1516,7 @@ class PatchySimulationEnsemble:
 
     def gen_confs(self):
         for sim in self.ensemble():
-            self.run_confgen(sim)
+            self.gen_conf(sim)
         # run_confgen does NOT dump metadata
         self.dump_metadata()
 
@@ -1497,7 +1564,7 @@ class PatchySimulationEnsemble:
             command = f"bash {script_name} > simulation.log"
 
         if not os.path.isfile(self.get_conf_file(sim)):
-            confgen_slurm_jobid = self.run_confgen(sim)
+            confgen_slurm_jobid = self.gen_conf(sim)
             if is_server_slurm():
                 command += f" --dependency=afterok:{confgen_slurm_jobid}"
         if is_server_slurm():
@@ -1527,7 +1594,8 @@ class PatchySimulationEnsemble:
     def get_run_confgen_sh(self, sim: PatchySimulation) -> Path:
         return self.folder_path(sim) / "gen_conf.sh"
 
-    def run_confgen(self, sim: PatchySimulation) -> int:
+    def gen_conf(self, sim: PatchySimulation) -> int:
+
         """
         Runs a conf generator. These are run as slurm jobs if you're on a slurm server,
         or as non-background tasks otherwise

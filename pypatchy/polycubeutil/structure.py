@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 import itertools
 from typing import TypeVar, Generator
 
+from oxDNA_analysis_tools.UTILS.data_structures import TopInfo, Configuration
 from scipy.spatial.transform import Rotation
 
 import networkx as nx
@@ -12,6 +13,7 @@ from collections import defaultdict
 
 import igraph as ig
 
+from ..patchy_base_particle import PatchyBaseParticle, Scene
 from ..util import getRotations, enumerateRotations, from_xyz
 
 from pypatchy.polycubeutil.polycubesRule import *
@@ -322,10 +324,11 @@ class TypedStructure(Structure, ABC):
         pass
 
 
-class PolycubeStructure(TypedStructure):
+class PolycubeStructure(TypedStructure, Scene):
+
+
     # mypy type specs
     rule: PolycubesRule
-    cubeList: list[PolycubesStructureCube]
     cubeMap: dict[bytes, PolycubesStructureCube]
 
     def __init__(self, rule, structure):
@@ -360,22 +363,22 @@ class PolycubeStructure(TypedStructure):
                                              cube_type,
                                              cube["state"])
             self.cubeMap[cube_position.tobytes()] = cubeObj
-            self.cubeList.append(cubeObj)
+            self._particles.append(cubeObj)
             self.graph.add_node(cube_idx, cube=cubeObj)
 
         # loop cube pairs (brute-forcing topology)
         for cube1, cube2 in itertools.combinations(self.cubeList, 2):
             # if cubes are adjacent
-            if np.linalg.norm(cube1.get_position() - cube2.get_position()) == 1:
-                d1 = cube2.get_position() - cube1.get_position()
+            if np.linalg.norm(cube1.position() - cube2.position()) == 1:
+                d1 = cube2.position() - cube1.position()
                 d2 = d1 * -1
                 # if both cubes have patches on connecting faces and the patch colors match
                 if cube1.has_patch(d1) and cube2.has_patch(d2):
                     p1 = cube1.get_patch(d1)
                     p2 = cube2.get_patch(d2)
                     if p1.color() == -p2.color():
-                        align1 = cube1.get_rotation().apply(p1.alignDir()).round()
-                        align2 = cube2.get_rotation().apply(p2.alignDir()).round()
+                        align1 = cube1.rotation().apply(p1.alignDir()).round()
+                        align2 = cube2.rotation().apply(p2.alignDir()).round()
                         if (align1 == align2).all():
                             if cube1.state(p1.state_var()) and cube2.state(p2.state_var()):
                                 # add edge in graph
@@ -441,38 +444,39 @@ class PolycubeStructure(TypedStructure):
         return self.cubeList[n].typedir(self.get_arrow_diridx(n, adj))
 
     def particle_type(self, particle_id: int) -> int:
-        return self.cubeList[particle_id].get_type().type_id()
+        return self.cubeList[particle_id].type_id()
+
+    def from_top_conf(self, top: TopInfo, conf: Configuration):
+        pass  # we respecfully ask that you Do Not
+
+    def to_top_conf(self) -> tuple[TopInfo, Configuration]:
+        pass  # ibid
 
 
-class PolycubesStructureCube:
+class PolycubesStructureCube(PatchyBaseParticle):
+
+    _type_cube: PolycubeRuleCubeType
     def __init__(self,
                  uid: int,
                  cube_position: np.ndarray,
                  cube_rotation: Union[np.ndarray, int],
                  cube_type: PolycubeRuleCubeType,
                  state: list[bool] = [True]):
-        self._uid = uid
-        self._pos = cube_position
+        super(PolycubesStructureCube, self).__init__(uid, cube_type.type_id(), cube_position)
         if isinstance(cube_rotation, np.ndarray) and len(cube_rotation) == 4:
             self._rot = Rotation.from_quat(cube_rotation)
         elif isinstance(cube_rotation, int):
             self._rot = Rotation.from_matrix(getRotations()[cube_rotation])
         else:
             assert False, "Rotation matrices or whatever not supported yet."
-        self._type = cube_type
         self._state = state
+        self._type_cube = cube_type
 
-    def get_id(self) -> int:
-        return self._uid
+    def get_cube_type(self) -> PolycubeRuleCubeType:
+        return self._type_cube
 
-    def get_position(self) -> np.ndarray:
-        return self._pos
-
-    def get_rotation(self) -> Rotation:
+    def rotation(self) -> Rotation:
         return self._rot
-
-    def get_type(self) -> PolycubeRuleCubeType:
-        return self._type
 
     def typedir(self, direction: Union[int, np.ndarray]) -> np.ndarray:
         """
@@ -480,13 +484,13 @@ class PolycubesStructureCube:
         """
         if isinstance(direction, int):  # if the arguement is provided as an index in RULE_ORDER
             direction = RULE_ORDER[direction]
-        return self.get_rotation().inv().apply(direction).round()
+        return self.rotation().inv().apply(direction).round()
 
     def has_patch(self, direction: Union[int, np.ndarray]) -> bool:
-        return self.get_type().has_patch(self.typedir(direction))
+        return self.get_cube_type().has_patch(self.typedir(direction))
 
     def get_patch(self, direction: Union[int, np.ndarray]) -> PolycubesPatch:
-        return self.get_type().patch(self.typedir(direction))
+        return self.get_cube_type().patch(self.typedir(direction))
 
     def state(self, i=None):
         if i is None:
@@ -497,3 +501,6 @@ class PolycubesStructureCube:
                 return not self._state[-i]
             else:
                 return self._state[i]
+
+    def patches(self):
+        return self.get_cube_type().patches()

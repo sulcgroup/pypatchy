@@ -259,5 +259,19 @@ def all_equal(iterable):
 def is_slurm_job() -> bool:
     return os.environ.get("SLURM_JOB_ID") is not None
 
+def random_unit_vector():
+    """
+    Generate a random unit vector in 3-space.
+    WARNING: code came out of chatGPT!!!
+    """
+    phi = np.random.uniform(0, 2 * np.pi)
+    costheta = np.random.uniform(-1, 1)
+
+    theta = np.arccos(costheta)
+    x = np.sin(theta) * np.cos(phi)
+    y = np.sin(theta) * np.sin(phi)
+    z = costheta
+
+    return np.array([x, y, z])
 
 PATCHY_FILE_FORMAT_KEY = "patchy_format"

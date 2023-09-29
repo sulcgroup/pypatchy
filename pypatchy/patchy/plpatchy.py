@@ -2,16 +2,20 @@
 from __future__ import annotations
 import itertools
 import random
+from math import sqrt
 from pathlib import Path
-from typing import Union, IO
+from typing import Union, IO, Iterable
 # This file loads patchy particle file from topology and Configuration
 import numpy as np
 import copy
 
 from numpy.linalg import norm
+from oxDNA_analysis_tools.UTILS.data_structures import TopInfo, Configuration
 
 from pypatchy.patchy_base_particle import BasePatchType, PatchyBaseParticleType, BaseParticleSet, Scene, \
     PatchyBaseParticle
+from pypatchy.patchyio import get_writer
+from pypatchy.util import random_unit_vector
 
 myepsilon = 0.00001
 
@@ -256,17 +260,17 @@ class PLPatchyParticle(PatchyBaseParticleType, PatchyBaseParticle):
     def num_patches(self) -> int:
         return len(self._patches)
 
-    def translate(self, translation_vector: np.ndarray):
-        self.cm_pos += translation_vector
-
     def rotate(self, rot_matrix: np.ndarray):
         self.a1 = np.dot(rot_matrix, self.a1)
         self.a3 = np.dot(rot_matrix, self.a3)
 
     def set_random_orientation(self):
-        self.a1 = np.array(np.random.random(3))
-        self.a1 = self.a1 / np.sqrt(np.dot(self.a1, self.a1))
-        x = np.random.random(3)
+        self.a1 = random_unit_vector()
+        x = random_unit_vector()
+        # i had to replace this code Joakim or someone wrote because it's literally the "what not to do" solution
+        # self.a1 = np.array(np.random.random(3))
+        # self.a1 = self.a1 / np.sqrt(np.dot(self.a1, self.a1))
+        # x = np.random.random(3)
         self.a3 = x - np.dot(self.a1, x) * self.a1
         self.a3 = self.a3 / np.sqrt(np.dot(self.a3, self.a3))
         if abs(np.dot(self.a1, self.a3)) > 1e-10:
@@ -603,29 +607,24 @@ class PLPatchyParticle(PatchyBaseParticleType, PatchyBaseParticle):
 
         return sout
 
-
 # TODO: something with this class
 class PLPSimulation(Scene):
+
     _box_size: np.ndarray
-    N: int
     _particle_types: BaseParticleSet
     _E_tot: float
     _E_pot: float
     _E_kin: float
 
-    _particle_colors: list[str]
-    _patch_colors: list[str]
-    _complimentary_colors: dict[int, str]
-    _colorbank: list[str]
+    _time: int
 
     def __init__(self, seed=69):
         super().__init__()
         self._box_size = np.array([0., 0., 0.])
-        self.N = 0
-        self._patch_types = []
         self._E_tot = 0.
         self._E_pot = 0.
         self._E_kin = 0.
+        self._time = 0
 
         random.seed(seed)
 
@@ -652,172 +651,15 @@ class PLPSimulation(Scene):
     def set_box_size(self, box: Union[np.ndarray, list]):
         self._box_size = np.array(box)
 
-    def load_dps_input_file(self, input_file):
-        handle = open(input_file)
-        patchy_matrix_file = None
-        for line in handle.readlines():
-            line = line.strip()
-            if (len(line) > 1 and line[0] != '#'):
-                if 'DPS_interaction_matrix_file' in line:
-                    val = line.split('=')[1].strip()
-                    patchy_matrix_file = val
-
-        if patchy_matrix_file is None:
-            raise IOError('Could not find DPS_interaction_matrix_file key in the input file')
-
-        mfile = open(patchy_matrix_file)
-        interacting_patches = {}
-        for line in mfile.readlines():
-            if 'patchy_eps' in line:
-                if float(line.strip().split('=')[1]) > 0:
-                    vals = line.strip().split('=')[0].strip().split('eps')[1].replace('[', ' ').replace(']',
-                                                                                                        ' ').split()
-                    v1 = int(vals[0])
-                    v2 = int(vals[1])
-                    interacting_patches[v1] = v2
-                    interacting_patches[v2] = v1
-
-        self._colorbank = [self.generate_random_color() for x in range(max(interacting_patches.keys()))]
-
-        self.interacting_patches = interacting_patches
-
-    def load_dps_topology(self, topology_file):
-        handle = open(topology_file)
-        lines = handle.readlines()
-        vals = lines[0].split()
-        N = int(vals[0])
-        Ntypes = int(vals[1])
-        type_counts = []
-        orientations = []
-        patches = {}
-        # for c in range(len(patches.keys())):
-        particles = []  # [None for x in range(N)]
-
-        for pid, line in enumerate(lines[1:]):
-            if len(line.split()) >= 2:
-                vals = line.split()
-                count = int(vals[0])
-                type_counts.append(count)
-                pcount = int(vals[1])
-                ptypes = vals[2]
-                ptypes = [int(x) for x in ptypes.strip().split(',')]
-                pgeometry = vals[3]
-                patches = []
-                index = 0
-                for i, p in enumerate(ptypes):
-                    patch = PLPatch()
-                    patch.set_color(p)
-                    patch.init_from_dps_file(pgeometry, i)
-                    patches.append(patch)
-                for j in range(count):
-                    particle = PLPatchyParticle()
-                    particle._type = pid
-                    particle._patch_ids = ptypes
-                    particle._patches = patches
-                    particle.unique_id = index
-                    index += 1
-                    particles.append(particle)
-
-        self._particles = particles
-
-        # types = [int(x) for x in line[1].split()]
-        # print 'Critical', line[1].split()
-        # print types
-        # print self._particle_types
-        # print 'THERE ARE', len(self._particle_types), ' particle types '
-
-        self.N = N
-        if N != len(self._particles):
-            raise IOError('Particle number mismatch while reading topology file')
-
-    def load_input_file(self, input_file):
-        patchy_file = None
-        particle_file = None
-        n_patches = 0
-        n_particles = 0
-
-        with open(input_file, 'r') as handle:
-            for line in handle.readlines():
-                line = line.strip()
-                if len(line) > 1 and line[0] != '#':
-                    if 'patchy_file' in line:
-                        val = line.split('=')[1].strip()
-                        patchy_file = val
-                    elif 'particle_file' in line:
-                        val = line.split('=')[1].strip()
-                        particle_file = val
-                    elif 'particle_types_N' in line:
-                        val = line.split('=')[1].strip()
-                        n_particles = int(val)
-                    elif 'patch_types_N' in line:
-                        val = line.split('=')[1].strip()
-                        n_patches = int(val)
-
-        assert patchy_file is not None, "No patch file specified"
-        assert particle_file is not None, "No particle file specified"
-        assert n_particles > 0, "Particle count not specified"
-        assert n_patches > 0, "Patch count not specified"
-
-        self._colorbank = [self.generate_random_color() for x in range(n_patches)]
-        # print >> sys.stderr, "Loaded patchy_file: %s, particle_file: %s, N_part_types: %d, n_patch_types: %d " % (patchy_file,particle_file,self._N_particle_types, self._N_patch_types)
-        # now process the patch types file:
-
-        self._particle_types.add_patches(load_patches(patchy_file, n_patches))
-
-        self._particle_types.add_particles(load_particles(particle_file, self._particle_types.patches(), n_particles))
-
-        # print 'Critical', self._particle_types
-        # print "LOADED", len(self._particle_types)
-
-    def load_topology(self, topology_file):
-        handle = open(topology_file, 'r')
-        line = handle.readlines()
-        vals = line[0].split()
-        N = int(vals[0])
-        Ntypes = int(vals[1])
-        particle_types = [int(x) for x in line[1].split()]
-        # print 'Critical', line[1].split()
-        # print types
-        # print self._particle_types
-        # print 'THERE ARE', len(self._particle_types), ' particle types '
-        self._particles = []
-        for index, particle_type in enumerate(particle_types):
-            p = copy.deepcopy(self._particle_types[particle_type])
-            p.unique_id = index
-            self._particles.append(p)
-
-        handle.close()
-        self.N = N
-        if N != len(self._particles):
-            raise IOError('Particle number mismatch while reading topology file')
-
-    def save_topology(self, topology_file):
-        handle = open(topology_file, 'w')
-        handle.write('%d %d\n' % (len(self._particles), self._N_particle_types))
-        outstr = ''
-        for p in self._particles:
-            outstr = outstr + str(p.type_id()) + ' '
-        handle.write(outstr + '\n')
-        handle.close()
-
-    def save_patchy_types_file(self, ptypes_file: str):
-        handle = open(ptypes_file, 'w')
-        for p in self._patch_types:
-            outs = p.save_to_string()
-            handle.write(outs)
-        handle.close()
-
-    def save_particle_types_file(self, ptypes_file: str):
-        handle = open(ptypes_file, 'w')
-        for p in self._particle_types:
-            outs = p.save_type_to_string()
-            handle.write(outs)
-        handle.close()
-
     def check_for_particle_overlap(self, particle, dist_cutoff=1.0):
+        """
+        Checks if a particle overlaps any other particles in the simulation.
+        Returns:
+            true if the particle overlaps another particle, false otherwise
+        """
         # print 'Adding ', particle.cm_pos
         for p in self._particles:
-            dist = p.distance_from(particle, self._box_size)
+            dist = sqrt(sum((p.position() - particle.position()) ** 2))
             # print ' Looking at distance from ', p.cm_pos,dist
             if dist <= dist_cutoff:
                 # print 'Unfortunately overlaps with ',p.cm_pos,dist
@@ -825,223 +667,230 @@ class PLPSimulation(Scene):
                 # print 'Check is fine!'
         return False
 
-    def save_configuration(self,
-                           conf_name: str,
-                           t=0.):
-        handle = open(conf_name, 'w')
-        handle.write('t = %f\nb = %f %f %f\nE = %f %f %f\n' % (
-            t, self._box_size[0], self._box_size[1], self._box_size[2], self._E_pot, self._E_kin, self._E_tot))
-        for p in self._particles:
-            outs = p.save_conf_to_string()
-            handle.write(outs)
-        handle.close()
-
-    def add_particles(self, particles, strict_check=True):
+    def add_particles(self, particles: list[PLPatchyParticle], strict_check=True):
         # adds particles to the field, also initializes paricle types and patchy types based on these data
         # it overwrites any previosuly stored particle!!
         self._particles = copy.deepcopy(particles)
         self.N = len(particles)
         # now treat types:
         saved_types = {}
-        for p in self._particles:
-            if p.type_id() not in saved_types.keys():
-                saved_types[p.type_id()] = copy.deepcopy(p)
-        self._particle_types = []
-        for i, key_id in enumerate(sorted(saved_types.keys())):
-            if key_id != i and strict_check:
-                raise IOError(
-                    "Error while adding particles to the PLPSimulation class, indices of types are not correctly ordered")
-            self._particle_types.append(copy.deepcopy(saved_types[key_id]))
-        self._N_particle_types = len(self._particle_types)
-
-        # now treat patches
-        saved_patch_types = {}
-        for p in self._particle_types:
-            for patch in p.patches():
-                if patch.get_id() not in saved_patch_types.keys():
-                    saved_patch_types[patch.get_id()] = copy.deepcopy(patch)
-        self._patch_types = []
-        for i, key_id in enumerate(sorted(saved_patch_types.keys())):
-            if key_id != i and strict_check:
-                raise IOError(
-                    "Error while adding patches to the PLPSimulation class, indices of types are not correctly ordered")
-            self._patch_types.append(copy.deepcopy(saved_patch_types[key_id]))
-        self._N_patch_types = len(self._patch_types)
+        for p in self.particles():
+            if p.get_type() not in saved_types.keys():
+                saved_types[p.get_type()] = copy.deepcopy(p)
 
     def insert_particle(self,
-                        particle,
+                        particle: PLPatchyParticle,
                         check_overlap=False):
         if check_overlap:
             if self.check_for_particle_overlap(particle):
                 return False
         self._particles.append(particle)
-        self.N += 1
-        if particle.type_id() not in [x.type_id() for x in self._particle_types]:
-            self._particle_types.append(copy.deepcopy(particle))
-            self._N_particle_types += 1
+        if particle.type_id() not in [x.type_id() for x in self._particle_types.particles()]:
+            self._particle_types.add_particle(particle)
         return True
 
-    def load_configuration(self,
-                           configuration_file: str,
-                           conf_to_skip=0,
-                           close_file=True):
-        _conf = open(configuration_file, 'r')
-        if conf_to_skip > 0:
-            conf_lines = 3 + self.N
-            for j in range(conf_lines * conf_to_skip):
-                _conf.readline()
+    def add_particle_rand_positions(self, particles: Iterable[PLPatchyParticle], nTries=1e3):
+        # loop particles
+        for p in particles:
+            t = 0
+            # set max tries so it doesn't go forever
+            while t < nTries:
+                # random position
+                new_pos = np.random.rand(3) * self._box_size
+                p.set_position(new_pos)
+                if not self.check_for_particle_overlap(p):
+                    break
+                t += 1
+            if t == nTries:
+                raise Exception(f"Could not find a position to place a particle! nTries={nTries}")
+            # randomize orientation
+            p.set_random_orientation()
+            self.add_particle(p)
 
-        self.read_next_configuration(_conf)
+    def num_particle_types(self) -> int:
+        return len(self.particles())
 
-        if close_file:
-            _conf.close()
-
-        return _conf
-
-    def load_from_files(self,
-                        input_file: str,
-                        topology_file: str,
-                        config_file: str,
-                        conf_to_skip=0):
-        self.load_input_file(input_file)
-        self.load_topology(topology_file)
-        self.load_configuration(config_file, conf_to_skip)
-
-    def load_from_dps_files(self,
-                            input_file: str,
-                            topology_file: str,
-                            config_file: str,
-                            conf_to_skip=0):
-        self.load_dps_input_file(input_file)
-        self.load_dps_topology(topology_file)
-        self.load_configuration(config_file, conf_to_skip)
-
-    def read_next_configuration(self, file_handle: IO) -> Union[bool, IO]:
-        _conf = file_handle
-
-        timeline = _conf.readline()
-        time = 0.
-        if len(timeline) == 0:
-            return False
-        else:
-            time = float(timeline.split()[2])
-
-        box = np.array([float(x) for x in _conf.readline().split()[2:]])
-        [E_tot, E_pot, E_kin] = [float(x) for x in _conf.readline().split()[2:5]]
-
-        self._box_size = box
-        self._E_tot = E_tot
-        self._E_pot = E_pot
-        self._E_kin = E_kin
-
-        for i in range(self.N):
-            ls = _conf.readline().split()
-            self._particles[i].fill_configuration(np.array(ls))
-
-        return _conf
-
-    def bring_in_box(self, all_positive=False):
-        for p in self._particles:
-            nx = np.rint(p.cm_pos[0] / float(self._box_size[0])) * self._box_size[0]
-            ny = np.rint(p.cm_pos[1] / float(self._box_size[1])) * self._box_size[1]
-            nz = np.rint(p.cm_pos[2] / float(self._box_size[2])) * self._box_size[2]
-            # print np.array([nx,ny,nz])
-            p.cm_pos -= np.array([nx, ny, nz])
-            if all_positive:
-                for i in range(3):
-                    if p.cm_pos[i] < 0:
-                        p.cm_pos[i] += self._box_size[i]
-
-    def get_color(self, index: int):
-        if abs(index) >= 20:
-            index = abs(index) - 20
-        # print index
-        # print self._patch_colors
-        # return self.generate_random_color()
-        return self._patch_colors[index]
-        #
-        # if not ispatch:
-        #     if index < 0 or index >= len(self._particle_colors):
-        #         if index in self._complementary_colors.keys():
-        #             return self._complementary_colors[index]
-        #         else:
-        #             return self.generate_random_color()
-        #     else:
-        #         return self._particle_colors[index]
-        # else:
-        #     if index < 0 or index >= len(self._patch_colors):
-        #         if index in self._complementary_colors.keys():
-        #             return self._complementary_colors[index]
-        #         else:
-        #             return self.generate_random_color(index)
-        #     else:
-        #         return self._patch_colors[index]
-
-    def export_to_mgl(self,
-                      filename: str,
-                      regime: str = 'w',
-                      icosahedron=True):
-        out = open(filename, regime)
-        sout = f".Box: {np.array2string(self._box_size, separator=',')[1:-1]}\n"
-        # sout = ".Box:%f,%f,%f\n" % (self._box_size[0], self._box_size[1], self._box_size[2])
-        for p in self._particles:
-            patch_colors = [self.get_color(pat.color()) for pat in p.patches()]
-            particle_color = self.get_color(p.type_id())
-            sout = sout + p.export_to_mgl(patch_colors, particle_color) + '\n'
-            if icosahedron:
-                p.print_icosahedron(particle_color)
-
-        out.write(sout)
-        out.close()
+    # def load_configuration(self,
+    #                        configuration_file: str,
+    #                        conf_to_skip=0,
+    #                        close_file=True):
+    #     _conf = open(configuration_file, 'r')
+    #     if conf_to_skip > 0:
+    #         conf_lines = 3 + self.N
+    #         for j in range(conf_lines * conf_to_skip):
+    #             _conf.readline()
+    #
+    #     self.read_next_configuration(_conf)
+    #
+    #     if close_file:
+    #         _conf.close()
+    #
+    #     return _conf
 
 
+    # def read_next_configuration(self, file_handle: IO) -> Union[bool, IO]:
+    #     _conf = file_handle
+    #
+    #     timeline = _conf.readline()
+    #     time = 0.
+    #     if len(timeline) == 0:
+    #         return False
+    #     else:
+    #         time = float(timeline.split()[2])
+    #
+    #     box = np.array([float(x) for x in _conf.readline().split()[2:]])
+    #     [E_tot, E_pot, E_kin] = [float(x) for x in _conf.readline().split()[2:5]]
+    #
+    #     self._box_size = box
+    #     self._E_tot = E_tot
+    #     self._E_pot = E_pot
+    #     self._E_kin = E_kin
+    #
+    #     for i in range(self.N):
+    #         ls = _conf.readline().split()
+    #         self._particles[i].fill_configuration(np.array(ls))
+    #
+    #     return _conf
+    #
+    # def bring_in_box(self, all_positive=False):
+    #     for p in self._particles:
+    #         nx = np.rint(p.cm_pos[0] / float(self._box_size[0])) * self._box_size[0]
+    #         ny = np.rint(p.cm_pos[1] / float(self._box_size[1])) * self._box_size[1]
+    #         nz = np.rint(p.cm_pos[2] / float(self._box_size[2])) * self._box_size[2]
+    #         # print np.array([nx,ny,nz])
+    #         p.cm_pos -= np.array([nx, ny, nz])
+    #         if all_positive:
+    #             for i in range(3):
+    #                 if p.cm_pos[i] < 0:
+    #                     p.cm_pos[i] += self._box_size[i]
 
-    def export_to_lorenzian_mgl(self,
-                                filename: str,
-                                regime: str = 'w',
-                                icosahedron: bool = True):
-        out = open(filename, regime)
-        sout = ".Box:%f,%f,%f\n" % (self._box_size[0], self._box_size[1], self._box_size[2])
-        for p in self._particles:
-            patch_colors = [self.get_color(pat.color()) for pat in p.patches()]
-            particle_color = self.get_color(p.type_id())
-            sout = sout + p.export_to_lorenzian_mgl(patch_colors, particle_color) + '\n'
-            if icosahedron:
-                p.print_icosahedron(particle_color)
+    # def get_color(self, index: int):
+    #     if abs(index) >= 20:
+    #         index = abs(index) - 20
+    #     # print index
+    #     # print self._patch_colors
+    #     # return self.generate_random_color()
+    #     return self._patch_colors[index]
+    #     #
+    #     # if not ispatch:
+    #     #     if index < 0 or index >= len(self._particle_colors):
+    #     #         if index in self._complementary_colors.keys():
+    #     #             return self._complementary_colors[index]
+    #     #         else:
+    #     #             return self.generate_random_color()
+    #     #     else:
+    #     #         return self._particle_colors[index]
+    #     # else:
+    #     #     if index < 0 or index >= len(self._patch_colors):
+    #     #         if index in self._complementary_colors.keys():
+    #     #             return self._complementary_colors[index]
+    #     #         else:
+    #     #             return self.generate_random_color(index)
+    #     #     else:
+    #     #         return self._patch_colors[index]
 
-        out.write(sout)
-        out.close()
+    # def export_to_mgl(self,
+    #                   filename: str,
+    #                   regime: str = 'w',
+    #                   icosahedron=True):
+    #     out = open(filename, regime)
+    #     sout = f".Box: {np.array2string(self._box_size, separator=',')[1:-1]}\n"
+    #     # sout = ".Box:%f,%f,%f\n" % (self._box_size[0], self._box_size[1], self._box_size[2])
+    #     for p in self._particles:
+    #         patch_colors = [self.get_color(pat.color()) for pat in p.patches()]
+    #         particle_color = self.get_color(p.type_id())
+    #         sout = sout + p.export_to_mgl(patch_colors, particle_color) + '\n'
+    #         if icosahedron:
+    #             p.print_icosahedron(particle_color)
+    #
+    #     out.write(sout)
+    #     out.close()
 
-    def export_to_francesco_mgl(self,
-                                filename: str,
-                                regime: str = 'w',
-                                icosahedron: bool = True):
-        with open(filename, regime) as fout:
-            sout = f".Box:{np.array2string(self._box_size, separator=',')}\n"
-            # sout = ".Box:%f,%f,%f\n" % (self._box_size[0], self._box_size[1], self._box_size[2])
-            for p in self._particles:
-                patch_colors = [self.get_color(pat.color()) for pat in p.patches()]
-                particle_type = p.type_id()
-                patch_position_0 = p.cm_pos + p.get_patch_position(0)
-                patch_position_1 = p.cm_pos + p.get_patch_position(1)
-                line = '%d %f %f %f %f %f %f %f %f %f' % (
-                    particle_type, p.cm_pos[0], p.cm_pos[1], p.cm_pos[2], patch_position_0[0], patch_position_0[1],
-                    patch_position_0[2], patch_position_1[0], patch_position_1[1], patch_position_1[2])
-                particle_color = self.get_color(p.type_id())
-                sout = sout + line + '\n'  # p.export_to_lorenzian_mgl(patch_colors,particle_color) + '\n'
-                if icosahedron:
-                    p.print_icosahedron(particle_color)
+    #
+    # def export_to_lorenzian_mgl(self,
+    #                             filename: str,
+    #                             regime: str = 'w',
+    #                             icosahedron: bool = True):
+    #     out = open(filename, regime)
+    #     sout = ".Box:%f,%f,%f\n" % (self._box_size[0], self._box_size[1], self._box_size[2])
+    #     for p in self._particles:
+    #         patch_colors = [self.get_color(pat.color()) for pat in p.patches()]
+    #         particle_color = self.get_color(p.type_id())
+    #         sout = sout + p.export_to_lorenzian_mgl(patch_colors, particle_color) + '\n'
+    #         if icosahedron:
+    #             p.print_icosahedron(particle_color)
+    #
+    #     out.write(sout)
+    #     out.close()
 
-            fout.write(sout)
+    # def export_to_francesco_mgl(self,
+    #                             filename: str,
+    #                             regime: str = 'w',
+    #                             icosahedron: bool = True):
+    #     with open(filename, regime) as fout:
+    #         sout = f".Box:{np.array2string(self._box_size, separator=',')}\n"
+    #         # sout = ".Box:%f,%f,%f\n" % (self._box_size[0], self._box_size[1], self._box_size[2])
+    #         for p in self._particles:
+    #             patch_colors = [self.get_color(pat.color()) for pat in p.patches()]
+    #             particle_type = p.type_id()
+    #             patch_position_0 = p.cm_pos + p.get_patch_position(0)
+    #             patch_position_1 = p.cm_pos + p.get_patch_position(1)
+    #             line = '%d %f %f %f %f %f %f %f %f %f' % (
+    #                 particle_type, p.cm_pos[0], p.cm_pos[1], p.cm_pos[2], patch_position_0[0], patch_position_0[1],
+    #                 patch_position_0[2], patch_position_1[0], patch_position_1[1], patch_position_1[2])
+    #             particle_color = self.get_color(p.type_id())
+    #             sout = sout + line + '\n'  # p.export_to_lorenzian_mgl(patch_colors,particle_color) + '\n'
+    #             if icosahedron:
+    #                 p.print_icosahedron(particle_color)
+    #
+    #         fout.write(sout)
 
-    def export_to_xyz(self,
-                      filename: str,
-                      regime: str = 'w'):
-        with open(filename, regime) as fout:
+    # def export_to_xyz(self,
+    #                   filename: str,
+    #                   regime: str = 'w'):
+    #     with open(filename, regime) as fout:
+    #
+    #         sout = str(len(self._particles)) + '\n'
+    #         sout += "Box:%f,%f,%f\n" % (self._box_size[0], self._box_size[1], self._box_size[2])
+    #         for p in self._particles:
+    #             sout = sout + p.export_to_xyz() + '\n'
+    #
+    #         fout.write(sout)
 
-            sout = str(len(self._particles)) + '\n'
-            sout += "Box:%f,%f,%f\n" % (self._box_size[0], self._box_size[1], self._box_size[2])
-            for p in self._particles:
-                sout = sout + p.export_to_xyz() + '\n'
+    def from_top_conf(self, top: TopInfo, conf: Configuration):
+        rw = get_writer()
+        rw.read_top(Path(top.path), self)
 
-            fout.write(sout)
+        self._time = conf.time
+        self._E_pot, self._E_kin, self._E_tot = conf.energy
+        self._box_size = conf.box
+
+        for i, p in enumerate(self.particles()):
+            p.a1 = conf.a1s[i, :]
+            p.a3 = conf.a3s[i, :]
+            p.set_position(conf.positions[i, :])
+
+    def to_top_conf(self, top_path: Path, conf_path: Path) -> tuple[TopInfo, Configuration]:
+        rw = get_writer()
+        top = TopInfo(str(top_path), self.num_particles())
+        rw.write_top(top_path, self)
+
+        particle_positions = np.stack([p.position() for p in self.particles()])
+        particle_a1s = np.stack([p.a1 for p in self.particles()])
+        particle_a3s = np.stack([p.a3 for p in self.particles()])
+
+        conf = Configuration(self._time,
+                             self._box_size,
+                             np.array([self._E_pot, self._E_kin, self._E_tot]),
+                             particle_positions,
+                             particle_a1s,
+                             particle_a3s)
+
+        return top, conf
+
+    def particle_types(self):
+        return self._particle_types
+
+    def set_particle_types(self, ptypes: BaseParticleSet):
+        self._particle_types = ptypes
+
