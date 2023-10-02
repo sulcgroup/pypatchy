@@ -443,6 +443,8 @@ class PolycubeStructure(TypedStructure):
     def particle_type(self, particle_id: int) -> int:
         return self.cubeList[particle_id].get_type().type_id()
 
+    def graph_undirected(self) -> nx.Graph:
+        return self.graph.to_undirected()
 
 class PolycubesStructureCube:
     def __init__(self,

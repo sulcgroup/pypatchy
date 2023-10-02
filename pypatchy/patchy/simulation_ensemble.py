@@ -1017,7 +1017,7 @@ class PatchySimulationEnsemble:
         conf = self.get_conf(sim, timepoint)
 
         with tempfile.NamedTemporaryFile(delete=False, suffix=".conf") as temp_conf:
-            write_conf(temp_conf.name, conf, include_vel=False)  # skip velocities for speed
+            write_conf(temp_conf.name, conf)  # skip velocities for speed
             from_path(temp_conf.name,
                       self.paramfile(sim, "topology"),
                       self.folder_path(sim) / "particles.txt",
