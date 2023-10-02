@@ -158,16 +158,17 @@ def to_PL(particle_set: BaseParticleSet,
             relPosition = patch.position()
             pl_color = patch.colornum() - 20 if patch.colornum() < 0 else patch.colornum() + 20
             assert patch.get_id() == len(patches) + len(particle_patches)
+            a1 = relPosition / np.linalg.norm(relPosition)
             if patch.num_key_points() == 1:
                 particle_patches.append(PLPatch(patch.get_id(),
                                                 pl_color,
                                                 relPosition,
-                                                patch.position()))
+                                                a1))
             elif patch.num_key_points() == 2:
                 particle_patches.append(PLPatch(patch.get_id(),
                                                 pl_color,
                                                 relPosition,
-                                                patch.position(),
+                                                a1,
                                                 patch.alignDir()))
             else:
                 raise Exception("No idea how to handle whatever you're throwing at me")

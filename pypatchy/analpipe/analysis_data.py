@@ -3,10 +3,12 @@ from abc import ABC, abstractmethod
 from enum import Enum
 from pathlib import Path
 from typing import Union, Any
-import networkx as nx
 
 import numpy as np
 import pandas as pd
+
+from oxDNA_analysis_tools.UTILS.data_structures import Configuration
+
 
 TIMEPOINT_KEY = "timepoint"
 
@@ -114,28 +116,10 @@ def load_cached_pd_data(_, f: Path) -> PDPipelineData:
     return data
 
 
-class RawPipelineData:
-    """
-    Raw oxDNA data (eg not from an Observable). todo: flesh out
-    """
-    data: Any  # TODO: flesh out
-    _trange = np.ndarray
+def load_cached_topconf_data(_, f: Path) -> RawPipelineData:
+    assert f.is_file()
+    data = RawPipelineData(None, None, None)
 
-    def __init__(self, data, tr):
-        self.data = data
-        self._trange = tr
-
-    def get(self):
-        return self.data
-
-    def trange(self) -> np.ndarray:
-        return self._trange
-
-    def compare_tranges(self, tr: range) -> np.array:
-        return all(t in self.trange() for t in tr)
-
-
-#
 # class ObservablePipelineData:
 #     data: Any
 #
@@ -177,7 +161,10 @@ class ObjectPipelineData(PipelineData):
             self.data = pickle.load(f)
 
 
-def load_cached_graph_data(_, f: Path) -> ObjectPipelineData:
+RawPipelineData = ObjectPipelineData
+
+
+def load_cached_object_data(_, f: Path) -> ObjectPipelineData:
     assert f.is_file()
     with f.open("rb") as datafile:
         return pickle.load(datafile)
