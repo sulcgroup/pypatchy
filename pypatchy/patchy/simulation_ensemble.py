@@ -1506,7 +1506,7 @@ class PatchySimulationEnsemble:
             command += f" {script_name}"
         submit_txt = ""
         for i in range(retries):
-            submit_txt = self.bash_exec(command, is_async=True, cwd=self.folder_path(sim))
+            submit_txt = self.bash_exec(command, is_async=False, cwd=self.folder_path(sim))
             if submit_txt:
                 break
             time.sleep(backoff_factor ** i)
