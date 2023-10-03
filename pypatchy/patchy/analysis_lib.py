@@ -49,6 +49,9 @@ class LoadParticlesTraj(AnalysisPipelineHead):
     Note that I have not yet tested this class so it will likely collapse in spectacular fashion if used
     """
 
+    def get_data_in_filenames(self) -> list[str]:
+        return []
+
     def get_output_data_type(self):
         """
         Returns:
@@ -58,9 +61,9 @@ class LoadParticlesTraj(AnalysisPipelineHead):
 
     def __init__(self,
                  name,
-                 input_tstep: Union[int, None],
-                 traj_file_regex=r"trajectory_\d+\.dat",
-                 first_conf_file_name="init.conf"):
+                 input_tstep: Union[int, None] = 1):
+                 # traj_file_regex=r"trajectory.dat",
+                 # first_conf_file_name="init.conf"):
         """
         Constructor for traj read step
         I strongly advise initializing with:
@@ -70,15 +73,8 @@ class LoadParticlesTraj(AnalysisPipelineHead):
         """
         super().__init__(name, input_tstep)
         # really hate that 0th conf isn't included in trajectory
-        self.trajfile = re.Pattern(traj_file_regex)
-        self.first_conf = re.Pattern(re.escape(first_conf_file_name))
-
-    def get_data_in_filenames(self) -> list[re.Pattern]:
-        """
-        Returns:
-            a list of filenames
-        """
-        return [self.first_conf, self.trajfile]
+        # self.trajfile = traj_file_regex
+        # self.first_conf = first_conf_file_name
 
     load_cached_files = load_cached_object_data
 
@@ -90,9 +86,12 @@ class LoadParticlesTraj(AnalysisPipelineHead):
         # this will go up in smoke very badly if it comes into contact with staged assembly
         with open(top_file) as f:
             f.readline()  # skip line
-            particle_type_ids = f.readline().split()
+            particle_type_ids = [int(i) for i in f.readline().split()]
         # load first conf (not incl in traj for some reason)
-        top_info, init_conf_info = describe(str(top_file), str(self.first_conf))
+        top_file_path = ensemble.paramfile(sim, "topology")
+        first_conf_file_path = ensemble.paramfile(sim, "conf_file")
+        traj_file_path = ensemble.paramfile(sim, "trajectory_file")
+        top_info, init_conf_info = describe(str(top_file), str(first_conf_file_path))
         firstconf = get_confs(traj_info=init_conf_info,
                               top_info=top_info,
                               start_conf=0,
@@ -100,8 +99,8 @@ class LoadParticlesTraj(AnalysisPipelineHead):
         confdict = {0: (firstconf, particle_type_ids)}
         # load trajectory confs
         top_info, traj_info = describe(
-            str(top_file),
-            str(self.trajfile)
+            str(top_file_path),
+            str(traj_file_path)
         )
         confs = get_confs(
             traj_info=traj_info,
@@ -355,26 +354,34 @@ class ClassifyPolycubeClusters(AnalysisPipelineStep):
 
     load_cached_files = load_cached_pd_data
 
-    def exec(self, input_data: ObjectPipelineData, traj_data: RawPipelineData) -> PDPipelineData:
+    def exec(self, input_data_1: ObjectPipelineData, input_data_2: ObjectPipelineData) -> PDPipelineData:
+        # use data class types to identify inputs
+        if isinstance(input_data_2, RawPipelineData):
+            graph_input_data = input_data_1
+            traj_data = input_data_2
+        else:
+            graph_input_data = input_data_2
+            traj_data = input_data_1
         cluster_cats_data = {
             TIMEPOINT_KEY: [],
             self.CLUSTER_CATEGORY_KEY: [],
             self.SIZE_RATIO_KEY: []
         }
-        polycube_type_ids = [cube.get_type() for cube in self.target_polycube.cubeList]
+        polycube_type_ids = [cube.get_type().type_id() for cube in self.target_polycube.cubeList]
         polycube_type_map = {
             type_id: polycube_type_ids.count(type_id)
             for type_id in set(polycube_type_ids)
         }
         # loop timepoints in input graph data
-        for timepoint in input_data.get():
+        for timepoint in graph_input_data.get():
             # check output tstep
             if timepoint % self.output_tstep == 0:
-                # grab conf and top data at this timepoint (only really need top_
+                # grab conf and top data at this timepoint (only really need top until i rope in SVD superimposer)
+                assert timepoint in traj_data.trange()
                 conf, top = traj_data.get()[timepoint]
 
                 # loop cluster graphs at this timepoint
-                for g in input_data.get()[timepoint]:
+                for g in graph_input_data.get()[timepoint]:
                     # get particle ids for graph nodes
                     particle_ids = [top[n] for n in g.nodes]
 
@@ -385,7 +392,7 @@ class ClassifyPolycubeClusters(AnalysisPipelineStep):
                     # test that all particle types in the structure are in the polycube,
                     # and are contained the same or fewer number of times
                     if all(
-                        [type_id in polycube_type_map and polycube_type_map[type_id] <= particle_type_counts[type_id]
+                        [type_id in polycube_type_map and particle_type_counts[type_id] <= polycube_type_map[type_id]
                          for type_id in particle_type_counts]
                     ):
                         # only then do the comparison
@@ -396,7 +403,7 @@ class ClassifyPolycubeClusters(AnalysisPipelineStep):
                         cluster_cats_data[self.CLUSTER_CATEGORY_KEY].append(cat)
                         cluster_cats_data[self.SIZE_RATIO_KEY].append(sizeFrac)
         return PDPipelineData(pd.DataFrame.from_dict(data=cluster_cats_data),
-                              input_data.trange()[input_data.trange() % self.output_tstep == 0])
+                              graph_input_data.trange()[graph_input_data.trange() % self.output_tstep == 0])
 
     def can_parallelize(self):
         return True
