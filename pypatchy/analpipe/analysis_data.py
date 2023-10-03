@@ -7,8 +7,6 @@ from typing import Union, Any
 import numpy as np
 import pandas as pd
 
-from oxDNA_analysis_tools.UTILS.data_structures import Configuration
-
 
 TIMEPOINT_KEY = "timepoint"
 
@@ -116,10 +114,6 @@ def load_cached_pd_data(_, f: Path) -> PDPipelineData:
     return data
 
 
-def load_cached_topconf_data(_, f: Path) -> RawPipelineData:
-    assert f.is_file()
-    data = RawPipelineData(None, None, None)
-
 # class ObservablePipelineData:
 #     data: Any
 #
@@ -161,7 +155,9 @@ class ObjectPipelineData(PipelineData):
             self.data = pickle.load(f)
 
 
-RawPipelineData = ObjectPipelineData
+class RawPipelineData(ObjectPipelineData):
+    # TODO: anything at all
+    pass
 
 
 def load_cached_object_data(_, f: Path) -> ObjectPipelineData:
