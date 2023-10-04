@@ -1118,9 +1118,11 @@ class PatchySimulationEnsemble:
         print([p.name for p in self.folder_path(sim).iterdir()])
 
     # ----------------------- Setup Methods ----------------------------------- #
-    def do_setup(self):
+    def do_setup(self, sims: Union[list[SimulationEnsemble], None] = None):
+        if sims is None:
+            sims = self.ensemble()
         self.get_logger().info("Setting up folder / file structure...")
-        for sim in self.ensemble():
+        for sim in sims:
             self.get_logger().info(f"Setting up folder / file structure for {repr(sim)}...")
             # create nessecary folders
             if not os.path.isdir(self.folder_path(sim)):
