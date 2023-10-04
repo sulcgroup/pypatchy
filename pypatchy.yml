@@ -15,4 +15,5 @@ dependencies:
   - seaborn
   - pytables
   - python-igraph
+  - drawsvg
 prefix: /home/josh/anaconda3/envs/polycubes

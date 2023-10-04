@@ -220,7 +220,7 @@ class PLPatchyParticle(PatchyBaseParticleType, PatchyBaseParticle):
     all_letters = ['C', 'H', 'O', 'N', 'P', 'S', 'F', 'K', 'I', 'Y']
 
     def __init__(self, patches: list[PLPatch] = [], type_id=0, index_=0, position=np.array([0., 0., 0.]), radius=0.5):
-        super(PatchyBaseParticleType, self).__init__(type_id, patches)
+        super().__init__(type_id, patches)
         self.cm_pos = position
         self.unique_id = index_
         self._radius = radius
