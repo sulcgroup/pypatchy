@@ -313,7 +313,7 @@ class PolycubeRuleCubeType(PatchyBaseParticleType):
                     in_strs.append(self.var_conditional(input_state_var, minimize))
 
         if len(in_strs) > 1:
-            var_effects_str = "(" + "|".join(in_strs) + ")"
+            var_effects_str = "(" + " | ".join(in_strs) + ")"
         else:
             var_effects_str = in_strs[0]
 

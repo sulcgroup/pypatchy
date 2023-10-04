@@ -15,7 +15,7 @@ import numpy as np
 import math
 
 # global slurm job info cache
-SLURM_JOB_CACHE : dict[dict[str, str]] = {}
+SLURM_JOB_CACHE: dict[int, dict[str, str]] = {}
 
 def get_local_dir() -> Path:
     return Path.home() / ".pypatchy/"
