@@ -25,7 +25,7 @@ import seaborn as sb
 
 DEFAULT_SB_ARGS = {
     "kind": "line",
-    "errorbar": "sd" # standard deviation
+    "errorbar": "sd"  # standard deviation
 }
 
 def plot_analysis_data(e: PatchySimulationEnsemble,

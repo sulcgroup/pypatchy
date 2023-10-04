@@ -79,7 +79,8 @@ class AnalysisPipelineStep(ABC):
             with pd.HDFStore(str(file_path)) as f:
                 f["data"] = data.get()
                 f["trange"] = pd.Series(data.trange())
-        elif self.get_output_data_type() == PipelineDataType.PIPELINE_DATATYPE_GRAPH:
+        elif self.get_output_data_type() in [PipelineDataType.PIPELINE_DATATYPE_GRAPH,
+                                             PipelineDataType.PIPELINE_DATATYPE_RAWDATA]:
             with open(file_path, "wb") as f:
                 pickle.dump(data, f)
         else:

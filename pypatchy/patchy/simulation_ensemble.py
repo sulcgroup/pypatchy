@@ -38,7 +38,7 @@ from ..patchyio import NUM_TEETH_KEY, get_writer, BasePatchyWriter
 from ..slurm_log_entry import SlurmLogEntry
 from ..slurmlog import SlurmLog
 from ..util import get_param_set, simulation_run_dir, get_server_config, get_log_dir, get_input_dir, \
-    get_babysitter_refresh, is_slurm_job, PATCHY_FILE_FORMAT_KEY, is_server_slurm
+    get_babysitter_refresh, is_slurm_job, PATCHY_FILE_FORMAT_KEY, is_server_slurm, SLURM_JOB_CACHE
 from .ensemble_parameter import EnsembleParameter, ParameterValue
 from .simulation_specification import PatchySimulation, ParamSet
 from .plpatchy import export_interaction_matrix
@@ -1016,7 +1016,7 @@ class PatchySimulationEnsemble:
         conf = self.get_conf(sim, timepoint)
 
         with tempfile.NamedTemporaryFile(delete=False, suffix=".conf") as temp_conf:
-            write_conf(temp_conf.name, conf, include_vel=False)  # skip velocities for speed
+            write_conf(temp_conf.name, conf)  # skip velocities for speed
             from_path(temp_conf.name,
                       self.paramfile(sim, "topology"),
                       self.folder_path(sim) / "particles.txt",
@@ -1481,7 +1481,9 @@ class PatchySimulationEnsemble:
     def start_simulation(self,
                          sim: PatchySimulation,
                          script_name: str = "slurm_script.sh",
-                         job_type="oxdna"):
+                         job_type="oxdna",
+                         retries=3,
+                         backoff_factor=2):
         """
         Starts an oxDNA simulation. direct invocation is not suggested;
         use `start_simulations` instead
@@ -1501,8 +1503,14 @@ class PatchySimulationEnsemble:
                 command += f" --dependency=afterok:{confgen_slurm_jobid}"
         if is_server_slurm():
             command += f" {script_name}"
-
-        submit_txt = self.bash_exec(command, is_async=True, cwd=self.folder_path(sim))
+        submit_txt = ""
+        for i in range(retries):
+            submit_txt = self.bash_exec(command, is_async=False, cwd=self.folder_path(sim))
+            if submit_txt:
+                break
+            time.sleep(backoff_factor ** i)
+        if not submit_txt:
+            raise Exception(f"Submit slurm job failed for simulation {sim}")
 
         if is_server_slurm():
             jobid = int(re.search(SUBMIT_SLURM_PATTERN, submit_txt).group(1))
@@ -1801,17 +1809,25 @@ class PatchySimulationEnsemble:
         else:
             return self.ensemble()
 
-    def slurm_job_info(self, jobid: int = -1) -> Union[dict, None]:
-        if jobid == -1:  # retrieve job ID from current job
+    def slurm_job_info(self, jobid: int = -1, ignore_cache=False, retries=3, backoff_factor=2) -> Union[dict, None]:
+        if jobid == -1:
             retr_id = os.environ.get("SLURM_JOB_ID")
-            assert retr_id is not None  # if we didn't pass a job ID and don't have one in the script, get extremely mad
+            assert retr_id is not None
             jobid = int(retr_id)
-        jobinfo = self.bash_exec(f"scontrol show job {jobid}")
-        # if the job is completed, no further info can be extracted for some goddamn reason
-        if jobinfo == "slurm_load_jobs error: Invalid job id specified":
-            return None
-        jobinfo = jobinfo.split()
-        return {key: value for key, value in [x.split("=", 1) for x in jobinfo]}
+
+        for i in range(retries):
+            jobinfo = self.bash_exec(f"scontrol show job {jobid}")
+
+            if jobinfo and jobinfo != "slurm_load_jobs error: Invalid job id specified":
+                jobinfo = jobinfo.split()
+                jobinfo = {key: value for key, value in [x.split("=", 1) for x in jobinfo]}
+                # Cache it
+                SLURM_JOB_CACHE[jobid] = jobinfo
+                return jobinfo
+
+            time.sleep(backoff_factor ** i)
+
+        return None
 
     def bash_exec(self, command: str, is_async=False, cwd=None):
         """
