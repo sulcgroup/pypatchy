@@ -452,6 +452,8 @@ class PolycubeStructure(TypedStructure, Scene):
     def to_top_conf(self) -> tuple[TopInfo, Configuration]:
         pass  # ibid
 
+    def graph_undirected(self) -> nx.Graph:
+        return self.graph.to_undirected()
 
 class PolycubesStructureCube(PatchyBaseParticle):
 
