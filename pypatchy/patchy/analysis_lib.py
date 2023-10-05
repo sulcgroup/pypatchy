@@ -568,7 +568,7 @@ class ComputeClusterYield(AnalysisPipelineStep):
         # discard cluster categories column
         data.drop(ClassifyClusters.CLUSTER_CATEGORY_KEY, axis=1)
         # group by timepoint, average, reset index
-        data = data.groupby(TIMEPOINT_KEY).sum().reset_index()
+        data = data.groupby(TIMEPOINT_KEY).sum(numeric_only=True).reset_index()
         # rename column
         data = data.rename(mapper={ClassifyClusters.SIZE_RATIO_KEY: YIELD_KEY}, axis="columns")
         # data = data.set_index([TIMEPOINT_KEY])
