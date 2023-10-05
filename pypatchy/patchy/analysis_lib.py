@@ -6,8 +6,10 @@ from typing import Union
 
 import networkx as nx
 import numpy as np
+import oxDNA_analysis_tools.distance
 import pandas as pd
-from oxDNA_analysis_tools.UTILS.RyeReader import get_confs, describe
+from oxDNA_analysis_tools.UTILS.RyeReader import get_confs, describe, inbox
+from oxDNA_analysis_tools.UTILS.data_structures import Configuration
 
 from pypatchy.patchy.simulation_specification import PatchySimulation
 
@@ -49,19 +51,13 @@ class LoadParticlesTraj(AnalysisPipelineHead):
     Note that I have not yet tested this class so it will likely collapse in spectacular fashion if used
     """
 
-    def get_data_in_filenames(self) -> list[str]:
-        return []
-
-    def get_output_data_type(self):
-        """
-        Returns:
-            PipelineDataType.PIPELINE_DATATYPE_DATAFRAME
-        """
-        return PipelineDataType.PIPELINE_DATATYPE_RAWDATA
+    normalize_coords: bool
 
     def __init__(self,
                  name,
-                 input_tstep: Union[int, None] = 1):
+                 normalize_coords=True,
+                 input_tstep: Union[int, None] = 1,
+                 output_tstep: Union[int, None] = None):
                  # traj_file_regex=r"trajectory.dat",
                  # first_conf_file_name="init.conf"):
         """
@@ -71,7 +67,8 @@ class LoadParticlesTraj(AnalysisPipelineHead):
         traj_file_regex = ensemble.get_input_file_param("trajectory_file")
         first_conf_file_name = ensemble.get_input_file_param("conf_file")
         """
-        super().__init__(name, input_tstep)
+        super().__init__(name, input_tstep, output_tstep)
+        self.normalize_coords = normalize_coords
         # really hate that 0th conf isn't included in trajectory
         # self.trajfile = traj_file_regex
         # self.first_conf = first_conf_file_name
@@ -108,8 +105,19 @@ class LoadParticlesTraj(AnalysisPipelineHead):
             start_conf=0,
             n_confs=traj_info.nconfs
         )
+
+        # def norm_coord(coord: float, increment: float) -> float:
+        #     while coord < increment:
+        #         coord += increment
+        #     return coord % increment
+        # norm_coord_vectorize = np.vectorize(norm_coord)
+
         for conf in confs:
-            confdict[conf.time] = (conf, particle_type_ids)
+            if conf.time % self.output_tstep == 0:
+                if self.normalize_coords:
+                    conf = inbox(conf, True)
+                # assert (conf.positions < conf.box[np.newaxis, :]).all()
+                confdict[conf.time] = (conf, particle_type_ids)
         return RawPipelineData(confdict)
 
 
@@ -119,6 +127,17 @@ class LoadParticlesTraj(AnalysisPipelineHead):
         g.append(draw.Text("TODO: write description!", font_size=7, x=1, y=y+7))
         y += 40
         return (w, y), g
+
+
+    def get_data_in_filenames(self) -> list[str]:
+        return []
+
+    def get_output_data_type(self):
+        """
+        Returns:
+            PipelineDataType.PIPELINE_DATATYPE_DATAFRAME
+        """
+        return PipelineDataType.PIPELINE_DATATYPE_RAWDATA
 
 
 class BlobsFromClusters(AnalysisPipelineHead):
@@ -336,10 +355,14 @@ class ClassifyPolycubeClusters(AnalysisPipelineStep):
 
     target: YieldAnalysisTarget
     target_polycube: PolycubeStructure
+    graphedgelen: float
+    graphedgetolerence: float
 
     def __init__(self,
                  name: str,
                  target_name: str,
+                 expected_edge_length: float = 1,
+                 edge_distance_tolerance: float =0.1,
                  input_tstep: Union[int, None] = None,
                  output_tstep: Union[int, None] = None):
         super().__init__(name, input_tstep, output_tstep)
@@ -348,9 +371,14 @@ class ClassifyPolycubeClusters(AnalysisPipelineStep):
             rule = PolycubesRule(rule_json=target_data["cube_types"])
             self.target_polycube = PolycubeStructure(rule, target_data["cubes"])
             self.target = YieldAnalysisTarget(target_name, self.target_polycube.graph_undirected())
+            self.graphedgelen = expected_edge_length
+            self.graphedgetolerence = edge_distance_tolerance
 
     CLUSTER_CATEGORY_KEY = "clustercategory"
     SIZE_RATIO_KEY = "sizeratio"
+    CLUSTER_EDGE_LEN_AVG_KEY = "avgedgelen"
+    CLUSTER_EDGE_LEN_STD_KEY = "stdedgelen"
+    CLUSTER_NUM_DROPPED_EDGES_KEY = "numdroppededges"
 
     load_cached_files = load_cached_pd_data
 
@@ -365,7 +393,10 @@ class ClassifyPolycubeClusters(AnalysisPipelineStep):
         cluster_cats_data = {
             TIMEPOINT_KEY: [],
             self.CLUSTER_CATEGORY_KEY: [],
-            self.SIZE_RATIO_KEY: []
+            self.SIZE_RATIO_KEY: [],
+            self.CLUSTER_EDGE_LEN_AVG_KEY: [],
+            self.CLUSTER_EDGE_LEN_STD_KEY: [],
+            self.CLUSTER_NUM_DROPPED_EDGES_KEY: []
         }
         polycube_type_ids = [cube.get_type().type_id() for cube in self.target_polycube.cubeList]
         polycube_type_map = {
@@ -382,28 +413,54 @@ class ClassifyPolycubeClusters(AnalysisPipelineStep):
 
                 # loop cluster graphs at this timepoint
                 for g in graph_input_data.get()[timepoint]:
-                    # get particle ids for graph nodes
-                    particle_ids = [top[n] for n in g.nodes]
+                    g2, edge_lens = self.engage_filter(g, conf)
+                    if len(g2.edges) > 0:
 
-                    # get counts for particle ids
-                    particle_type_counts = {
-                        typeid: particle_ids.count(typeid) for typeid in set(particle_ids)
-                    }
-                    # test that all particle types in the structure are in the polycube,
-                    # and are contained the same or fewer number of times
-                    if all(
-                        [type_id in polycube_type_map and particle_type_counts[type_id] <= polycube_type_map[type_id]
-                         for type_id in particle_type_counts]
-                    ):
-                        # only then do the comparison
-                        cat, sizeFrac = self.target.compare(g)
+                        # get particle ids for graph nodes
+                        particle_ids = [top[n] for n in g.nodes]
 
-                        # assign stuff
-                        cluster_cats_data[TIMEPOINT_KEY].append(timepoint)
-                        cluster_cats_data[self.CLUSTER_CATEGORY_KEY].append(cat)
-                        cluster_cats_data[self.SIZE_RATIO_KEY].append(sizeFrac)
+                        # get counts for particle ids
+                        particle_type_counts = {
+                            typeid: particle_ids.count(typeid) for typeid in set(particle_ids)
+                        }
+
+                        # test that all particle types in the structure are in the polycube,
+                        # and are contained the same or fewer number of times
+                        if all(
+                            [type_id in polycube_type_map and particle_type_counts[type_id] <= polycube_type_map[type_id]
+                             for type_id in particle_type_counts]
+                        ):
+                            avg_edge_len = np.mean(edge_lens)
+                            edge_len_std = np.std(edge_lens)
+                            # only then do the comparison
+                            cat, sizeFrac = self.target.compare(g2)
+
+                            # assign stuff
+                            cluster_cats_data[TIMEPOINT_KEY].append(timepoint)
+                            cluster_cats_data[self.CLUSTER_CATEGORY_KEY].append(cat)
+                            cluster_cats_data[self.SIZE_RATIO_KEY].append(sizeFrac)
+                            cluster_cats_data[self.CLUSTER_EDGE_LEN_AVG_KEY].append(avg_edge_len)
+                            cluster_cats_data[self.CLUSTER_EDGE_LEN_STD_KEY].append(edge_len_std)
+                            cluster_cats_data[self.CLUSTER_NUM_DROPPED_EDGES_KEY].append(len(g.edges) - len(g2.edges))
+
         return PDPipelineData(pd.DataFrame.from_dict(data=cluster_cats_data),
                               graph_input_data.trange()[graph_input_data.trange() % self.output_tstep == 0])
+
+    def engage_filter(self, g: nx.Graph, conf: Configuration) -> tuple[nx.Graph, list[float]]:
+        # let's not damage the existing graph
+        g2 = g.copy()
+        edge_lens = []
+        for p1, p2 in g.edges:
+            distance = np.linalg.norm(
+                conf.positions[p1, :] -
+                    conf.positions[p2, :])
+            if self.graphedgelen > 0 and abs(distance - self.graphedgelen) > self.graphedgetolerence:
+                g2.remove_edge(p1, p2)
+                continue
+            edge_lens.append(distance)
+        isolate_nodes = [*nx.isolates(g2)]
+        g2.remove_nodes_from(isolate_nodes)
+        return g2, edge_lens
 
     def can_parallelize(self):
         return True
@@ -418,9 +475,11 @@ class ClassifyPolycubeClusters(AnalysisPipelineStep):
         y += 12
         g.append(draw.Text("This step classifies cluster graphs as 'match', 'smaller subset',\n"
                            "'smaller not subset', or 'non-match'. The step uses igraph's \n"
-                           "`get_subisomorphisms_vf2` function. The step produces a dataframe \n"
+                           "`get_subisomorphisms_vf2` function.\n "
+                           "The function oeperates by TODO EXPLAIN\n"
+                           "The step produces a dataframe \n"
                            "where each row is a cluster with columns for category, size ratio, \n"
-                           "and timepoint.", font_size=7, x=1, y=y+7))
+                           "average node distance, stdev of node distances, and timepoint.", font_size=7, x=1, y=y+7))
         y += 28
         return (w, y), g
 
@@ -515,10 +574,10 @@ class ComputeClusterYield(AnalysisPipelineStep):
         # data = data.set_index([TIMEPOINT_KEY])
         data = data.loc[data[TIMEPOINT_KEY] % self.output_tstep == 0]
         missing_timepoints = cluster_categories.missing_timepoints(data[TIMEPOINT_KEY].unique().data)
-        data = data.append(pd.DataFrame.from_dict({
+        data = pd.concat([data, pd.DataFrame.from_dict({
             TIMEPOINT_KEY: missing_timepoints,
             YIELD_KEY: 0
-        }), ignore_index=True)
+        })], ignore_index=True)
         return PDPipelineData(data,
                               cluster_categories.trange()[cluster_categories.trange() % self.output_tstep == 0])
 

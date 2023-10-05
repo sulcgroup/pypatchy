@@ -406,8 +406,7 @@ class PatchySimulationEnsemble:
         logger: logging.Logger = logging.getLogger(self.export_name)
         logger.setLevel(logging.DEBUG)
 
-        file_handler = logging.FileHandler(
-            get_log_dir() / f"log_{self.export_name}_{self.datestr()}_{str(datetime.datetime.now())}.log", mode="a")
+        file_handler = logging.FileHandler(get_log_dir() / f"log_{self.export_name}_{self.datestr()}_at{datetime.datetime.now().strftime('%Y-%m-%d-%H-%M')}.log", mode="a")
         file_handler.setLevel(logging.DEBUG)
         file_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
         file_handler.setFormatter(file_formatter)
@@ -991,7 +990,7 @@ class PatchySimulationEnsemble:
         Returns:
             a Configuration object showing the conf of the given simulation at the given timepoint
         """
-        assert self.time_length(sim) > timepoint, f"Specified timepoint {timepoint} exceeds simulation length" \
+        assert self.time_length(sim) >= timepoint, f"Specified timepoint {timepoint} exceeds simulation length" \
                                                   f"{self.time_length(sim)}"
         if timepoint > self.sim_get_param(sim, "print_conf_interval"):
             # this means that we're dealing with tidxs not step numbers
@@ -1823,7 +1822,7 @@ class PatchySimulationEnsemble:
 
             if jobinfo and jobinfo != "slurm_load_jobs error: Invalid job id specified":
                 jobinfo = jobinfo.split()
-                jobinfo = {key: value for key, value in [x.split("=", 1) for x in jobinfo]}
+                jobinfo = {key: value for key, value in [x.split("=", 1) for x in jobinfo if len(x.split("=",1)) == 2]}
                 # Cache it
                 SLURM_JOB_CACHE[jobid] = jobinfo
                 return jobinfo
@@ -1869,8 +1868,9 @@ def shared_ensemble(es: list[PatchySimulationEnsemble], ignores: set = set()) ->
     names = set()
     name_vals: dict[str, set] = dict()
     for e in es:
-        names.update([key for key in e.const_params if key not in ignores])
-        for param_key in e.const_params:
+        names.update([p.param_name for p in e.const_params if p.param_name not in ignores])
+        for p in e.const_params:
+            param_key = p.param_name
             if param_key in ignores:
                 continue
             if param_key not in name_vals:

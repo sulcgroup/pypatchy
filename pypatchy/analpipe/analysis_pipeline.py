@@ -405,7 +405,7 @@ class AnalysisPipeline:
         return step_name in self.name_map
 
     def __str__(self):
-        return
+        return f"Analysis pipeline with {self.num_pipes()} pipes and {len(self)} steps."
 
     def num_pipes(self) -> int:
         return len(self.pipeline_graph.edges)
