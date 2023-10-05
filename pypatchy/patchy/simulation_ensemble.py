@@ -990,7 +990,7 @@ class PatchySimulationEnsemble:
         Returns:
             a Configuration object showing the conf of the given simulation at the given timepoint
         """
-        assert self.time_length(sim) > timepoint, f"Specified timepoint {timepoint} exceeds simulation length" \
+        assert self.time_length(sim) >= timepoint, f"Specified timepoint {timepoint} exceeds simulation length" \
                                                   f"{self.time_length(sim)}"
         if timepoint > self.sim_get_param(sim, "print_conf_interval"):
             # this means that we're dealing with tidxs not step numbers
@@ -1820,7 +1820,7 @@ class PatchySimulationEnsemble:
 
             if jobinfo and jobinfo != "slurm_load_jobs error: Invalid job id specified":
                 jobinfo = jobinfo.split()
-                jobinfo = {key: value for key, value in [x.split("=", 1) for x in jobinfo]}
+                jobinfo = {key: value for key, value in [x.split("=", 1) for x in jobinfo if len(x.split("=",1)) == 2]}
                 # Cache it
                 SLURM_JOB_CACHE[jobid] = jobinfo
                 return jobinfo
