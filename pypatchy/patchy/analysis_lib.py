@@ -574,10 +574,10 @@ class ComputeClusterYield(AnalysisPipelineStep):
         # data = data.set_index([TIMEPOINT_KEY])
         data = data.loc[data[TIMEPOINT_KEY] % self.output_tstep == 0]
         missing_timepoints = cluster_categories.missing_timepoints(data[TIMEPOINT_KEY].unique().data)
-        data = data.append(pd.DataFrame.from_dict({
+        data = pd.concat([data, pd.DataFrame.from_dict({
             TIMEPOINT_KEY: missing_timepoints,
             YIELD_KEY: 0
-        }), ignore_index=True)
+        })], ignore_index=True)
         return PDPipelineData(data,
                               cluster_categories.trange()[cluster_categories.trange() % self.output_tstep == 0])
 
