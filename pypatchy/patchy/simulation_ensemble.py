@@ -6,21 +6,17 @@ import multiprocessing
 import os
 import itertools
 import pickle
-import sys
 import tempfile
 import time
 from json import JSONDecodeError
 from pathlib import Path
 from typing import Any, Union
 
-import networkx as nx
 import numpy as np
 import pandas as pd
 import subprocess
 import re
 import logging
-
-from matplotlib import pyplot as plt
 
 # import oat stuff
 from oxDNA_analysis_tools.UTILS.oxview import from_path
@@ -34,15 +30,15 @@ from ..analpipe.analysis_data import PDPipelineData, TIMEPOINT_KEY
 from ..analpipe.analysis_pipeline_step import AnalysisPipelineStep, PipelineData, AggregateAnalysisPipelineStep, \
     AnalysisPipelineHead, PipelineStepDescriptor, PipelineDataType
 from .patchy_sim_observable import PatchySimObservable, observable_from_file
-from ..patchy_base_particle import BaseParticleSet
+from ..patchy_base_particle import BaseParticleSet, Scene
 from ..patchyio import NUM_TEETH_KEY, get_writer, BasePatchyWriter, DENTAL_RADIUS_KEY
 from ..slurm_log_entry import SlurmLogEntry
 from ..slurmlog import SlurmLog
-from ..util import get_param_set, simulation_run_dir, get_server_config, get_log_dir, get_input_dir, \
-    get_babysitter_refresh, is_slurm_job, PATCHY_FILE_FORMAT_KEY, is_server_slurm, SLURM_JOB_CACHE
+from ..util import get_param_set, simulation_run_dir, get_server_config, get_log_dir, get_input_dir, is_slurm_job,\
+    is_server_slurm, SLURM_JOB_CACHE, append_to_file_name
 from .ensemble_parameter import EnsembleParameter, ParameterValue
 from .simulation_specification import PatchySimulation, ParamSet
-from .plpatchy import export_interaction_matrix, PLPSimulation
+from .plpatchy import PLPSimulation
 from .patchy_scripts import to_PL
 from ..polycubeutil.polycubesRule import PolycubesRule
 
@@ -310,7 +306,6 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
     else:
         raise Exception("Missing particle info!")
 
-
     ensemble = PatchySimulationEnsemble(
         export_name,
         setup_date,
@@ -410,7 +405,7 @@ class PatchySimulationEnsemble:
 
         file_handler = logging.FileHandler(
             get_log_dir() / f"log_{self.export_name}_{self.datestr()}_{str(datetime.datetime.now())}.log", mode="a")
-        file_handler.setLevel(logging.DEBUG)
+        file_handler.setLevel(logging.INFO)
         file_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
         file_handler.setFormatter(file_formatter)
         logger.addHandler(file_handler)
@@ -753,6 +748,8 @@ class PatchySimulationEnsemble:
         has a specific value for this simulation, then in the ensemble const params,
         then the default parameter set
         """
+        if paramname == "particle_types":
+            return self.particle_set
         if paramname in sim:
             return sim[paramname]
         # use const_params
@@ -765,6 +762,9 @@ class PatchySimulationEnsemble:
         for paramgroup in self.default_param_set["input"].values():
             if paramname in paramgroup:
                 return paramgroup[paramname]
+        # deeper
+        if paramname in get_server_config()["input_file_params"]:
+            return get_server_config()["input_file_params"][paramname]
         raise Exception(f"Parameter {paramname} not found ANYWHERE!!!")
 
     def paramfile(self, sim: PatchySimulation, paramname: str) -> Path:
@@ -772,6 +772,9 @@ class PatchySimulationEnsemble:
         Shorthand to get a simulation data file
         """
         return self.folder_path(sim) / self.sim_get_param(sim, paramname)
+
+    def paramstagefile(self, sim: PatchySimulation, stage: Stage, paramname: str):
+        return self.folder_path(sim) / stage.adjfn(self.sim_get_param(sim, paramname))
 
     def get_input_file_param(self, paramname: str):
         """
@@ -785,64 +788,92 @@ class PatchySimulationEnsemble:
                 return paramgroup[paramname]
         raise Exception(f"Parameter {paramname} not found!")
 
-    def get_sim_particle_count(self, sim: PatchySimulation,
-                               particle_idx: int) -> int:
-        """
-        Args:
-            sim: the patchy simulation to count for
-            particle_idx: the index of the particle to get the count for
-        Returns:
-            the int
-        """
-        # grab particle name
-        particle_name = self.particle_set.particle(particle_idx).name()
+    # def get_sim_particle_count(self, sim: PatchySimulation,
+    #                            particle_idx: int) -> int:
+    #     """
+    #     Args:
+    #         sim: the patchy simulation to count for
+    #         particle_idx: the index of the particle to get the count for
+    #     Returns:
+    #         the int
+    #     """
+    #     # grab particle name
+    #     particle_name = self.particle_set.particle(particle_idx).name()
         # if PARTICLE_TYPE_LVLS_KEY in self.const_params and particle_name in self.const_params[PARTICLE_TYPE_LVLS_KEY]:
         #     particle_lvl = self.const_params[PARTICLE_TYPE_LVLS_KEY][particle_name]
         # if PARTICLE_TYPE_LVLS_KEY in sim:
         #     spec = self.sim_get_param(sim, PARTICLE_TYPE_LVLS_KEY)
         #     if particle_name in spec:
         #         particle_lvl = spec[particle_name]
-        return self.sim_get_param(sim, particle_name) * self.sim_get_param(sim, NUM_ASSEMBLIES_KEY)
+    #     # return self.sim_get_param(sim, particle_name) * self.sim_get_param(sim, NUM_ASSEMBLIES_KEY)
+    #
+    # def get_sim_particle_counts(self, sim: PatchySimulation):
+    #     """
+    #     Returns: the number of particles in the simulation
+    #     """
+    #     return {
+    #         p.type_id(): self.get_sim_particle_count(sim, p.type_id()) for p in self.particle_set.particles()
+    #     }
+    #
+    # def get_sim_total_num_particles(self, sim: PatchySimulation) -> int:
+    #     return sum([self.get_sim_particle_count(sim, i) for i in range(self.num_particle_types())])
 
-    def get_sim_particle_counts(self, sim: PatchySimulation):
-        """
-        Returns: the number of particles in the simulation
-        """
-        return {
-            p.type_id(): self.get_sim_particle_count(sim, p.type_id()) for p in self.particle_set.particles()
-        }
-
-    def get_sim_total_num_particles(self, sim: PatchySimulation) -> int:
-        return sum([self.get_sim_particle_count(sim, i) for i in range(self.num_particle_types())])
-
-    def get_sim_stages(self, sim: PatchySimulation) -> list[Stage]:
+    def sim_get_stages(self, sim: PatchySimulation) -> list[Stage]:
         """
         Computes stages
+        Stage objects require other ensemble parameters so must be constructed as needed and not on init
+
         """
         stages_info = self.sim_get_param(sim, "stages")
+        # incredibly cursed line of code incoming
+        stages_info = [{"idx": i, "name": k, **v} for i, (k,v) in enumerate(sorted(stages_info.items(), key=lambda x: x[1]["t"]))]
         num_assemblies = self.sim_get_param(sim, "num_assemblies")
-        stages = [
-            Stage(i,
-                  t=stage["time"],
-                  # TODO: break down this line of code
-                  particles=list(itertools.chain.from_iterable([[self.particle_set.particle(pname)] * (stage["particles"][pname] * num_assemblies)
-                                                                for pname in stage["particles"]])),
-                  ) for i, stage in enumerate(stages_info)
-        ]
+        stages = []
+        # loop stages in stage list from spec
+        for stage_info in stages_info:
+            # get stage idx
+            i = stage_info["idx"]
+            # get list of names of particles to add
+            stage_particles = list(itertools.chain.from_iterable([
+                [pname] * (stage_info["particles"][pname] * num_assemblies)
+                for pname in stage_info["particles"]]))
+            stage_init_args = {
+                "t": stage_info["t"],
+                "particles": stage_particles,
+            }
+            if "length" not in stage_info and "tlen" not in stage_info:
+                if i + 1 != len(stages_info):
+                    # if stage is not final stage, last step of this stage will be first step of next stage
+                    stage_init_args["tend"] = stages_info[i+1]["t"]
+                else:
+                    # if the stage is the final stage, last step will be end of simulation
+                    stage_init_args["tend"] = self.sim_get_param(sim, "steps")
+            elif "length" in stage_info:
+                stage_init_args["tlen"] = stage_info["length"]
+            else:
+                stage_init_args["tlen"] = stage_info["tlen"]
+            # construct stage objects
+            stages.append(Stage(i,
+                                stage_info["name"],
+                                **stage_init_args
+                                ))
         # assign box sizes
-        for stage, stage_info in zip(stages, stages_info):
+        for stage in stages:
+            stage_info = stages_info[stage.idx()]
             # if box size is specified explicitly
             if "box_size" in stage_info:
                 stage.set_box_size(stage_info["box_size"])
             # if box size is specified relative to number of particles
             else:
-                num_particles = len(stage.particles_to_add())
                 # if we are to use all particles (not changing volume)
-                if "calc_fwd" in stage_info and stage_info["calc_fwd"]:
+                # default to no calc fwd
+                if "calc_fwd" not in stage_info or stage_info["calc_fwd"]:
                     # make sure there are stages after this one
-                    if stage.idx() + 1 != len(stages):
-                        # sum of particles to add in future stages
-                        num_particles += sum([len(s.particles_to_add()) for s in stages[stage.idx()+1:]])
+                    num_particles = sum([len(s.particles_to_add()) for s in stages])
+                else:
+                    # only consider particles in past stages (incl. this one)
+                    num_particles = sum([len(s.particles_to_add()) for s in stages[:stage.idx()]])
+
                 # do NOT incorporate num assemblies - already did above!
 
                 if "rel_volume" in stage_info:
@@ -855,12 +886,79 @@ class PatchySimulationEnsemble:
                     density = stage_info["density"]
                     box_side = (num_particles / density) ** .3
 
+                else:
+                    density = self.sim_get_param(sim, "density")
+                    box_side = (num_particles / density) ** (1/3)
+
                 stage.set_box_size(np.array((box_side, box_side, box_side)))
 
             if stage.idx() > 0:
-                assert (stages[stage.idx()-1].box_size() <= stage.box_size()).all(), "Shrinking box size not allowed!"
+                assert (stages[stage.idx() - 1].box_size() <= stage.box_size()).all(), "Shrinking box size not allowed!"
 
         return stages
+
+    def sim_get_stage(self, sim: PatchySimulation, stage_name: Union[str, int]) -> Stage:
+        stages = self.sim_get_stages(sim)
+        if isinstance(stage_name, int):
+            return stages[stage_name]
+        # inefficient search algorithm but len(stages) should never be more than like 10 tops
+        for stage in stages:
+            if stage.name() == stage_name:
+                return stage
+        raise Exception(f"No stage named {stage_name}!")
+
+    def sim_get_stage_top_traj(self, sim: PatchySimulation, stage: Union[str, int, Stage]) -> tuple[Path, Path]:
+        """
+        Returns:
+            the traj and top FILES for provided simulation and stage
+        """
+        if not isinstance(stage, Stage):
+            stage = self.sim_get_stage(sim, stage)
+        return (
+           self.folder_path(sim) / stage.adjfn(self.sim_get_param(sim, "topology")),
+           self.folder_path(sim) / stage.adjfn(self.sim_get_param(sim, "trajectory_file"))
+        )
+
+    def sim_get_stage_last_step(self, sim: PatchySimulation, stage: Union[str, int, Stage]) -> int:
+        _, traj = self.sim_get_stage_top_traj(sim, stage)
+        if not traj.is_file():
+            self.get_logger().info(f"Warning! Trying to get last step for sim {repr(sim)} without traj file!")
+            return -1
+        else:
+            # return timepoint of last conf in traj
+            return file_info([str(traj)])["t_end"][0]
+
+    def sim_most_recent_stage(self, sim: PatchySimulation) -> Union[tuple[Stage, bool], None]:
+        """
+        Returns:
+            a tuple where the first element is the most recent stage file with a trajectory
+            and the second element is true if the last conf in the traj is at the last timepoint of the stage
+            or none if no stage has begun
+        """
+        # increment in  reverse order so we check later stages first
+        for stage in reversed(self.sim_get_stages(sim)):
+            # if traj file exists
+            if (self.folder_path(sim) / stage.adjfn(self.sim_get_param(sim, "trajectory_file"))).exists():
+                return (
+                    stage, self.sim_get_stage_last_step(sim, stage) == stage.end_time()
+                )
+        # if no stage has a traj file
+        return None
+
+    def sim_num_stages(self, sim: PatchySimulation) -> int:
+        return len(self.sim_get_stages(sim))
+
+    def sim_stage_done(self, sim: PatchySimulation, stage: Stage) -> bool:
+        """
+        similar to get_last_step but returns a boolean: true if stage traj exists and is correct length, false otherwise
+        """
+        _, traj = self.sim_get_stage_top_traj(sim, stage)
+        if not traj.is_file():
+            return False
+        else:
+            # return timepoint of last conf in traj
+            return file_info([str(traj)])["t_end"][0] == stage.end_time()
+
 
     def num_patch_types(self, sim: PatchySimulation) -> int:
         """
@@ -904,6 +1002,18 @@ class PatchySimulationEnsemble:
         """
         return self.analysis_pipeline.get_pipeline_step(step)
 
+    def link_analysis_pipeline(self, other: PatchySimulationEnsemble):
+        """
+        links this ensembles's analysis pipeline to another ensemble
+        """
+        if len(self.analysis_pipeline) == 0:
+            self.get_logger().warning("Error: should not link from existing analysis pipeline! "
+                                                 "Use `clear_analysis_pipeline() to clear pipeline and try again.")
+            return
+        self.analysis_pipeline = other.analysis_pipeline
+        self.analysis_file = other.analysis_file
+        self.dump_metadata()
+
     def time_length(self,
                     sim: Union[PatchySimDescriptor,
                                list[PatchySimDescriptor],
@@ -915,41 +1025,13 @@ class PatchySimulationEnsemble:
 
         if sim is None:
             return self.time_length(self.ensemble())
-        elif isinstance(sim, PatchySimulation):
-            # backwards-compatibility with simulations run before current logging system
-            if len(self.slurm_log.by_type("oxdna")) > 0:
-                # get the last continue log step before this
-                counter = self.get_last_continue_step(sim)
-                previous_step_records = self.slurm_log.by_subject(sim).by_type(["oxdna_continue", "oxdna"])
-                if counter > 0:
-                    last_step_end = previous_step_records.by_other("continue_count", counter)
-                    assert len(last_step_end) == 1
-                    last_step_end = last_step_end[0]
-                else:
-                    assert len(
-                        previous_step_records) >= 1, f"Missing any oxdna simulation records for simulation {str(sim)}"
-                    last_step_end = previous_step_records[0]
-                elapsed_steps = last_step_end.additional_metadata[
-                    "starting_step_count"] if "starting_step_count" in last_step_end.additional_metadata else 0
-                # assert "starting_step_count" in last_step_end.additional_metadata
-            else:
-                counter = 0
-            if counter == 0:
-                traj_file = self.paramfile(sim, "trajectory_file")
-            else:
-                traj_file_name = self.sim_get_param(sim, 'trajectory_file')
-                traj_file_name = traj_file_name[:traj_file_name.rfind(".")] + \
-                                 f"_{counter}" + traj_file_name[traj_file_name.rfind("."):]
-                traj_file = self.folder_path(sim) / traj_file_name
-            if counter == 0:
-                elapsed_steps = 0
-
-            return elapsed_steps + file_info([str(traj_file)])["t_end"][0]
-        elif isinstance(sim, tuple):
-            return self.time_length(self.get_simulation(*sim))
-        else:
-            assert isinstance(sim, list)
+        elif isinstance(sim, list):
             return min([self.time_length(s) for s in sim])
+        else:
+            stage, is_complete = self.sim_most_recent_stage(sim)
+            if not is_complete:
+                raise Exception(f"Stage {stage.name()} for simulation {repr(sim)}")
+            return self.sim_get_stage_last_step(sim, stage)
 
     # ------------------------ Status-Type Stuff --------------------------------#
     def info(self, infokey: str = "all"):
@@ -998,29 +1080,29 @@ class PatchySimulationEnsemble:
     def show_analysis_pipeline(self):
         return self.analysis_pipeline.draw_pipeline()
 
-    def babysit(self):
-        """
-        intermittantly checks whether any simulations have been stopped by the slurm
-        controller before completion
-        if it finds any, it starts the simulation again
-        """
-        finished = False
-        # loop until all simulations are complete
-        while not finished:
-            # sleep until refresh
-            time.sleep(get_babysitter_refresh())
-            # find stopped simulations
-            to_reup = self.get_stopped_sims()
-            self.get_logger().info(f"Found {len(to_reup)} stopped simulations.")
-            if len(to_reup) == 0:
-                self.get_logger().info("All simulations complete. Babysitter exiting.")
-                finished = True
-            else:
-                for sim in to_reup:
-                    self.get_logger().info(f"Re-upping simulation {str(sim)}")
-                    self.write_continue_files(sim)
-                    self.exec_continue(sim)
-            self.dump_metadata()
+    # def babysit(self):
+    #     """
+    #     intermittantly checks whether any simulations have been stopped by the slurm
+    #     controller before completion
+    #     if it finds any, it starts the simulation again
+    #     """
+    #     finished = False
+    #     # loop until all simulations are complete
+    #     while not finished:
+    #         # sleep until refresh
+    #         time.sleep(get_babysitter_refresh())
+    #         # find stopped simulations
+    #         to_reup = self.get_stopped_sims()
+    #         self.get_logger().info(f"Found {len(to_reup)} stopped simulations.")
+    #         if len(to_reup) == 0:
+    #             self.get_logger().info("All simulations complete. Babysitter exiting.")
+    #             finished = True
+    #         else:
+    #             for sim in to_reup:
+    #                 self.get_logger().info(f"Re-upping simulation {str(sim)}")
+    #                 self.write_continue_files(sim)
+    #                 self.exec_continue(sim)
+    #         self.dump_metadata()
 
     def show_last_conf(self, sim: Union[PatchySimulation, None] = None, **kwargs):
         """
@@ -1030,10 +1112,23 @@ class PatchySimulationEnsemble:
             self.sim_get_param(self.get_simulation(**kwargs))
         else:
             assert sim is not None, "No simulation provided!"
-            from_path(self.paramfile(sim, "lastconf_file"),
-                      self.paramfile(sim, "topology"),
-                      self.folder_path(sim) / "particles.txt",
-                      self.folder_path(sim) / "patches.txt")
+            self.show_conf(sim, self.time_length(sim))
+            # from_path(self.paramfile(sim, "lastconf_file"),
+            #           self.paramfile(sim, "topology"),
+            #           self.folder_path(sim) / "particles.txt",
+            #           self.folder_path(sim) / "patches.txt")
+
+    def get_scene(self, sim: PatchySimulation, stage: Union[Stage, str]):
+        if isinstance(stage, str):
+            stage = self.sim_get_stage(sim, stage)
+
+        top_file, traj_file = self.sim_get_stage_top_traj(sim, stage)
+        return self.writer.read_scene(top_file,
+                                      traj_file,
+                                      to_PL(self.particle_set,
+                                            self.sim_get_param(sim, NUM_TEETH_KEY),
+                                            self.sim_get_param(sim, DENTAL_RADIUS_KEY)))
+        # scene: PLPSimulation()
 
     def get_conf(self, sim: PatchySimulation, timepoint: int) -> Configuration:
         """
@@ -1046,13 +1141,12 @@ class PatchySimulationEnsemble:
             # this means that we're dealing with tidxs not step numbers
             return self.get_conf(sim, int(timepoint / self.sim_get_param(sim, "print_conf_interval")))
         else:
+            stage = self.sim_get_timepoint_stage(sim, timepoint)
             # it's possible there's a better way to do this
-            # create temporary conf file
-            traj_file = self.sim_get_param(sim, "trajectory_file")
-            top_info, traj_info = describe(
-                str(self.paramfile(sim, "topology")),
-                str(self.paramfile(sim, "trajectory_file"))
-            )
+            top_file, traj_file = self.sim_get_stage_top_traj(sim, stage)
+
+            top_info, traj_info = describe(str(top_file), str(traj_file))
+            # read only the conf we're looking for
             conf = get_confs(
                 traj_info=traj_info,
                 top_info=top_info,
@@ -1110,9 +1204,9 @@ class PatchySimulationEnsemble:
         else:
             if conf_file_name is None:
                 conf_file_name = self.sim_get_param(simulation_selector, "trajectory_file")
-            self.write_input_file(simulation_selector,
+            self.write_setup_files(simulation_selector,
                                   "input_dna_analysis",
-                                  {
+                                   {
                                       "conf_file": conf_file_name
                                   }, analysis=True)
             server_config = get_server_config()
@@ -1138,38 +1232,42 @@ class PatchySimulationEnsemble:
         else:
             return ~self.analysis_status().loc[~self.analysis_status()[step.name]]
 
-    def merge_topologies(self,
-                         sim_selector: Union[None, PatchySimulation, list[PatchySimulation]] = None,
-                         topologies: Union[list[int], None] = None,
-                         out_file_name: Union[str, None] = None):
-        """
-        Merges some topology files
-        """
-        if sim_selector is None:
-            sim_selector = self.ensemble()
-        if isinstance(sim_selector, list):
-            for sim in sim_selector:
-                self.merge_topologies(sim, topologies, out_file_name)
-        else:
-            # if no topology file specified
-            if topologies is None:
-                topologies = [f for f in self.folder_path(sim_selector).iterdir() if
-                              re.match(r"trajectory_\d+\.dat", f.name)]
-                topologies = sorted(topologies,
-                                    key=lambda f: int(re.search(r'trajectory_(\d+)\.dat', f.param_name).group(1)))
-            if out_file_name is None:
-                out_file_name = self.folder_path(sim_selector) / "full_trajectory.dat"
-
-            #
-            self.bash_exec(f"cat {' '.join(map(str, topologies))} > {str(out_file_name)}")
+    # def merge_topologies(self,
+    #                      sim_selector: Union[None, PatchySimulation, list[PatchySimulation]] = None,
+    #                      topologies: Union[list[int], None] = None,
+    #                      out_file_name: Union[str, None] = None):
+    #     """
+    #     Merges some topology files
+    #     """
+    #     if sim_selector is None:
+    #         sim_selector = self.ensemble()
+    #     if isinstance(sim_selector, list):
+    #         for sim in sim_selector:
+    #             self.merge_topologies(sim, topologies, out_file_name)
+    #     else:
+    #         # if no topology file specified
+    #         if topologies is None:
+    #             topologies = [f for f in self.folder_path(sim_selector).iterdir() if
+    #                           re.match(r"trajectory_\d+\.dat", f.name)]
+    #             topologies = sorted(topologies,
+    #                                 key=lambda f: int(re.search(r'trajectory_(\d+)\.dat', f.param_name).group(1)))
+    #         if out_file_name is None:
+    #             out_file_name = self.folder_path(sim_selector) / "full_trajectory.dat"
+    #
+    #         #
+    #         self.bash_exec(f"cat {' '.join(map(str, topologies))} > {str(out_file_name)}")
 
     def list_folder_files(self, sim: PatchySimulation):
         print([p.name for p in self.folder_path(sim).iterdir()])
 
     # ----------------------- Setup Methods ----------------------------------- #
-    def do_setup(self):
+    def do_setup(self, sims: Union[list[PatchySimulation], None] = None, stage: Union[None, str, Stage]=None):
+        if sims is None:
+            sims = self.ensemble()
         self.get_logger().info("Setting up folder / file structure...")
-        for sim in self.ensemble():
+        for sim in sims:
+            assert self.sim_get_param(sim, "print_conf_interval") < self.sim_get_param(sim, "steps")
+
             self.get_logger().info(f"Setting up folder / file structure for {repr(sim)}...")
             # create nessecary folders
             if not os.path.isdir(self.folder_path(sim)):
@@ -1179,18 +1277,15 @@ class PatchySimulationEnsemble:
                 self.get_logger().info(f"Folder {self.folder_path(sim)} already exists. Continuing...")
 
             # write requisite top, patches, particles files
-            self.get_logger().info("Writing .top, .txt, etc. files...")
-            self.write_sim_top_particles_patches(sim)
-            # write input file
-            self.get_logger().info("Writing input files...")
-            self.write_input_file(sim)
+            self.get_logger().info("Writing .top, .txt, input, etc. files...")
+            self.write_setup_files(sim, stage)
             # write observables.json if applicble
             if EXTERNAL_OBSERVABLES:
                 self.get_logger().info("Writing observable json, as nessecary...")
                 self.write_sim_observables(sim)
             # write .sh script
             self.get_logger().info("Writing sbatch scripts...")
-            self.write_confgen_script(sim)
+            # self.write_confgen_script(sim)
             self.write_run_script(sim)
 
     def write_confgen_script(self, sim: PatchySimulation):
@@ -1201,10 +1296,27 @@ class PatchySimulationEnsemble:
         self.bash_exec(f"chmod u+x {self.get_run_confgen_sh(sim)}")
 
     def write_run_script(self, sim: PatchySimulation, input_file="input"):
+        # if no stage name provided use first stage
+        stage_status = self.sim_most_recent_stage(sim)
+        if stage_status is None:
+            stage = self.sim_get_stage(sim, 0)
+        else:
+            stage, isdone = stage_status
+            assert isdone
+            if stage.idx() + 1 < self.sim_num_stages(sim):
+                stage = self.sim_get_stage(sim, stage.idx() + 1)
+            else:
+                self.get_logger().info(f"Simulation {sim} has no more stages to execute!")
+                return -1
+        slurm_script_name = "slurm_script.sh"
+        slurm_script_name = stage.adjfn(slurm_script_name)
+
+        input_file = stage.adjfn(input_file)
+
         server_config = get_server_config()
 
         # write slurm script
-        with open(self.folder_path(sim) / "slurm_script.sh", "w+") as slurm_file:
+        with open(self.folder_path(sim) / slurm_script_name, "w+") as slurm_file:
             # bash header
 
             self.write_sbatch_params(sim, slurm_file)
@@ -1212,7 +1324,7 @@ class PatchySimulationEnsemble:
             # skip confGenerator call because we will invoke it directly later
             slurm_file.write(f"{server_config['oxdna_path']}/build/bin/oxDNA {input_file}\n")
 
-        self.bash_exec(f"chmod u+x {self.folder_path(sim)}/slurm_script.sh")
+        self.bash_exec(f"chmod u+x {self.folder_path(sim)}/{slurm_script_name}")
 
     def write_sbatch_params(self, sim: PatchySimulation, slurm_file):
         server_config = get_server_config()
@@ -1234,21 +1346,94 @@ class PatchySimulationEnsemble:
         for line in server_config["slurm_includes"]:
             slurm_file.write(line + "\n")
 
-    def write_input_file(self,
-                         sim: PatchySimulation,
-                         file_name: str = "input",
-                         replacer_dict: Union[dict, None] = None,
-                         extras: Union[dict, None] = None,
-                         analysis: bool = False):
+    def write_setup_files(self,
+                          sim: PatchySimulation,
+                          stage: Union[str, Stage, None] = None,
+                          replacer_dict: Union[dict, None] = None,
+                          extras: Union[dict, None] = None,
+                          analysis: bool = False):
         """
-        Writes an input file
+        Writes any/all nessecary files
         """
+
+        if stage is None:
+            # get most recent stage
+            stage = self.sim_most_recent_stage(sim)
+            # if no stage exists
+            if stage is None:
+                # stage 0
+                stage = self.sim_get_stages(sim)[0]
+            else:
+                # find next stage and if it's one
+                stage, done = stage
+                if not done:
+                    # if mid-stage
+                    self.get_logger().error(f"{stage.name()} incomplete!")
+                    return
+                stages = self.sim_get_stages(sim)
+                if stage.idx() + 1 != len(stages):
+                    stage = stages[stage.idx() + 1]
+                else:
+                    self.get_logger().info(f"Final stage {stage.name()} is already complete!")
+        elif isinstance(stage, str):
+            stage = self.sim_get_stage(sim, stage)
+
+        if extras is None:
+            extras = {}
+        # set writer directory to simulation folder path
+        self.writer.set_write_directory(self.folder_path(sim))
+
+        # get server config
         if replacer_dict is None:
             replacer_dict = {}
         server_config = get_server_config()
 
+
+        # if this is the first conf
+        if stage.idx() == 0:
+            assert stage.start_time() == 0, "This method should not be invoked for stages other than the first!"
+
+            # generate conf
+            scene = PLPSimulation()
+            particle_set = to_PL(self.particle_set,
+                                 self.sim_get_param(sim, NUM_TEETH_KEY),
+                                 self.sim_get_param(sim, DENTAL_RADIUS_KEY))
+            # patches will be added automatically
+            scene.set_particle_types(particle_set)
+
+        else:
+            last_complete_stage, isdone = self.sim_most_recent_stage(sim)
+            assert isdone
+            scene = self.get_scene(sim, last_complete_stage)
+
+        stage.apply(scene)
+
+        # grab args required by writer
+        reqd_extra_args = {
+            a: self.sim_get_param(sim, a) for a in self.writer.reqd_args()
+        }
+        assert "conf_file" in reqd_extra_args
+        # update file names
+        # if applciable, particles.txt and patches.txt should not change!
+        # if stage.idx() > 0:
+        #     reqd_extra_args["conf_file"] = append_to_file_name(reqd_extra_args["conf_file"], stage.name())
+        #     reqd_extra_args["topology"] = append_to_file_name(reqd_extra_args["topology"], stage.name())
+
+        # write top, conf, and others
+        files = self.writer.write(scene,
+                                  stage,
+                                  **reqd_extra_args)
+
+        # update top and dat files in replacer dict
+        replacer_dict.update(files)
+        replacer_dict["steps"] = stage.end_time()
+        replacer_dict["trajectory_file"] = stage.adjfn(self.sim_get_param(sim, "trajectory_file"))
+        extras.update(self.writer.get_input_file_data(scene, **reqd_extra_args))
+
+        input_file_name = stage.adjfn("input")
+
         # create input file
-        with open(self.folder_path(sim) / file_name, 'w+') as inputfile:
+        with open(self.folder_path(sim) / input_file_name, 'w+') as inputfile:
             # write server config spec
             inputfile.write("#" * 32 + "\n")
             inputfile.write(" SERVER PARAMETERS ".center(32, '#') + "\n")
@@ -1282,19 +1467,18 @@ class PatchySimulationEnsemble:
                         val = self.sim_get_param(sim, paramname)
                     inputfile.write(f"{paramname} = {val}\n")
             # write extras
-            if extras is not None:
-                for key, val in extras.items():
-                    if key in replacer_dict:
-                        val = replacer_dict[key]
-                    inputfile.write(f"{key} = {val}\n")
-
-            writerargs = self.writer.get_input_file_data(self.particle_set, {
-                p.type_id(): self.get_sim_particle_count(sim, p.type_id()) for p in self.particle_set.particles()
-            }, **{
-                a: self.sim_get_param(sim, a) for a in self.writer.reqd_args()
-            })
-            for key, val in writerargs:
+            for key, val in extras.items():
+                if key in replacer_dict:
+                    val = replacer_dict[key]
                 inputfile.write(f"{key} = {val}\n")
+
+            # writerargs = self.writer.get_input_file_data(self.particle_set, {
+            #     p.type_id(): self.get_sim_particle_count(sim, p.type_id()) for p in self.particle_set.particles()
+            # }, **{
+            #     a: self.sim_get_param(sim, a) for a in self.writer.reqd_args()
+            # })
+            # for key, val in writerargs:
+            #     inputfile.write(f"{key} = {val}\n")
 
             # deprecated in favor of patchyio
             # # if josh_flavio or josh_lorenzo
@@ -1332,38 +1516,19 @@ class PatchySimulationEnsemble:
                 else:
                     for i, obsrv in enumerate(self.observables.values()):
                         obsrv.write_input(inputfile, i, analysis)
-
-    def write_sim_top_particles_patches(self, sim: PatchySimulation):
-        """
-        Writes the topology file (.top) and the files speficying particle
-        and patch behavior for a simulation in the ensemble
-        This method was written to be called from `do_setup()` and it is not
-        recommended to be used in other contexts
-        """
-
-        stage = self.get_sim_stages(sim)[0]
-        assert stage.idx() == 0
-        assert stage.get_time() == 0
-        self.writer.set_write_directory(self.folder_path(sim))
-
-        # oh hey it's the worst line of code I've ever seen
-        files = self.writer.write(self.particle_set,
-                                  self.get_sim_particle_counts(sim),
-                                  **{
-                                      a: self.sim_get_param(sim, a) for a in self.writer.reqd_args()
-                                  })
-
-        # generate conf
-        scene = PLPSimulation()
-        particle_set = BaseParticleSet()
-        particles, patches = to_PL(self.particle_set,
-                                   self.sim_get_param(sim, NUM_TEETH_KEY),
-                                   self.sim_get_param(sim, DENTAL_RADIUS_KEY))
-        particle_set.add_particles(particles)
-        # patches will be added automatically
-        scene.set_particle_types(particle_set)
-
-        stage.apply(scene)
+        # return {
+        #     "input": input_file_name,
+        #     **files
+        # }
+    #
+    # def write_sim_top_particles_patches(self, sim: PatchySimulation):
+    #     """
+    #     Writes the topology file (.top) and the files speficying particle
+    #     and patch behavior for a simulation in the ensemble
+    #     This method was written to be called from `do_setup()` and it is not
+    #     recommended to be used in other contexts
+    #     """
+    #
 
 
         # deleted in favor of patchy io
@@ -1435,86 +1600,11 @@ class PatchySimulationEnsemble:
             with open(self.folder_path(sim) / "observables.json", "w+") as f:
                 json.dump({f"data_output_{i + 1}": obs.to_dict() for i, obs in enumerate(self.observables.values())}, f)
 
-    def get_last_continue_step(self, sim: PatchySimulation) -> int:
-        """
-        Returns the number of times this simulation has been "continued" after the slurm
-        controller timed it out
-        """
-        entries = self.slurm_log.by_subject(sim)
-        continue_entries = entries.by_type("oxdna_continue")
-        if len(continue_entries) > 0:
-            # return counter for most recent continue step
-            return continue_entries[-1].additional_metadata["continue_count"]
-        else:
-            return 0
-
-    def write_continue_files(self,
-                             sim: Union[None, PatchySimulation] = None):
-        """
-        writes input file and shell script to continue running the simulation after
-        completion of first oxDNA execution
-        """
-        # continues start at 2; interpret anything lower as "figure it out"
-
-        if sim is None:
-            for sim in self.ensemble():
-                self.write_continue_files(sim)
-        else:
-            counter = self.get_last_continue_step(sim)
-            previous_step_records = self.slurm_log.by_subject(sim).by_type(["oxdna_continue", "oxdna"])
-            if counter > 0:
-                last_step_end = previous_step_records.by_other("continue_count", counter)
-                assert len(last_step_end) == 1
-                last_step_end = last_step_end[0]
-            else:
-                assert len(previous_step_records) == 1
-                last_step_end = previous_step_records[0]
-            elapsed_steps = self.time_length(sim)
-            assert "starting_step_count" in last_step_end.additional_metadata
-
-            # construct an input file for the continuation execution
-            # using previous conf as starting conf, adding new traj, writing new last_conf
-            traj_file_name = self.sim_get_param(sim, 'trajectory_file')
-            traj_file_name = traj_file_name[:traj_file_name.rfind(".")] + f"_{counter}" + traj_file_name[
-                                                                                          traj_file_name.rfind("."):]
-            prev_conf_file_name = self.sim_get_param(sim, "lastconf_file")
-            if counter != 0:
-                prev_conf_file_name = prev_conf_file_name[
-                                      :prev_conf_file_name.rfind(".")] + f"_{counter}" + prev_conf_file_name[
-                                                                                         prev_conf_file_name.rfind(
-                                                                                             "."):]
-            end_conf_file_name = self.sim_get_param(sim, "lastconf_file")
-            end_conf_file_name = end_conf_file_name[
-                                 :end_conf_file_name.rfind(".")] + f"_{counter + 1}" + end_conf_file_name[
-                                                                                       end_conf_file_name.rfind("."):]
-            self.write_input_file(sim,
-                                  file_name=f"input_{counter + 1}",
-                                  replacer_dict={
-                                      "trajectory_file": traj_file_name,
-                                      "conf_file": prev_conf_file_name,
-                                      "lastconf_file": end_conf_file_name,
-                                      "steps": self.sim_get_param(sim, "steps") - elapsed_steps
-                                  })
-            # overwrite run script
-            self.write_run_script(sim, input_file=f"input_{counter}")
-
-    def exec_continue(self, sim: PatchySimulation):
-        counter = self.get_last_continue_step(sim)
-
-        if not (self.folder_path(sim) / f"input_{counter}").exists():
-            # write new input file, update .sh file
-            self.write_continue_files(sim)
-        # start the simulation
-        jobid = self.start_simulation(sim, job_type="oxdna_continue")
-        self.slurm_log.by_id(jobid).additional_metadata["continue_count"] = counter
-        self.dump_metadata()
-
-    def exec_all_continue(self, counter: int = 2):
-        for sim in self.ensemble():
-            self.exec_continue(sim, counter)
-        # exec_continue dumps metadata
 
     def gen_confs(self):
+        """
+        DEPRECATED
+        """
         for sim in self.ensemble():
             self.gen_conf(sim)
         # run_confgen does NOT dump metadata
@@ -1536,22 +1626,77 @@ class PatchySimulationEnsemble:
         with open(get_input_dir() / self.analysis_file, "wb") as f:
             pickle.dump(self.analysis_pipeline, f)
 
-    def start_simulations(self, e: Union[None, list[PatchySimulation]] = None):
+    def continue_simulation(self, sims: Union[list[PatchySimulation], PatchySimulation, None]):
+        if sims is None:
+            self.continue_simulation(sims)
+        elif isinstance(sims, list):
+            for sim in sims:
+                self.continue_simulation(sim)
+        else:
+            pass
+
+    def start_simulations(self, e: Union[None, list[PatchySimulation]] = None, stage: Union[str, None] = None):
         """
         Starts all simulations
         """
         if e is None:
             e = self.ensemble()
         for sim in e:
-            self.start_simulation(sim)
+            self.start_simulation(sim, stage_name=stage)
         self.dump_metadata()
+
+    def ok_to_run(self, sim: PatchySimulation, stage: Stage) -> bool:
+        most_recent_stage = self.sim_most_recent_stage(sim)
+        if most_recent_stage is not None:
+            most_recent_stage, stage_complete = most_recent_stage
+            if most_recent_stage.idx() >= stage.idx():
+                self.get_logger().warning(
+                    f"Already passed stage {stage.name()} for sim {repr(sim)}! Aborting")
+                return False
+            elif stage.idx() - most_recent_stage.idx() > 1:
+                self.get_logger().warning(
+                    f"Cannot exec stage {stage.name()} for sim {repr(sim)} when most recent stage is {most_recent_stage.name()}! Aborting")
+                return False
+            else:
+                assert stage.idx() - most_recent_stage.idx() == 1
+                if not stage_complete:
+                    self.get_logger().warning(f"Cannot execute stage {stage.name()} for sim {repr(sim)} when stage {most_recent_stage.name()} is incomplete! aborting!")
+        if stage.idx() > 0 and not stage.name().startswith("continue"):
+            # if not first stage
+            if not self.sim_stage_done(sim, self.sim_get_stage(sim, stage.idx() - 1)):
+                # if previous stage is incomplete
+                self.get_logger().warning(f"Stage {stage.name()} for sim {repr(sim)} "
+                                          f"cannot execute because stage "
+                                          f"{self.sim_get_stage(sim, stage.idx() - 1).name()} "
+                                          f"is incomplete")
+                return False
+
+        if is_server_slurm():
+            most_recent_stage, done = self.sim_most_recent_stage(sim)
+            if most_recent_stage.idx() > stage.idx():
+                self.get_logger().warning(f"Already passed stage {stage.name()} for sim {repr(sim)}! Aborting")
+                return False
+            # include some extra checks to make sure we're not making a horrible mistake
+            if not self.slurm_log.by_subject(sim).by_type("oxdna").by_other("stage", stage.name()).empty():
+                # if slurm log shows a job with this sim, job type, and stage already exists
+                jid = self.slurm_log.by_subject(sim).by_type("oxdna").by_other("stage", stage.name())[
+                    0].job_id
+                job_info = self.slurm_job_info(jid)
+                if job_info is not None and job_info["JobState"] == "RUNNING":
+                    # if job is currently running
+                    logging.warning(
+                        f"Already running job for sim {repr(sim)}, stage {stage.name()} (jobid={jid}! Skipping...")
+                    return False
+        return True
 
     def start_simulation(self,
                          sim: PatchySimulation,
                          script_name: str = "slurm_script.sh",
-                         job_type="oxdna",
+                         stage_name: Union[None, str] = None,
+                         is_analysis: bool = False,
+                         force_ignore_ok_check=False,
                          retries=3,
-                         backoff_factor=2):
+                         backoff_factor=2) -> int:
         """
         Starts an oxDNA simulation. direct invocation is not suggested;
         use `start_simulations` instead
@@ -1560,12 +1705,43 @@ class PatchySimulationEnsemble:
              script_name : the name of the slurm script file
              job_type : the label of the job type, for logging purposes
         """
+
+        if stage_name is not None:
+            stage = self.sim_get_stage(sim, stage_name)
+        else:
+            # if no stage name provided use first stage
+            stage_status = self.sim_most_recent_stage(sim)
+            if stage_status is None:
+                stage = self.sim_get_stage(sim, 0)
+            else:
+                stage, isdone = stage_status
+                assert isdone
+                if stage.idx() + 1 < self.sim_num_stages(sim):
+                    stage = self.sim_get_stage(sim, stage.idx() + 1)
+                else:
+                    self.get_logger().info(f"Simulation {sim} has no more stages to execute!")
+                    return -1
+
+        if not force_ignore_ok_check and not self.ok_to_run(sim, stage):
+            self.get_logger().warning(f"Stage {stage.name()} not ok to run for sim {repr(sim)}")
+            return -1
+
+        # get slurm log jobname
+        if not is_analysis:
+            job_type_name = "oxdna"
+        else:
+            job_type_name = "analysis"
+        script_name = stage.adjfn(script_name)
+
         if is_server_slurm():
             command = f"sbatch --chdir={self.folder_path(sim)}"
+        # for non-slurm servers
         else:
             command = f"bash {script_name} > simulation.log"
 
-        if not os.path.isfile(self.get_conf_file(sim)):
+
+        # shouldn't be nessecary anymore but whatever
+        if not self.paramstagefile(sim, stage, "conf_file").exists():
             confgen_slurm_jobid = self.gen_conf(sim)
             if is_server_slurm():
                 command += f" --dependency=afterok:{confgen_slurm_jobid}"
@@ -1573,17 +1749,18 @@ class PatchySimulationEnsemble:
             command += f" {script_name}"
         submit_txt = ""
         for i in range(retries):
-            submit_txt = self.bash_exec(command, is_async=False, cwd=self.folder_path(sim))
+            submit_txt = self.bash_exec(command, is_async=not is_server_slurm(), cwd=self.folder_path(sim))
             if submit_txt:
                 break
             time.sleep(backoff_factor ** i)
-        if not submit_txt:
-            raise Exception(f"Submit slurm job failed for simulation {sim}")
 
         if is_server_slurm():
+            if not submit_txt:
+                raise Exception(f"Submit slurm job failed for simulation {sim}")
+
             jobid = int(re.search(SUBMIT_SLURM_PATTERN, submit_txt).group(1))
             self.append_slurm_log(SlurmLogEntry(
-                job_type=job_type,
+                job_type=job_type_name,
                 pid=jobid,
                 simulation=sim,
                 script_path=self.folder_path(sim) / script_name,
@@ -1915,6 +2092,12 @@ class PatchySimulationEnsemble:
         # universal_newlines=True)
         self.get_logger().debug(f"`{response.stdout}`")
         return response.stdout
+
+    def sim_get_timepoint_stage(self, sim: PatchySimulation, timepoint: int) -> Union[Stage, None]:
+        for stage in self.sim_get_stages(sim):
+            if stage.start_time() < timepoint < stage.end_time():
+                return stage
+        return None  # raise exception?
 
 
 def process_simulation_data(args):

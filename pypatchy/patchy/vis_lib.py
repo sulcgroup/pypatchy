@@ -70,11 +70,14 @@ def plot_analysis_data(e: PatchySimulationEnsemble,
         plt_args["style"] = stroke
 
     data_source = e.get_data(analysis_data_source, tuple(other_spec))
-    data = data_source.get().copy()
+    data: pd.DataFrame = data_source.get().copy()
     if len(data_source.trange()) == 1:
         raise Exception("Error: only one timepoint included in data range! Check your analysis pipeline tsteps and/or data completeness.")
     elif len(data_source.trange()) < 10:
         print(f"Warning: only {len(data_source.trange())} timepoints in data range! You can continue I guess but it's not GREAT.")
+    for col in data.index:
+        if col not in ["duplicate", TIMEPOINT_KEY, data_source_key] and col not in plt_args.values():
+            print(f"Warning: ensemble parameter {col} not accounted for in visualization! problems may arise!")
     if norm:
         def normalize_row(row):
             sim = row.drop([TIMEPOINT_KEY, data_source_key]).to_dict()

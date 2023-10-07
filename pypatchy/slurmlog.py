@@ -248,3 +248,6 @@ class SlurmLog:
 
     def __repr__(self):
         return "\n\n".join([str(entry) for entry in self])
+
+    def empty(self):
+        return len(self) == 0

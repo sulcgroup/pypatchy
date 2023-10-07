@@ -146,16 +146,25 @@ class BaseParticleSet:
     _particle_types: list
     _patch_types: list
 
-    def __init__(self):
-        self._particle_types = []
+    def __init__(self, particles: Union[list[PatchyBaseParticleType, None]] = None):
+        if particles is None:
+            self._particle_types = []
+        else:
+            self._particle_types = particles
         self._patch_types = []
 
     def particles(self):
         return self._particle_types
 
-    def particle(self, idx: int):
-        assert -1 < idx < self.num_particle_types()
-        return self._particle_types[idx]
+    def particle(self, idx: Union[int, str]):
+        if isinstance(idx, int):
+            assert -1 < idx < self.num_particle_types()
+            return self._particle_types[idx]
+        else:
+            for particle in self.particles():
+                if particle.name() == idx:
+                    return particle
+            raise Exception(f"No such particle {idx}")
 
     def num_particle_types(self):
         return len(self._particle_types)
@@ -215,6 +224,9 @@ class PatchyBaseParticle(ABC):
         """
         return self._type_id
 
+    def get_id(self) -> int:
+        return self._uid
+
     @abstractmethod
     def rotation(self) -> Any:
         """
@@ -249,6 +261,7 @@ class PatchyBaseParticle(ABC):
 
 class Scene(ABC):
     _particles: list[PatchyBaseParticle]
+
     def __init__(self):
         self._particles = []
 
@@ -261,20 +274,26 @@ class Scene(ABC):
     def num_particles(self) -> int:
         return len(self._particles)
 
+    def particle_type_counts(self) -> dict[int, int]:
+        counts = {p.type_id(): 0 for p in self.particle_types().particles()}
+        for particle in self.particles():
+            counts[particle.get_type()] += 1
+        return counts
+
     def add_particle(self, p: PatchyBaseParticle):
         self._particles.append(p)
-
-    @abstractmethod
-    def from_top_conf(self, top: TopInfo, conf: Configuration):
-        pass
-
-    @abstractmethod
-    def to_top_conf(self, top_path: Path, conf_path: Path) -> tuple[TopInfo, Configuration]:
-        pass
 
     def add_particles(self, particles: Iterable[PatchyBaseParticle]):
         self._particles.extend(particles)
 
     @abstractmethod
     def num_particle_types(self) -> int:
+        pass
+
+    @abstractmethod
+    def particle_types(self) -> BaseParticleSet:
+        pass
+
+    @abstractmethod
+    def get_conf(self) -> Configuration:
         pass
