@@ -274,4 +274,15 @@ def random_unit_vector():
 
     return np.array([x, y, z])
 
+def append_to_file_name(fn: str, extra: str) -> str:
+    """
+    appends an additonal string to a file name, before the extension
+    """
+    if fn.find(".") != -1:
+        fn_pre = fn[:fn.find(".")]
+        ext = fn[fn.find("."):]
+        return fn_pre + "_" + extra + ext
+    else:
+        return fn + "_" + extra
+
 PATCHY_FILE_FORMAT_KEY = "patchy_format"

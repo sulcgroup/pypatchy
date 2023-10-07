@@ -4,7 +4,7 @@ import itertools
 import random
 from math import sqrt
 from pathlib import Path
-from typing import Union, IO, Iterable
+from typing import Union, IO, Iterable, Any
 # This file loads patchy particle file from topology and Configuration
 import numpy as np
 import copy
@@ -14,10 +14,10 @@ from oxDNA_analysis_tools.UTILS.data_structures import TopInfo, Configuration
 
 from pypatchy.patchy_base_particle import BasePatchType, PatchyBaseParticleType, BaseParticleSet, Scene, \
     PatchyBaseParticle
-from pypatchy.patchyio import get_writer
 from pypatchy.util import random_unit_vector
 
 myepsilon = 0.00001
+
 
 def load_patches(filename: Union[str, Path],
                  num_patches=0) -> list[PLPatchyParticle]:
@@ -153,8 +153,6 @@ class PLPatch(BasePatchType):
     def save_to_string(self, extras={}) -> str:
         # print self._type,self._type,self._color,1.0,self._position,self._a1,self._a2
 
-        
-        
         outs = f'patch_{self.type_id()} = ' + '{\n ' \
                                               f'\tid = {self.type_id()}\n' \
                                               f'\tcolor = {self.color()}\n' \
@@ -165,7 +163,7 @@ class PLPatch(BasePatchType):
             outs += f'\ta2 = {np.array2string(self.a2(), separator=",")[1:-1]}\n'
         else:
             # make shit up
-            outs += f'\ta2 = {np.array2string(np.array([0,0,0]), separator=",")[1:-1]}\n'
+            outs += f'\ta2 = {np.array2string(np.array([0, 0, 0]), separator=",")[1:-1]}\n'
         outs += "\n".join([f"t\t{key} = {extras[key]}" for key in extras])
         outs += "\n}\n"
         return outs
@@ -220,12 +218,14 @@ class PLPatchyParticle(PatchyBaseParticleType, PatchyBaseParticle):
     L: np.ndarray
     a1: Union[None, np.ndarray]
     a3: Union[None, np.ndarray]
+    _name: str
 
     all_letters = ['C', 'H', 'O', 'N', 'P', 'S', 'F', 'K', 'I', 'Y']
 
-    def __init__(self, patches: list[PLPatch] = [], type_id=0, index_=0, position=np.array([0., 0., 0.]), radius=0.5):
+    def __init__(self, patches: list[PLPatch] = [], particle_name: Union[str, None]=None, type_id=0, index_=0, position=np.array([0., 0., 0.]), radius=0.5):
         super().__init__(type_id, patches)
-        self.cm_pos = position
+        self._position = position
+
         self.unique_id = index_
         self._radius = radius
         self._patch_ids = None
@@ -234,8 +234,13 @@ class PLPatchyParticle(PatchyBaseParticleType, PatchyBaseParticle):
         self.a1 = None
         self.a3 = None
 
+        if particle_name is None:
+            self._name = f"particletype_{self.type_id()}"
+        else:
+            self._name = particle_name
+
     def name(self) -> str:
-        return f"particletype_{self.type_id()}"
+        return self._name
 
     def radius(self, normal: np.ndarray = np.zeros(shape=(3,))) -> float:
         """
@@ -259,6 +264,11 @@ class PLPatchyParticle(PatchyBaseParticleType, PatchyBaseParticle):
 
     def num_patches(self) -> int:
         return len(self._patches)
+
+    def set_orientation(self, a1: np.ndarray, a3: np.ndarray):
+        assert np.dot(a1, a3) < 1e-6
+        self.a1 = a1
+        self.a3 = a3
 
     def rotate(self, rot_matrix: np.ndarray):
         self.a1 = np.dot(rot_matrix, self.a1)
@@ -607,9 +617,12 @@ class PLPatchyParticle(PatchyBaseParticleType, PatchyBaseParticle):
 
         return sout
 
+    def rotation(self) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        return self.a1, self.a2, self.a3
+
+
 # TODO: something with this class
 class PLPSimulation(Scene):
-
     _box_size: np.ndarray
     _particle_types: BaseParticleSet
     _E_tot: float
@@ -648,10 +661,13 @@ class PLPSimulation(Scene):
         for p in self._particles:
             p.translate(translation_vector)
 
+    def box_size(self) -> np.ndarray:
+        return self._box_size
+
     def set_box_size(self, box: Union[np.ndarray, list]):
         self._box_size = np.array(box)
 
-    def check_for_particle_overlap(self, particle, dist_cutoff=1.0):
+    def check_for_particle_overlap(self, particle: PLPatchyParticle, dist_cutoff=1.0) -> bool:
         """
         Checks if a particle overlaps any other particles in the simulation.
         Returns:
@@ -659,7 +675,7 @@ class PLPSimulation(Scene):
         """
         # print 'Adding ', particle.cm_pos
         for p in self._particles:
-            dist = sqrt(sum((p.position() - particle.position()) ** 2))
+            dist = self.dist_2particles(particle, p)
             # print ' Looking at distance from ', p.cm_pos,dist
             if dist <= dist_cutoff:
                 # print 'Unfortunately overlaps with ',p.cm_pos,dist
@@ -689,16 +705,36 @@ class PLPSimulation(Scene):
             self._particle_types.add_particle(particle)
         return True
 
-    def add_particle_rand_positions(self, particles: Iterable[PLPatchyParticle], nTries=1e3):
+    def dist_2particles(self, p1: PLPatchyParticle, p2: PLPatchyParticle):
+        """
+        Calculate the wrapped distance between two points in a 3D box.
+
+        :param p1: numpy array [x, y, z] for first point.
+        :param p2: numpy array [x, y, z] for second point.
+        :param box_size: numpy array [length, width, height] for the box dimensions.
+        :return: wrapped distance between p1 and p2.
+        """
+
+        # Calculate the difference in each dimension
+        delta = p2.position() - p1.position()
+
+        # Wrap the differences where necessary
+        delta = np.where(np.abs(delta) > self.box_size() / 2, self.box_size() - np.abs(delta), delta)
+
+        return np.linalg.norm(delta)
+
+    def add_particle_rand_positions(self, particles: Iterable[PLPatchyParticle],
+                                    nTries=1e3,
+                                    overlap_min_dist: float=1.0):
         # loop particles
         for p in particles:
             t = 0
             # set max tries so it doesn't go forever
             while t < nTries:
                 # random position
-                new_pos = np.random.rand(3) * self._box_size
+                new_pos = np.random.rand(3) * (self._box_size - overlap_min_dist) + (overlap_min_dist / 2)
                 p.set_position(new_pos)
-                if not self.check_for_particle_overlap(p):
+                if not self.check_for_particle_overlap(p, overlap_min_dist):
                     break
                 t += 1
             if t == nTries:
@@ -708,7 +744,7 @@ class PLPSimulation(Scene):
             self.add_particle(p)
 
     def num_particle_types(self) -> int:
-        return len(self.particles())
+        return self.particle_types().num_particle_types()
 
     # def load_configuration(self,
     #                        configuration_file: str,
@@ -726,7 +762,6 @@ class PLPSimulation(Scene):
     #         _conf.close()
     #
     #     return _conf
-
 
     # def read_next_configuration(self, file_handle: IO) -> Union[bool, IO]:
     #     _conf = file_handle
@@ -857,40 +892,59 @@ class PLPSimulation(Scene):
     #
     #         fout.write(sout)
 
-    def from_top_conf(self, top: TopInfo, conf: Configuration):
-        rw = get_writer()
-        rw.read_top(Path(top.path), self)
+    # def from_top_conf(self, top: TopInfo, conf: Configuration):
+    #     rw = get_writer()
+    #     rw.read_top(Path(top.path), self)
+    #
+    #     self._time = conf.time
+    #     self._E_pot, self._E_kin, self._E_tot = conf.energy
+    #     self._box_size = conf.box
+    #
+    #     for i, p in enumerate(self.particles()):
+    #         p.a1 = conf.a1s[i, :]
+    #         p.a3 = conf.a3s[i, :]
+    #         p.set_position(conf.positions[i, :])
+    # #
+    # def to_top_conf(self, top_path: Path, conf_path: Path) -> tuple[TopInfo, Configuration]:
+    #     rw = get_writer()
+    #     top = TopInfo(str(top_path), self.num_particles())
+    #     rw.write_top(top_path, self)
+    #
+    #     particle_positions = np.stack([p.position() for p in self.particles()])
+    #     particle_a1s = np.stack([p.a1 for p in self.particles()])
+    #     particle_a3s = np.stack([p.a3 for p in self.particles()])
+    #
+    #     conf = Configuration(self._time,
+    #                          self._box_size,
+    #                          np.array([self._E_pot, self._E_kin, self._E_tot]),
+    #                          particle_positions,
+    #                          particle_a1s,
+    #                          particle_a3s)
+    #
+    #     return top, conf
 
-        self._time = conf.time
-        self._E_pot, self._E_kin, self._E_tot = conf.energy
-        self._box_size = conf.box
-
-        for i, p in enumerate(self.particles()):
-            p.a1 = conf.a1s[i, :]
-            p.a3 = conf.a3s[i, :]
-            p.set_position(conf.positions[i, :])
-
-    def to_top_conf(self, top_path: Path, conf_path: Path) -> tuple[TopInfo, Configuration]:
-        rw = get_writer()
-        top = TopInfo(str(top_path), self.num_particles())
-        rw.write_top(top_path, self)
-
-        particle_positions = np.stack([p.position() for p in self.particles()])
-        particle_a1s = np.stack([p.a1 for p in self.particles()])
-        particle_a3s = np.stack([p.a3 for p in self.particles()])
-
-        conf = Configuration(self._time,
-                             self._box_size,
-                             np.array([self._E_pot, self._E_kin, self._E_tot]),
-                             particle_positions,
-                             particle_a1s,
-                             particle_a3s)
-
-        return top, conf
-
-    def particle_types(self):
+    def particle_types(self) -> BaseParticleSet:
         return self._particle_types
 
     def set_particle_types(self, ptypes: BaseParticleSet):
         self._particle_types = ptypes
 
+    def get_conf(self) -> Configuration:
+        positions: np.ndarray = np.array([
+            p.position() for p in self.particles()
+        ])
+        a1s: np.ndarray = np.array([
+            p.a1 for p in self.particles()
+        ])
+        a3s: np.ndarray = np.array([
+            p.a3 for p in self.particles()
+        ])
+
+        return Configuration(
+            self._time,
+            self.box_size(),
+            np.array([self._E_pot, self._E_kin, self._E_tot]),
+            positions,
+            a1s,
+            a3s
+        )

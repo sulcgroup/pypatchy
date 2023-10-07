@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 import itertools
-from typing import TypeVar, Generator
+from typing import TypeVar, Generator, Any
 
 from oxDNA_analysis_tools.UTILS.data_structures import TopInfo, Configuration
 from scipy.spatial.transform import Rotation
@@ -327,6 +327,15 @@ class TypedStructure(Structure, ABC):
 class PolycubeStructure(TypedStructure, Scene):
 
 
+    def num_particle_types(self) -> int:
+        return self.rule.num_particle_types()
+
+    def particle_types(self) -> BaseParticleSet:
+        return self.rule
+
+    def get_conf(self) -> Configuration:
+        pass
+
     # mypy type specs
     rule: PolycubesRule
     cubeMap: dict[bytes, PolycubesStructureCube]
@@ -363,7 +372,7 @@ class PolycubeStructure(TypedStructure, Scene):
                                              cube_type,
                                              cube["state"])
             self.cubeMap[cube_position.tobytes()] = cubeObj
-            self._particles.append(cubeObj)
+            self.cubeList.append(cubeObj)
             self.graph.add_node(cube_idx, cube=cubeObj)
 
         # loop cube pairs (brute-forcing topology)
@@ -479,6 +488,12 @@ class PolycubesStructureCube(PatchyBaseParticle):
 
     def rotation(self) -> Rotation:
         return self._rot
+
+    def rotate(self, rotation: Rotation):
+        """
+        todo: more param options
+        """
+        self._rot = self._rot * rotation
 
     def typedir(self, direction: Union[int, np.ndarray]) -> np.ndarray:
         """

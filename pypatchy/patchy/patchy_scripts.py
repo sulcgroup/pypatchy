@@ -14,14 +14,14 @@ from pypatchy.polycubeutil.polycubesRule import PolycubesRule
 from pypatchy.util import rotation_matrix, get_input_dir, to_xyz
 
 
-def convert_multidentate(particles: list[PLPatchyParticle],
+def convert_multidentate(particles: BaseParticleSet,
                          dental_radius: float,
                          num_teeth: int,
-                         followSurf=False) -> tuple[list[PLPatchyParticle], list[PLPatch]]:
-    new_particles: list[PLPatchyParticle] = [None for _ in particles]
+                         followSurf=False) -> BaseParticleSet:
+    new_particles: list[PLPatchyParticle] = [None for _ in particles.particles()]
     patch_counter = 0
     new_patches = []
-    for i_particle, particle in enumerate(particles):
+    for i_particle, particle in enumerate(particles.particles()):
         new_particle_patches = []
         for patch in particle.get_patches():
             teeth = [None for _ in range(num_teeth)]
@@ -67,7 +67,7 @@ def convert_multidentate(particles: list[PLPatchyParticle],
                                                      radius=particle.radius())
         new_particles[i_particle].set_patches(new_particle_patches)
         new_patches += new_particle_patches
-    return new_particles, new_patches
+    return BaseParticleSet(new_particles)
 
 
 def convert_udt_files_to_mdt(patches_file: Union[str, Path],
@@ -142,14 +142,16 @@ def convert_flavian_to_lorenzian(patches_file: str,
 
 def to_PL(particle_set: BaseParticleSet,
           num_teeth: int = 1,
-          dental_radius: float = 0.) -> tuple[list[PLPatchyParticle], list[PLPatch]]:
+          dental_radius: float = 0.) -> BaseParticleSet:
     """
     I will freely admit I have no idea what "PL" means
     Whatever it means, this function converts an arbitrary particle set into
     PL particles and patches, applying multidentate where applicable.
     """
-    particles: list[PLPatchyParticle] = []
-    patches: list[PLPatch] = []
+    particles: BaseParticleSet = BaseParticleSet()
+    # in the unlikely event this is already a PL particle set
+    if all(isinstance(particle, PLPatchyParticle) for particle in particle_set.particles()):
+        return particle_set
     # iter particles
     for particle in particle_set.particles():
         particle_patches = []
@@ -157,7 +159,7 @@ def to_PL(particle_set: BaseParticleSet,
         for patch in particle.patches():
             relPosition = patch.position()
             pl_color = patch.colornum() - 20 if patch.colornum() < 0 else patch.colornum() + 20
-            assert patch.get_id() == len(patches) + len(particle_patches)
+            assert patch.get_id() == particles.num_patches() + len(particle_patches)
             a1 = relPosition / np.linalg.norm(relPosition)
             if patch.num_key_points() == 1:
                 particle_patches.append(PLPatch(patch.get_id(),
@@ -172,19 +174,18 @@ def to_PL(particle_set: BaseParticleSet,
                                                 patch.alignDir()))
             else:
                 raise Exception("No idea how to handle whatever you're throwing at me")
-        patches.extend(particle_patches)
         # convert to pl particle
         # reuse type ids here, unfortunately
-        particle = PLPatchyParticle(type_id=particle.type_id(), index_=particle.type_id())
+        particle = PLPatchyParticle(type_id=particle.type_id(), particle_name=particle.name(), index_=particle.type_id())
         particle.set_patches(particle_patches)
 
-        particles.append(particle)
+        particles.add_particle(particle)
 
     # do multidentate convert
     if num_teeth > 1:
         particles, patches = convert_multidentate(particles, dental_radius, num_teeth)
 
-    return particles, patches
+    return particles
 
 
 def PL_to_rule(particles: list[PLPatchyParticle], ) -> Union[None, PolycubesRule]:
