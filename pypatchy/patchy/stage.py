@@ -12,9 +12,15 @@ from pypatchy.util import get_input_dir, append_to_file_name
 
 
 class Stage:
+    # the index (starting from 0) of this stage
     _stage_num: int
+    # the name of this stage
     _stage_name: str
+    # the step (time) that this stage starts
     _stage_start_time: int
+    # a list of PARTICLE TYPE IDS of particles to add
+    # the length of this list should be the number of particles to add in
+    # this stage and each item is a TYPE ID of a particle type to add.
     _particles_to_add: list[int]
     _add_method: str
     _stage_vars: dict
@@ -69,6 +75,7 @@ class Stage:
 
     def apply(self, scene: PLPSimulation):
         scene.set_box_size(self.box_size())
+        assert all(self.box_size()), "Box size hasn't been set!!!"
         if self._add_method == "RANDOM":
             particles = [copy.deepcopy(scene.particle_types().particle(i)) for i in self._particles_to_add]
             scene.add_particle_rand_positions(particles, overlap_min_dist=1)

@@ -328,7 +328,6 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
     ensemble.dump_metadata()
     return ensemble
 
-
 class PatchySimulationEnsemble:
     """
     Stores data for a group of related simulation
@@ -765,7 +764,9 @@ class PatchySimulationEnsemble:
         # deeper
         if paramname in get_server_config()["input_file_params"]:
             return get_server_config()["input_file_params"][paramname]
-        raise Exception(f"Parameter {paramname} not found ANYWHERE!!!")
+        # TODO: custom exception here
+        raise NoSuchParamError(self, sim, paramname)
+        # raise Exception(f"Parameter {paramname} not found ANYWHERE!!!")
 
     def paramfile(self, sim: PatchySimulation, paramname: str) -> Path:
         """
@@ -818,45 +819,91 @@ class PatchySimulationEnsemble:
     # def get_sim_total_num_particles(self, sim: PatchySimulation) -> int:
     #     return sum([self.get_sim_particle_count(sim, i) for i in range(self.num_particle_types())])
 
+    def get_sim_particle_count(self, sim: PatchySimulation,
+                               particle_idx: int) -> int:
+        """
+        Args:
+            sim: the patchy simulation to count for
+            particle_idx: the index of the particle to get the count for
+        Returns:
+            the int
+        """
+        # grab particle name
+        particle_name = self.particle_set.particle(particle_idx).name()
+        return self.sim_get_param(sim, particle_name) * self.sim_get_param(sim, NUM_ASSEMBLIES_KEY)
+
+    def get_sim_particle_counts(self, sim: PatchySimulation):
+        """
+        Returns: the number of particles in the simulation
+        """
+        return {
+            p.type_id(): self.get_sim_particle_count(sim, p.type_id()) for p in self.particle_set.particles()
+        }
+
     def sim_get_stages(self, sim: PatchySimulation) -> list[Stage]:
         """
         Computes stages
         Stage objects require other ensemble parameters so must be constructed as needed and not on init
 
         """
-        stages_info = self.sim_get_param(sim, "stages")
-        # incredibly cursed line of code incoming
-        stages_info = [{"idx": i, "name": k, **v} for i, (k,v) in enumerate(sorted(stages_info.items(), key=lambda x: x[1]["t"]))]
         num_assemblies = self.sim_get_param(sim, "num_assemblies")
-        stages = []
-        # loop stages in stage list from spec
-        for stage_info in stages_info:
-            # get stage idx
-            i = stage_info["idx"]
-            # get list of names of particles to add
-            stage_particles = list(itertools.chain.from_iterable([
-                [pname] * (stage_info["particles"][pname] * num_assemblies)
-                for pname in stage_info["particles"]]))
-            stage_init_args = {
-                "t": stage_info["t"],
-                "particles": stage_particles,
-            }
-            if "length" not in stage_info and "tlen" not in stage_info:
-                if i + 1 != len(stages_info):
-                    # if stage is not final stage, last step of this stage will be first step of next stage
-                    stage_init_args["tend"] = stages_info[i+1]["t"]
+        try:
+            stages_info = self.sim_get_param(sim, "stages")
+            # incredibly cursed line of code incoming
+            stages_info = [{"idx": i, "name": k, **v} for i, (k, v) in
+                           enumerate(sorted(stages_info.items(), key=lambda x: x[1]["t"]))]
+            stages = []
+            # loop stages in stage list from spec
+            for stage_info in stages_info:
+                # get stage idx
+                i = stage_info["idx"]
+                # get list of names of particles to add
+                stage_particles = list(itertools.chain.from_iterable([
+                    [pname] * (stage_info["particles"][pname] * num_assemblies)
+                    for pname in stage_info["particles"]]))
+                stage_init_args = {
+                    "t": stage_info["t"],
+                    "particles": stage_particles,
+                }
+                if "length" not in stage_info and "tlen" not in stage_info:
+                    if i + 1 != len(stages_info):
+                        # if stage is not final stage, last step of this stage will be first step of next stage
+                        stage_init_args["tend"] = stages_info[i + 1]["t"]
+                    else:
+                        # if the stage is the final stage, last step will be end of simulation
+                        stage_init_args["tend"] = self.sim_get_param(sim, "steps")
+                elif "length" in stage_info:
+                    stage_init_args["tlen"] = stage_info["length"]
                 else:
-                    # if the stage is the final stage, last step will be end of simulation
-                    stage_init_args["tend"] = self.sim_get_param(sim, "steps")
-            elif "length" in stage_info:
-                stage_init_args["tlen"] = stage_info["length"]
-            else:
-                stage_init_args["tlen"] = stage_info["tlen"]
-            # construct stage objects
-            stages.append(Stage(i,
-                                stage_info["name"],
-                                **stage_init_args
-                                ))
+                    stage_init_args["tlen"] = stage_info["tlen"]
+                # construct stage objects
+                stages.append(Stage(i,
+                                    stage_info["name"],
+                                    **stage_init_args
+                                    ))
+
+        except NoSuchParamError as e:
+            # if stages not found
+            # default: 1 stage, density = starting density, add method=random
+            particles = list(itertools.chain.from_iterable([
+                [p.type_id()] * self.sim_get_param(sim, p.name()) * num_assemblies
+                for p in self.particle_set.particles()
+            ]))
+            stages = [Stage(
+                stagenum=0,
+                stagename="default",
+                t=0,
+                tend=self.sim_get_param(sim, "steps"),
+                particles=particles
+            )]
+            # box_size = (len(particles) / self.sim_get_param(sim, "density")) ** (1/3)
+            # write stage dict for code below
+            stages_info = {
+                0: {
+                    "density": self.sim_get_param(sim, "density")
+                }
+            }
+
         # assign box sizes
         for stage in stages:
             stage_info = stages_info[stage.idx()]
@@ -2099,6 +2146,20 @@ class PatchySimulationEnsemble:
                 return stage
         return None  # raise exception?
 
+
+class NoSuchParamError(Exception):
+    def __init__(self,
+                 e: PatchySimulationEnsemble,
+                 sim: PatchySimulation,
+                 param_name: str):
+        self._ensemble = e
+        self._sim = sim
+        self._param_name = param_name
+
+    def __str__(self):
+        return f"No value specified for parameter \"{self._param_name}\" " \
+               f"simulation {repr(self._sim)} in " \
+               f"ensemble {self._ensemble.long_name()} "
 
 def process_simulation_data(args):
     ensemble, step, s, time_steps = args
