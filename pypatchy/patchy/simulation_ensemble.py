@@ -1354,14 +1354,14 @@ class PatchySimulationEnsemble:
         # if no stage name provided use first stage
         try:
             stage = self.sim_most_recent_stage(sim)
+            if stage.idx() + 1 < self.sim_num_stages(sim):
+                stage = self.sim_get_stage(sim, stage.idx() + 1)
+            else:
+                self.get_logger().info(f"Simulation {sim} has no more stages to execute!")
+                return -1
         except NoStageTrajError:
             stage = self.sim_get_stage(sim, 0)
 
-        if stage.idx() + 1 < self.sim_num_stages(sim):
-            stage = self.sim_get_stage(sim, stage.idx() + 1)
-        else:
-            self.get_logger().info(f"Simulation {sim} has no more stages to execute!")
-            return -1
         slurm_script_name = "slurm_script.sh"
         slurm_script_name = stage.adjfn(slurm_script_name)
 
@@ -1775,15 +1775,14 @@ class PatchySimulationEnsemble:
             # if no stage name provided use first stage
             try:
                 stage = self.sim_most_recent_stage(sim)
+                if stage.idx() + 1 < self.sim_num_stages(sim):
+                    stage = self.sim_get_stage(sim, stage.idx() + 1)
+                else:
+                    self.get_logger().info(f"Simulation {sim} has no more stages to execute!")
+                    return -1
             except NoStageTrajError:
                 # default to stage 0 if no previous stages found
                 stage = self.sim_get_stage(sim, 0)
-
-            if stage.idx() + 1 < self.sim_num_stages(sim):
-                stage = self.sim_get_stage(sim, stage.idx() + 1)
-            else:
-                self.get_logger().info(f"Simulation {sim} has no more stages to execute!")
-                return -1
 
         if not force_ignore_ok_check and not self.ok_to_run(sim, stage):
             self.get_logger().warning(f"Stage {stage.name()} not ok to run for sim {repr(sim)}")
