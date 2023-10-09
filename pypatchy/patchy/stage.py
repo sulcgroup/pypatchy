@@ -5,6 +5,7 @@ from enum import Enum
 from typing import Union
 
 import numpy as np
+from pypatchy.patchy.simulation_specification import PatchySimulation
 
 from pypatchy.patchy.plpatchy import PLPSimulation, PLPatchyParticle
 from pypatchy.polycubeutil.structure import PolycubeStructure
@@ -93,3 +94,44 @@ class Stage:
         else:
             return file_name
 
+class StagedAssemblyError(Exception):
+    _stage: Stage
+    _sim: PatchySimulation
+
+    def __init__(self,
+                 stage: Stage,
+                 sim: PatchySimulation):
+        self._stage = stage
+        self._sim = sim
+
+    def stage(self) -> Stage:
+        return self._stage
+
+    def sim(self) -> PatchySimulation:
+        return self._sim
+
+
+class IncompleteStageError(StagedAssemblyError):
+    def __init__(self,
+                 stage: Stage,
+                 sim: PatchySimulation,
+                 last_timestep: int):
+        StagedAssemblyError.__init__(self, stage, sim)
+        self._last_timestep = last_timestep
+
+    def __str__(self):
+        return f"Stage {self.stage().name()} of simulation {repr(self.sim())} is incomplete! Last timestep was " \
+               f"{self._last_timestep} out of {self.stage().start_time()}:{self.stage().end_time()}"
+
+
+class NoStageTrajError(StagedAssemblyError):
+    def __init__(self,
+                 stage: Stage,
+                 sim: PatchySimulation,
+                 traj_file_path: str):
+        StagedAssemblyError.__init__(self, stage, sim)
+        self._traj_file = traj_file_path
+
+    def __str__(self):
+        return f"Stage {self.stage().name()} of simulation {repr(self.sim())} has no traj file. Traj file expected" \
+               f"to be located at `{self._traj_file}`."

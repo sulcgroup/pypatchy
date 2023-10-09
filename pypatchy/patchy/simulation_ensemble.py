@@ -25,7 +25,7 @@ from oxDNA_analysis_tools.UTILS.RyeReader import get_confs, describe, write_conf
 from oxDNA_analysis_tools.UTILS.data_structures import Configuration
 
 from pypatchy.analpipe.analysis_pipeline import AnalysisPipeline
-from .stage import Stage
+from .stage import Stage, NoStageTrajError, IncompleteStageError
 from ..analpipe.analysis_data import PDPipelineData, TIMEPOINT_KEY
 from ..analpipe.analysis_pipeline_step import AnalysisPipelineStep, PipelineData, AggregateAnalysisPipelineStep, \
     AnalysisPipelineHead, PipelineStepDescriptor, PipelineDataType
@@ -969,13 +969,12 @@ class PatchySimulationEnsemble:
     def sim_get_stage_last_step(self, sim: PatchySimulation, stage: Union[str, int, Stage]) -> int:
         _, traj = self.sim_get_stage_top_traj(sim, stage)
         if not traj.is_file():
-            self.get_logger().info(f"Warning! Trying to get last step for sim {repr(sim)} without traj file!")
-            return -1
+            raise NoStageTrajError(stage, sim, str(traj))
         else:
             # return timepoint of last conf in traj
             return file_info([str(traj)])["t_end"][0]
 
-    def sim_most_recent_stage(self, sim: PatchySimulation) -> Union[tuple[Stage, bool], None]:
+    def sim_most_recent_stage(self, sim: PatchySimulation) -> Stage:
         """
         Returns:
             a tuple where the first element is the most recent stage file with a trajectory
@@ -986,11 +985,22 @@ class PatchySimulationEnsemble:
         for stage in reversed(self.sim_get_stages(sim)):
             # if traj file exists
             if (self.folder_path(sim) / stage.adjfn(self.sim_get_param(sim, "trajectory_file"))).exists():
-                return (
-                    stage, self.sim_get_stage_last_step(sim, stage) == stage.end_time()
+                stage_last_step = self.sim_get_stage_last_step(sim, stage)
+                if stage_last_step == stage.end_time():
+                    return stage
+                # if stage is incomplete, raise an exception
+                raise IncompleteStageError(
+                    stage,
+                    sim,
+                    stage_last_step
                 )
-        # if no stage has a traj file
-        return None
+        # if no stage has a traj file, raise exception
+        trajpath = self.folder_path(sim) / self.sim_get_stage(sim,
+                                                              0).adjfn(self.sim_get_param(sim,
+                                                                                          "trajectory_file"))
+        raise NoStageTrajError(self.sim_get_stage(sim, 0),
+                               sim,
+                               str(trajpath))
 
     def sim_num_stages(self, sim: PatchySimulation) -> int:
         return len(self.sim_get_stages(sim))
@@ -1075,9 +1085,7 @@ class PatchySimulationEnsemble:
         elif isinstance(sim, list):
             return min([self.time_length(s) for s in sim])
         else:
-            stage, is_complete = self.sim_most_recent_stage(sim)
-            if not is_complete:
-                raise Exception(f"Stage {stage.name()} for simulation {repr(sim)}")
+            stage = self.sim_most_recent_stage(sim)
             return self.sim_get_stage_last_step(sim, stage)
 
     # ------------------------ Status-Type Stuff --------------------------------#
@@ -1344,17 +1352,16 @@ class PatchySimulationEnsemble:
 
     def write_run_script(self, sim: PatchySimulation, input_file="input"):
         # if no stage name provided use first stage
-        stage_status = self.sim_most_recent_stage(sim)
-        if stage_status is None:
+        try:
+            stage = self.sim_most_recent_stage(sim)
+        except NoStageTrajError:
             stage = self.sim_get_stage(sim, 0)
+
+        if stage.idx() + 1 < self.sim_num_stages(sim):
+            stage = self.sim_get_stage(sim, stage.idx() + 1)
         else:
-            stage, isdone = stage_status
-            assert isdone
-            if stage.idx() + 1 < self.sim_num_stages(sim):
-                stage = self.sim_get_stage(sim, stage.idx() + 1)
-            else:
-                self.get_logger().info(f"Simulation {sim} has no more stages to execute!")
-                return -1
+            self.get_logger().info(f"Simulation {sim} has no more stages to execute!")
+            return -1
         slurm_script_name = "slurm_script.sh"
         slurm_script_name = stage.adjfn(slurm_script_name)
 
@@ -1404,10 +1411,11 @@ class PatchySimulationEnsemble:
         """
 
         if stage is None:
+            try:
             # get most recent stage
-            stage = self.sim_most_recent_stage(sim)
+                stage = self.sim_most_recent_stage(sim)
             # if no stage exists
-            if stage is None:
+            except NoStageTrajError:
                 # stage 0
                 stage = self.sim_get_stages(sim)[0]
             else:
@@ -1693,21 +1701,29 @@ class PatchySimulationEnsemble:
         self.dump_metadata()
 
     def ok_to_run(self, sim: PatchySimulation, stage: Stage) -> bool:
-        most_recent_stage = self.sim_most_recent_stage(sim)
-        if most_recent_stage is not None:
-            most_recent_stage, stage_complete = most_recent_stage
+        try:
+            most_recent_stage = self.sim_most_recent_stage(sim)
             if most_recent_stage.idx() >= stage.idx():
                 self.get_logger().warning(
                     f"Already passed stage {stage.name()} for sim {repr(sim)}! Aborting")
                 return False
             elif stage.idx() - most_recent_stage.idx() > 1:
                 self.get_logger().warning(
-                    f"Cannot exec stage {stage.name()} for sim {repr(sim)} when most recent stage is {most_recent_stage.name()}! Aborting")
+                    f"Cannot exec stage {stage.name()} for sim {repr(sim)} when most recent stage is "
+                    f"{most_recent_stage.name()}! Aborting")
                 return False
             else:
                 assert stage.idx() - most_recent_stage.idx() == 1
-                if not stage_complete:
-                    self.get_logger().warning(f"Cannot execute stage {stage.name()} for sim {repr(sim)} when stage {most_recent_stage.name()} is incomplete! aborting!")
+        except IncompleteStageError as e:
+            # previous stage is incomplete; warn and return False
+            self.get_logger().warning(
+                f"Cannot execute stage {stage.name()} for sim {repr(sim)} when stage {e.stage().name()}"
+                f" is incomplete! aborting!")
+            return False
+        except NoStageTrajError as e:
+            # if most recent stage has no traj, that means current stage is first stage, which is completely fine
+            pass
+
         if stage.idx() > 0 and not stage.name().startswith("continue"):
             # if not first stage
             if not self.sim_stage_done(sim, self.sim_get_stage(sim, stage.idx() - 1)):
@@ -1719,7 +1735,7 @@ class PatchySimulationEnsemble:
                 return False
 
         if is_server_slurm():
-            most_recent_stage, done = self.sim_most_recent_stage(sim)
+            most_recent_stage = self.sim_most_recent_stage(sim)
             if most_recent_stage.idx() > stage.idx():
                 self.get_logger().warning(f"Already passed stage {stage.name()} for sim {repr(sim)}! Aborting")
                 return False
@@ -1757,17 +1773,17 @@ class PatchySimulationEnsemble:
             stage = self.sim_get_stage(sim, stage_name)
         else:
             # if no stage name provided use first stage
-            stage_status = self.sim_most_recent_stage(sim)
-            if stage_status is None:
+            try:
+                stage = self.sim_most_recent_stage(sim)
+            except NoStageTrajError:
+                # default to stage 0 if no previous stages found
                 stage = self.sim_get_stage(sim, 0)
+
+            if stage.idx() + 1 < self.sim_num_stages(sim):
+                stage = self.sim_get_stage(sim, stage.idx() + 1)
             else:
-                stage, isdone = stage_status
-                assert isdone
-                if stage.idx() + 1 < self.sim_num_stages(sim):
-                    stage = self.sim_get_stage(sim, stage.idx() + 1)
-                else:
-                    self.get_logger().info(f"Simulation {sim} has no more stages to execute!")
-                    return -1
+                self.get_logger().info(f"Simulation {sim} has no more stages to execute!")
+                return -1
 
         if not force_ignore_ok_check and not self.ok_to_run(sim, stage):
             self.get_logger().warning(f"Stage {stage.name()} not ok to run for sim {repr(sim)}")
