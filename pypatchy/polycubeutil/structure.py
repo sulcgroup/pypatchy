@@ -218,7 +218,16 @@ class Structure:
         return False
 
     def edge_exists(self, v: int, delta: int) -> bool:
+        """
+        ?????
+        """
         return len([d for a, b, d in self.graph.out_edges(v, "dirIdx") if d == delta]) > 0
+
+    def positions_connected(self, v1: int, v2: int) -> bool:
+        """
+
+        """
+        return (v1, v2) in self.graph.to_undirected().edges
 
     def is_connected(self) -> bool:
         return nx.is_weakly_connected(self.graph)
@@ -232,6 +241,8 @@ class Structure:
     def matrix(self) -> np.ndarray:
         """
         Returns the structure as a N x 3 matrix where cols are x,y,z coordinates
+        Strictly speaking this should be a method for `FiniteLatticeStructure` but
+        it's kept here for backwards compatibility purposes
         """
         # TODO: compute this on init? idk
         assert self.is_connected(), "Please don't try to get a matrix for a non connected structure. " \
@@ -269,6 +280,34 @@ class Structure:
 
     def __str__(self) -> str:
         return f"Structure with {len(self.vertices())} particles and {len(self.bindings_list)} connections"
+
+
+class FiniteLatticeStructure(Structure):
+    __cube_positions: np.ndarray
+    __cube_index_map: dict[bytes, int]
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.__cube_positions = self.matrix()
+        self.__cube_index_map = dict()
+        for i in range(self.num_vertices()):
+            self.__cube_index_map[self.cube(i).tobytes()] = i
+
+    def cube(self, idx: int) -> np.ndarray:
+        return self.__cube_positions[idx, :]
+
+    def cube_idx(self, coords: np.ndarray) -> int:
+        return self.__cube_index_map[coords.tobytes()]
+
+    def positions_connected(self, c1: Union[np.ndarray, int], c2: Union[np.ndarray, int]) -> bool:
+        """
+        override of positions_connected that can convert position vectors (np arrays) to idxs
+        """
+        if isinstance(c1, np.ndarray):
+            c1 = self.cube_idx(c1)
+        if isinstance(c2, np.ndarray):
+            c2 = self.cube_idx(c2)
+        return Structure.positions_connected(self, c1, c2)
 
 
 class StructuralHomomorphism:
@@ -340,40 +379,58 @@ class PolycubeStructure(TypedStructure, Scene):
     rule: PolycubesRule
     cubeMap: dict[bytes, PolycubesStructureCube]
 
-    def __init__(self, rule, structure):
+    def __init__(self, **kwargs):
         super(PolycubeStructure, self).__init__()
 
         # load rule
-        self.rule = rule
-
-        # needed for solving later. assume starting from no allostery
+        if isinstance(kwargs["rule"], PolycubesRule):
+            self.rule = kwargs["rule"]
+        elif isinstance(kwargs["rule"], dict):
+            self.rule = PolycubesRule(rule_json=kwargs["rule"])
+        elif isinstance(kwargs["rule"], str):
+            self.rule = PolycubesRule(rule_str=kwargs["rule"])
+        else:
+            # default: empty rule
+            self.rule = PolycubesRule()
 
         # read structure
         self.cubeMap = {}
         # nodes in the graph are cube uids
         # edges attrs are FACE INDEXES IN RULE_ORDER, IN THE CUBE TYPE
         self.cubeList = []
-        for cube_idx, cube in enumerate(structure):
-            # extract cube position and rotation
-            cube_position = from_xyz(cube["position"])
-            # rotation quaternion wxyz
-            cr = cube["rotation"]
-            rot_quaternion = np.array((
-                cr['x'],
-                cr['y'],
-                cr['z'],
-                cr['w']
-            ))
-            cube_type = self.rule.particle(cube["type"])
-            # emplace cube in map
-            cubeObj = PolycubesStructureCube(cube_idx,
-                                             cube_position,
-                                             rot_quaternion,
-                                             cube_type,
-                                             cube["state"])
-            self.cubeMap[cube_position.tobytes()] = cubeObj
-            self.cubeList.append(cubeObj)
-            self.graph.add_node(cube_idx, cube=cubeObj)
+        if "structure" in kwargs:
+            # structure passed as nested dict, as read from json
+            for cube_idx, cube in enumerate(kwargs["structure"]):
+                # extract cube position and rotation
+                cube_position = from_xyz(cube["position"])
+                # rotation quaternion wxyz
+                cr = cube["rotation"]
+                rot_quaternion = np.array((
+                    cr['x'],
+                    cr['y'],
+                    cr['z'],
+                    cr['w']
+                ))
+                cube_type = self.rule.particle(cube["type"])
+                # emplace cube in map
+                cubeObj = PolycubesStructureCube(cube_idx,
+                                                 cube_position,
+                                                 rot_quaternion,
+                                                 cube_type,
+                                                 cube["state"])
+                self.cubeMap[cube_position.tobytes()] = cubeObj
+                self.cubeList.append(cubeObj)
+                self.graph.add_node(cube_idx, cube=cubeObj)
+        elif "cubes" in kwargs:
+            # structure passed as list of cube objects
+            for cube in kwargs["cubes"]:
+                assert cube.get_type() in self.rule.particles(), "Cube type not found in rule!"
+                self.cubeList.append(cube)
+                self.cubeMap[cube.position().tobytes()] = cube
+                self.graph.add_node(cube.type_id(), cube=cube)
+        else:
+            # empty structure
+            pass
 
         # loop cube pairs (brute-forcing topology)
         for cube1, cube2 in itertools.combinations(self.cubeList, 2):

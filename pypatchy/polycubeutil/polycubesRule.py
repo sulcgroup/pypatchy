@@ -37,6 +37,13 @@ def diridx(a: np.ndarray) -> int:
     assert False, f"{a} is not in RULE_ORDER"
 
 
+def rdir(d: int) -> int:
+    if d % 2 == 0:
+        return (d + 1) % 6
+    else:
+        return (d - 1) % 6
+
+
 def get_orientation(face_idx: int,
                     ori_idx: int) -> np.ndarray:
     zero_rot_idx = (face_idx + 2) % len(RULE_ORDER)  # feels like it should be +4 but trust me bro
@@ -50,6 +57,7 @@ class PolycubesPatch(BasePatchType):
     """
     A patch on a patchy particle.
     """
+
     def __init__(self,
                  uid: Union[int, None],
                  color: int,
@@ -190,8 +198,6 @@ class PolycubeRuleCubeType(PatchyBaseParticleType):
         else:
             return patches[0]
 
-
-
     def has_patch(self, arg: Union[int, np.ndarray]) -> bool:
         if isinstance(arg, int):  # direction index
             return any([p.dirIdx() == arg for p in self.patches()])
@@ -228,6 +234,7 @@ class PolycubeRuleCubeType(PatchyBaseParticleType):
     def add_patch(self, patch: PolycubesPatch):
         self._patches.append(patch)
         assert len(self.patches()) <= 6
+
     def get_patch_state_var(self, key: Union[int, str, np.ndarray],
                             make_if_0=False) -> int:
         """
@@ -283,6 +290,7 @@ class PolycubeRuleCubeType(PatchyBaseParticleType):
                     n = int(match.group(1))  # Extract the integer n
                     value = self.patch_index_in(self.patch(n))
                     return str(value)
+
                 return re.sub(r'b\[(\d+)]', replacer, effects_lists[0].conditional())
             else:
                 return effects_lists[0].conditional()
@@ -323,7 +331,6 @@ class PolycubeRuleCubeType(PatchyBaseParticleType):
 
     def is_patch_state_var(self, var: int) -> bool:
         return self.get_patch_by_state_var(var) is not None
-
 
     def __str__(self) -> str:
         return self.to_string()
@@ -374,7 +381,8 @@ class PolycubeRuleCubeType(PatchyBaseParticleType):
             if p.state_var():
                 p.set_state_var(p.state_var() + nvars)
             if p.activation_var():
-                p.set_activation_var(p.activation_var() + nvars if p.activation_var() > 0 else p.activation_var() - nvars)
+                p.set_activation_var(
+                    p.activation_var() + nvars if p.activation_var() > 0 else p.activation_var() - nvars)
 
         for e in self.effects():
             e.set_target(e.target() + nvars)
@@ -423,7 +431,7 @@ class PolycubesRule(BaseParticleSet):
                     patch_strs = patches_str.split("#")
 
                 # PLEASE for the LOVE of GOD do NOT combine static and dynamic patches in the same rule string!!!!!
-                cube_type = PolycubeRuleCubeType(i, [], max(vars_set)+1, effects)
+                cube_type = PolycubeRuleCubeType(i, [], max(vars_set) + 1, effects)
 
                 string_effects = []
 
@@ -551,7 +559,7 @@ class PolycubesRule(BaseParticleSet):
 
     def toJSON(self) -> list:
         return [{
-            "typeName": ct.name(),
+            "typeName": ct.file_name(),
             "patches": [{
                 "dir": to_xyz(p.direction()),
                 "alignDir": to_xyz(p.alignDir()),
@@ -587,6 +595,9 @@ class PolycubesRule(BaseParticleSet):
         self._patch_types = [p for p in self.patches() if any([p in ct.patches() for ct in self.particles()])]
         # TODO: handle particle and patch IDs!!!
 
+    def color_set(self) -> set[int]:
+        return {p.color() for p in self.patches()}
+
     def reindex(self):
         for i, particle_type in enumerate(self._particle_types):
             particle_type.set_id(i)
@@ -597,7 +608,4 @@ class PolycubesRule(BaseParticleSet):
     def __str__(self) -> str:
         return "_".join(str(ct) for ct in self.particles())
 
-
 # TODO: integrate with C++ TLM / Polycubes
-
-

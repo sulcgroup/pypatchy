@@ -176,7 +176,7 @@ def to_PL(particle_set: BaseParticleSet,
                 raise Exception("No idea how to handle whatever you're throwing at me")
         # convert to pl particle
         # reuse type ids here, unfortunately
-        particle = PLPatchyParticle(type_id=particle.type_id(), particle_name=particle.name(), index_=particle.type_id())
+        particle = PLPatchyParticle(type_id=particle.type_id(), particle_name=particle.file_name(), index_=particle.type_id())
         particle.set_patches(particle_patches)
 
         particles.add_particle(particle)

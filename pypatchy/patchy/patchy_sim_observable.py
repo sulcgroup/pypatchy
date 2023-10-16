@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from typing import IO
+from typing import IO, Union
 
+from .stage import Stage
 from ..util import get_spec_json
 
 
@@ -13,7 +14,8 @@ class PatchySimObservable:
     """
     def __init__(self, **kwargs):
         # for all param meanings, see https://lorenzo-rovigatti.github.io/oxDNA/observables.html
-        self.name: str = kwargs["name"]
+        self.observable_name = kwargs["observable_name"]
+        self.file_name: str = kwargs["name"]
 
         # optional params for nonlinear time sampling - not currently used
         self.is_linear_time = kwargs["linear"] if "linear" in kwargs else True
@@ -38,18 +40,19 @@ class PatchySimObservable:
         """
         # TODO: if using more params, update this
         return {
-            "name": self.name,
+            "name": self.file_name,
             "print_every": self.print_every,
             "cols": self.cols
         }
 
-    def write_input(self, input_file: IO, i: int, analysis: bool = False):
+    def write_input(self, input_file: IO, i: int, stage: Stage, analysis: bool = False):
         """
         Writes the observable to an oxDNA input file
 
         Args:
             input_file: an io object for file writing, directing to an oxdna input file
             i: the index of this observable (important because of how oxdna reads the input file)
+            stage: the stage that we're writing an input file for
             analysis: if true, this input file is being written for `DNAanalysis` and not `oxdna`
 
         """
@@ -57,7 +60,10 @@ class PatchySimObservable:
             input_file.write(f"analysis_data_output_{i + 1} = " + "{\n")
         else:
             input_file.write(f"data_output_{i + 1} = " + "{\n")
-        input_file.write(f"\tname = {self.name}\n")
+        if stage.idx():
+            input_file.write(f"\tname = {stage.name()}_{self.file_name}\n")
+        else:
+            input_file.write(f"\tname = {self.file_name}\n")
         input_file.write(f"\tprint_every = {self.print_every}\n")  # TODO: configure to deal with nonlinear time
         if self.start_observe_stepnum > 0:
             input_file.write(f"\tstart_from = {self.start_observe_stepnum}\n")
