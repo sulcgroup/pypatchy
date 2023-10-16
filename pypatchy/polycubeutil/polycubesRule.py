@@ -559,7 +559,7 @@ class PolycubesRule(BaseParticleSet):
 
     def toJSON(self) -> list:
         return [{
-            "typeName": ct.file_name(),
+            "typeName": ct.name(),
             "patches": [{
                 "dir": to_xyz(p.direction()),
                 "alignDir": to_xyz(p.alignDir()),

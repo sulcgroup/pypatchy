@@ -178,6 +178,7 @@ class ObjectPipelineData(PipelineData):
     data: dict[int, list[Any]]
 
     def __init__(self, data):
+        assert isinstance(data, dict), "Invalid data arguement for ObjectPipelineData"
         self.data = data
 
     def get(self) -> dict[int, list[Any]]:
@@ -199,13 +200,13 @@ class ObjectPipelineData(PipelineData):
             self.data = pickle.load(f)
 
     def __add__(self, other: ObjectPipelineData) -> ObjectPipelineData:
-        overlap, _, _ = np.intersect1d(self.trange(), other.trange())
+        overlap = np.intersect1d(self.trange(), other.trange())
         # if no overlap, we're cool
-        if overlap.size == 0:
-            return ObjectPipelineData({**self.get()}.update(other.get()))
+        if len(overlap) == 0:
+            return ObjectPipelineData({**self.get(), **other.get()})
         else:
             if all([self.get()[key] == other.get()[key] for key in overlap]):
-                return ObjectPipelineData({**self.get()}.update(other.get()))
+                return ObjectPipelineData({**self.get(), **other.get()})
             else:
                 raise OverlappingDataError(self, other)
 

@@ -34,7 +34,7 @@ from ..patchy_base_particle import BaseParticleSet, Scene
 from ..patchyio import NUM_TEETH_KEY, get_writer, BasePatchyWriter, DENTAL_RADIUS_KEY
 from ..slurm_log_entry import SlurmLogEntry
 from ..slurmlog import SlurmLog
-from ..util import get_param_set, simulation_run_dir, get_server_config, get_log_dir, get_input_dir, is_slurm_job,\
+from ..util import get_param_set, simulation_run_dir, get_server_config, get_log_dir, get_input_dir, is_slurm_job, \
     is_server_slurm, SLURM_JOB_CACHE, append_to_file_name
 from .ensemble_parameter import EnsembleParameter, ParameterValue
 from .simulation_specification import PatchySimulation, ParamSet
@@ -296,7 +296,7 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
             else:
                 assert isinstance(obserable, dict), f"Invalid type for observale {type(obserable)}"
                 obserable = PatchySimObservable(**obserable)
-                observables[obserable.file_name] = obserable
+                observables[obserable.observable_name] = obserable
 
     # load particles
     if PARTICLES_KEY in cfg:
@@ -409,8 +409,9 @@ class PatchySimulationEnsemble:
         logger: logging.Logger = logging.getLogger(self.export_name)
         logger.setLevel(logging.DEBUG)
 
-
-        file_handler = logging.FileHandler(get_log_dir() / f"log_{self.export_name}_{self.datestr()}_at{datetime.datetime.now().strftime('%Y-%m-%d-%H-%M')}.log", mode="a")
+        file_handler = logging.FileHandler(
+            get_log_dir() / f"log_{self.export_name}_{self.datestr()}_at{datetime.datetime.now().strftime('%Y-%m-%d-%H-%M')}.log",
+            mode="a")
         file_handler.setLevel(logging.DEBUG)
         file_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
         file_handler.setFormatter(file_formatter)
@@ -807,12 +808,12 @@ class PatchySimulationEnsemble:
     #     """
     #     # grab particle name
     #     particle_name = self.particle_set.particle(particle_idx).name()
-        # if PARTICLE_TYPE_LVLS_KEY in self.const_params and particle_name in self.const_params[PARTICLE_TYPE_LVLS_KEY]:
-        #     particle_lvl = self.const_params[PARTICLE_TYPE_LVLS_KEY][particle_name]
-        # if PARTICLE_TYPE_LVLS_KEY in sim:
-        #     spec = self.sim_get_param(sim, PARTICLE_TYPE_LVLS_KEY)
-        #     if particle_name in spec:
-        #         particle_lvl = spec[particle_name]
+    # if PARTICLE_TYPE_LVLS_KEY in self.const_params and particle_name in self.const_params[PARTICLE_TYPE_LVLS_KEY]:
+    #     particle_lvl = self.const_params[PARTICLE_TYPE_LVLS_KEY][particle_name]
+    # if PARTICLE_TYPE_LVLS_KEY in sim:
+    #     spec = self.sim_get_param(sim, PARTICLE_TYPE_LVLS_KEY)
+    #     if particle_name in spec:
+    #         particle_lvl = spec[particle_name]
     #     # return self.sim_get_param(sim, particle_name) * self.sim_get_param(sim, NUM_ASSEMBLIES_KEY)
     #
     # def get_sim_particle_counts(self, sim: PatchySimulation):
@@ -836,7 +837,7 @@ class PatchySimulationEnsemble:
             the int
         """
         # grab particle name
-        particle_name = self.particle_set.particle(particle_idx).file_name()
+        particle_name = self.particle_set.particle(particle_idx).name()
         return self.sim_get_param(sim, particle_name) * self.sim_get_param(sim, NUM_ASSEMBLIES_KEY)
 
     def get_sim_particle_counts(self, sim: PatchySimulation):
@@ -893,7 +894,7 @@ class PatchySimulationEnsemble:
             # if stages not found
             # default: 1 stage, density = starting density, add method=random
             particles = list(itertools.chain.from_iterable([
-                [p.type_id()] * self.sim_get_param(sim, p.file_name()) * num_assemblies
+                [p.type_id()] * self.sim_get_param(sim, p.name()) * num_assemblies
                 for p in self.particle_set.particles()
             ]))
             stages = [Stage(
@@ -942,7 +943,7 @@ class PatchySimulationEnsemble:
 
                 else:
                     density = self.sim_get_param(sim, "density")
-                    box_side = (num_particles / density) ** (1/3)
+                    box_side = (num_particles / density) ** (1 / 3)
 
                 stage.set_box_size(np.array((box_side, box_side, box_side)))
 
@@ -950,6 +951,9 @@ class PatchySimulationEnsemble:
                 assert (stages[stage.idx() - 1].box_size() <= stage.box_size()).all(), "Shrinking box size not allowed!"
 
         return stages
+
+    def sim_get_stages_between(self, sim: PatchySimulation, tstart: int, tend: int) -> list[Stage]:
+        return [stage for stage in self.sim_get_stages(sim) if stage.end_time() >= tstart and stage.start_time() < tend]
 
     def sim_get_stage(self, sim: PatchySimulation, stage_name: Union[str, int]) -> Stage:
         stages = self.sim_get_stages(sim)
@@ -969,8 +973,8 @@ class PatchySimulationEnsemble:
         if not isinstance(stage, Stage):
             stage = self.sim_get_stage(sim, stage)
         return (
-           self.folder_path(sim) / stage.adjfn(self.sim_get_param(sim, "topology")),
-           self.folder_path(sim) / stage.adjfn(self.sim_get_param(sim, "trajectory_file"))
+            self.folder_path(sim) / stage.adjfn(self.sim_get_param(sim, "topology")),
+            self.folder_path(sim) / stage.adjfn(self.sim_get_param(sim, "trajectory_file"))
         )
 
     def sim_get_stage_last_step(self, sim: PatchySimulation, stage: Union[str, int, Stage]) -> int:
@@ -1032,7 +1036,6 @@ class PatchySimulationEnsemble:
             # return timepoint of last conf in traj
             return file_info([str(traj)])["t_end"][0] == stage.end_time()
 
-
     def num_patch_types(self, sim: PatchySimulation) -> int:
         """
         Returns: the total number of patches in the simulation
@@ -1081,7 +1084,7 @@ class PatchySimulationEnsemble:
         """
         if len(self.analysis_pipeline) == 0:
             self.get_logger().warning("Error: should not link from existing analysis pipeline! "
-                                                 "Use `clear_analysis_pipeline() to clear pipeline and try again.")
+                                      "Use `clear_analysis_pipeline() to clear pipeline and try again.")
             return
         self.analysis_pipeline = other.analysis_pipeline
         self.analysis_file = other.analysis_file
@@ -1119,7 +1122,12 @@ class PatchySimulationEnsemble:
             print("\t" + str(param))
         print(f"Const Simulation Params")
         for param in self.const_params:
-            print(f"\t{param.param_name}: {param.value_name}")
+            if param.is_grouped_params():
+                print(f"\t{param.param_name}")
+                for name in param.group_params_names():
+
+            else:
+                print(f"\t{param.param_name}: {param.value_name}")
 
         if len(self.analysis_pipeline) > 0:
             print(
@@ -1208,7 +1216,7 @@ class PatchySimulationEnsemble:
             a Configuration object showing the conf of the given simulation at the given timepoint
         """
         assert self.time_length(sim) >= timepoint, f"Specified timepoint {timepoint} exceeds simulation length" \
-                                                  f"{self.time_length(sim)}"
+                                                   f"{self.time_length(sim)}"
         if timepoint > self.sim_get_param(sim, "print_conf_interval"):
             # this means that we're dealing with tidxs not step numbers
             return self.get_conf(sim, int(timepoint / self.sim_get_param(sim, "print_conf_interval")))
@@ -1277,10 +1285,10 @@ class PatchySimulationEnsemble:
             if conf_file_name is None:
                 conf_file_name = self.sim_get_param(simulation_selector, "trajectory_file")
             self.write_setup_files(simulation_selector,
-                                  "input_dna_analysis",
+                                   "input_dna_analysis",
                                    {
-                                      "conf_file": conf_file_name
-                                  }, analysis=True)
+                                       "conf_file": conf_file_name
+                                   }, analysis=True)
             server_config = get_server_config()
 
             # write slurm script
@@ -1428,7 +1436,7 @@ class PatchySimulationEnsemble:
 
         if stage is None:
             try:
-            # get most recent stage
+                # get most recent stage
                 stage = self.sim_most_recent_stage(sim)
             # if no stage exists
             except NoStageTrajError:
@@ -1439,13 +1447,13 @@ class PatchySimulationEnsemble:
                 stage, done = stage
                 if not done:
                     # if mid-stage
-                    self.get_logger().error(f"{stage.file_name()} incomplete!")
+                    self.get_logger().error(f"{stage.name()} incomplete!")
                     return
                 stages = self.sim_get_stages(sim)
                 if stage.idx() + 1 != len(stages):
                     stage = stages[stage.idx() + 1]
                 else:
-                    self.get_logger().info(f"Final stage {stage.file_name()} is already complete!")
+                    self.get_logger().info(f"Final stage {stage.name()} is already complete!")
         elif isinstance(stage, str):
             stage = self.sim_get_stage(sim, stage)
 
@@ -1458,7 +1466,6 @@ class PatchySimulationEnsemble:
         if replacer_dict is None:
             replacer_dict = {}
         server_config = get_server_config()
-
 
         # if this is the first conf
         if stage.idx() == 0:
@@ -1591,6 +1598,7 @@ class PatchySimulationEnsemble:
         #     "input": input_file_name,
         #     **files
         # }
+
     #
     # def write_sim_top_particles_patches(self, sim: PatchySimulation):
     #     """
@@ -1601,76 +1609,74 @@ class PatchySimulationEnsemble:
     #     """
     #
 
-
-        # deleted in favor of patchy io
-        # server_config = get_server_config()
-        #
-        # # write top and particles/patches spec files
-        # # first convert particle json into PLPatchy objects (cf plpatchy.py)
-        # particles, patches = to_PL(self.particle_set,
-        #                            self.sim_get_param(sim, NUM_TEETH_KEY),
-        #                            self.sim_get_param(sim, DENTAL_RADIUS_KEY))
-        #
-        # # do any/all valid conversions
-        # # either josh_lorenzo or josh_flavio
-        # if server_config[PATCHY_FILE_FORMAT_KEY].find("josh") > -1:
-        #     # write top file
-        #     with open(self.folder_path(sim) / "init.top", "w+") as top_file:
-        #         # first line of file
-        #         top_file.write(f"{self.get_sim_total_num_particles(sim)} {len(particles)}\n")
-        #         top_file.write(" ".join([
-        #             f"{i} " * self.get_sim_particle_count(sim, i) for i in range(len(particles))
-        #         ]))
-        #     # write patches.txt and particles.txt
-        #     with open(self.folder_path(sim) / "patches.txt", "w+") as patches_file, open(
-        #             self.folder_path(sim) / "particles.txt", "w+") as particles_file:
-        #         for particle_patchy, cube_type in zip(particles, self.particle_set.particles()):
-        #             # handle writing particles file
-        #             for i, patch_obj in enumerate(particle_patchy.patches()):
-        #                 # we have to be VERY careful here with indexing to account for multidentate simulations
-        #                 # adjust for patch multiplier from multidentate
-        #                 polycube_patch_idx = int(i / self.sim_get_param(sim, NUM_TEETH_KEY))
-        #
-        #                 extradict = {}
-        #                 # if this is the "classic" format
-        #                 if server_config[PATCHY_FILE_FORMAT_KEY] == "josh_flavio":
-        #                     allo_conditional = cube_type.patch_conditional(
-        #                         cube_type.get_patch_by_idx(polycube_patch_idx), minimize=True)
-        #                     # allosteric conditional should be "true" for non-allosterically-controlled patches
-        #                     extradict = {"allostery_conditional": allo_conditional if allo_conditional else "true"}
-        #                 else:  # josh/lorenzo
-        #                     # adjust for patch multiplier from multiparticale_patchesdentate
-        #                     state_var = cube_type.get_patch_by_diridx(polycube_patch_idx).state_var()
-        #                     activation_var = cube_type.get_patch_by_diridx(polycube_patch_idx).activation_var()
-        #                     extradict = {
-        #                         "state_var": state_var,
-        #                         "activation_var": activation_var
-        #                     }
-        #                 patches_file.write(patch_obj.save_to_string(extradict))
-        #
-        #             if server_config[PATCHY_FILE_FORMAT_KEY] == "josh_flavio":
-        #                 particles_file.write(particle_patchy.save_type_to_string())
-        #             else:  # josh/lorenzo
-        #                 particles_file.write(
-        #                     particle_patchy.save_type_to_string({"state_size": cube_type.state_size()}))
-        #
-        # else:  # lorenzian
-        #     with open(self.folder_path(sim) / "init.top", "w+") as top_file:
-        #         top_file.write(f"{self.get_sim_total_num_particles(sim)} {len(particles)}\n")
-        #         # export_to_lorenzian_patchy_str also writes patches.dat file
-        #         top_file.writelines([
-        #             particle.export_to_lorenzian_patchy_str(self.get_sim_particle_count(sim,
-        #                                                                                 particle.type_id()),
-        #                                                     self.folder_path(sim))
-        #             + "\n"
-        #             for particle in particles])
-        #     export_interaction_matrix(patches)
+    # deleted in favor of patchy io
+    # server_config = get_server_config()
+    #
+    # # write top and particles/patches spec files
+    # # first convert particle json into PLPatchy objects (cf plpatchy.py)
+    # particles, patches = to_PL(self.particle_set,
+    #                            self.sim_get_param(sim, NUM_TEETH_KEY),
+    #                            self.sim_get_param(sim, DENTAL_RADIUS_KEY))
+    #
+    # # do any/all valid conversions
+    # # either josh_lorenzo or josh_flavio
+    # if server_config[PATCHY_FILE_FORMAT_KEY].find("josh") > -1:
+    #     # write top file
+    #     with open(self.folder_path(sim) / "init.top", "w+") as top_file:
+    #         # first line of file
+    #         top_file.write(f"{self.get_sim_total_num_particles(sim)} {len(particles)}\n")
+    #         top_file.write(" ".join([
+    #             f"{i} " * self.get_sim_particle_count(sim, i) for i in range(len(particles))
+    #         ]))
+    #     # write patches.txt and particles.txt
+    #     with open(self.folder_path(sim) / "patches.txt", "w+") as patches_file, open(
+    #             self.folder_path(sim) / "particles.txt", "w+") as particles_file:
+    #         for particle_patchy, cube_type in zip(particles, self.particle_set.particles()):
+    #             # handle writing particles file
+    #             for i, patch_obj in enumerate(particle_patchy.patches()):
+    #                 # we have to be VERY careful here with indexing to account for multidentate simulations
+    #                 # adjust for patch multiplier from multidentate
+    #                 polycube_patch_idx = int(i / self.sim_get_param(sim, NUM_TEETH_KEY))
+    #
+    #                 extradict = {}
+    #                 # if this is the "classic" format
+    #                 if server_config[PATCHY_FILE_FORMAT_KEY] == "josh_flavio":
+    #                     allo_conditional = cube_type.patch_conditional(
+    #                         cube_type.get_patch_by_idx(polycube_patch_idx), minimize=True)
+    #                     # allosteric conditional should be "true" for non-allosterically-controlled patches
+    #                     extradict = {"allostery_conditional": allo_conditional if allo_conditional else "true"}
+    #                 else:  # josh/lorenzo
+    #                     # adjust for patch multiplier from multiparticale_patchesdentate
+    #                     state_var = cube_type.get_patch_by_diridx(polycube_patch_idx).state_var()
+    #                     activation_var = cube_type.get_patch_by_diridx(polycube_patch_idx).activation_var()
+    #                     extradict = {
+    #                         "state_var": state_var,
+    #                         "activation_var": activation_var
+    #                     }
+    #                 patches_file.write(patch_obj.save_to_string(extradict))
+    #
+    #             if server_config[PATCHY_FILE_FORMAT_KEY] == "josh_flavio":
+    #                 particles_file.write(particle_patchy.save_type_to_string())
+    #             else:  # josh/lorenzo
+    #                 particles_file.write(
+    #                     particle_patchy.save_type_to_string({"state_size": cube_type.state_size()}))
+    #
+    # else:  # lorenzian
+    #     with open(self.folder_path(sim) / "init.top", "w+") as top_file:
+    #         top_file.write(f"{self.get_sim_total_num_particles(sim)} {len(particles)}\n")
+    #         # export_to_lorenzian_patchy_str also writes patches.dat file
+    #         top_file.writelines([
+    #             particle.export_to_lorenzian_patchy_str(self.get_sim_particle_count(sim,
+    #                                                                                 particle.type_id()),
+    #                                                     self.folder_path(sim))
+    #             + "\n"
+    #             for particle in particles])
+    #     export_interaction_matrix(patches)
 
     def write_sim_observables(self, sim: PatchySimulation):
         if len(self.observables) > 0:
             with open(self.folder_path(sim) / "observables.json", "w+") as f:
                 json.dump({f"data_output_{i + 1}": obs.to_dict() for i, obs in enumerate(self.observables.values())}, f)
-
 
     def gen_confs(self):
         """
@@ -2069,7 +2075,11 @@ class PatchySimulationEnsemble:
     def get_step_input_data(self,
                             step: PipelineStepDescriptor,
                             sim: PatchySimDescriptor,
-                            time_steps: range) -> Union[list[PipelineData], list[Path]]:
+                            time_steps: range) -> Union[list[PipelineData],
+                                                        list[Union[
+                                                            PatchySimulationEnsemble,
+                                                            PatchySimulation,
+                                                            list[Path]]]]:
         step = self.get_pipeline_step(step)
         # if this step is an aggregate, things get... complecated
         if isinstance(step, AggregateAnalysisPipelineStep):
@@ -2085,14 +2095,20 @@ class PatchySimulationEnsemble:
         # file paths instead of previous step data
         elif isinstance(step, AnalysisPipelineHead):
             assert isinstance(sim, PatchySimulation), "Analysis pipeline head nodes should only take single simulations"
-            files = [self, sim]
-            for file_name in step.get_data_in_filenames():
-                if isinstance(file_name, str):
-                    files.append(self.folder_path(sim) / file_name)
-                elif isinstance(file_name, re.Pattern):
-                    files.extend(
-                        [f for f in self.folder_path(sim).iterdir() if file_name.match(f.name)]
-                    )
+            stages: list[Stage] = self.sim_get_stages_between(sim, time_steps.start, time_steps.stop)
+            files = [self, sim, stages]
+            for file_name_in in step.get_data_in_filenames():
+                assert isinstance(file_name_in, str), f"Unexpected file_name_in parameter type {type(file_name_in)}." \
+                                                   f"Regexes no longer supported."
+                # add all files of this type, in an order corresponding to `stages`
+                try:
+                    # for files that are parameters (topology, conf, etc.)
+                    file_name = self.sim_get_param(sim, file_name_in)
+                except NoSuchParamError as e:
+                    # for files that are observable outputs
+                    file_name = file_name_in  # i don't think any modification is actually needed here?
+                file_names = [self.folder_path(sim) / file_name for stage in stages]
+                files.append(file_names)
             return files
         else:  # honestly this is still complecated but not as bad
             return [
@@ -2143,7 +2159,7 @@ class PatchySimulationEnsemble:
 
             if jobinfo and jobinfo != "slurm_load_jobs error: Invalid job id specified":
                 jobinfo = jobinfo.split()
-                jobinfo = {key: value for key, value in [x.split("=", 1) for x in jobinfo if len(x.split("=",1)) == 2]}
+                jobinfo = {key: value for key, value in [x.split("=", 1) for x in jobinfo if len(x.split("=", 1)) == 2]}
                 # Cache it
                 SLURM_JOB_CACHE[jobid] = jobinfo
                 return jobinfo
@@ -2191,7 +2207,8 @@ class NoSuchParamError(Exception):
                f"simulation {repr(self._sim)} in " \
                f"ensemble {self._ensemble.long_name()} "
 
-def process_simulation_data(args):
+
+def process_simulation_data(args: tuple[PatchySimulationEnsemble, AnalysisPipelineStep, PatchySimulation, range]):
     ensemble, step, s, time_steps = args
     return ensemble.get_data(step, s, time_steps)
 

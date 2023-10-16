@@ -18,7 +18,7 @@ class RuleReducer:
 
     def __init__(self, rule: PolycubesRule):
         self.rule = rule
-        self.control_vars: dict[str, set[int]] = {ct.file_name(): set() for ct in self.rule.particles()}
+        self.control_vars: dict[str, set[int]] = {ct.name(): set() for ct in self.rule.particles()}
         self.rename_counter = 0
 
     def minimize(self) -> Generator[PolycubesRule, None, None]:
