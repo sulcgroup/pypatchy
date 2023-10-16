@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+import itertools
 import pickle
 from abc import ABC, abstractmethod
 from enum import Enum
@@ -6,7 +9,6 @@ from typing import Union, Any
 
 import numpy as np
 import pandas as pd
-
 
 TIMEPOINT_KEY = "timepoint"
 
@@ -22,6 +24,29 @@ class PipelineDataType(Enum):
     PIPELINE_DATATYPE_GRAPH = 3
     # objects
     PIPELINE_DATATYPE_OBJECTS = 4
+
+
+class OverlappingDataError(Exception):
+    """
+    Exception class for when you try to merge data with overlapping timepoints that conflict
+    eg one PipelineData object says we have datum A at timepoint t, other one says we have datum B at timepoint t
+    """
+
+    _overlapping_data: tuple[PipelineData]
+
+    def __init__(self, *args: PipelineData):
+        self._overlapping_data = args
+        self._overlapping_timepoints = itertools.accumulate(self.overlap_data(),
+                                                            func=lambda a, b: np.intersect1d(a, b)[0])
+
+    def overlap_data(self):
+        return self._overlapping_data
+
+    def overlapping_timepoints(self):
+        return self._overlapping_timepoints
+
+    def __str__(self):
+        return f"Overlap between data! Overlapping timepoints {self.overlapping_timepoints()}"
 
 
 class PipelineData(ABC):
@@ -50,6 +75,10 @@ class PipelineData(ABC):
 
     @abstractmethod
     def load_cached_data(self, p: Path):
+        pass
+
+    @abstractmethod
+    def __add__(self, other: PipelineData):
         pass
 
 
@@ -106,6 +135,21 @@ class PDPipelineData(PipelineData):
                 self.data = hdfdata["data"]
                 self._trange = np.array(hdfdata["trange"])
 
+    def __add__(self, other: PDPipelineData) -> PDPipelineData:
+        overlap, _, _ = np.intersect1d(self.trange(), other.trange())
+        # if no overlap, we're cool
+        if overlap.size == 0:
+            return PDPipelineData(pd.concat([self.get(), other.get()], ignore_index=True),
+                                  np.concatenate([self.trange(), other.trange()]))
+        else:
+            self_overlap = self.get()[self.get()[TIMEPOINT_KEY].isin(overlap)]
+            other_overlap = other.get()[other.get()[TIMEPOINT_KEY].isin(overlap)]
+            if self_overlap.equals(other_overlap):
+                return PDPipelineData(pd.concat([self.get(), other.get()], ignore_index=True),
+                                      np.concatenate([self.trange(), other.trange()]))
+            else:
+                raise OverlappingDataError(self, other)
+
 
 def load_cached_pd_data(_, f: Path) -> PDPipelineData:
     assert f.is_file()
@@ -154,6 +198,17 @@ class ObjectPipelineData(PipelineData):
         with open(p, 'rb') as f:
             self.data = pickle.load(f)
 
+    def __add__(self, other: ObjectPipelineData) -> ObjectPipelineData:
+        overlap, _, _ = np.intersect1d(self.trange(), other.trange())
+        # if no overlap, we're cool
+        if overlap.size == 0:
+            return ObjectPipelineData({**self.get()}.update(other.get()))
+        else:
+            if all([self.get()[key] == other.get()[key] for key in overlap]):
+                return ObjectPipelineData({**self.get()}.update(other.get()))
+            else:
+                raise OverlappingDataError(self, other)
+
 
 class RawPipelineData(ObjectPipelineData):
     # TODO: anything at all
@@ -164,3 +219,17 @@ def load_cached_object_data(_, f: Path) -> ObjectPipelineData:
     assert f.is_file()
     with f.open("rb") as datafile:
         return pickle.load(datafile)
+
+
+class MissingCommonDataError(Exception):
+    """
+    Exception to be thrown when two datasets are required for some operation but there's no overlap
+    between the tranges of the datasets
+    """
+    _data_sets: tuple[PipelineData]
+
+    def __init__(self, *args: PipelineData):
+        self._data_sets = args
+
+    def __str__(self):
+        return "No timepoints overlapping between datasets!"

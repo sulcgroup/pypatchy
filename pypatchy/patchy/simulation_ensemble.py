@@ -25,7 +25,7 @@ from oxDNA_analysis_tools.UTILS.RyeReader import get_confs, describe, write_conf
 from oxDNA_analysis_tools.UTILS.data_structures import Configuration
 
 from pypatchy.analpipe.analysis_pipeline import AnalysisPipeline
-from .stage import Stage, NoStageTrajError, IncompleteStageError
+from .stage import Stage, NoStageTrajError, IncompleteStageError, StageTrajFileEmptyError
 from ..analpipe.analysis_data import PDPipelineData, TIMEPOINT_KEY
 from ..analpipe.analysis_pipeline_step import AnalysisPipelineStep, PipelineData, AggregateAnalysisPipelineStep, \
     AnalysisPipelineHead, PipelineStepDescriptor, PipelineDataType
@@ -246,7 +246,7 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
             with open(get_input_dir() / analysis_file, "rb") as f:
                 analysis_pipeline = pickle.load(f)
         else:
-            print(f"Analysis file specified in metadata but path {analysis_file} does not exist!")
+            print(f"Analysis file specified in metadata but path {get_input_dir() / analysis_file} does not exist!")
             analysis_pipeline = AnalysisPipeline()
     else:
         analysis_file = f"{export_name}_analysis_pipeline.pickle"
@@ -289,8 +289,14 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
     observables: dict[str: PatchySimObservable] = {}
 
     if OBSERABLES_KEY in cfg:
-        for obs_name in cfg[OBSERABLES_KEY]:
-            observables[obs_name] = observable_from_file(obs_name)
+        for obserable in cfg[OBSERABLES_KEY]:
+            # legacy: string-expression of observable
+            if isinstance(obserable, str):
+                observables[obserable] = observable_from_file(obserable)
+            else:
+                assert isinstance(obserable, dict), f"Invalid type for observale {type(obserable)}"
+                obserable = PatchySimObservable(**obserable)
+                observables[obserable.file_name] = obserable
 
     # load particles
     if PARTICLES_KEY in cfg:
@@ -327,6 +333,7 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
         ensemble.slurm_log = SlurmLog(*[SlurmLogEntry(**e) for e in mdt["slurm_log"]])
     ensemble.dump_metadata()
     return ensemble
+
 
 class PatchySimulationEnsemble:
     """
@@ -829,7 +836,7 @@ class PatchySimulationEnsemble:
             the int
         """
         # grab particle name
-        particle_name = self.particle_set.particle(particle_idx).name()
+        particle_name = self.particle_set.particle(particle_idx).file_name()
         return self.sim_get_param(sim, particle_name) * self.sim_get_param(sim, NUM_ASSEMBLIES_KEY)
 
     def get_sim_particle_counts(self, sim: PatchySimulation):
@@ -886,7 +893,7 @@ class PatchySimulationEnsemble:
             # if stages not found
             # default: 1 stage, density = starting density, add method=random
             particles = list(itertools.chain.from_iterable([
-                [p.type_id()] * self.sim_get_param(sim, p.name()) * num_assemblies
+                [p.type_id()] * self.sim_get_param(sim, p.file_name()) * num_assemblies
                 for p in self.particle_set.particles()
             ]))
             stages = [Stage(
@@ -972,7 +979,11 @@ class PatchySimulationEnsemble:
             raise NoStageTrajError(stage, sim, str(traj))
         else:
             # return timepoint of last conf in traj
-            return file_info([str(traj)])["t_end"][0]
+            try:
+                return file_info([str(traj)])["t_end"][0]
+            except IndexError as e:
+                # trajectory file empty
+                raise StageTrajFileEmptyError(stage, sim, str(traj))
 
     def sim_most_recent_stage(self, sim: PatchySimulation) -> Stage:
         """
@@ -985,15 +996,20 @@ class PatchySimulationEnsemble:
         for stage in reversed(self.sim_get_stages(sim)):
             # if traj file exists
             if (self.folder_path(sim) / stage.adjfn(self.sim_get_param(sim, "trajectory_file"))).exists():
-                stage_last_step = self.sim_get_stage_last_step(sim, stage)
-                if stage_last_step == stage.end_time():
-                    return stage
-                # if stage is incomplete, raise an exception
-                raise IncompleteStageError(
-                    stage,
-                    sim,
-                    stage_last_step
-                )
+                try:
+                    stage_last_step = self.sim_get_stage_last_step(sim, stage)
+                    if stage_last_step == stage.end_time():
+                        return stage
+                    # if stage is incomplete, raise an exception
+                    raise IncompleteStageError(
+                        stage,
+                        sim,
+                        stage_last_step
+                    )
+                except StageTrajFileEmptyError as e:
+                    # if the stage traj is empty just continue
+                    pass
+
         # if no stage has a traj file, raise exception
         trajpath = self.folder_path(sim) / self.sim_get_stage(sim,
                                                               0).adjfn(self.sim_get_param(sim,
@@ -1097,6 +1113,7 @@ class PatchySimulationEnsemble:
         print(f"Ensemble of simulations of {self.export_name} set up on {self.sim_init_date.strftime('%Y-%m-%d')}")
         print(f"Particle info: {str(self.particle_set)}")
         print(f"Metadata stored in file {self.metadata_file}")
+        print(f"Simulation TLD: {self.tld()}")
         print("Ensemble Params")
         for param in self.ensemble_params:
             print("\t" + str(param))
@@ -1423,13 +1440,13 @@ class PatchySimulationEnsemble:
                 stage, done = stage
                 if not done:
                     # if mid-stage
-                    self.get_logger().error(f"{stage.name()} incomplete!")
+                    self.get_logger().error(f"{stage.file_name()} incomplete!")
                     return
                 stages = self.sim_get_stages(sim)
                 if stage.idx() + 1 != len(stages):
                     stage = stages[stage.idx() + 1]
                 else:
-                    self.get_logger().info(f"Final stage {stage.name()} is already complete!")
+                    self.get_logger().info(f"Final stage {stage.file_name()} is already complete!")
         elif isinstance(stage, str):
             stage = self.sim_get_stage(sim, stage)
 
@@ -1570,7 +1587,7 @@ class PatchySimulationEnsemble:
                     inputfile.write(f"observables_file = observables.json" + "\n")
                 else:
                     for i, obsrv in enumerate(self.observables.values()):
-                        obsrv.write_input(inputfile, i, analysis)
+                        obsrv.write_input(inputfile, i, stage, analysis)
         # return {
         #     "input": input_file_name,
         #     **files
@@ -1800,7 +1817,6 @@ class PatchySimulationEnsemble:
         # for non-slurm servers
         else:
             command = f"bash {script_name} > simulation.log"
-
 
         # shouldn't be nessecary anymore but whatever
         if not self.paramstagefile(sim, stage, "conf_file").exists():

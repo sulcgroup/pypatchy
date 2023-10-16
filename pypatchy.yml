@@ -1,9 +1,8 @@
-name: polycubes
 channels:
   - defaults
   - conda-forge
 dependencies:
-  - python=3.9.12
+  - python
   - h5py
   - altair
   - jupyter
@@ -16,4 +15,3 @@ dependencies:
   - pytables
   - python-igraph
   - drawsvg
-prefix: /home/josh/anaconda3/envs/polycubes

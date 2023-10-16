@@ -2,7 +2,8 @@ import copy
 import json
 from dataclasses import dataclass
 from enum import Enum
-from typing import Union
+from pathlib import Path
+from typing import Union, Iterable
 
 import numpy as np
 from pypatchy.patchy.simulation_specification import PatchySimulation
@@ -59,8 +60,8 @@ class Stage:
     def box_size(self) -> np.ndarray:
         return self._box_size
 
-    def set_box_size(self, box_size: np.ndarray):
-        self._box_size = box_size
+    def set_box_size(self, box_size: Iterable):
+        self._box_size = np.array(box_size)
 
     def particles_to_add(self) -> list[int]:
         return self._particles_to_add
@@ -94,6 +95,7 @@ class Stage:
         else:
             return file_name
 
+
 class StagedAssemblyError(Exception):
     _stage: Stage
     _sim: PatchySimulation
@@ -124,7 +126,7 @@ class IncompleteStageError(StagedAssemblyError):
                f"{self._last_timestep} out of {self.stage().start_time()}:{self.stage().end_time()}"
 
 
-class NoStageTrajError(StagedAssemblyError):
+class StageTrajFileError(StagedAssemblyError):
     def __init__(self,
                  stage: Stage,
                  sim: PatchySimulation,
@@ -132,6 +134,17 @@ class NoStageTrajError(StagedAssemblyError):
         StagedAssemblyError.__init__(self, stage, sim)
         self._traj_file = traj_file_path
 
+    def traj_file(self):
+        return self._traj_file
+
+
+class NoStageTrajError(StageTrajFileError):
     def __str__(self):
         return f"Stage {self.stage().name()} of simulation {repr(self.sim())} has no traj file. Traj file expected" \
-               f"to be located at `{self._traj_file}`."
+               f"to be located at `{self.traj_file()}`."
+
+
+class StageTrajFileEmptyError(StageTrajFileError):
+    def __str__(self):
+        return f"Stage {self.stage().name()} of simulation {repr(self.sim())} has empty traj file. Traj file " \
+               f"located at `{self.traj_file()}`."

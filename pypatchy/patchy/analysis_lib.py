@@ -23,7 +23,7 @@ from pypatchy.analpipe.yield_analysis_target import ClusterCategory
 from pypatchy.analpipe.yield_analysis_target import YieldAnalysisTarget
 
 from ..analpipe.analysis_data import PDPipelineData, ObjectPipelineData, TIMEPOINT_KEY, load_cached_pd_data, \
-    load_cached_object_data, RawPipelineData
+    load_cached_object_data, RawPipelineData, MissingCommonDataError
 
 import drawsvg as draw
 
@@ -147,7 +147,7 @@ class BlobsFromClusters(AnalysisPipelineHead):
     """
 
     def get_data_in_filenames(self) -> list[str]:
-        return [self.source_observable.name]
+        return [self.source_observable.file_name]
 
     def load_cached_files(self, f: Path) -> PipelineData:
         assert f.is_file()
@@ -256,7 +256,7 @@ class GraphsFromClusterTxt(AnalysisPipelineHead):
         return ObjectPipelineData(graphs)
 
     def get_data_in_filenames(self):
-        return [self.source_observable.name]
+        return [self.source_observable.file_name]
 
     def get_output_data_type(self):
         return PipelineDataType.PIPELINE_DATATYPE_GRAPH
@@ -264,7 +264,7 @@ class GraphsFromClusterTxt(AnalysisPipelineHead):
     def draw(self) -> tuple[tuple[int, int], draw.Group]:
         (w, y), g = super().draw()
         g.append(draw.Rectangle(0, y, w, 40, stroke="black", stroke_width=1, fill="tan"))
-        g.append(draw.Text(f"Source Observable: {self.source_observable.name}", font_size=7, x=1, y=y+7))  # TODO: more info?
+        g.append(draw.Text(f"Source Observable: {self.source_observable.file_name}", font_size=7, x=1, y=y + 7))  # TODO: more info?
         y += 10
         g.append(draw.Text("TODO: write description!", font_size=7, x=1, y=y+7))
         y += 28
@@ -362,14 +362,14 @@ class ClassifyPolycubeClusters(AnalysisPipelineStep):
                  name: str,
                  target_name: str,
                  expected_edge_length: float = 1,
-                 edge_distance_tolerance: float =0.1,
+                 edge_distance_tolerance: float = 0.1,
                  input_tstep: Union[int, None] = None,
                  output_tstep: Union[int, None] = None):
         super().__init__(name, input_tstep, output_tstep)
         with (get_input_dir() / "targets" / (target_name + ".json")).open("r") as f:
             target_data = json.load(f)
             rule = PolycubesRule(rule_json=target_data["cube_types"])
-            self.target_polycube = PolycubeStructure(rule, target_data["cubes"])
+            self.target_polycube = PolycubeStructure(rule=rule, structure=target_data["cubes"])
             self.target = YieldAnalysisTarget(target_name, self.target_polycube.graph_undirected())
             self.graphedgelen = expected_edge_length
             self.graphedgetolerence = edge_distance_tolerance
@@ -404,10 +404,15 @@ class ClassifyPolycubeClusters(AnalysisPipelineStep):
             for type_id in set(polycube_type_ids)
         }
         # loop timepoints in input graph data
-        for timepoint in graph_input_data.get():
+        shared_timepoints = np.intersect1d(graph_input_data.trange(), traj_data.trange())
+        if not len(shared_timepoints):
+            raise MissingCommonDataError(graph_input_data, traj_data)
+
+        for timepoint in shared_timepoints:
             # check output tstep
             if timepoint % self.output_tstep == 0:
                 # grab conf and top data at this timepoint (only really need top until i rope in SVD superimposer)
+
                 assert timepoint in traj_data.trange()
                 conf, top = traj_data.get()[timepoint]
 
@@ -535,7 +540,6 @@ YIELD_KEY = "yield"
 class ComputeClusterYield(AnalysisPipelineStep):
     cutoff: float
     overreach: bool
-    target: YieldAnalysisTarget
 
     def __init__(self,
                  name: str,

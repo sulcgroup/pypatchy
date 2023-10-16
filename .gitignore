@@ -10,3 +10,4 @@ src/pypatchy/patchy/.ipynb_checkpoints
 pypatchy.egg-info
 build
 dist
+*.so
