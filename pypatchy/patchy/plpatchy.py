@@ -948,3 +948,7 @@ class PLPSimulation(Scene):
             a1s,
             a3s
         )
+
+    def set_time(self, t):
+        self._time = t
+                                                                                                                        
