@@ -1113,6 +1113,25 @@ class PatchySimulationEnsemble:
         prints help text, for non-me people or if I forget
         might replace later with pydoc
         """
+
+        # this is something useful that will help us later
+        def print_stages(stages_dict: dict, pad=0):
+            # stage dicts not stage objects!
+            stages = stages_dict["stages"]
+            for stage_name in stages:
+                stage = stages[stage_name]
+                print("\t" * pad + f"Stage {stage_name}:")
+                print("\t" * (pad + 1) + f"Starting Timestep: {stage['t']}")
+                if "tend" in stage:
+                    print("\t" * (pad + 1) + f"Ending Timestep: {stage['tend']}")
+                print("\t" * (pad + 1) + f"Add Method: {stage['add_method']}")
+                if len(stage["particles"]) > 0:
+                    print("\t" * (pad + 1) + "Particles to add per assembly unit:")
+                    for particle_type_name in stage["particles"]:
+                        print("\t" * (pad + 1) + f"  {particle_type_name}: {stage['particles'][particle_type_name]}")
+                else:
+                    print("No particles added")
+
         print(f"Ensemble of simulations of {self.export_name} set up on {self.sim_init_date.strftime('%Y-%m-%d')}")
         print(f"Particle info: {str(self.particle_set)}")
         print(f"Metadata stored in file {self.metadata_file}")
@@ -1123,9 +1142,13 @@ class PatchySimulationEnsemble:
         print(f"Const Simulation Params")
         for param in self.const_params:
             if param.is_grouped_params():
-                print(f"\t{param.param_name}")
-                for name in param.group_params_names():
+                if param.param_name == "stages":
+                    print_stages(param.param_value, 2)
 
+                else:
+                    print(f"\t{param.param_name}:")
+                    for name in param.group_params_names():
+                        print(f"\t\t{name}: {param.param_value[name]}")
             else:
                 print(f"\t{param.param_name}: {param.value_name}")
 

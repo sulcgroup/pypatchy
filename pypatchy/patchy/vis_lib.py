@@ -31,7 +31,7 @@ DEFAULT_SB_ARGS = {
 def plot_analysis_data(e: PatchySimulationEnsemble,
                        analysis_data_source: PipelineStepDescriptor,
                        data_source_key: str,
-                       other_spec: Union[None, list[ParameterValue]] = None,
+                       other_spec: Union[None, list[ParameterValue], list[tuple]] = None,
                        cols: Union[None, str, EnsembleParameter] = None,
                        rows: Union[None, str, EnsembleParameter] = None,
                        color: Union[None, str, EnsembleParameter] = None,
@@ -68,6 +68,8 @@ def plot_analysis_data(e: PatchySimulationEnsemble,
         plt_args["hue"] = color
     if isinstance(stroke, str):
         plt_args["style"] = stroke
+
+    other_spec = [ParameterValue(spec[0], spec[1]) if isinstance(spec, tuple) else spec for spec in other_spec]
 
     data_source = e.get_data(analysis_data_source, tuple(other_spec))
     data: pd.DataFrame = data_source.get().copy()

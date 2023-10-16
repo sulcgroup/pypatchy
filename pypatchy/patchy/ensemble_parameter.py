@@ -13,7 +13,7 @@ class ParameterValue:
     """
     param_name: str
     value_name: str
-    param_value: Union[str, bool, float, dict, int, dict]
+    param_value: Union[str, bool, float, dict, int]
 
     def __init__(self, key, val):
         # values for the parameter can be either simple types (int, str, or float) which are

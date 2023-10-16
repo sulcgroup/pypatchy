@@ -192,8 +192,10 @@ class FWriter(BasePatchyWriter):
                    traj_file: Path,
                    particle_types: BaseParticleSet) -> Scene:
         top_info, traj_info = rr.describe(str(top_file), str(traj_file))
+        # only retrieve last conf
         conf = rr.get_confs(top_info, traj_info, traj_info.nconfs - 1, 1)[0]
         scene = PLPSimulation()
+        scene.set_time(conf.time)
         scene.set_particle_types(particle_types)
         scene.set_box_size(conf.box)
         with top_file.open("r") as f:
