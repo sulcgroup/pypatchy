@@ -572,16 +572,16 @@ class ComputeClusterYield(AnalysisPipelineStep):
         # discard cluster categories column
         data.drop(ClassifyClusters.CLUSTER_CATEGORY_KEY, axis=1)
         # group by timepoint, average, reset index
-        data = data.groupby(TIMEPOINT_KEY).sum().reset_index()
+        data = data.groupby(TIMEPOINT_KEY).sum(numeric_only=True).reset_index()
         # rename column
         data = data.rename(mapper={ClassifyClusters.SIZE_RATIO_KEY: YIELD_KEY}, axis="columns")
         # data = data.set_index([TIMEPOINT_KEY])
         data = data.loc[data[TIMEPOINT_KEY] % self.output_tstep == 0]
         missing_timepoints = cluster_categories.missing_timepoints(data[TIMEPOINT_KEY].unique().data)
-        data = data.append(pd.DataFrame.from_dict({
+        data = pd.concat([data, pd.DataFrame.from_dict({
             TIMEPOINT_KEY: missing_timepoints,
             YIELD_KEY: 0
-        }), ignore_index=True)
+        })], ignore_index=True)
         return PDPipelineData(data,
                               cluster_categories.trange()[cluster_categories.trange() % self.output_tstep == 0])
 
