@@ -97,4 +97,4 @@ def observable_from_file(obs_file_name: str) -> PatchySimObservable:
     # standardize input
     if obs_file_name.endswith(".json"):
         obs_file_name = obs_file_name[:obs_file_name.rfind(".")]
-    return PatchySimObservable(**get_spec_json(obs_file_name, "observables"))
+    return PatchySimObservable(observable_name=obs_file_name, **get_spec_json(obs_file_name, "observables"))

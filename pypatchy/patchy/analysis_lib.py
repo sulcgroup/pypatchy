@@ -15,6 +15,7 @@ from pypatchy.patchy.simulation_specification import PatchySimulation
 
 from .ensemble_parameter import EnsembleParameter
 from .simulation_ensemble import PatchySimulationEnsemble
+from .stage import Stage
 from ..analpipe.analysis_pipeline_step import AnalysisPipelineStep, AggregateAnalysisPipelineStep, AnalysisPipelineHead, \
     PipelineDataType, PipelineData
 from .patchy_sim_observable import PatchySimObservable
@@ -74,52 +75,52 @@ class LoadParticlesTraj(AnalysisPipelineHead):
         # self.first_conf = first_conf_file_name
 
     load_cached_files = load_cached_object_data
+    DATA_IN_FILENAMES = ["topology", "conf_file", "trajectory_file"]
 
     def exec(self,
              ensemble: PatchySimulationEnsemble,
              sim: PatchySimulation,
-             *args: Path) -> PipelineData:
-        top_file = ensemble.folder_path(sim) / ensemble.sim_get_param(sim, "topology")
-        # this will go up in smoke very badly if it comes into contact with staged assembly
-        with open(top_file) as f:
-            f.readline()  # skip line
-            particle_type_ids = [int(i) for i in f.readline().split()]
+             stages: list[Stage],
+             *args: list[Path]) -> PipelineData:
         # load first conf (not incl in traj for some reason)
-        top_file_path = ensemble.paramfile(sim, "topology")
-        first_conf_file_path = ensemble.paramfile(sim, "conf_file")
-        traj_file_path = ensemble.paramfile(sim, "trajectory_file")
-        top_info, init_conf_info = describe(str(top_file), str(first_conf_file_path))
-        firstconf = get_confs(traj_info=init_conf_info,
-                              top_info=top_info,
-                              start_conf=0,
-                              n_confs=1)[0]
-        confdict = {0: (firstconf, particle_type_ids)}
-        # load trajectory confs
-        top_info, traj_info = describe(
-            str(top_file_path),
-            str(traj_file_path)
-        )
-        confs = get_confs(
-            traj_info=traj_info,
-            top_info=top_info,
-            start_conf=0,
-            n_confs=traj_info.nconfs
-        )
+        # iter stages
+        staged_data = []
+        for stage, top_file, first_conf_file_path, traj_file_path in zip(stages, *args):
+            with top_file.open("r") as f:
+                f.readline()  # skip line
+                particle_type_ids = [int(i) for i in f.readline().split()]
+            top_info, init_conf_info = describe(str(top_file), str(first_conf_file_path))
+            firstconf = get_confs(traj_info=init_conf_info,
+                                  top_info=top_info,
+                                  start_conf=0,
+                                  n_confs=1)[0]
+            confdict = {0: (firstconf, particle_type_ids)}
+            # load trajectory confs
+            top_info, traj_info = describe(
+                str(top_file),
+                str(traj_file_path)
+            )
+            confs = get_confs(
+                traj_info=traj_info,
+                top_info=top_info,
+                start_conf=0,
+                n_confs=traj_info.nconfs
+            )
 
-        # def norm_coord(coord: float, increment: float) -> float:
-        #     while coord < increment:
-        #         coord += increment
-        #     return coord % increment
-        # norm_coord_vectorize = np.vectorize(norm_coord)
+            # def norm_coord(coord: float, increment: float) -> float:
+            #     while coord < increment:
+            #         coord += increment
+            #     return coord % increment
+            # norm_coord_vectorize = np.vectorize(norm_coord)
 
-        for conf in confs:
-            if conf.time % self.output_tstep == 0:
-                if self.normalize_coords:
-                    conf = inbox(conf, True)
-                # assert (conf.positions < conf.box[np.newaxis, :]).all()
-                confdict[conf.time] = (conf, particle_type_ids)
-        return RawPipelineData(confdict)
-
+            for conf in confs:
+                if conf.time % self.output_tstep == 0:
+                    if self.normalize_coords:
+                        conf = inbox(conf, True)
+                    # assert (conf.positions < conf.box[np.newaxis, :]).all()
+                    confdict[conf.time] = (conf, particle_type_ids)
+            staged_data.append(RawPipelineData(confdict))
+        return sum(staged_data, start=RawPipelineData({}))
 
     def draw(self) -> tuple[tuple[int, int], draw.Group]:
         (w, y), g = super().draw()
@@ -128,9 +129,8 @@ class LoadParticlesTraj(AnalysisPipelineHead):
         y += 40
         return (w, y), g
 
-
     def get_data_in_filenames(self) -> list[str]:
-        return []
+        return self.DATA_IN_FILENAMES
 
     def get_output_data_type(self):
         """
@@ -221,38 +221,39 @@ class GraphsFromClusterTxt(AnalysisPipelineHead):
 
     load_cached_files = load_cached_object_data
 
-    def exec(self, _, __, din: Path) -> ObjectPipelineData:
+    def exec(self, _, __, stages: list[Stage], graphs_files: list[Path]) -> ObjectPipelineData:
         graphs = {}
-        stepcounter = 0
-        with open(din, "r") as f:
-            # iterate lines in the graph file
-            for line in f:
-                # skip timepoints that aren't multiples of the specified timestep
-                if stepcounter % self.output_tstep == 0:
+        for stage, graph_file in zip(stages, graphs_files):
+            with open(graph_file, "r") as f:
+                stepcounter = stage.start_time()
+                # iterate lines in the graph file
+                for line in f:
+                    # skip timepoints that aren't multiples of the specified timestep
+                    if stepcounter % self.output_tstep == 0:
 
-                    clusterGraphs = []
-                    # regex for a single cluster
-                    clusters = re.finditer(r'\[.+?\]', line)
+                        clusterGraphs = []
+                        # regex for a single cluster
+                        clusters = re.finditer(r'\[.+?\]', line)
 
-                    # iter regex matches
-                    for cluster in clusters:
-                        G = nx.Graph()
-                        # iter entries within cluster
-                        # entries are in format "[source-particle] -> ([space-seperated-list-of-connected-particles])
-                        matches = re.finditer(
-                            r'(\d+) -> \(((?:\d+ ?)+)\)', cluster.group()
-                        )
-                        # loop matches
-                        for m in matches:
-                            # grab source particle ID
-                            source = m.group(1)
-                            # loop destination particle IDs
-                            for dest in m.group(2).split(' '):
-                                # add edge between source and connected particle
-                                G.add_edge(int(source), int(dest))
-                        clusterGraphs.append(G)
-                    graphs[stepcounter] = clusterGraphs
-                stepcounter += self.source_observable.print_every
+                        # iter regex matches
+                        for cluster in clusters:
+                            G = nx.Graph()
+                            # iter entries within cluster
+                            # entries are in format "[source-particle] -> ([space-seperated-list-of-connected-particles])
+                            matches = re.finditer(
+                                r'(\d+) -> \(((?:\d+ ?)+)\)', cluster.group()
+                            )
+                            # loop matches
+                            for m in matches:
+                                # grab source particle ID
+                                source = m.group(1)
+                                # loop destination particle IDs
+                                for dest in m.group(2).split(' '):
+                                    # add edge between source and connected particle
+                                    G.add_edge(int(source), int(dest))
+                            clusterGraphs.append(G)
+                        graphs[stepcounter] = clusterGraphs
+                    stepcounter += self.source_observable.print_every
         return ObjectPipelineData(graphs)
 
     def get_data_in_filenames(self):
