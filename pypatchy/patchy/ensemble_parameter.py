@@ -60,6 +60,9 @@ class ParameterValue:
 
     def __eq__(self, other: ParameterValue) -> bool:
         return self.param_name == other.param_name and self.value_name == other.value_name
+    
+    def __hash__(self) -> int:
+        return hash(str(self))
 
 
 class EnsembleParameter:
