@@ -66,6 +66,9 @@ class Stage:
     def particles_to_add(self) -> list[int]:
         return self._particles_to_add
 
+    def num_particles_to_add(self) -> int:
+        return len(self.particles_to_add())
+
     def start_time(self) -> int:
         return self._stage_start_time
 
