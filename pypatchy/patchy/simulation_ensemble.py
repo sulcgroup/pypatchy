@@ -873,13 +873,15 @@ class PatchySimulationEnsemble:
                     "t": stage_info["t"],
                     "particles": stage_particles,
                 }
-                if "length" not in stage_info and "tlen" not in stage_info:
+                if "length" not in stage_info and "tlen" not in stage_info and "tend" not in stage_info:
                     if i + 1 != len(stages_info):
                         # if stage is not final stage, last step of this stage will be first step of next stage
                         stage_init_args["tend"] = stages_info[i + 1]["t"]
                     else:
                         # if the stage is the final stage, last step will be end of simulation
                         stage_init_args["tend"] = self.sim_get_param(sim, "steps")
+                elif "tend" in stage_info:
+                    stage_init_args["tlen"] = stage_info["tend"] - stage_info["t"]
                 elif "length" in stage_info:
                     stage_init_args["tlen"] = stage_info["length"]
                 else:
