@@ -989,6 +989,13 @@ class PatchySimulationEnsemble:
                 # trajectory file empty
                 raise StageTrajFileEmptyError(stage, sim, str(traj))
 
+    def sim_get_total_stage_particles(self, sim: PatchySimulation, stage: Stage) -> int:
+        """
+        Computes the number of particles in a stage. Includes particles added in this stage and
+        all previous stages
+        """
+        return sum([s.num_particles_to_add() for s in self.sim_get_stages(sim)[:stage.idx()+1]])  # incl passed stage
+
     def sim_most_recent_stage(self, sim: PatchySimulation) -> Stage:
         """
         Returns:
@@ -1233,6 +1240,24 @@ class PatchySimulationEnsemble:
                                             self.sim_get_param(sim, DENTAL_RADIUS_KEY)))
         # scene: PLPSimulation()
 
+    def is_traj_valid(self, sim: PatchySimulation, stage: Union[Stage, None] = None) -> bool:
+        """
+        Checks if a trajectory file is valid by counting the lines
+        A valid traj file should have a line count which is a multiple of (number of particles + 3)
+        I sould like to depreacate this method ASAP but right now oat segfaults with no warning when a traj
+        file is corrupted
+        Args:
+            :param sim
+            :param stage
+
+        Return: True if the traj file is not corrupted, false otherwise
+        """
+        if stage is None:
+            stage = self.sim_get_stages(sim)[0]
+        traj_file = stage.adjfn(self.sim_get_param(sim, "trajectory_file"))
+        num_particles = self.sim_get_total_stage_particles(sim, stage)
+        assert num_particles > 0
+
     def get_conf(self, sim: PatchySimulation, timepoint: int) -> Configuration:
         """
         Returns:
@@ -1465,18 +1490,15 @@ class PatchySimulationEnsemble:
             except NoStageTrajError:
                 # stage 0
                 stage = self.sim_get_stages(sim)[0]
+            except IncompleteStageError:
+                self.get_logger().error(f"{stage.name()} incomplete!")
+                return
+
+            stages = self.sim_get_stages(sim)
+            if stage.idx() + 1 != len(stages):
+                stage = stages[stage.idx() + 1]
             else:
-                # find next stage and if it's one
-                stage, done = stage
-                if not done:
-                    # if mid-stage
-                    self.get_logger().error(f"{stage.name()} incomplete!")
-                    return
-                stages = self.sim_get_stages(sim)
-                if stage.idx() + 1 != len(stages):
-                    stage = stages[stage.idx() + 1]
-                else:
-                    self.get_logger().info(f"Final stage {stage.name()} is already complete!")
+                self.get_logger().info(f"Final stage {stage.name()} is already complete!")
         elif isinstance(stage, str):
             stage = self.sim_get_stage(sim, stage)
 
@@ -1854,6 +1876,10 @@ class PatchySimulationEnsemble:
         if is_server_slurm():
             command += f" {script_name}"
         submit_txt = ""
+
+        # DO NOT DO RETRIES ON NON SLURM MACHINE!!! THIS IS SUSPECTED OF DESTROYING MY ENTIRE LIFE!!!!
+        if not is_server_slurm():
+            retries = 1
         for i in range(retries):
             submit_txt = self.bash_exec(command, is_async=not is_server_slurm(), cwd=self.folder_path(sim))
             if submit_txt:
