@@ -1525,8 +1525,8 @@ class PatchySimulationEnsemble:
             scene.set_particle_types(particle_set)
 
         else:
-            last_complete_stage, isdone = self.sim_most_recent_stage(sim)
-            assert isdone
+            # don't catch exxeption here
+            last_complete_stage = self.sim_most_recent_stage(sim)
             scene = self.get_scene(sim, last_complete_stage)
 
         stage.apply(scene)
