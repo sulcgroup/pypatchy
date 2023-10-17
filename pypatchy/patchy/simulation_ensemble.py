@@ -1113,8 +1113,11 @@ class PatchySimulationEnsemble:
         elif isinstance(sim, list):
             return min([self.time_length(s) for s in sim])
         else:
-            stage = self.sim_most_recent_stage(sim)
-            return self.sim_get_stage_last_step(sim, stage)
+            try:
+                stage = self.sim_most_recent_stage(sim)
+                return self.sim_get_stage_last_step(sim, stage)
+            except IncompleteStageError as e:
+                return e._last_timestep
 
     # ------------------------ Status-Type Stuff --------------------------------#
     def info(self, infokey: str = "all"):
