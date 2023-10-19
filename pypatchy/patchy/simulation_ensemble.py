@@ -935,13 +935,13 @@ class PatchySimulationEnsemble:
 
                 if "rel_volume" in stage_info:
                     relvol = stage_info["rel_volume"]
-                    box_side = (relvol * num_particles) ** .3
+                    box_side = (relvol * num_particles) ** (1 / 3)
 
                 # if density format
                 elif "density" in stage_info:
                     # box side length = cube root of n / density
                     density = stage_info["density"]
-                    box_side = (num_particles / density) ** .3
+                    box_side = (num_particles / density) ** (1 / 3)
 
                 else:
                     density = self.sim_get_param(sim, "density")
