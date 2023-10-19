@@ -1091,7 +1091,7 @@ class PatchySimulationEnsemble:
         """
         links this ensembles's analysis pipeline to another ensemble
         """
-        if len(self.analysis_pipeline) == 0:
+        if len(self.analysis_pipeline) != 0:
             self.get_logger().warning("Error: should not link from existing analysis pipeline! "
                                       "Use `clear_analysis_pipeline() to clear pipeline and try again.")
             return
