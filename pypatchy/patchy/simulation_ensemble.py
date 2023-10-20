@@ -854,6 +854,7 @@ class PatchySimulationEnsemble:
         Stage objects require other ensemble parameters so must be constructed as needed and not on init
 
         """
+        assert isinstance(sim, PatchySimulation), "Cannot invoke this method with a parameter list!"
         num_assemblies = self.sim_get_param(sim, "num_assemblies")
         try:
             stages_info = self.sim_get_param(sim, "stages")
@@ -1491,6 +1492,11 @@ class PatchySimulationEnsemble:
             try:
                 # get most recent stage
                 stage = self.sim_most_recent_stage(sim)
+                stages = self.sim_get_stages(sim)
+                if stage.idx() != 0 and stage.idx() + 1 != len(stages):
+                    stage = stages[stage.idx() + 1]
+                else:
+                    self.get_logger().info(f"Final stage {stage.name()} is already complete!")
             # if no stage exists
             except NoStageTrajError:
                 # stage 0
@@ -1499,11 +1505,6 @@ class PatchySimulationEnsemble:
                 self.get_logger().error(f"{stage.name()} incomplete!")
                 return
 
-            stages = self.sim_get_stages(sim)
-            if stage.idx() + 1 != len(stages):
-                stage = stages[stage.idx() + 1]
-            else:
-                self.get_logger().info(f"Final stage {stage.name()} is already complete!")
         elif isinstance(stage, str):
             stage = self.sim_get_stage(sim, stage)
 
