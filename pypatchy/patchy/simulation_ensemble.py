@@ -1808,21 +1808,24 @@ class PatchySimulationEnsemble:
                 return False
 
         if is_server_slurm():
-            most_recent_stage = self.sim_most_recent_stage(sim)
-            if most_recent_stage.idx() > stage.idx():
-                self.get_logger().warning(f"Already passed stage {stage.name()} for sim {repr(sim)}! Aborting")
-                return False
-            # include some extra checks to make sure we're not making a horrible mistake
-            if not self.slurm_log.by_subject(sim).by_type("oxdna").by_other("stage", stage.name()).empty():
-                # if slurm log shows a job with this sim, job type, and stage already exists
-                jid = self.slurm_log.by_subject(sim).by_type("oxdna").by_other("stage", stage.name())[
-                    0].job_id
-                job_info = self.slurm_job_info(jid)
-                if job_info is not None and job_info["JobState"] == "RUNNING":
-                    # if job is currently running
-                    logging.warning(
-                        f"Already running job for sim {repr(sim)}, stage {stage.name()} (jobid={jid}! Skipping...")
+            try:
+                most_recent_stage = self.sim_most_recent_stage(sim)
+                if most_recent_stage.idx() > stage.idx():
+                    self.get_logger().warning(f"Already passed stage {stage.name()} for sim {repr(sim)}! Aborting")
                     return False
+                # include some extra checks to make sure we're not making a horrible mistake
+                if not self.slurm_log.by_subject(sim).by_type("oxdna").by_other("stage", stage.name()).empty():
+                    # if slurm log shows a job with this sim, job type, and stage already exists
+                    jid = self.slurm_log.by_subject(sim).by_type("oxdna").by_other("stage", stage.name())[
+                        0].job_id
+                    job_info = self.slurm_job_info(jid)
+                    if job_info is not None and job_info["JobState"] == "RUNNING":
+                        # if job is currently running
+                        logging.warning(
+                            f"Already running job for sim {repr(sim)}, stage {stage.name()} (jobid={jid}! Skipping...")
+                        return False
+            except NoStageTrajError as e:
+                pass # if no stage has a traj error everything is probably fine, just needs to run 1st stage
         return True
 
     def start_simulation(self,
