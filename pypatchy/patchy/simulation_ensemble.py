@@ -1118,7 +1118,7 @@ class PatchySimulationEnsemble:
                 stage = self.sim_most_recent_stage(sim)
                 return self.sim_get_stage_last_step(sim, stage)
             except IncompleteStageError as e:
-                return e._last_timestep
+                return e.last_timestep()
 
     # ------------------------ Status-Type Stuff --------------------------------#
     def info(self, infokey: str = "all"):
@@ -1493,7 +1493,7 @@ class PatchySimulationEnsemble:
                 # get most recent stage
                 stage = self.sim_most_recent_stage(sim)
                 stages = self.sim_get_stages(sim)
-                if stage.idx() != 0 and stage.idx() + 1 != len(stages):
+                if stage.idx() + 1 != len(stages):
                     stage = stages[stage.idx() + 1]
                 else:
                     self.get_logger().info(f"Final stage {stage.name()} is already complete!")
@@ -1520,7 +1520,7 @@ class PatchySimulationEnsemble:
 
         # if this is the first conf
         if stage.idx() == 0:
-            assert stage.start_time() == 0, "This method should not be invoked for stages other than the first!"
+            assert stage.start_time() == 0, f"Stage {stage} has idx 0 but nonzero start time!"
 
             # generate conf
             scene = PLPSimulation()
