@@ -124,6 +124,9 @@ class IncompleteStageError(StagedAssemblyError):
         StagedAssemblyError.__init__(self, stage, sim)
         self._last_timestep = last_timestep
 
+    def last_timestep(self) -> int:
+        return self._last_timestep
+
     def __str__(self):
         return f"Stage {self.stage().name()} of simulation {repr(self.sim())} is incomplete! Last timestep was " \
                f"{self._last_timestep} out of {self.stage().start_time()}:{self.stage().end_time()}"
