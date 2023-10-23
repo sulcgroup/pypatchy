@@ -716,7 +716,7 @@ class PLPSimulation(Scene):
         """
 
         # Calculate the difference in each dimension
-        delta = p2.position() - p1.position()
+        delta = (p2.position() % self.box_size()) - (p1.position() % self.box_size())
 
         # Wrap the differences where necessary
         delta = np.where(np.abs(delta) > self.box_size() / 2, self.box_size() - np.abs(delta), delta)

@@ -1492,6 +1492,7 @@ class PatchySimulationEnsemble:
             try:
                 # get most recent stage
                 stage = self.sim_most_recent_stage(sim)
+                # stage 0 will produce a NoStageTrajError (caught below)
                 stages = self.sim_get_stages(sim)
                 if stage.idx() + 1 != len(stages):
                     stage = stages[stage.idx() + 1]
