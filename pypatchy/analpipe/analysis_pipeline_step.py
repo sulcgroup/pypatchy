@@ -39,7 +39,13 @@ class AnalysisPipelineStep(ABC):
                  output_tstep: Union[int, None] = None):
         self.name = step_name  # unique name, not class name
         # self.idx = -1
+        if isinstance(input_tstep, float):
+            assert input_tstep.is_integer(), "input time step must be integer value!"
+            input_tstep = int(input_tstep)
         self.input_tstep = input_tstep
+        if isinstance(output_tstep, float):
+            assert output_tstep.is_integer(), "output time step must be integer value!"
+            output_tstep = int(output_tstep)
         self.output_tstep = output_tstep
         self.config_io(input_tstep=self.input_tstep, output_tstep=self.output_tstep)
         self.force_recompute = False

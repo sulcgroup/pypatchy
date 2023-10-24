@@ -2076,7 +2076,11 @@ class PatchySimulationEnsemble:
         # if timesteps were not specified
         if time_steps is None:
             # time steps generally do not start from step 0
-            time_steps = range(step.output_tstep, self.time_length(sim), step.output_tstep)
+            time_steps = range(
+                # step.output_tstep,
+                0,
+                self.time_length(sim),
+                step.output_tstep)
             self.get_logger().info(f"Constructed time steps {time_steps}")
         else:
             assert time_steps.step % step.output_tstep == 0, f"Specified step interval {time_steps} " \
