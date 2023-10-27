@@ -36,6 +36,7 @@ def plot_analysis_data(e: PatchySimulationEnsemble,
                        rows: Union[None, str, EnsembleParameter] = None,
                        color: Union[None, str, EnsembleParameter] = None,
                        stroke: Union[None, str, EnsembleParameter] = None,
+                       trange: Union[None, tuple[int, int]] = None,
                        norm: Union[None, str] = None
                        ) -> sb.FacetGrid:
     """
@@ -73,6 +74,11 @@ def plot_analysis_data(e: PatchySimulationEnsemble,
 
     data_source = e.get_data(analysis_data_source, tuple(other_spec))
     data: pd.DataFrame = data_source.get().copy()
+    # could put this in get_data but frankly idk if i trust it
+    if trange is not None:
+        start, end = trange
+        data = data[data[TIMEPOINT_KEY] >= start]
+        data = data[data[TIMEPOINT_KEY] <= end]
     if len(data_source.trange()) == 1:
         raise Exception("Error: only one timepoint included in data range! Check your analysis pipeline tsteps and/or data completeness.")
     elif len(data_source.trange()) < 10:
