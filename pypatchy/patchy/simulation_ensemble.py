@@ -2170,7 +2170,7 @@ class PatchySimulationEnsemble:
                 except NoSuchParamError as e:
                     # for files that are observable outputs
                     file_name = file_name_in  # i don't think any modification is actually needed here?
-                file_names = [self.folder_path(sim) / file_name for stage in stages]
+                file_names = [self.folder_path(sim) / stage.adjfn(file_name) for stage in stages]
                 files.append(file_names)
             return files
         else:  # honestly this is still complecated but not as bad
