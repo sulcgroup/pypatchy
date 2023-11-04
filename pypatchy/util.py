@@ -7,7 +7,7 @@ from typing import Union
 
 from dateutil.relativedelta import relativedelta
 from scipy.spatial.transform import Rotation as R
-from itertools import groupby
+from itertools import groupby, combinations, chain
 from pathlib import Path
 import configparser
 from colorsys import hsv_to_rgb
@@ -284,5 +284,11 @@ def append_to_file_name(fn: str, extra: str) -> str:
         return fn_pre + "_" + extra + ext
     else:
         return fn + "_" + extra
+
+# https://docs.python.org/3/library/itertools.html
+def powerset(iterable):
+    "powerset([1,2,3]) --> () (1,) (2,) (3,) (1,2) (1,3) (2,3) (1,2,3)"
+    s = list(iterable)
+    return chain.from_iterable(combinations(s, r) for r in range(len(s)+1))
 
 PATCHY_FILE_FORMAT_KEY = "patchy_format"

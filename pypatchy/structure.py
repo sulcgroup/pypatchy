@@ -13,10 +13,11 @@ from collections import defaultdict
 
 import igraph as ig
 
-from ..patchy_base_particle import PatchyBaseParticle, Scene
-from ..util import getRotations, enumerateRotations, from_xyz
+from pypatchy.patchy_base_particle import PatchyBaseParticle, Scene
+from pypatchy.util import getRotations, enumerateRotations, from_xyz
 
 from pypatchy.polycubeutil.polycubesRule import *
+from Bio.SVDSuperimposer import SVDSuperimposer
 
 
 def get_nodes_overlap(homocycles: list[list[int]]) -> set[int]:
@@ -45,6 +46,7 @@ class Structure:
     so go read that
     """
     graph: nx.DiGraph
+    # TODO: deprecated bindings_list and just use graph instead since it contains the same data
     bindings_list: set[tuple[int, int, int, int]]
 
     def __init__(self, **kwargs):
@@ -147,6 +149,10 @@ class Structure:
     #     return unique_cycles_by_size
 
     def homomorphism(self, structure: Structure) -> Union[bool, StructuralHomomorphism]:
+        hms = self.homomorphisms(structure)
+        return next(hms, False)
+
+    def homomorphisms(self, structure: Structure) -> Generator[bool, StructuralHomomorphism]:
         """
         Constructs the graph injective homomorphism of self.graph -> structure.graph
         Parameters:
@@ -210,16 +216,15 @@ class Structure:
                         break
 
                 if homomorphism_is_valid:
-                    return StructuralHomomorphism(self,
-                                                  structure,
-                                                  rmapidx,
-                                                  node_list_mapping,
-                                                  reverse_mapping)
-        return False
+                    yield StructuralHomomorphism(self,
+                                                 structure,
+                                                 rmapidx,
+                                                 node_list_mapping,
+                                                 reverse_mapping)
 
     def edge_exists(self, v: int, delta: int) -> bool:
         """
-        ?????
+        returns true if the digraph contains an edge out from position v with direction delta
         """
         return len([d for a, b, d in self.graph.out_edges(v, "dirIdx") if d == delta]) > 0
 
@@ -251,6 +256,7 @@ class Structure:
         processed_coords = {0}
         cubes_coords = {0: np.array([0, 0, 0])}
         # loop until we've processed all coords
+        loopcount = 0
         while len(processed_coords) < len(self):
             for v1, d1, v2, d2 in self.bindings_list:
                 # if this binding connects a cube which has been processed
@@ -266,7 +272,10 @@ class Structure:
                         direction = d2
                     cubes_coords[destination] = cubes_coords[origin] + RULE_ORDER[direction]
                     processed_coords.add(destination)
-        a = np.array([*cubes_coords.values()])
+            loopcount += 1
+            assert loopcount < 1e7
+        a = np.array([position for _, position in sorted(cubes_coords.items(), key=lambda x: x[0])])
+        # a = np.array([*cubes_coords.values()])
         assert a.shape == (len(self), 3)
         return a
 
@@ -311,6 +320,19 @@ class FiniteLatticeStructure(Structure):
 
 
 class StructuralHomomorphism:
+    # structure that this homomorphism maps from
+    source: Structure
+    # structure that this homomorphism maps onto
+    target: Structure
+
+    # index in enumerateRotations of the rotation mapping in this sturctural homomorphism
+    _rmapidx: int
+
+    # map that maps location indexes from source onto target
+    lmap: dict[int, int]
+    # map that maps location indexes from targets onto source
+    rlmap: dict[int, int]
+
     def __init__(self,
                  source_structure: Structure,
                  target_structure: Structure,
@@ -329,8 +351,15 @@ class StructuralHomomorphism:
             }
 
     def map_location(self, i: int) -> int:
+        """Maps a location from the origin onto the destination"""
         assert i in self.lmap
         return self.lmap[i]
+
+    def rmap_location(self, i: int) -> int:
+        """Maps a location from the destination onto the origin"""
+
+        assert i in self.rlmap
+        return self.rlmap[i]
 
     def map_direction(self, d: Union[int, np.ndarray]) -> int:
         if isinstance(d, np.ndarray):
@@ -338,6 +367,52 @@ class StructuralHomomorphism:
         assert d > -1
         assert d < len(RULE_ORDER)
         return enumerateRotations()[self._rmapidx][d]
+
+    def rmap_direction(self, d: Union[int, np.ndarray]) -> int:
+        if isinstance(d, np.ndarray):
+            d = diridx(d)
+        assert d > -1
+        assert d < len(RULE_ORDER)
+        for k, v in enumerateRotations()[self._rmapidx].items():
+            if v == d:
+                return k
+        raise Exception("Good god what did you DO???")
+
+    def __len__(self):
+        return len(self.lmap)
+
+    def as_transform(self) -> tuple[np.ndarray, np.ndarray]:
+        # align matrices
+        mat = self.source.matrix()
+        targ = self.target.matrix()
+        src_coords = mat.copy()
+        targ_coords = targ.copy()
+        for i, (k, v) in enumerate(self.lmap.items()):
+            src_coords[i, :] = mat[sorted(self.source.graph.nodes).index(k), :]
+            targ_coords[i, :] = targ[sorted(self.target.graph.nodes).index(v), :]
+
+
+        # a few ways to proceed from here, most of which i hate
+        # going with the "reinvent wheel" method
+        svd = SVDSuperimposer()
+        svd.set(src_coords, targ_coords)
+        svd.run()
+        assert svd.get_rms() < 1e-8, "No good transformation found!!!!"
+        r, t = svd.get_rotran()
+        return r.round(), t.round()
+
+    def contains_edge(self, v: int, delta: int) -> bool:
+        """
+        Given a node and edge in the target, returns True if the source has a corresponding out-edge
+        from that node. false otherwise
+        """
+        return self.source.edge_exists(self.rmap_location(v),
+                                       self.rmap_direction(delta))
+
+    def target_contains_edge(self, v: int, delta: int) -> bool:
+        return self.target.edge_exists(self.map_location(v),
+                                       self.map_direction(delta))
+
 
     # def reverse_map_direction(self, d):
     #     if isinstance(d, int):
@@ -362,219 +437,3 @@ class TypedStructure(Structure, ABC):
     def particle_type(self, particle_id: int) -> int:
         pass
 
-
-class PolycubeStructure(TypedStructure, Scene):
-
-
-    def num_particle_types(self) -> int:
-        return self.rule.num_particle_types()
-
-    def particle_types(self) -> BaseParticleSet:
-        return self.rule
-
-    def get_conf(self) -> Configuration:
-        pass
-
-    # mypy type specs
-    rule: PolycubesRule
-    cubeMap: dict[bytes, PolycubesStructureCube]
-
-    def __init__(self, **kwargs):
-        super(PolycubeStructure, self).__init__()
-
-        # load rule
-        if isinstance(kwargs["rule"], PolycubesRule):
-            self.rule = kwargs["rule"]
-        elif isinstance(kwargs["rule"], dict):
-            self.rule = PolycubesRule(rule_json=kwargs["rule"])
-        elif isinstance(kwargs["rule"], str):
-            self.rule = PolycubesRule(rule_str=kwargs["rule"])
-        else:
-            # default: empty rule
-            self.rule = PolycubesRule()
-
-        # read structure
-        self.cubeMap = {}
-        # nodes in the graph are cube uids
-        # edges attrs are FACE INDEXES IN RULE_ORDER, IN THE CUBE TYPE
-        self.cubeList = []
-        if "structure" in kwargs:
-            # structure passed as nested dict, as read from json
-            for cube_idx, cube in enumerate(kwargs["structure"]):
-                # extract cube position and rotation
-                cube_position = from_xyz(cube["position"])
-                # rotation quaternion wxyz
-                cr = cube["rotation"]
-                rot_quaternion = np.array((
-                    cr['x'],
-                    cr['y'],
-                    cr['z'],
-                    cr['w']
-                ))
-                cube_type = self.rule.particle(cube["type"])
-                # emplace cube in map
-                cubeObj = PolycubesStructureCube(cube_idx,
-                                                 cube_position,
-                                                 rot_quaternion,
-                                                 cube_type,
-                                                 cube["state"])
-                self.cubeMap[cube_position.tobytes()] = cubeObj
-                self.cubeList.append(cubeObj)
-                self.graph.add_node(cube_idx, cube=cubeObj)
-        elif "cubes" in kwargs:
-            # structure passed as list of cube objects
-            for cube in kwargs["cubes"]:
-                assert cube.get_type() in self.rule.particles(), "Cube type not found in rule!"
-                self.cubeList.append(cube)
-                self.cubeMap[cube.position().tobytes()] = cube
-                self.graph.add_node(cube.type_id(), cube=cube)
-        else:
-            # empty structure
-            pass
-
-        # loop cube pairs (brute-forcing topology)
-        for cube1, cube2 in itertools.combinations(self.cubeList, 2):
-            # if cubes are adjacent
-            if np.linalg.norm(cube1.position() - cube2.position()) == 1:
-                d1 = cube2.position() - cube1.position()
-                d2 = d1 * -1
-                # if both cubes have patches on connecting faces and the patch colors match
-                if cube1.has_patch(d1) and cube2.has_patch(d2):
-                    p1 = cube1.get_patch(d1)
-                    p2 = cube2.get_patch(d2)
-                    if p1.color() == -p2.color():
-                        align1 = cube1.rotation().apply(p1.alignDir()).round()
-                        align2 = cube2.rotation().apply(p2.alignDir()).round()
-                        if (align1 == align2).all():
-                            if cube1.state(p1.state_var()) and cube2.state(p2.state_var()):
-                                # add edge in graph
-                                self.graph.add_edge(cube1.get_id(), cube2.get_id(), dirIdx=diridx(d1))
-                                self.graph.add_edge(cube2.get_id(), cube1.get_id(), dirIdx=diridx(d2))
-
-    def homologous_cycles(self, cycle_list: list[list[int]]) -> list:
-        """
-        Warning: ChatGPT produced this
-        Group cycles in the list that contain the same cube type
-        and same connection faces on types in the same pattern.
-
-        Parameters:
-        cycle_list (list): The list of cycles.
-
-        Returns:
-        list: List of homologous cycles.
-        """
-        # Initialize a dictionary to store cycles by their pattern
-        cycles_by_pattern = defaultdict(list)
-
-        # Iterate over the cycles
-        for cycle in cycle_list:
-            # Convert each cycle to a tuple of node types (cube types)
-            pattern = tuple(sorted(self.cubeList[node].get_type().type_id() for node in cycle))
-
-            # Append the cycle to the list of cycles of the same pattern
-            cycles_by_pattern[pattern].append(cycle)
-
-        # Return the cycles grouped by their pattern
-        return list(cycles_by_pattern.values())
-
-    def next_node_in_cycle(self, n: int, cycle: list[int], processed_nodes: list[int]) -> tuple[int, int, int]:
-        """
-        Find the next node in the cycle that is not in the set of processed nodes.
-
-        Parameters:
-        head_node: The current node, represented as an int.
-        cycle: The cycle, represented as a list of nodes (ints).
-        processed_nodes: The set of nodes already processed, as a list of ints.
-
-        Returns:
-        tuple: The face connection to the previous node, the next node, and the face connection to the next node.
-        """
-
-        # The faces connecting the current node to the previous and next nodes
-        head_neighbors = [n for n in self.graph.neighbors(n) if n in cycle]
-        assert len(head_neighbors) == 2
-        next_node = [n for n in head_neighbors if n not in processed_nodes][0]
-        prev_node = [n for n in head_neighbors if n in processed_nodes][0]
-
-        return (self.get_arrow_local_diridx(n, prev_node),
-                next_node,
-                self.get_arrow_local_diridx(n, next_node))
-
-    def cubeAtPosition(self, v) -> PolycubesStructureCube:
-        return self.cubeMap[v.tobytes()]
-
-    def get_arrow_diridx(self, node: int, adj: int) -> int:
-        return self.graph.get_edge_data(node, adj)["dirIdx"]
-
-    def get_arrow_local_diridx(self, n: int, adj: int) -> int:
-        return self.cubeList[n].typedir(self.get_arrow_diridx(n, adj))
-
-    def particle_type(self, particle_id: int) -> int:
-        return self.cubeList[particle_id].type_id()
-
-    def from_top_conf(self, top: TopInfo, conf: Configuration):
-        pass  # we respecfully ask that you Do Not
-
-    def to_top_conf(self) -> tuple[TopInfo, Configuration]:
-        pass  # ibid
-
-    def graph_undirected(self) -> nx.Graph:
-        return self.graph.to_undirected()
-
-class PolycubesStructureCube(PatchyBaseParticle):
-
-    _type_cube: PolycubeRuleCubeType
-    def __init__(self,
-                 uid: int,
-                 cube_position: np.ndarray,
-                 cube_rotation: Union[np.ndarray, int],
-                 cube_type: PolycubeRuleCubeType,
-                 state: list[bool] = [True]):
-        super(PolycubesStructureCube, self).__init__(uid, cube_type.type_id(), cube_position)
-        if isinstance(cube_rotation, np.ndarray) and len(cube_rotation) == 4:
-            self._rot = Rotation.from_quat(cube_rotation)
-        elif isinstance(cube_rotation, int):
-            self._rot = Rotation.from_matrix(getRotations()[cube_rotation])
-        else:
-            assert False, "Rotation matrices or whatever not supported yet."
-        self._state = state
-        self._type_cube = cube_type
-
-    def get_cube_type(self) -> PolycubeRuleCubeType:
-        return self._type_cube
-
-    def rotation(self) -> Rotation:
-        return self._rot
-
-    def rotate(self, rotation: Rotation):
-        """
-        todo: more param options
-        """
-        self._rot = self._rot * rotation
-
-    def typedir(self, direction: Union[int, np.ndarray]) -> np.ndarray:
-        """
-        Converts the global-space direction into a local-space direction
-        """
-        if isinstance(direction, int):  # if the arguement is provided as an index in RULE_ORDER
-            direction = RULE_ORDER[direction]
-        return self.rotation().inv().apply(direction).round()
-
-    def has_patch(self, direction: Union[int, np.ndarray]) -> bool:
-        return self.get_cube_type().has_patch(self.typedir(direction))
-
-    def get_patch(self, direction: Union[int, np.ndarray]) -> PolycubesPatch:
-        return self.get_cube_type().patch(self.typedir(direction))
-
-    def state(self, i=None):
-        if i is None:
-            return self._state
-        else:
-            assert abs(i) < len(self._state)
-            if i < 0:
-                return not self._state[-i]
-            else:
-                return self._state[i]
-
-    def patches(self):
-        return self.get_cube_type().patches()

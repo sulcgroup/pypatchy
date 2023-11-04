@@ -6,7 +6,6 @@ from typing import Union
 
 import networkx as nx
 import numpy as np
-import oxDNA_analysis_tools.distance
 import pandas as pd
 from oxDNA_analysis_tools.UTILS.RyeReader import get_confs, describe, inbox
 from oxDNA_analysis_tools.UTILS.data_structures import Configuration
@@ -29,7 +28,7 @@ from ..analpipe.analysis_data import PDPipelineData, ObjectPipelineData, TIMEPOI
 import drawsvg as draw
 
 from ..polycubeutil.polycubesRule import PolycubesRule
-from ..polycubeutil.structure import PolycubeStructure
+from ..polycubeutil.polycube_structure import PolycubeStructure
 from ..util import get_input_dir
 
 
