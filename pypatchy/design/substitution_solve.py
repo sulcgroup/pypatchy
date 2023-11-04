@@ -3,8 +3,8 @@ import copy
 from ... import libpolycubes
 from pypatchy.design.design_util import all_overlap_rotation, rotate_cube_type
 from pypatchy.polycubeutil.polycube_util import get_fully_addressable_rule, coord_equal
-from pypatchy.polycubeutil.polycubesRule import PolycubesRule, PolycubeRuleCubeType
-from pypatchy.polycubeutil.structure import Structure, FiniteLatticeStructure, PolycubeStructure
+from pypatchy.polycubeutil.polycubesRule import PolycubesRule
+from pypatchy.structure import FiniteLatticeStructure, PolycubeStructure
 
 
 def substitution_solve(s: FiniteLatticeStructure) -> PolycubesRule:

@@ -1,16 +1,13 @@
 import copy
 import json
-from dataclasses import dataclass
-from enum import Enum
-from pathlib import Path
 from typing import Union, Iterable
 
 import numpy as np
-from pypatchy.patchy.simulation_specification import PatchySimulation
+from ..patchy.simulation_specification import PatchySimulation
 
-from pypatchy.patchy.plpatchy import PLPSimulation, PLPatchyParticle
-from pypatchy.polycubeutil.structure import PolycubeStructure
-from pypatchy.util import get_input_dir, append_to_file_name
+from ..patchy.plpatchy import PLPSimulation
+from ..polycubeutil.polycube_structure import PolycubeStructure
+from ..util import get_input_dir, append_to_file_name
 
 
 class Stage:

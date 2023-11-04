@@ -8,6 +8,7 @@ from typing import Union, Generator
 import numpy as np
 
 from pypatchy import util
+from pypatchy.design.design_util import no_overlap_rotation
 from pypatchy.polycubeutil.polycubesRule import diridx, PolycubesRule, DynamicEffect, PolycubeRuleCubeType, PolycubesPatch
 
 
@@ -21,7 +22,7 @@ class RuleReducer:
         self.control_vars: dict[str, set[int]] = {ct.name(): set() for ct in self.rule.particles()}
         self.rename_counter = 0
 
-    def minimize(self) -> Generator[PolycubesRule, None, None]:
+    def minimize(self, show_all=False) -> Generator[PolycubesRule, None, None]:
         """
         Recursive function that introduces allostery to minimzie the number of particle types
         required for this rule
@@ -33,10 +34,12 @@ class RuleReducer:
         # sort cube type pairs
         cube_type_pairs.sort(key=extra_space)
         for ct1, ct2 in cube_type_pairs:
-            if self.try_reduce_cube_pair(ct1, ct2):
-                yield self.rule
-                yield from self.minimize()
-                break
+            cpy = copy.deepcopy(self)
+            if cpy.try_reduce_cube_pair(ct1, ct2):
+                yield cpy.rule
+                yield from cpy.minimize()
+                if not show_all:
+                    break
 
     def add_allosteric_control(self,
                                patch: PolycubesPatch,
@@ -173,101 +176,120 @@ class RuleReducer:
             ct2 = self.rule.particle(ct2)
         r = no_overlap_rotation(ct1, ct2)
         if r is not False:
-            # clone cube type 1 and apply changes
-            # applying in place has potential... issues
-            newcube: PolycubeRuleCubeType = copy.deepcopy(ct2)
-            newcube.set_name(f"CCT{self.rename_counter}")
-            self.rename_counter += 1
-            assert ct2.state_size() == newcube.state_size()
-
-            # ct1_vars_remap: dict[int, int] = dict()
-            # ct2_vars_remap: dict[int, int] = dict()
-
-            # loop existing ct2 patches
-            # for patch in ct2.patches():
-            #
-            #     newcube.add_patch(patch)
-            #
-            #     varupdate = self.add_allosteric_control(patch, newcube, state_any_ct1, state_any_ct2)
-            #     ct1_vars_remap.update(varupdate)
-
-            # for e in ct1.effects():
-            #     newcube.add_effect(copy.deepcopy(e))
-            # ct2.shift_state(ct1.state_size())
-            # don't need to add the tautology state
-            newcube.shift_state(ct1.state_size() - 1)
-            newcube.set_name("newcube")
-
-            self.control_vars[newcube.name()] = {v + ct1.state_size() - 1 for v in self.control_vars[ct2.name()]}
-
-            # for this formulation, i'm assigning each patch a unique state and activation variable
-            # and creating two new intermediate variables for our two cube type behaviors
-
-            # add control vars from cubes to merge, shifting as approppriate
-            ct1_control_vars = {v for v in self.control_vars[ct1.name()]}
-            ct2_control_vars = {v + ct1.state_size() - 1 for v in self.control_vars[ct2.name()]}
-
-            self.control_vars[newcube.name()] = ct1_control_vars.union(ct2_control_vars)
-
-            # if ct1 does not already have control vars
-            if len(ct1_control_vars) == 0:
-                state_any_ct1 = newcube.add_state_var()
-                self.control_vars[newcube.name()].add(state_any_ct1)
-                ct1_control_vars = {state_any_ct1}
-
-            # self.control_vars[newcube]
-            if len(ct2_control_vars) == 0:
-                state_any_ct2 = newcube.add_state_var()
-                self.control_vars[newcube.name()].add(state_any_ct2)
-                ct2_control_vars = {state_any_ct2}
-
-            # self.control_vars["newcube"].add(v + ct1.state_size() - 1)
-
-            for e in ct1.effects():
-                newcube.add_effect(copy.deepcopy(e))
-
-            # iter existing patches (inherited from ct2)
-            for cube2_patch in newcube.patches():
-                self.add_allosteric_control(cube2_patch, newcube, ct2_control_vars, ct1_control_vars)
-
-            # reassign patches from ct1 new state/activation vars
-
-            for cube1_patch in ct1.patches():
-                # rotate patch
-                patch = cube1_patch.rotate(r)
-
-                newcube.add_patch(patch)
-                self.add_allosteric_control(patch, newcube, ct1_control_vars, ct2_control_vars)
-
-            # # remap patches
-            # for cube, vars_remap in zip([ct1, ct2], [ct1_vars_remap, ct2_vars_remap]):
-            #     for pold, pnew in zip(cube.patches(), newcube.patches()):
-            #         # activation vars
-            #         if pold.activation_var() in vars_remap:
-            #             pnew.set_activation_var(vars_remap[pold.activation_var()])
-            #         # state vars
-            #         if pold.activation_var() in vars_remap:
-            #             pnew.set_state_var(vars_remap[pold.state_var()])
-            #     # remap dynamic effects
-            #     for eold, enew in zip(cube.effects(), newcube.effects()):
-            #         if eold.target() in vars_remap:
-            #             enew.set_target(vars_remap[eold.target()])
-            #         for var in eold.sources():
-            #             if var in vars_remap:
-            #                 new_sources = eold.sources()
-            #                 new_sources.remove(var)
-            #                 new_sources.append(vars_remap[var])
-            #                 enew.set_sources(new_sources)
-            self.rule.remove_cube_type(ct1)
-            self.rule.remove_cube_type(ct2)
-            self.rule.add_particle(newcube)
-            self.rule.reindex()
+            self.merge_cube_types(ct1, ct2, r)
             return True
         else:
             return False
 
+    def merge_cube_types(self,
+                         ct1: PolycubeRuleCubeType,
+                         ct2: PolycubeRuleCubeType,
+                         r: np.ndarray = np.identity(3),
+                         ct1_to_incl: Union[set[int], None] = None,
+                         ct2_to_incl: Union[set[int], None] = None):
+        """
+        Parameters:
+            ct1: a polycubes cube tpye
+            ct2: a polycubes cube type
+            r: a rotation to apply to ct1 that aligns it with ct2
+            ct1_to_incl: patches to include in allosteric merge control
+            ct2_to_incl: patches to include in allosteric merge control
+        """
+        if ct1_to_incl is None:
+            ct1_to_incl = set(range(6))
+        if ct2_to_incl is None:
+            ct2_to_incl = set(range(6))
+        # clone cube type 1 and apply changes
+        # applying in place has potential... issues
+        newcube: PolycubeRuleCubeType = copy.deepcopy(ct2)
+        newcube.set_name(f"CCT{self.rename_counter}")
+        self.rename_counter += 1
+        assert ct2.state_size() == newcube.state_size()
 
+        # ct1_vars_remap: dict[int, int] = dict()
+        # ct2_vars_remap: dict[int, int] = dict()
 
+        # loop existing ct2 patches
+        # for patch in ct2.patches():
+        #
+        #     newcube.add_patch(patch)
+        #
+        #     varupdate = self.add_allosteric_control(patch, newcube, state_any_ct1, state_any_ct2)
+        #     ct1_vars_remap.update(varupdate)
+
+        # for e in ct1.effects():
+        #     newcube.add_effect(copy.deepcopy(e))
+        # ct2.shift_state(ct1.state_size())
+        # don't need to add the tautology state
+        newcube.shift_state(ct1.state_size() - 1)
+        newcube.set_name("newcube")
+
+        self.control_vars[newcube.name()] = {v + ct1.state_size() - 1 for v in self.control_vars[ct2.name()]}
+
+        # for this formulation, i'm assigning each patch a unique state and activation variable
+        # and creating two new intermediate variables for our two cube type behaviors
+
+        # add control vars from cubes to merge, shifting as approppriate
+        ct1_control_vars = {v for v in self.control_vars[ct1.name()]}
+        ct2_control_vars = {v + ct1.state_size() - 1 for v in self.control_vars[ct2.name()]}
+
+        self.control_vars[newcube.name()] = ct1_control_vars.union(ct2_control_vars)
+
+        # if ct1 does not already have control vars
+        if len(ct1_control_vars) == 0:
+            state_any_ct1 = newcube.add_state_var()
+            self.control_vars[newcube.name()].add(state_any_ct1)
+            ct1_control_vars = {state_any_ct1}
+
+        # self.control_vars[newcube]
+        if len(ct2_control_vars) == 0:
+            state_any_ct2 = newcube.add_state_var()
+            self.control_vars[newcube.name()].add(state_any_ct2)
+            ct2_control_vars = {state_any_ct2}
+
+        # self.control_vars["newcube"].add(v + ct1.state_size() - 1)
+
+        for e in ct1.effects():
+            newcube.add_effect(copy.deepcopy(e))
+
+        # iter existing patches (inherited from ct2)
+        for cube2_patch in newcube.patches():
+            if diridx(cube2_patch.direction()) in ct2_to_incl:
+                self.add_allosteric_control(cube2_patch, newcube, ct2_control_vars, ct1_control_vars)
+
+        # reassign patches from ct1 new state/activation vars
+
+        for cube1_patch in ct1.patches():
+            # rotate patch
+            patch: PolycubesPatch = cube1_patch.rotate(r)
+            if not newcube.has_patch(patch.direction()):
+                newcube.add_patch(patch)
+                if diridx(cube1_patch.direction()) in ct1_to_incl:
+                    self.add_allosteric_control(patch, newcube, ct1_control_vars, ct2_control_vars)
+
+        # # remap patches
+        # for cube, vars_remap in zip([ct1, ct2], [ct1_vars_remap, ct2_vars_remap]):
+        #     for pold, pnew in zip(cube.patches(), newcube.patches()):
+        #         # activation vars
+        #         if pold.activation_var() in vars_remap:
+        #             pnew.set_activation_var(vars_remap[pold.activation_var()])
+        #         # state vars
+        #         if pold.activation_var() in vars_remap:
+        #             pnew.set_state_var(vars_remap[pold.state_var()])
+        #     # remap dynamic effects
+        #     for eold, enew in zip(cube.effects(), newcube.effects()):
+        #         if eold.target() in vars_remap:
+        #             enew.set_target(vars_remap[eold.target()])
+        #         for var in eold.sources():
+        #             if var in vars_remap:
+        #                 new_sources = eold.sources()
+        #                 new_sources.remove(var)
+        #                 new_sources.append(vars_remap[var])
+        #                 enew.set_sources(new_sources)
+        self.rule.remove_cube_type(ct1)
+        self.rule.remove_cube_type(ct2)
+        self.rule.add_particle(newcube)
+        self.rule.reindex()
 
 
 if __name__ == "__main__":

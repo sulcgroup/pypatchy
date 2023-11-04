@@ -3,18 +3,17 @@ from typing import Union
 
 import numpy as np
 
-from .. import libpolycubes
 
 from pypatchy.polycubeutil.polycubesRule import PolycubesRule, diridx, PolycubeRuleCubeType
 from ..util import getRotations
 
 
-def get_coords(rule: PolycubesRule, assemblyMode='seeded') -> np.array:
-    """
-    Uses libpolycubes to compute coordinate system produced by a rule
-    """
-    rule_str: str = str(rule)
-    return libpolycubes.get_coords(rule_str, assemblyMode)
+# def get_coords(rule: PolycubesRule, assemblyMode='seeded') -> np.array:
+#     """
+#     Uses libpolycubes to compute coordinate system produced by a rule
+#     """
+#     rule_str: str = str(rule)
+#     return libpolycubes.get_coords(rule_str, assemblyMode)
 
 
 def all_overlap_rotation(ct1: PolycubeRuleCubeType, ct2: PolycubeRuleCubeType) -> Union[bool, np.ndarray]:

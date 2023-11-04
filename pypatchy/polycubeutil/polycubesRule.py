@@ -1,18 +1,23 @@
 from __future__ import annotations
 
 import copy
+import itertools
 import math
 import typing
 from typing import Union
 
+import drawsvg
+import networkx as nx
 import numpy as np
 
 from .effect import Effect, StringConditionalEffect, DynamicEffect, EnvironmentalEffect, EFFECT_CLASSES
-from ..util import rotAroundAxis
+from ..util import rotAroundAxis, selectColor, powerset
 import re
 
 from pypatchy.util import rotation_matrix, from_xyz, to_xyz, getSignedAngle
 from pypatchy.patchy_base_particle import PatchyBaseParticleType, BasePatchType, BaseParticleSet
+
+import drawsvg as draw
 
 FACE_NAMES = ("left", "right", "bottom", "top", "back", "front")
 RULE_ORDER = (
@@ -24,6 +29,17 @@ RULE_ORDER = (
     np.array((0, 0, 1))
 )
 
+FACE_SVG_COORDS = [
+    (0, 2), #left
+    (2, 2), #right
+    (1, 0), #bottom
+    (1, 2), #top
+    (1, 3), #back
+    (1, 1) #front
+]
+
+FACE_SQUARE_W = 64
+FACE_FIG_PAD = 12
 
 # old diridx - bad/buggy
 # def diridx(a):
@@ -235,6 +251,16 @@ class PolycubeRuleCubeType(PatchyBaseParticleType):
         self._patches.append(patch)
         assert len(self.patches()) <= 6
 
+    def remove_patch(self, identifier: Union[int, np.ndarray]):
+        if isinstance(identifier, int):
+            self.remove_patch(RULE_ORDER[identifier])
+        else:
+            for p in self.patches():
+                if np.array_equal(p.direction(), identifier):
+                    self._patches.remove(p)
+                    return
+            raise Exception(f"{self} does not have a patch at position {identifier}")
+
     def get_patch_state_var(self, key: Union[int, str, np.ndarray],
                             make_if_0=False) -> int:
         """
@@ -371,6 +397,123 @@ class PolycubeRuleCubeType(PatchyBaseParticleType):
     #         copy.deepcopy(p) for p in self.patches()
     #     ], self.state_size(), [copy.deepcopy(e) for e in self.effects()], self.name())
 
+    # def draw_polyomino(self, d: draw.Drawing, x: int, y: int):
+    #     group = draw.Group(transform=f"translate({x},{y}")
+    #     d.append(group)
+    #     arrow_end = draw.Marker(minx=0, miny=0, maxx=10, maxy=10)
+    #     arrow_end.append(draw.Path(d="M 0 0 L 10 5 L 0 10 z", fill="black"))
+    #     for f, _ in enumerate(RULE_ORDER):
+    #         patchx, patchy = FACE_SVG_COORDS[f]
+    #         group.append(draw.Rectangle(patchx * FACE_SQUARE_W,
+    #                                     patchy * FACE_SQUARE_W,
+    #                                     FACE_SQUARE_W,
+    #                                     FACE_SQUARE_W,
+    #                                     fill=selectColor(self.type_id())))
+    #         if self.has_patch(f):
+    #             patch = self.get_patch_by_diridx(f)
+    #             rotation = patch.get_align_rot_num() * 90
+    #             patch_path = draw.Path(
+    #                 d="m 30,85 0,-45 10,0 0,-15 22,0 0,15 10,0 0, 45 z",
+    #                 fill=selectColor(patch.color()),
+    #                 stroke="black" if patch.color > 0 else "white",
+    #                 stroke-width=3.5,
+    #                 transform=f"scale(0.5) translate({patchx * FACE_SQUARE_W - 20},{patchy * FACE_SQUARE_W - 20}) rotate({rotation})"
+    #             )
+    # x_cum = FACE_SQUARE_W * 3 + 2 * FACE_FIG_PAD
+    # def activates(x1, y1, x2, y2, deactivates=False, arc_r=1.25):
+    #     radius = math.sqrt(2 ** (x2 - x1) + 2 ** (y2 - y1, 2)) * arc_r
+    #     color = "red" if deactivates else "green"
+    #     group.append(draw.Path(d=f"M {x1} {y1} A {radius} {radius} 0 0 1 {x2}${y2}",
+    #                stroke="red" if deactivates else "green",
+    #                fill="none",
+    #                markerend=arrow_end
+    #     ))
+    #
+    #     def coordspace(n):
+    #         return (n + 0.5) * FACE_SQUARE_W
+    #
+    # if self.num_effects() > 0 {
+    #     state_box_w = row_h / (2 * cubeType.state_size() + 3);
+    #     row_center = row_h / 2 - 1.5 * state_box_w;
+    #     x_cum += + 2 * FACE_FIG_PAD;
+    #     state_box_x = x_cum;
+    #     x_cum += state_box_w;
+    #     # loop state variables
+    #     for s in range(-self.state_size(), self.state_size() + 1):
+    #         # draw state var
+    #         group.append(draw.Rectangle(state_box_x, row_center + s * state_box_w, state_box_w, state_box_w,
+    #                                     stroke="black",
+    #                                     fill="white"))
+    #         group.append(draw.Text(f"{s}",
+    #                                state_box_x + state_box_w / 2,
+    #                                row_center + (s + 0.5) * state_box_w,
+    #                                center=True,
+    #                                fontsize=10))
+    #
+    #     def state_box_intr_coords(s, side="left"):
+    #         assert s > -self.state_size() - 1
+    #         assert s < + self.state_size() + 1
+    #         x = state_box_x + (state_box_w * (0 if side == "left" else 1))
+    #         x += 6 * (-1 if side == "left" else 1)
+    #         y = (s + 0.5) * state_box_w + row_center
+    #         return x, y
+    #
+    #     def sets_state(x1, y1, state_idx, x2=None)
+    #         approach_dir =  "left" if x1 < state_box_x else "right"
+    #         x3, y3 = state_box_intr_coords(state_idx, approach_dir)
+    #         if x2 is None:
+    #             x2 = (x1 + x3) / 2
+    #         y2 = (y1 + y3) / 2
+    #         group.append(draw.Path(f"M {x1} {y1} S {x2} {y1} {x2} {y2} S {x2} {y3} {x3} {y3}",
+    #             stroke="green",
+    #             fill="none",
+    #             marker_end=arrow_end
+    #         )
+    #
+    #     for f in enumerate(RULE_ORDER):
+    #         if self.has_patch(f):
+    #             patch = self.get_patch_by_diridx(f)
+    #             if self.get_patch_by_diridx(f).state_var():
+    #                 x1, y1 = FACE_SVG_COORDS[f]
+    #                 sets_state(coordspace(x1), coordspace(y1), patch.state_var())
+    #             if patch.activation_var():
+    #                 [x1, y1] = state_box_intr_coords(cubeType.patches[f].activation_var)
+    #                 [x2, y2] = FACE_SVG_COORDS[f]
+    #                 activates(x1, y1, coordspace(x2), coordspace(y2), cubeType.patches[f].activation_var < 0)
+    #     x_cum += 2 * FACE_FIG_PAD;
+    #     for j, e in enumerate(self.effects()):
+    #         origins_coords_list = [state_box_intr_coords(s, "right") for s in e.sources]
+    #         if len(origins_coords_list) == 1:
+    #             e_draw_size = state_box_w;
+    #             e_draw_y = origins_coords_list[0][1] - state_box_w / 2
+    #         else:
+    #             e_draw_size = state_box_w * 0.75 * origins_coords_list.length
+    #             e_draw_y = origins_coords_list.reduce((a, p) = > {
+    #                 return a + (p[1] / origins_coords_list.length);
+    #             }, 0);
+    #         group.path(f"M ${x_cum} {e_draw_y} h {e_draw_size * 0.25} a {e_draw_size / 2} {e_draw_size / 2} 0 0 1 0 {e_draw_size} h {-e_draw_size * 0.25} z",
+    #                    stroke="black",
+    #                    fill="white")
+    #         for k, xy in enumerate(origins_coords_list):
+    #             [x1, y1] = xy
+    #             x2 = x_cum - 5
+    #             y2 = e_draw_y + (k + 1) * e_draw_size / (origins_coords_list.length + 1)
+    #             activates(x1, y1, x2, y2, e.sources[k] < 0, 4)
+    #         x_cum += e_draw_size * 0.75
+    #         y1 = e_draw_y + e_draw_size / 2
+    #         x_mid = x_cum + Math.sqrt(Math.abs(e_draw_y + e_draw_size / 2 - dest_y))
+    #         sets_state(x_cum, y1, e.target, x_mid)
+    #         x_cum += 22
+    #         if (e.sources.length == 1:
+    #             x_cum -= 10
+    #     group.append(draw.Text(
+    #         self.typeName,
+    #         96, 275,
+    #         center=True,
+    #         font-size=20
+    #     big_cum_x += x_cum
+
+
     def shift_state(self, nvars: int):
         """
         Shifts the entire state to the right by nvars
@@ -388,6 +531,85 @@ class PolycubeRuleCubeType(PatchyBaseParticleType):
             e.set_target(e.target() + nvars)
             e.set_sources([i + nvars if i > 0 else i - nvars for i in e.sources()])
 
+    def get_state_transition_graph(self, filter_patches_settable=True) -> nx.DiGraph:
+        # construct empty DiGraph
+        g = nx.DiGraph()
+        num_states = 2 ** self.state_size()
+        # loop states
+        for state_num in range(num_states):
+            # since the identity variable s0 is always true, only odd states are actually reachable
+            if state_num % 2:
+                # compute state variable values
+                state = [state_num & 1 << n != 0 for n in range(self.state_size())]
+                # keys are state var idxs, vars are list of effect firing probabilities
+                effect_map: dict[int, list[float]] = {}
+                # loop effects
+                for e in self.effects():
+                    # effects that have already fired are irrelevant
+                    if not state[e.target()]:
+                        # if effect can fire
+                        if all([state[src] if src > 0 else not state[-src] for src in e.sources()]):
+                            # state transition probabilities haven't been implemented yet but incl forward proofing
+                            effect_prob = 1
+                            if e.target() not in effect_map:
+                                effect_map[e.target()] = []
+                            effect_map[e.target()].append(effect_prob)
+                # prob of state var transition is prob that any of the effects will fire
+                # so 1 - the prob that none of the effects will fire
+                # = 1 - the product of (1 - the probability that each effect wiill fire)
+                state_var_transition_prob = {v: 1 - np.prod([1 - p for p in effect_map[v]]) for v in effect_map}
+                # compile effects into state transition map
+                # set of possible destination states is the power set of the keys of effect_map
+                for dest_state in powerset(state_var_transition_prob.keys()):
+                    # compute destination state
+                    dest_state_num = state_num + sum([2 ** v for v in dest_state])
+                    prob_set_state = 1
+                    # prob of transitioning to state = the prob that all state vars that need to be set WILL
+                    # be set and all that don't need to be set won't
+                    # loop vars
+                    for v in state_var_transition_prob:
+                        if v in dest_state:
+                            prob_set_state *= state_var_transition_prob[v]
+                        else:
+                            prob_set_state *= (1 - state_var_transition_prob[v])
+
+                    # arbitrary probability cutoff
+                    if prob_set_state > 1e-8:
+                        g.add_edge(state_num, dest_state_num, p=prob_set_state)
+
+        # filter state transition graph
+        if filter_patches_settable:
+            patch_state_vars = set()
+            for p in self.patches():
+                if p.state_var():
+                    patch_state_vars.add(p.state_var())
+            patch_control_states = {1 + sum([2 ** v for v in state]) for state in powerset(patch_state_vars)}
+            downstream = set()
+            for ctlstate in patch_control_states:
+                to_explore = [ctlstate]
+
+                while to_explore:
+                    current_node = to_explore.pop()
+                    downstream.add(current_node)
+
+                    neighbors = list(g.successors(current_node))
+                    for neighbor in neighbors:
+                        if neighbor not in downstream:
+                            to_explore.append(neighbor)
+            nodes_to_remove = [node for node in g if node not in downstream]
+            for node in nodes_to_remove:
+                g.remove_node(node)
+        return g
+
+    def rotate(self, r: np.ndarray):
+        """
+        Applies a rotation in place to this cube type
+        This isn't normally very useful but it's important for merging cube types
+        """
+        newPatches = []
+        for p in self.patches():
+            newPatches.append(p.rotate(r))
+        self._patches = newPatches
 
 class PolycubesRule(BaseParticleSet):
     def __init__(self, **kwargs):
@@ -398,6 +620,7 @@ class PolycubesRule(BaseParticleSet):
             rule_json: a list of dict representations of cube types
 
         """
+        # TODO: break this method up!
         super().__init__()
         # WARNING: I actually have no idea if this code will always behave correctly if given
         # static formulation strings!! for this reason you should play it safe and Not Do That
@@ -602,10 +825,28 @@ class PolycubesRule(BaseParticleSet):
         for i, particle_type in enumerate(self._particle_types):
             particle_type.set_id(i)
 
+    def draw_rule(self, draw_width=800) -> drawsvg.Drawing:
+        """
+        translation of draw code from polycubes js
+        """
+        draw_height = math.ceil(self.num_particle_types() / 4 * 325)
+        d = drawsvg.Drawing(width=draw_width, height=draw_height)
+        x = 0
+        y = 0
+        for particle in self.particles():
+            x, y = particle.draw_polyomino(d, x, y)
+        return d
+
     def __len__(self) -> int:
         return self.num_particle_types()
 
     def __str__(self) -> str:
         return "_".join(str(ct) for ct in self.particles())
+
+    def __eq__(self, other: Union[PolycubesRule, str]):
+        if isinstance(other, PolycubesRule):
+            return self == str(other)
+        else:
+            return str(self) == other
 
 # TODO: integrate with C++ TLM / Polycubes

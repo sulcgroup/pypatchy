@@ -72,6 +72,7 @@ class YieldAnalysisTarget:
                 cat = ClusterCategory.OVER
         return cat, sizeFrac
 
+
 def graphShape(shapePath):
     with open(shapePath, 'r') as f:
         data = f.read()
