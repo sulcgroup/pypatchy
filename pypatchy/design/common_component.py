@@ -6,7 +6,7 @@ from typing import Union
 import matplotlib.pyplot as plt
 import networkx as nx
 
-from pypatchy.patchy.vis_lib import get_particle_color
+from pypatchy.vis_util import get_particle_color
 from pypatchy.polycubeutil.polycubesRule import RULE_ORDER
 from pypatchy.structure import Structure, StructuralHomomorphism, TypedStructure
 

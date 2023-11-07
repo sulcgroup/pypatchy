@@ -4,24 +4,23 @@ from typing import Union, Any
 
 from abc import ABC
 
-import matplotlib.colors
 import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 import pandas as pd
-import pylab as p
 
 from pypatchy.patchy.analysis_lib import GraphsFromClusterTxt, ClassifyClusters, YIELD_KEY
 
 from pypatchy.patchy.simulation_specification import PatchySimulation
-from .analysis.analyseClusters import ClusterCategory
 
 from ..analpipe.analysis_data import TIMEPOINT_KEY
 from .ensemble_parameter import EnsembleParameter, ParameterValue
-from .simulation_ensemble import PatchySimulationEnsemble, PipelineStepDescriptor, describe_param_vals, shared_ensemble
+from .simulation_ensemble import PatchySimulationEnsemble, PipelineStepDescriptor, shared_ensemble
 
 
 import seaborn as sb
+
+from ..vis_util import get_particle_color
 
 DEFAULT_SB_ARGS = {
     "kind": "line",
@@ -187,14 +186,6 @@ def plot_compare_ensembles(es: list[PatchySimulationEnsemble],
     if norm:
         fig.set(ylim=(0.0, 1.0))
     return fig
-
-
-def get_particle_color(ptypeidx: int):
-    """
-    returns an rgb color consistant with the usage in polycubes
-    """
-    hue = ptypeidx * 137.508
-    return matplotlib.colors.hsv_to_rgb(((hue % 360) / 360, .5, .5))
 
 
 def show_clusters(e: PatchySimulationEnsemble,
