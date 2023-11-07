@@ -5,6 +5,7 @@ import itertools
 from collections import defaultdict
 from typing import Union
 
+import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 
@@ -12,6 +13,7 @@ from oxDNA_analysis_tools.UTILS.data_structures import Configuration
 from scipy.spatial.transform import Rotation
 
 from pypatchy.oxutil import TopInfo
+from pypatchy.vis_util import get_particle_color
 
 from pypatchy.patchy_base_particle import Scene, PatchyBaseParticle, BaseParticleSet
 from pypatchy.polycubeutil.polycubesRule import PolycubesRule, diridx, PolycubeRuleCubeType, RULE_ORDER, PolycubesPatch
@@ -315,6 +317,11 @@ class PolycubeStructure(TypedStructure, Scene):
         """
         return np.stack([cube.position() for cube in self.cubeList])
 
+    def draw_structure_graph(self, ax: plt.Axes, layout: Union[None, dict] = None):
+        if layout is None:
+            layout = nx.spring_layout(self.graph)
+        ptypemap = [get_particle_color(self.particle_type(j)) for j in self.graph.nodes]
+        nx.draw(self.graph, ax=ax, with_labels=True, node_color=ptypemap, pos=layout)
 
 class PolycubesStructureCube(PatchyBaseParticle):
     _type_cube: PolycubeRuleCubeType
