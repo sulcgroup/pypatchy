@@ -222,8 +222,27 @@ class Pathway:
             # edge checker
             assert len(item) == 2
             return any([sum([j.prev_neighbor() in item, j.next_neighbor() in item, j.particle() in item]) == 2 for j in self])
+        elif isinstance(item, Pathway):
+            return self.is_subpathway(item)
         else:
             raise TypeError(f"Invalid arg to Joint::__contains__! Arg type: {type(item)}")
+
+    def is_subpathway(self, other: Pathway) -> bool:
+        """
+        Returns true if the provided arguement is a subpathway of this pathway, false otherwise
+        This method cares about directionality (e.g. a,b,c != c,b,a)
+        but not about origin point if the path is cyclic (e.g. a,b,c == c,a,b)
+        """
+        g1 = self.graph()
+        g2 = other.graph()
+        def nodes_match(a, b):
+            return a["pid"] == b["pid"]
+        def edges_match(a, b):
+            return a["patch"] == b["patch"]
+        matcher = nx.isomorphism.GraphMatcher(g1, g2, node_match=nodes_match, edge_match=edges_match)
+        match = matcher.subgraph_is_isomorphic()
+        return match
+
 
     def is_cycle(self) -> bool:
         return self[0].prev_neighbor() == self[-1].particle() and self[-1].next_neighbor() == self[0].particle()
@@ -245,8 +264,6 @@ class Pathway:
         assert self.is_cycle() and other.is_cycle()
         return self.cycle_id() == other.cycle_id()
         # return len(self) == len(other) and any([self >> i == other for i in range(len(self))])
-
-
 
     def __add__(self, other: Joint):
         """
@@ -301,7 +318,7 @@ class Pathway:
         """
         g = nx.DiGraph()
         for p in self.particles():
-            g.add_node(p)
+            g.add_node(p, pid=p)
         for joint in self:
             g.add_edge(joint.particle(), joint.prev_neighbor(), patch=joint.particle_prev_patch())
             g.add_edge(joint.particle(), joint.next_neighbor(), patch=joint.particle_next_patch())
@@ -313,7 +330,7 @@ class Pathway:
                 """
         g = nx.DiGraph()
         for p in self.particles():
-            g.add_node(p)
+            g.add_node(p, pid=p)
         g.add_edge(self[0].prev_neighbor(), self[0].particle(), patch=self[0].prev_edge()[1])
         for joint in self:
             # g.add_edge(joint.particle(), joint.prev_neighbor(), patch=joint.particle_prev_patch())

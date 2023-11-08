@@ -43,7 +43,7 @@ class DesignPathType:
     # array of ints where each element is an index in joint_classes
     _joint_class_map: np.array
     _joint_classes: list[tuple[int, int, int]]
-    _score: float # computed from something or other
+    _score: float  # computed from something or other
 
     def __init__(self, structure: YieldAllosteryDesigner, *args: Pathway):
         """
@@ -122,10 +122,13 @@ class DesignPathType:
         Returns:
 
         """
+        # clear joint classes
         self._joint_class_map = np.full(fill_value=-1, shape=(self.path_len(), self.num_generic_pathways()))
         self._joint_classes = []
 
+        # iterate path types
         for j, pathway in enumerate(self.type_keys()):
+            # iter joints in type path
             for i, joint in enumerate(pathway):
                 found_joint_class = False
                 for jcidx, existing_jc in enumerate(self._joint_classes):
@@ -137,6 +140,7 @@ class DesignPathType:
                     self._joint_class_map[i, j] = len(self._joint_classes)
                     self._joint_classes.append(joint.inner())
 
+        # compute favorability factor
         slices = self.sorted_slices()
         self._score = (self.rate_slice(*slices[0]) if len(slices) > 0 else 0) / self.path_len()
 
@@ -220,6 +224,9 @@ class DesignPathType:
         return len(self._type_path)
 
     def generic_paths(self) -> list[Pathway]:
+        """
+        Returns a list of generic paths that are components of this design path type
+        """
         return list(self._instances.keys())
 
     def type_path(self) -> list[int]:
@@ -232,7 +239,26 @@ class DesignPathType:
         else:
             raise TypeError()
 
-    def __repr__(self) -> str:
+    def type_contains(self, other: DesignPathType) -> bool:
+        """
+
+        """
+        if len(self.type_path()) < len(other.type_path()):
+            return False
+        # iter possible slices of self.type_path
+        for i in range(len(self.type_path()) - len(other.type_path())):
+            subpath = self.type_path()[i:i + len(other.type_path())]
+            if subpath == other.type_path():
+                return True
+        return False
+
+    def any_generic_path_contains(self, other: DesignPathType) -> bool:
+        for gpath, other_g_path in itertools.product([self.generic_paths(), other.generic_paths()]):
+            if other_g_path in gpath:
+                return True
+        return False
+
+    def describe(self) -> str:
         sz = ','.join([str(x) if i not in self.get_shared_generic_joint_idxs() else '*'+str(x)+'*' for i, x in enumerate(self._type_path)])
         reprstr = f"Path with x {self.num_generic_pathways()}, len {self.path_len()}: {sz}\n"
         reprstr += "\n".join([f"\t{i} (x {len(self._instances[generic_path])}): {repr(generic_path)}" for i, generic_path in enumerate(self._instances) ])
@@ -252,20 +278,20 @@ class DesignPathType:
         # return 1 / self.path_len()
         # return self.num_generic_pathways() * len(self.get_shared_generic_joint_idxs()) / self.path_len()
 
-    def find_forks(self) -> Iterable[int, None, None]:
-        """
-        Locates positions in the design path where the same particle instance joins something to different particle
-        instances of the same type
-        Returns:
-
-        """
-        # iter joint idxs
-        for idx in range(self.path_len()):
-            p0 = list(self.generic_paths())[0][idx].particle()
-            p1 = list(self.flat_instances())[0][idx].next_neighbor()
-            if all([pathway[idx].particle() == p0 for pathway in self.generic_paths()]):
-                if not all([pathway[idx].next_neighbor() == p1 for pathway in self.flat_instances()]):
-                    yield idx
+    # def find_forks(self) -> Iterable[int, None, None]:
+    #     """
+    #     Locates positions in the design path where the same particle instance joins something to different particle
+    #     instances of the same type
+    #     Returns:
+    #
+    #     """
+    #     # iter joint idxs
+    #     for idx in range(self.path_len()):
+    #         p0 = list(self.generic_paths())[0][idx].particle()
+    #         p1 = list(self.flat_instances())[0][idx].next_neighbor()
+    #         if all([pathway[idx].particle() == p0 for pathway in self.generic_paths()]):
+    #             if not all([pathway[idx].next_neighbor() == p1 for pathway in self.flat_instances()]):
+    #                 yield idx
 
     # def find_origin_point(self):
     #     pass
@@ -323,6 +349,7 @@ class DesignPathType:
         slices = [i for i in sorted(slices, key=lambda x: self.rate_slice(*x), reverse=True)]
         return slices
 
+
     # def divisions(self) -> Iterable[tuple[int, int], None, None]:
     #     """
     #
@@ -332,14 +359,22 @@ class DesignPathType:
     #     """
     #     pass
 
+
 class YieldAllosteryDesigner(PolycubeStructure):
     """
     Class to design allosteric rules that improve yield. hopefully
     this class should be immutable-ish!!! structure component at least. do not mess with structure
     outside __init__!!! pls.
     """
+
+    # ?
     ct_allo_vars: list[set]
+    # ???
     vjoints: dict[int, set[Joint]]
+    # list of design paths
+    _design_paths: Union[list[DesignPathType], None]
+    # design path graph tree thingy
+    _design_path_tree: Union[nx.DiGraph, None]
 
     def __init__(self, r, structure):
         super(YieldAllosteryDesigner, self).__init__(rule=r, structure=structure)
@@ -373,6 +408,7 @@ class YieldAllosteryDesigner(PolycubeStructure):
                           )
                 self.joints.add(j)
                 self.vjoints[n].add(j)
+        self._design_paths = None
 
     def get_joint(self, n1, n2, n3) -> Union[Joint, None]:
         """
@@ -496,7 +532,7 @@ class YieldAllosteryDesigner(PolycubeStructure):
         Adds allosteric controls
         """
         # iterate design paths, from the one with the best design size to the one with the worse design size
-        design_paths = self.list_design_paths()
+        design_paths = self.design_paths()
         types_processed = set()
         for dp in sorted(design_paths, key=lambda x: x.fav_factor(), reverse=True):
             self.describe_design_path(dp)
@@ -631,11 +667,12 @@ class YieldAllosteryDesigner(PolycubeStructure):
                 #     cycle_nodes_to_process = next_head_nodes
 
     def describe_design_path(self, dp: DesignPathType):
-        print(dp)
+        print(dp.describe())
         layout = nx.spring_layout(self.graph)
         xs = max([len(dp.get_instances(p)) for p in dp.generic_paths()])
         ys = 1 + len(dp.generic_paths())
         fig, axs = plt.subplots(ncols=xs, nrows=ys, figsize=(4 * xs, 4 * ys))
+        fig.set_label(f"Path Hash {hash(frozenset(dp.type_path()))}")
         self.draw_structure_graph(axs[0, 0], layout)
         # erase dostractomg empty plots
         for x in range(1, xs):
@@ -680,10 +717,10 @@ class YieldAllosteryDesigner(PolycubeStructure):
     #         e1 = (i, j)
     #         e2 = (j, k)
 
-    def josh_cycles(self,
-                    current_node: int,
-                    cycle: Union[Pathway, None] = None,
-                    previous_node: Union[int, None] = None) -> Generator[Pathway, None, None]:
+    def evans_cycles(self,
+                     current_node: int,
+                     cycle: Union[Pathway, None] = None,
+                     previous_node: Union[int, None] = None) -> Generator[Pathway, None, None]:
         """
         ChatGPT wrote this code
         Returns "josh cycles" (todo: figure out real term), which visit each edge at most once
@@ -712,7 +749,7 @@ class YieldAllosteryDesigner(PolycubeStructure):
                 if previous_node is None:
                     assert cycle is None
                     # recursion!
-                    yield from self.josh_cycles(neighbor, cycle, current_node)
+                    yield from self.evans_cycles(neighbor, cycle, current_node)
                 else:
                     if neighbor == previous_node:
                         continue
@@ -722,7 +759,7 @@ class YieldAllosteryDesigner(PolycubeStructure):
                         # create cycle
                         new_cycle = Pathway(new_joint)
                         # yield from functon
-                        yield from self.josh_cycles(neighbor, new_cycle, current_node)
+                        yield from self.evans_cycles(neighbor, new_cycle, current_node)
                     # gotta keep default case seperate from origin case
                     else:
                         # if neighbor is already in cycle
@@ -733,13 +770,13 @@ class YieldAllosteryDesigner(PolycubeStructure):
                             assert new_cycle.is_cycle()
                             yield new_cycle
                         else:
-                            yield from self.josh_cycles(neighbor, cycle + new_joint, current_node)
+                            yield from self.evans_cycles(neighbor, cycle + new_joint, current_node)
 
     def all_unique_evans_cycles(self):
         # create set of unique cycle ids to aid in hashing
         unique_cycles = set()
         for i in range(self.num_vertices()):
-            for cycle in self.josh_cycles(i):
+            for cycle in self.evans_cycles(i):
                 if cycle.cycle_id() not in unique_cycles:
                     # emplace cycle
                     unique_cycles.add(cycle.cycle_id())
@@ -747,17 +784,19 @@ class YieldAllosteryDesigner(PolycubeStructure):
 
                     yield cycle
 
-    def list_design_paths(self) -> list[DesignPathType]:
+    def compute_design_paths(self):
         """
-        Returns: a list of design path types, sorted largest->smallest
+        Computes list of design paths for this structure
+        this method should only have to be called once
+        don't want to put it in the constructor since it may be time-consuming
         """
         # list is NOT indexed! instead it's sorted by design path size
-        design_paths: list[DesignPathType] = []
+        self._design_paths: list[DesignPathType] = []
         # loop evans cycles
         for cycle in self.all_unique_evans_cycles():
             # loop all design paths
             found_path = False
-            for dpath in design_paths:
+            for dpath in self._design_paths:
                 # if the design path contains this cycle
                 cycle_shifted = dpath.matches(self, cycle)
                 if cycle_shifted:
@@ -765,11 +804,29 @@ class YieldAllosteryDesigner(PolycubeStructure):
                     dpath.add_instance(self, cycle_shifted)
             # if no existing design path, add it
             if not found_path:
-                design_paths.append(DesignPathType(self, cycle))
+                self._design_paths.append(DesignPathType(self, cycle))
                 # not enough complexity to bother with a bisect sort
-                design_paths = sorted(design_paths, key=lambda d: d.path_len(), reverse=True)
+                self._design_paths = sorted(self._design_paths, key=lambda d: d.path_len(), reverse=True)
 
-        return design_paths
+        # construct graph with nodes that are design path types
+        self._design_path_tree = nx.DiGraph()
+        all_type_keys = list(itertools.chain.from_iterable([dp.type_keys() for dp in self._design_paths]))
+        for i, key in enumerate(all_type_keys):
+            self._design_path_tree.add_node(key, dp_id=chr(i+65))
+        # add edges showing relations between design paths
+        for key1, key2 in itertools.product(all_type_keys, all_type_keys):
+            if key1 == key2:
+                continue
+            if key1 in key2:
+                self._design_path_tree.add_edge(key2, key1)
+
+    def design_paths(self) -> list[DesignPathType]:
+        """
+        Returns: a list of design path types, sorted largest->smallest
+        """
+        if self._design_paths is None:
+            self.compute_design_paths()
+        return self._design_paths
 
     # def iter_design_paths(self, n: Union[int, None],
     #                       visited_edges: Union[list[tuple[int, int]], None] = None,
@@ -875,6 +932,34 @@ class YieldAllosteryDesigner(PolycubeStructure):
                 behavior_set.add(behavior)
         # if len(p) was less than 2, nothing happened in that for-loop because a 2-length path has no triples
         return len(p) > 2
+
+    def summarize(self):
+        self.compute_design_paths()
+        fig, ax = plt.subplots(figsize=(14, 8))
+        label_mapping = nx.get_node_attributes(self._design_path_tree, "dp_id")
+
+        # Make sure to invert the label mapping if necessary.
+        # In the legend, we want to show the label (the long name) and map it to the id (the short name).
+        inverted_label_mapping = {v: k for k, v in label_mapping.items()}
+
+        # Draw the graph using the labels from label_mapping for the node labels
+        nx.draw(self._design_path_tree, ax=ax, with_labels=True, labels=label_mapping)
+
+        # Create legend handles manually
+        legend_handles = [plt.Line2D([0], [0], marker='o', color='w', markersize=15, markerfacecolor='skyblue',
+                                     label=f'{id}: {inverted_label_mapping[id]}')  # Here we use the inverted mapping
+                          for id in label_mapping.values()]  # The values are the actual ids used for the labels
+
+        # Add the legend to the plot
+        ax.legend(handles=legend_handles, title="Design Paths", bbox_to_anchor=(0.25, 1), loc='upper left')
+
+        # This will ensure that the legend and the graph are not cut off
+        plt.axis('off')
+        plt.tight_layout()
+        plt.show()
+
+        for dp in self.design_paths():
+            self.describe_design_path(dp)
 
 
 def triplets(iterable: typing.Iterable):
