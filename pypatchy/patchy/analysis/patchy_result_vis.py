@@ -14,8 +14,8 @@ def showPatchyResults(results, target_name, plot_relative=True):
     rule_data = pd.DataFrame(
         [
             {
-                'run_name': results.runs[int(i / len(results.particle_set))].param_name,
-                'cube_name': results.particle_set[i % len(results.particle_set)].param_name,
+                'run_name': results.runs[int(i / len(results.particle_types))].param_name,
+                'cube_name': results.particle_types[i % len(results.particle_types)].param_name,
                 'level': lvl
             }
             for i, lvl in enumerate(itertools.chain.from_iterable([r.cube_type_levels for r in results.runs]))

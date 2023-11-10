@@ -947,8 +947,8 @@ class YieldAllosteryDesigner(PolycubeStructure):
 
         # Create legend handles manually
         legend_handles = [plt.Line2D([0], [0], marker='o', color='w', markersize=15, markerfacecolor='skyblue',
-                                     label=f'{id}: {inverted_label_mapping[id]}')  # Here we use the inverted mapping
-                          for id in label_mapping.values()]  # The values are the actual ids used for the labels
+                                     label=f'{dp_id}: {inverted_label_mapping[dp_id]}')  # Here we use the inverted mapping
+                          for dp_id in label_mapping.values()]  # The values are the actual ids used for the labels
 
         # Add the legend to the plot
         ax.legend(handles=legend_handles, title="Design Paths", bbox_to_anchor=(0.25, 1), loc='upper left')

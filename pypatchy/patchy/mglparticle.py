@@ -38,7 +38,7 @@ class MGLParticle(PatchyBaseParticleType, PatchyBaseParticle):
                  uid: int,
                  patches: list[BasePatchType]):
         PatchyBaseParticleType.__init__(self, uid, patches)
-        PatchyBaseParticle.__init__(self, uid, position)
+        PatchyBaseParticle.__init__(self, uid, uid, position)
         self._position = position
         self._particle_color = color
         self._radius = radius
@@ -68,6 +68,22 @@ class MGLParticle(PatchyBaseParticleType, PatchyBaseParticle):
     def set_position(self, new_position: np.ndarray):
         self._position = new_position
 
+    def rotation(self) -> np.ndarray:
+        """
+        The concept of a particle rotation doesn't make sense for an mgl particle with
+        no frame of reference
+        """
+        return np.identity(3)
+
+    def rotate(self, rotation: np.ndarray):
+        """
+        "rotates" the particle in-place by applying a rotation matrix to the position
+        of each patch on the particle
+        """
+        for p in self.patches():
+            p.set_position(p.position @ rotation)
+
+
 
 class MGLPatch(BasePatchType):
     _width: float
@@ -93,8 +109,12 @@ class MGLPatch(BasePatchType):
         """
         return self.color().endswith(other.color()) or other.color().endswith(self.color())
 
+    def set_position(self, new_position: np.ndarray):
+        assert new_position.shape == (3,)
+        self._key_points[0] = new_position
 
 class MGLScene(Scene):
+
     _box_size: np.ndarray
 
     def __init__(self, box_size: np.ndarray = np.zeros((3,))):
@@ -118,7 +138,7 @@ class MGLScene(Scene):
         """
         particle_map = {
             particle.color(): 0
-            for particle in self.particle_set().particles()
+            for particle in self.particle_types().particles()
         }
         for particle in self.particles():
             particle_map[particle.color()] += 1
@@ -152,7 +172,7 @@ class MGLScene(Scene):
     def avg_pad_bind_distance(self):
         pass
 
-    def particle_set(self) -> BaseParticleSet:
+    def particle_types(self) -> BaseParticleSet:
         """
         Returns a BaseParticleSet containing the particle types (as defined by color) in this scene
         WARNING: does not check if particles are actually identical - just checks particle colors!!!
@@ -174,12 +194,11 @@ class MGLScene(Scene):
 
         return particle_set
 
-    def from_top_conf(self, top: TopInfo, conf: Configuration):
-        pass  # TODO
+    def num_particle_types(self) -> int:
+        return len(self.particle_types().particles())
 
-    def to_top_conf(self, top_path: Path, conf_path: Path) -> tuple[TopInfo, Configuration]:
-        pass  # TODO
-
+    def get_conf(self) -> Configuration:
+        pass
 
 def load_mgl(file_path: Path) -> MGLScene:
     assert file_path.is_file()
