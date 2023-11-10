@@ -313,7 +313,7 @@ class MGLOrigamiConverter:
         # prep variables to use when building our structure
         self.color_sequences = {}
         self.color_match_overrides = {}
-        self.clusters = [{} for _ in range(len(mgl._particles()))]
+        self.clusters = [{} for _ in range(len(mgl.particles()))]
         self.bondcount = 0
         self.padding = padding
 
@@ -323,7 +323,7 @@ class MGLOrigamiConverter:
         # if only one particle type
         if isinstance(particle_types, DNAParticleType):
             self.particle_structure = {
-                particle.color(): particle_types for particle in self.mgl_scene.particle_set().particles()
+                particle.color(): particle_types for particle in self.mgl_scene.particle_types().particles()
             }
 
         else:  # forward-proof for heterogenous systems
@@ -404,7 +404,7 @@ class MGLOrigamiConverter:
         IDK
         """
         # get scene particles
-        particles = self.mgl_scene._particles()
+        particles = self.mgl_scene.particles()
         placed_confs = []  # output prom_p
         # everyone's most favorite aligning tool
         sup = SVDSuperimposer()
@@ -473,8 +473,8 @@ class MGLOrigamiConverter:
         as defined by interaction range between centers of mass
         """
         handeled_candidates = set()
-        for i, p1 in enumerate(self.mgl_scene._particles()):
-            for j, p2 in enumerate(self.mgl_scene._particles()):
+        for i, p1 in enumerate(self.mgl_scene.particles()):
+            for j, p2 in enumerate(self.mgl_scene.particles()):
                 # if the particles are different and the distance is less than the maximum interaction distance
                 if i != j and dist(p1.cms(),
                                    p2.cms()) <= self.particle_delta:
@@ -556,7 +556,7 @@ class MGLOrigamiConverter:
         # in order to the mgl particles
 
         patch_occupancies = [False for _ in itertools.chain.from_iterable(
-            [[patch.get_id() for patch in particle.patches()] for particle in self.mgl_scene._particles()])]
+            [[patch.get_id() for patch in particle.patches()] for particle in self.mgl_scene.particles()])]
 
         # loop possible pairs of particles
         # patch_occupancies = [[False for _ in p.patches()] for p in particles]
