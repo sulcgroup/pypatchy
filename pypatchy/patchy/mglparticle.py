@@ -43,6 +43,9 @@ class MGLParticle(PatchyBaseParticleType, PatchyBaseParticle):
         self._particle_color = color
         self._radius = radius
 
+    def get_type(self) -> int:
+        return self.color() # shut up
+
     def color(self) -> str:
         return self._particle_color
 
@@ -53,7 +56,7 @@ class MGLParticle(PatchyBaseParticleType, PatchyBaseParticle):
         return MGL_COLORS.index(self.color())
 
     def radius(self, normal: np.ndarray = np.zeros(shape=(3,))) -> float:
-        return self._radius # assume a spherical particle
+        return self._radius  # assume a spherical particle
 
     def cms(self) -> np.ndarray:
         """
@@ -81,8 +84,7 @@ class MGLParticle(PatchyBaseParticleType, PatchyBaseParticle):
         of each patch on the particle
         """
         for p in self.patches():
-            p.set_position(p.position @ rotation)
-
+            p.set_position(p.position() @ rotation)
 
 
 class MGLPatch(BasePatchType):
@@ -113,8 +115,8 @@ class MGLPatch(BasePatchType):
         assert new_position.shape == (3,)
         self._key_points[0] = new_position
 
-class MGLScene(Scene):
 
+class MGLScene(Scene):
     _box_size: np.ndarray
 
     def __init__(self, box_size: np.ndarray = np.zeros((3,))):
@@ -200,6 +202,7 @@ class MGLScene(Scene):
     def get_conf(self) -> Configuration:
         pass
 
+
 def load_mgl(file_path: Path) -> MGLScene:
     assert file_path.is_file()
     with file_path.open("r") as f:
@@ -227,9 +230,9 @@ def load_mgl(file_path: Path) -> MGLScene:
                 # each patch is specied by 4 numbers and a string
                 # the first three numbers specify the patch position, the fourth is the patch width,
                 # the string is fifth and is the patch color
-                patch_coords = np.array([float(x) for x in patch_strs[j:j+3]])
-                w = float(patch_strs[j+3])
-                patch_color = re.search(r"C\[(\w+)]", patch_strs[j+4]).group(1)
+                patch_coords = np.array([float(x) for x in patch_strs[j:j + 3]])
+                w = float(patch_strs[j + 3])
+                patch_color = re.search(r"C\[(\w+)]", patch_strs[j + 4]).group(1)
                 patches.append(MGLPatch(patch_idx, patch_color, patch_coords, w))
                 patch_idx += 1
                 j += 5

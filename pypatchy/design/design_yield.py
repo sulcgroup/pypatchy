@@ -397,8 +397,8 @@ class YieldAllosteryDesigner(PolycubeStructure):
                 d1out = self.graph.get_edge_data(n, n1)["dirIdx"]
                 d3in = self.graph.get_edge_data(n3, n)["dirIdx"]
                 d3out = self.graph.get_edge_data(n, n3)["dirIdx"]
-                edge_in = (ncube.get_patch(d1out).get_id(), n1cube.get_patch(d1in).get_id())
-                edge_out = (ncube.get_patch(d3out).get_id(), n3cube.get_patch(d3in).get_id())
+                edge_in = (ncube.patch(d1out).get_id(), n1cube.patch(d1in).get_id())
+                edge_out = (ncube.patch(d3out).get_id(), n3cube.patch(d3in).get_id())
                 assert edge_out[0] != edge_in[0] # no particle should have two patches w/ same idx
                 j = Joint(n,
                           n1,
