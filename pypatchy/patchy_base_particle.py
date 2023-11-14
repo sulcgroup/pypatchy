@@ -251,6 +251,25 @@ class PatchyBaseParticle(ABC):
         """
         pass
 
+    @abstractmethod
+    def patch(self, idx: int) -> BasePatchType:
+        """
+        Accessor for particle patch. Inpl-dependant.
+        Will generally somehow redirect to PatchyBaseParticleType.patch
+        Classes which extend both PatchyBaseParticleType and PatchyBaseParticle can skip manual implementation
+        The default (pydoc) method signature here takes an int indexer but other options are permitted
+        when overriding
+        """
+        pass
+
+    @abstractmethod
+    def num_patches(self) -> int:
+        """
+        Similar conceptually to PatchyBaseParticle::patch
+        (see above)
+        """
+        pass
+
     def translate(self, translation_vector: np.ndarray):
         self._position += translation_vector
 

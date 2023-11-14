@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import copy
 import itertools
+import json
 from collections import defaultdict
+from pathlib import Path
 from typing import Union
 
 import matplotlib.pyplot as plt
@@ -12,14 +14,13 @@ import numpy as np
 from oxDNA_analysis_tools.UTILS.data_structures import Configuration
 from scipy.spatial.transform import Rotation
 
-from pypatchy.oxutil import TopInfo
 from pypatchy.vis_util import get_particle_color
 
 from pypatchy.patchy_base_particle import Scene, PatchyBaseParticle, BaseParticleSet
 from pypatchy.polycubeutil.polycubesRule import PolycubesRule, diridx, PolycubeRuleCubeType, RULE_ORDER, PolycubesPatch
 
 from pypatchy.structure import TypedStructure, Structure
-from pypatchy.util import from_xyz, getRotations
+from pypatchy.util import from_xyz, getRotations, get_input_dir
 
 
 class PolycubeStructure(TypedStructure, Scene):
@@ -76,6 +77,8 @@ class PolycubeStructure(TypedStructure, Scene):
         elif "cubes" in kwargs:
             # structure passed as list of cube objects
             for cube in kwargs["cubes"]:
+                if isinstance(cube, dict):
+                    cube = PolycubesStructureCube()
                 assert cube.get_type() in [ct.type_id() for ct in self.rule.particles()], "Cube type not found in rule!"
                 self.cubeList.append(cube)
                 self.cubeMap[cube.position().tobytes()] = cube
@@ -92,8 +95,8 @@ class PolycubeStructure(TypedStructure, Scene):
                 d2 = d1 * -1
                 # if both cubes have patches on connecting faces and the patch colors match
                 if cube1.has_patch(d1) and cube2.has_patch(d2):
-                    p1 = cube1.get_patch(d1)
-                    p2 = cube2.get_patch(d2)
+                    p1 = cube1.patch(d1)
+                    p2 = cube2.patch(d2)
                     if p1.color() == -p2.color():
                         align1 = cube1.rotation().apply(p1.alignDir()).round()
                         align2 = cube2.rotation().apply(p2.alignDir()).round()
@@ -180,12 +183,6 @@ class PolycubeStructure(TypedStructure, Scene):
 
     def particle_type(self, particle_id: int) -> int:
         return self.cubeList[particle_id].get_type()
-
-    def from_top_conf(self, top: TopInfo, conf: Configuration):
-        pass  # we respecfully ask that you Do Not
-
-    def to_top_conf(self) -> tuple[TopInfo, Configuration]:
-        pass  # ibid
 
     def graph_undirected(self) -> nx.Graph:
         return self.graph.to_undirected()
@@ -284,7 +281,7 @@ class PolycubeStructure(TypedStructure, Scene):
 
     def transform(self, rot: np.ndarray, tran: np.ndarray) -> PolycubeStructure:
         # assert transformation.shape == (4, 4), "Wrong shape for transformation"
-        assert rot.shape == (3,3)
+        assert rot.shape == (3, 3)
         assert tran.shape[0] == 3
         transformed_structure = copy.deepcopy(self)
         transformed_structure.cubeMap = {}
@@ -322,6 +319,7 @@ class PolycubeStructure(TypedStructure, Scene):
             layout = nx.spring_layout(self.graph)
         ptypemap = [get_particle_color(self.particle_type(j)) for j in self.graph.nodes]
         nx.draw(self.graph, ax=ax, with_labels=True, node_color=ptypemap, pos=layout)
+
 
 class PolycubesStructureCube(PatchyBaseParticle):
     _type_cube: PolycubeRuleCubeType
@@ -365,7 +363,7 @@ class PolycubesStructureCube(PatchyBaseParticle):
     def has_patch(self, direction: Union[int, np.ndarray]) -> bool:
         return self.get_cube_type().has_patch(self.typedir(direction))
 
-    def get_patch(self, direction: Union[int, np.ndarray]) -> PolycubesPatch:
+    def patch(self, direction: Union[int, np.ndarray]) -> PolycubesPatch:
         return self.get_cube_type().patch(self.typedir(direction))
 
     def state(self, i=None):
@@ -380,3 +378,14 @@ class PolycubesStructureCube(PatchyBaseParticle):
 
     def patches(self):
         return self.get_cube_type().patches()
+
+
+def load_polycube(file_path: Union[Path, str], prepend_input_dir=True) -> PolycubeStructure:
+    if isinstance(file_path, str):
+        file_path = Path(file_path)
+    if prepend_input_dir:
+        file_path = get_input_dir() / file_path
+    with file_path.open("r") as f:
+        data = json.load(f)
+        rule = PolycubesRule(rule_json=data["cube_types"])
+        return PolycubeStructure(rule=rule, cubes=data["cubes"])
