@@ -83,6 +83,7 @@ class DNAStructureStrand:
                  uids: Union[np.ndarray, None]=None):
         assert bases.size == positions.shape[0] == a1s.shape[0] == a3s.shape[0], "Mismatch in strand raws shapes!"
         assert all([b in ("A", "T", "C", "G") for b in bases]), "Invalid base!"
+        assert np.all(~np.isnan(positions))
         if uids is None:
             self.very_global_uids = np.array(GEN_UIDS(len(bases)))
         else:
@@ -219,6 +220,9 @@ class DNAStructureStrand:
         """
         Transforms in place
         """
+        assert rot.shape == (3, 3), "Wrong shape for rotation!"
+        assert np.linalg.det(rot) - 1 < 1e-9, f"Rotation matrix {rot} has nonzero determinate {np.linalg.det(rot)}"
+        assert tran.shape in [(3,), (3, 1)], "Wrong shape for translaton!"
         self.positions = np.einsum('ij, ki -> kj', rot, self.positions) + tran
         self.a1s = np.einsum('ij, ki -> kj', rot, self.a1s)
         self.a3s = np.einsum('ij, ki -> kj', rot, self.a3s)
@@ -465,22 +469,28 @@ class DNAStructure:
     def has_valid_box(self):
         return self.box is not None
 
-    def inbox(self, pad=np.array([1,1,1])) -> DNAStructure:
+    def inbox(self, relpad: Union[float, np.ndarray] = 0.1,
+              extrapad: Union[float, np.ndarray] = 0) -> DNAStructure:
         """
         Copies the structure and translates it so that all position values are positive, and resizes the box so
         that all residues are within the box
         """
+        if isinstance(extrapad, float):
+            extrapad = np.full(extrapad, shape=(3,))
         # get all coordinates
         positions = self.poss()
         # get min and max coords
         mins = np.amin(positions, axis=0)
         maxs = np.amax(positions, axis=0)
+        # compute padding
+        pad = relpad * (maxs - mins) + extrapad
+
         # copy self
         cpy = copy.deepcopy(self)
         # translate copy so that mins are at 0
         cpy.transform(tran=-mins + pad)
         # resize box of copy
-        cpy.box = maxs-mins + 2 * pad
+        cpy.box = maxs - mins + 2 * pad
         new_positions = cpy.poss()
         assert np.all(0 <= new_positions), "Some residues still somehow out of box!"
         assert np.all(new_positions <= cpy.box[np.newaxis, :]), "Some residues still somehow out of box!"
@@ -510,7 +520,7 @@ class DNAStructure:
                     "class": "NucleicAcidStrand",
                     "id": sid,
                     "end3": bid,
-                    "end5": bid + len(strand),
+                    "end5": bid + len(strand) - 1,
                     "monomers": []
                 }
                 for base_local_idx, b in enumerate(strand):

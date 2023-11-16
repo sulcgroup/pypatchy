@@ -17,6 +17,11 @@ import math
 # global slurm job info cache
 SLURM_JOB_CACHE: dict[int, dict[str, str]] = {}
 
+
+dist = lambda a, b: np.linalg.norm(a - b)
+normalize = lambda v: v / np.linalg.norm(v)
+
+
 def get_local_dir() -> Path:
     return Path.home() / ".pypatchy/"
 

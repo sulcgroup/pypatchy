@@ -8,8 +8,9 @@ from pathlib import Path
 import numpy as np
 from oxDNA_analysis_tools.UTILS.data_structures import TopInfo, Configuration
 
-from pypatchy.patchy_base_particle import BasePatchType, PatchyBaseParticleType, Scene, PatchyBaseParticle, \
+from ..patchy_base_particle import BasePatchType, PatchyBaseParticleType, Scene, PatchyBaseParticle, \
     BaseParticleSet
+from pypatchy.util import dist
 
 # todo: bidict?
 MGL_COLORS = [
@@ -171,9 +172,6 @@ class MGLScene(Scene):
             return False
         return True
 
-    def avg_pad_bind_distance(self):
-        pass
-
     def particle_types(self) -> BaseParticleSet:
         """
         Returns a BaseParticleSet containing the particle types (as defined by color) in this scene
@@ -200,7 +198,29 @@ class MGLScene(Scene):
         return len(self.particle_types().particles())
 
     def get_conf(self) -> Configuration:
+        # TODO
         pass
+
+    def particles_bound(self, p1: MGLParticle, p2: MGLParticle) -> bool:
+        """
+        Checks if two particles in this scene are bound
+        """
+        # iter patch pairs
+        for p1patch, p2patch in zip(p1.patches(), p2.patches()):
+            # check if patches are complimentary
+            if p1patch.can_bind(p2patch):
+                # check binding geometry
+                # (warning: sus)
+                patch1_pos = p1patch.position() @ p1.rotation() + p1.position()
+                patch2_pos = p2patch.position() @ p2.rotation() + p2.position()
+                # todo: verify that this behavior is correct!
+                d = dist(patch1_pos, patch2_pos)
+                # 4 * patch.width = 2 x patch radius x 2 patches
+                bind_w = 2 * (2 * p1patch.width() + 2 * p2patch.width())
+                if d <= bind_w:
+                    return True
+        return False
+
 
 
 def load_mgl(file_path: Path) -> MGLScene:
