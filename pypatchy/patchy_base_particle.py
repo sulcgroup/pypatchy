@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import abc
+import itertools
 from abc import ABC, abstractmethod
 from copy import deepcopy
 from pathlib import Path
-from typing import Union, Any, Iterable
+from typing import Union, Any, Iterable, Generator
 
 import numpy as np
 from oxDNA_analysis_tools.UTILS.data_structures import Configuration, TopInfo
@@ -316,3 +317,12 @@ class Scene(ABC):
     @abstractmethod
     def get_conf(self) -> Configuration:
         pass
+
+    @abstractmethod
+    def particles_bound(self, p1: PatchyBaseParticle, p2: PatchyBaseParticle) -> bool:
+        pass
+
+    def iter_bound_particles(self) -> Generator[tuple[PatchyBaseParticle, PatchyBaseParticle]]:
+        for p1, p2 in itertools.combinations(self.particles(), 2):
+            if self.particles_bound(p1, p2):
+                yield p1, p2

@@ -15,11 +15,7 @@ import itertools
 
 from ..patchy.mglparticle import MGLParticle, MGLPatch
 from ..patchy_base_particle import Scene, PatchyBaseParticle
-
-dist = lambda a, b: np.linalg.norm(a - b)
-normalize = lambda v: v / np.linalg.norm(v)
-
-
+from ..util import dist, normalize
 
 
 # todo: MORE PARAMETERS
@@ -111,11 +107,13 @@ class MGLOrigamiConverter:
     This class facilitates the conversion of a patchy particle model (in MGL format) to
     a set of connected DNA origamis
     """
-    clusters: list[dict]
     color_sequences: dict[str, str]
     bondcount: int
     particle_type_map: dict[str, DNAParticle]
-    mgl_scene: Scene
+    patchy_scene: Scene
+    dna_particles: list[DNAParticle]
+    padding: float  # manually-entered extra spacing
+    dist_ratio: float
 
     def __init__(self,
                  mgl: Scene,
@@ -157,23 +155,21 @@ class MGLOrigamiConverter:
         self.color_match_overrides = {}
         self.bondcount = 0
         self.padding = padding
+        self.dist_ratio = None
+        self.dna_particles = None
 
         # inputs
-        self.mgl_scene = mgl
+        self.patchy_scene = mgl
 
         # if only one particle type
         if isinstance(particle_types, DNAParticle):
             self.particle_type_map = {
-                particle.color(): particle_types for particle in self.mgl_scene.particle_types().particles()
+                particle.color(): particle_types for particle in self.patchy_scene.particle_types().particles()
             }
 
         else:  # forward-proof for heterogenous systems
             assert isinstance(particle_types, dict)
             self.particle_type_map = particle_types
-
-        # compute padding automatically
-        if padding == -1:
-            mgl_pad = self.mgl_scene.avg_pad_bind_distance()
 
         # optional parameters
         self.flexable_patch_distances = flexable_patch_distances
@@ -186,6 +182,48 @@ class MGLOrigamiConverter:
         else:
             assert particle_type in self.particle_type_map, f"Particle type {particle_type} not in type map!"
             return self.particle_type_map[particle_type]
+
+    def get_dist_ratio(self) -> float:
+        """
+        gets the scaling value used to convert the particle scene to the oxDNA conf
+        calculates value if it has not already been computed
+        Returns:
+            a conversion factor in units of oxDNA Units / Scene Units
+        """
+
+        if self.dist_ratio is None:
+            dist_ratios = []
+            dna_distance = (2 * self.spacer_length + self.sticky_length) * BASE_BASE
+
+            # WARNING! this algorithm could become very intense very quickly for large scenes
+            for p1, p2 in self.patchy_scene.iter_bound_particles():
+
+                # compute distance between two particles in the scene (mgl or pl)
+                particles_distance = dist(p1.position(), p2.position())
+                # technically radius() isn't a member of BaseParticle
+                # radii: float = p1.radius() + p2.radius()
+
+                p1_dna = self.particle_type_map[p1.get_type()]
+                p2_dna = self.particle_type_map[p2.get_type()]
+
+                # compute DNA particle "radius" as determined by average distance between the patch and cms
+                p1_dna_rad = p1_dna.center2patch_conf()
+                p2_dna_rad = p2_dna.center2patch_conf()
+
+                # distance between cmss of two dna particles
+                # should be very close to constant across the system
+                dna_distance_2p = p1_dna_rad + p2_dna_rad + dna_distance
+                dist_ratio = dna_distance_2p / particles_distance
+                dist_ratios.append(dist_ratio)
+            dist_ratio = np.mean(dist_ratios)
+            assert not np.isnan(dist_ratio)
+            if np.std(dist_ratios) > 0.05 * dist_ratio:
+                print(f"Warning: The standard deviation of individual particle distance ratios {np.std(dist_ratios)}"
+                      f" is more than 5% of the value of the mean distance ratio {dist_ratio}.")
+            self.dist_ratio = dist_ratio
+
+        return self.dist_ratio
+
 
     # TODO: write better?
     def color_sequence(self, colorstr: str) -> str:
@@ -246,7 +284,7 @@ class MGLOrigamiConverter:
         IDK
         """
         # get scene particles
-        particles = self.mgl_scene.particles()
+        particles = self.patchy_scene.particles()
         placed_confs = []  # output prom_p
         # everyone's most favorite aligning tool
         sup = SVDSuperimposer()
@@ -256,12 +294,13 @@ class MGLOrigamiConverter:
             origami: DNAParticle = deepcopy(self.get_dna_origami(particle))
             print(f"{i + 1}/{pl}", end="\r")
             origami.link_patchy_particle(particle)
-
-            scale_factor = origami.scale_factor(particle) / self.padding
+            linker_len = (self.spacer_length * 2 + self.sticky_length) * BASE_BASE
+            # scale_factor = origami.scale_factor(particle) / self.padding
+            scale_factor = self.get_dist_ratio() * self.padding
             # magic numbers needed again for things not to clash
             # origami.box = self.mgl_scene.box_size() / scale_factor
             # scale factor tells us how to convert MGL distance units into our DNA model distances
-            origami.transform(tran=particle.position() / scale_factor)
+            origami.transform(tran=particle.position() * scale_factor)
 
             # we finished the positioning
             placed_confs.append(origami)
@@ -274,8 +313,8 @@ class MGLOrigamiConverter:
         as defined by interaction range between centers of mass
         """
         handeled_candidates = set()
-        for i, p1 in enumerate(self.mgl_scene.particles()):
-            for j, p2 in enumerate(self.mgl_scene.particles()):
+        for i, p1 in enumerate(self.patchy_scene.particles()):
+            for j, p2 in enumerate(self.patchy_scene.particles()):
                 # if the particles are different and the distance is less than the maximum interaction distance
                 if i != j and dist(p1.cms(),
                                    p2.cms()) <= self.particle_delta:
@@ -356,12 +395,12 @@ class MGLOrigamiConverter:
         """
         Creates double-stranded linkers to bind particles together
         """
-        assert self.mgl_scene.patch_ids_unique()
+        assert self.patchy_scene.patch_ids_unique()
         # please please do not call this method with dna particles that don't correspond
         # in order to the mgl particles
 
         patch_occupancies = [False for _ in itertools.chain.from_iterable(
-            [[patch.get_id() for patch in particle.patches()] for particle in self.mgl_scene.particles()])]
+            [[patch.get_id() for patch in particle.patches()] for particle in self.patchy_scene.particles()])]
 
         # loop possible pairs of particles
         # patch_occupancies = [[False for _ in p.patches()] for p in particles]
@@ -446,14 +485,24 @@ class MGLOrigamiConverter:
         patch1_seq = self.spacer_length * "T" + self.color_sequence(patch1.color())
         patch2_seq = self.spacer_length * "T" + self.color_sequence(patch2.color())
 
-        strand1, strand2 = construct_strands(patch1_seq + self.spacer_length * "T", # need to add fake spacer to make code no go boom
+        strand1, strand2 = construct_strands(patch1_seq + self.spacer_length * "T",  # need to add fake spacer to make code no go boom
                                              start_position1 + start_vector_1 * BASE_BASE,
                                              start_vector_1,
                                              rbases=patch2_seq)
-        strand1 = strand1[:len(patch1_seq)] # shave off dummy spacer from previous line of code
+        strand1 = strand1[:len(patch1_seq)]  # shave off dummy spacer from previous line of code
 
-        particle1_dna.patch_strand(dna_patch1_id, dna_patch1_strand).prepend(strand1)
-        particle2_dna.patch_strand(dna_patch2_id, dna_patch2_strand).prepend(strand2)
+
+        particle1_dna.patch_strand(dna_patch1_id, dna_patch1_strand).prepend(strand1[::-1])
+        particle2_dna.patch_strand(dna_patch2_id, dna_patch2_strand).prepend(strand2[::-1])
+
+    def get_particles(self) -> list[DNAParticle]:
+        """
+        Returns DNA structures that correspond to particles
+        """
+        if self.dna_particles is None:
+            print("positioning particles")
+            self.dna_particles = self.position_particles()
+        return self.dna_particles
 
     def convert(self,
                 write_top_path: Union[Path, None] = None,
@@ -464,12 +513,12 @@ class MGLOrigamiConverter:
         DNA origamis joined by sticky end handles.
         """
 
-        print("positioning particles")
-        particles = self.position_particles()
+        particles = self.get_particles()
 
         print("binding particles using 3p patches")
         self.bind_particles3p(particles)
-        assert self.expected_num_edges == -1 or self.bondcount == self.expected_num_edges, "Wrong number of bonds created!"
+        assert self.expected_num_edges == -1 or self.bondcount == self.expected_num_edges, \
+            "Wrong number of bonds created!"
 
         print("merging the topologies")
 
@@ -489,3 +538,4 @@ class MGLOrigamiConverter:
         if write_oxview_path:
             merged_conf.export_oxview(write_oxview_path)
             print(f"Wrote OxView file to {str(write_oxview_path)}")
+        print("Done!")

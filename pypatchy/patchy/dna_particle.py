@@ -96,7 +96,7 @@ class DNAParticle (DNAStructure):
                 rot, tran = sup.get_rotran()
         print(f"Superimposed DNA origami on patchy particle {p.get_id()} with RMS={best_rms}")
         print(f"RMS / circumfrance: {best_rms / (2 * math.pi * self.center2patch_conf())}")        # call self.transform BEFORE linking the particle!
-        self.transform(rot, tran)
+        self.transform(rot.T, tran)
         # apply reordering
         self.patch_strand_ids = [self.patch_strand_ids[i] for i in best_order[:-1]] # skip last position (centerpoint)
         self.linked_particle = p
