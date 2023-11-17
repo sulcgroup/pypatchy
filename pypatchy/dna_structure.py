@@ -11,7 +11,7 @@ from typing import Union, Generator
 import numpy as np
 from oxDNA_analysis_tools.UTILS.RyeReader import get_confs, get_top_info, get_traj_info, linear_read
 from oxDNA_analysis_tools.UTILS.data_structures import TopInfo, TrajInfo, Configuration, Strand
-from .util import rotation_matrix
+from .util import rotation_matrix, get_input_dir
 
 # universal indexer for residues
 # DOES NOT CORRESPOND TO LINEAR INDEXING IN TOP AND CONF FILES!!!!
@@ -357,7 +357,7 @@ class DNAStructure:
                  strands: list[DNAStructureStrand],
                  t: int,
                  box: np.ndarray,
-                 energy: np.ndarray,
+                 energy: np.ndarray = np.zeros(3),
                  clusters: list[set[int]] = None):
         self.strands = strands
         self.time = t
@@ -497,6 +497,9 @@ class DNAStructure:
         assert self.validate() == cpy.validate()  # garbage in should imply garbage out and vice versa
         return cpy
 
+    def add_strand(self, strand: DNAStructureStrand):
+        self.strands.append(strand)
+
     def export_oxview(self, ovfile: Path):
         assert ovfile.parent.exists()
         if not self.has_valid_box():
@@ -529,16 +532,15 @@ class DNAStructure:
                     # if this strand has a following base, set n5 to base idx + 1, else set to no next base (-1)
                     n5 = bid + 1 if base_local_idx < len(strand) - 1 else -1
                     nucleotide = {
-                        "a1": ' '.join(['{:0.6f}'.format(i) for i in b.a1]),
-                        "a3": ' '.join(['{:0.6f}'.format(i) for i in b.a3]),
+                        "a1": b.a1.tolist(),
+                        "a3": b.a3.tolist(),
                         "class": "DNA",
-                        # not a typo altho i kinda wish it was
                         "cluster": bid if b.uid not in self.clustermap else self.clustermap[b.uid],
                         "color": 0,  # NOT AN IMPORTANT BIT
                         "id": bid,
                         "n3": n3,
                         "n5": n5,
-                        "p": ' '.join(['{:0.6f}'.format(i) for i in b.pos]),
+                        "p": b.pos.tolist(),
                         "type": b.base
                     }
                     strand_json["monomers"].append(nucleotide)
@@ -588,7 +590,7 @@ class DNAStructure:
         does NOT update the bounding box!!!
         """
         assert rot.shape == (3, 3), "Wrong shape for rotation!"
-        assert np.linalg.det(rot) - 1 < 1e-9, f"Rotation matrix {rot} has nonzero determinate {np.linalg.det(rot)}"
+        assert abs(np.linalg.det(rot)) - 1 < 1e-9, f"Rotation matrix {rot} has non-one determinate {np.linalg.det(rot)}"
         assert tran.shape in [(3,), (3, 1)], "Wrong shape for translaton!"
         for strand in self.strands:
             strand.transform(rot, tran)
@@ -604,8 +606,12 @@ def load_dna_structure(top: Union[str, Path], conf_file: Union[str, Path]) -> DN
     """
     if isinstance(top, str):
         top = Path(top)
-    if isinstance(conf_file, Path):
-        conf_file = str(conf_file)
+    if isinstance(conf_file, str):
+        conf_file = Path(conf_file)
+    if not top.is_absolute():
+        top = get_input_dir() / top
+    if not conf_file.is_absolute():
+        conf_file = get_input_dir() / conf_file
 
     assert top.is_file()
 
@@ -618,7 +624,7 @@ def load_dna_structure(top: Union[str, Path], conf_file: Union[str, Path]) -> DN
     strands_list: list[list[tuple[chr, np.ndarray, np.ndarray, np.ndarray]]] = [[] for _ in range(1, nstrands + 1)]
     # generate the return object
 
-    conf: Configuration = next(linear_read(get_traj_info(conf_file),
+    conf: Configuration = next(linear_read(get_traj_info(str(conf_file)),
                                            TopInfo(str(top), nbases)))[0]
 
     for base_idx, line in enumerate(lines[1:]):
@@ -638,3 +644,41 @@ def load_dna_structure(top: Union[str, Path], conf_file: Union[str, Path]) -> DN
                         conf.time,
                         conf.box,
                         conf.energy)
+
+
+def load_oxview(oxview: Union[str, Path]):
+    if isinstance(oxview, str):
+        oxview = Path(oxview)
+    if not oxview.is_absolute():
+        oxview = get_input_dir() / oxview
+    with oxview.open("r") as f:
+        ovdata = json.load(f)
+        box = ovdata["box"]
+        s = DNAStructure([], 0, box)
+        # frankly i have no idea how to handle multiple-system files
+        if len(ovdata["systems"]) > 1:
+            print("Warning: multiple systems will be merged")
+        for ox_sys in ovdata["systems"]:
+            for strand_data in ox_sys["strands"]:
+                if strand_data["class"] == "NucleicAcidStrand":
+                    strand = [] # 3' -> 5' list of nucleotides
+                    for i, nuc in enumerate(strand_data["monomers"]):
+                        a1 = np.array(nuc["a1"])
+                        a3 = np.array(nuc["a3"])
+                        pos = np.array(nuc["p"])
+                        base = nuc["type"]
+                        if "n3" in nuc:
+                            assert i > 0 and strand_data["monomers"][i-1]["id"] == nuc["n3"], "Topology problem!"
+
+                        if "n5" in nuc:
+                            assert i < len(strand_data["monomers"]) and strand_data["monomers"][i+1]["id"] == nuc["n5"], "Topology problem!"
+                        strand.append((base, pos, a1, a3))
+                    s.add_strand(strand_from_info(strand))
+                    # load extra stuff (clusters, etc.)
+                    for nuc, nuc_data in zip(s.strands[-1], strand_data["monomers"]):
+                        if "cluster" in nuc_data:
+                            s.assign_base_to_cluster(nuc.uid, nuc_data["cluster"])
+
+                else:
+                    print(f"Unrecognized system data type {strand_data['class']}")
+    return s

@@ -24,6 +24,7 @@ from pypatchy.util import from_xyz, getRotations, get_input_dir
 
 
 class PolycubeStructure(TypedStructure, Scene):
+
     # mypy type specs
     rule: PolycubesRule
     cubeMap: dict[bytes, PolycubesStructureCube]
@@ -320,6 +321,11 @@ class PolycubeStructure(TypedStructure, Scene):
         ptypemap = [get_particle_color(self.particle_type(j)) for j in self.graph.nodes]
         nx.draw(self.graph, ax=ax, with_labels=True, node_color=ptypemap, pos=layout)
 
+    def set_particle_types(self, ptypes: BaseParticleSet):
+        rule = ptypes
+
+    def particles_bound(self, p1: PatchyBaseParticle, p2: PatchyBaseParticle) -> bool:
+        return self.graph.has_edge(p1.get_id(), p2.get_id())
 
 class PolycubesStructureCube(PatchyBaseParticle):
     _type_cube: PolycubeRuleCubeType
@@ -366,6 +372,9 @@ class PolycubesStructureCube(PatchyBaseParticle):
     def patch(self, direction: Union[int, np.ndarray]) -> PolycubesPatch:
         return self.get_cube_type().patch(self.typedir(direction))
 
+    def num_patches(self) -> int:
+        return self.get_cube_type().num_patches()
+
     def state(self, i=None):
         if i is None:
             return self._state
@@ -380,12 +389,12 @@ class PolycubesStructureCube(PatchyBaseParticle):
         return self.get_cube_type().patches()
 
 
-def load_polycube(file_path: Union[Path, str], prepend_input_dir=True) -> PolycubeStructure:
+def load_polycube(file_path: Union[Path, str]) -> PolycubeStructure:
     if isinstance(file_path, str):
         file_path = Path(file_path)
-    if prepend_input_dir:
+    if not file_path.is_absolute():
         file_path = get_input_dir() / file_path
     with file_path.open("r") as f:
         data = json.load(f)
         rule = PolycubesRule(rule_json=data["cube_types"])
-        return PolycubeStructure(rule=rule, cubes=data["cubes"])
+        return PolycubeStructure(rule=rule, structure=data["cubes"])

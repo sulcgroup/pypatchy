@@ -8,7 +8,7 @@ from Bio.SVDSuperimposer import SVDSuperimposer
 from ..patchy_base_particle import PatchyBaseParticle
 
 from ..dna_structure import DNAStructure, DNABase, DNAStructureStrand
-from .mglparticle import MGLParticle
+from .mgl import MGLParticle
 
 
 class DNAParticle (DNAStructure):
@@ -55,17 +55,33 @@ class DNAParticle (DNAStructure):
         #
         # self.patch_positions = patch_positions
 
-    def link_patchy_particle(self, p: PatchyBaseParticle):
+    def match_patches_to_strands(self, p: PatchyBaseParticle) -> tuple[np.ndarray, list[int]]:
+        """
+        Computes a rotation of this DNA particle that makes the patches on the particle line up with
+        """
+
+    def link_patchy_particle(self, p: PatchyBaseParticle,
+                             patch_groups: Union[set[set[int]], None] = None):
         """
         Links a patchy particle to this DNA structure, rotating the structure so that the orientation of the 3' ends of
         the patch strands match the position of the patches on the particle
         Note: PLEASE do not link multiple DNAParticle instances to the same patchy particle or vice
         versa!!!
+
+        Parameters:
+            p (PatchyBaseParticle): a patchy particle to link to this DNA particle
+            patch_groups (dict): set of sets of ints, where each value in each set is a patch id, and the sets are grousp of patches which should be treated as a single multidentate patch
         """
-        assert len(self.patch_strand_ids) == p.num_patches(), \
-            f"Mismatch between number of patches on DNA particle ({len(self.patch_strand_ids)}) " \
-            f"and on patchy particle({p.num_patches()})!"
+        # assert len(self.patch_strand_ids) >= p.num_patches() or p.num_patches() % len(self.patch_strand_ids) == 0, \
+        assert len(self.patch_strand_ids) >= p.num_patches(), \
+            f"Not enough patches on DNA particle ({len(self.patch_strand_ids)}) to link DNA particle to " \
+            f"on patchy particle({p.num_patches()})!"
+        # allow user to force multidentacy, but activate it automatically
+        # if the particle has more patches than the number of patch strand groups
+        # if force_mdt or p.num_patches() > len(self.patch_strand_ids):
+
         sup = SVDSuperimposer()
+        # construct list of patch groups (can be 1 patch / group)
         patchy_patches: list[np.ndarray] = []
         # start with centerpoint of the particle (assumed to be 0,0,0)
         # load each patch on the mgl particle
@@ -73,21 +89,25 @@ class DNAParticle (DNAStructure):
             # scale patch with origami
             # skip magic padding when scaling patch local coords
             patchy_patches.append(patch.position() / self.scale_factor(p))
-        assert len(patchy_patches) == len(self.patch_centerpoints())
-        patchy_patches.append(np.zeros((3,)))
-        m2 = np.stack(patchy_patches)
-        # generate matrix of origami patches + centerpoint
-        dna_patches = [*self.get_patch_cmss(), self.cms()]
+        # assert len(patchy_patches) == len(self.patch_centerpoints())
+        # generate matrix of origami patch matrices
+        dna_patches = self.get_patch_cmss()
+        # dna_patches = self.get_patch_strand_3p_positions()
         best_rms = np.Inf
         # test different patch arrangements in mgl vs. origami. use best option.
         # best_order should be ordering of dna patches which best matches particle patches
         best_order = None
-        for perm in itertools.permutations(enumerate(dna_patches)):
+        # iterate possible n-length permutations of the patches on the DNA particle,
+        # where n is the number of patches on the patchy particles
+        for perm in itertools.permutations(enumerate(dna_patches), r=len(patchy_patches)):
             new_order, m1 = zip(*perm)
-            m1 = np.stack(m1)
-            if new_order[len(self.patch_centerpoints())] != len(
-                    self.patch_centerpoints()):  # definately not optimized lmao
-                continue
+            # m1 is the cms, the positions of the six patches
+            m1 = np.stack([self.cms(), *m1])
+            m2 = np.stack([np.zeros((3,)), *patchy_patches])
+            # m2 = np.stack([np.zeros((3,)), *[p for i,p in enumerate(patchy_patches) if i in new_order]])
+            # if new_order[len(self.patch_centerpoints())] != len(
+            #         self.patch_centerpoints()):  # definately not optimized lmao
+            #     continue
             sup.set(np.stack(m1), m2)
             sup.run()
             if sup.get_rms() < best_rms:
@@ -122,6 +142,16 @@ class DNAParticle (DNAStructure):
         a = np.array(patch_cmss)
         assert a.shape == (len(self.patch_strand_ids), 3)
         return a
+
+    def get_patch_strand_3p_positions(self) -> list[np.ndarray]:
+        """
+        Returns the positions of the 3' nucleotides of the patches, as matrices of coords
+        Each patch coord group is returned as a Nx3 matrix, where N is the number of strands
+        """
+        patch_coordss: list[np.ndarray] = []
+        for patch in self.patch_strand_ids:
+            patch_coordss.append(np.stack([self.strands[strand_id][0].pos for strand_id in patch]))
+        return patch_coordss
 
     def patch_centerpoints(self):
         return [
@@ -278,6 +308,6 @@ class DNAParticle (DNAStructure):
 
     def transform(self, rot: np.ndarray = np.identity(3), tran: np.ndarray = np.zeros(3)):
         DNAStructure.transform(self, rot, tran)
-        if self.has_linked():
-            self.linked_particle.rotate(rot)
-            self.linked_particle.translate(tran)
+        # if self.has_linked():
+        #     self.linked_particle.rotate(rot)
+        #     self.linked_particle.translate(tran)

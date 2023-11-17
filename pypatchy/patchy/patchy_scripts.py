@@ -8,8 +8,11 @@ from typing import Union
 import numpy as np
 from scipy.spatial.transform import Rotation as R
 
-from pypatchy.patchy.plpatchy import PLPatchyParticle, PLPatch, load_patches, load_particles, export_interaction_matrix
+from pypatchy.patchy.mgl import MGLScene
+from pypatchy.patchy.plpatchy import PLPatchyParticle, PLPatch, load_patches, load_particles, export_interaction_matrix, \
+    PLPSimulation
 from pypatchy.patchy_base_particle import BaseParticleSet
+from pypatchy.polycubeutil.polycube_structure import PolycubeStructure
 from pypatchy.polycubeutil.polycubesRule import PolycubesRule
 from pypatchy.util import rotation_matrix, get_input_dir, to_xyz
 
@@ -183,7 +186,7 @@ def to_PL(particle_set: BaseParticleSet,
 
     # do multidentate convert
     if num_teeth > 1:
-        particles, patches = convert_multidentate(particles, dental_radius, num_teeth)
+        particles = convert_multidentate(particles, dental_radius, num_teeth)
 
     return particles
 
@@ -210,3 +213,34 @@ def PL_to_rule(particles: list[PLPatchyParticle], ) -> Union[None, PolycubesRule
                 for patch in particle.patches()]
         }
         for particle in particles])
+
+
+def polycube_to_pl(polycube: PolycubeStructure,
+                   nteeth=1,
+                   dental_radius=0,
+                   pad_frac: float = 0.1) -> PLPSimulation:
+    pl = PLPSimulation()
+    # convert polycubes rule to multidentate patchy particles
+    pl_types = to_PL(polycube.rule, nteeth, dental_radius)
+    pl.set_particle_types(pl_types)
+    mins = np.full(fill_value=np.inf, shape=3)
+    maxs = np.full(fill_value=-np.inf, shape=3)
+    # iter cubes in polycube
+    for cube in polycube.cubeList:
+        pl_type: PLPatchyParticle = pl_types.particle(cube.get_type())
+        particle = PLPatchyParticle(pl_type.patches(),
+                                    type_id=pl_type.type_id(),
+                                    index_=cube.get_id(),
+                                    position=cube.position())
+        particle.rotate(cube.rotation().as_matrix())
+        pl.add_particle(particle)
+        maxs = np.max([maxs, particle.position()], axis=0)
+        mins = np.min([mins, particle.position()], axis=0)
+    # compute box
+    pad = (maxs - mins) * pad_frac
+    pl.translate(-mins + pad)
+    pl.set_box_size(maxs - mins + 2 * pad)
+    return pl
+
+def mgl_to_pl(mgl: MGLScene) -> PLPSimulation:
+    pass

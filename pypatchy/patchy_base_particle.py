@@ -139,10 +139,20 @@ class BasePatchType(ABC):
     def can_bind(self, other: BasePatchType):
         pass
 
+    def rotate(self, r: np.ndarray):
+        """
+        Rotates a patch in-place
+        """
+        assert r.shape == (3,3), "Invalid rotation matrix!"
+        assert abs(np.linalg.det(r) - 1) < 1e-6, "Invalid rotation matrix!"
+        # apply rotation to all key points
+        self._key_points = [p @ r for p in self._key_points]
+
 
 class BaseParticleSet:
     """
-    Base class for patches to inherit from
+    Base class for particle sets (e.g. PolycubesRule to inherit from
+    Note that this is not an abstract class; it's often useful to directly instantiate a base particle set
     """
     _particle_types: list
     _patch_types: list
@@ -207,6 +217,9 @@ class BaseParticleSet:
     def __len__(self):
         return len(self.particles())
 
+    def __iter__(self):
+        return iter(self.particles())
+
 
 class PatchyBaseParticle(ABC):
     """Abstract base class for particle instances"""
@@ -217,7 +230,8 @@ class PatchyBaseParticle(ABC):
     def __init__(self, uid: int, type_id: int, position: np.ndarray):
         self._uid = uid
         self._type_id = type_id
-        self._position = position
+        # make sure type is correct
+        self._position = position.astype(float)
 
     def get_type(self) -> int:
         """
@@ -315,6 +329,10 @@ class Scene(ABC):
         pass
 
     @abstractmethod
+    def set_particle_types(self, ptypes: BaseParticleSet):
+        pass
+
+    @abstractmethod
     def get_conf(self) -> Configuration:
         pass
 
@@ -325,4 +343,9 @@ class Scene(ABC):
     def iter_bound_particles(self) -> Generator[tuple[PatchyBaseParticle, PatchyBaseParticle]]:
         for p1, p2 in itertools.combinations(self.particles(), 2):
             if self.particles_bound(p1, p2):
+                yield p1, p2
+
+    def iter_binding_patches(self, p1: PatchyBaseParticle, p2: PatchyBaseParticle) -> Generator[tuple[BasePatchType, BasePatchType], None, None]:
+        for p1, p2 in zip(p1.patches(), p2.patches()):
+            if p1.can_bind(p2):
                 yield p1, p2

@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 from __future__ import annotations
 import itertools
+import math
 import random
 from math import sqrt
 from pathlib import Path
@@ -14,18 +15,29 @@ from oxDNA_analysis_tools.UTILS.data_structures import TopInfo, Configuration
 
 from pypatchy.patchy_base_particle import BasePatchType, PatchyBaseParticleType, BaseParticleSet, Scene, \
     PatchyBaseParticle
-from pypatchy.util import random_unit_vector
+from pypatchy.util import random_unit_vector, dist
+
+"""
+Library for handling patchy-lock (PL) systems in pypatchy
+Where constants etc. exist they should be the same as / similar to the Patchy interactions
+in C++
+"""
 
 myepsilon = 0.00001
 
+# cutoff patch-patch distance, after which interaction cannot occur
+PATCHY_CUTOFF = 0.18
+# copied from oxDNA defs.h
+# bounded arc-cosine?
+LRACOS = lambda x: 0 if x > 1 else math.pi if x < -1 else math.acos(x)
 
 def load_patches(filename: Union[str, Path],
-                 num_patches=0) -> list[PLPatchyParticle]:
+                 num_patches=0) -> list[PLPatch]:
     if isinstance(filename, str):
         filename = Path(filename)
     j = 0
     Np = 0
-    patches = [PLPatchyParticle() for _ in range(num_patches)]
+    patches = [PLPatch() for _ in range(num_patches)]
 
     with open(filename, 'r') as f:
         lines = f.readlines()
@@ -99,8 +111,6 @@ def export_interaction_matrix(patches, filename="interactions.txt"):
 
 
 class PLPatch(BasePatchType):
-    _a1: np.ndarray
-    _a2: np.ndarray
     _type: int
     _strength: float
 
@@ -172,7 +182,7 @@ class PLPatch(BasePatchType):
         handle = open(fname)
         line = handle.readlines()[line_number]
         positions = [float(x) for x in line.strip().split()]
-        self._position = np.array(positions)
+        self._key_points[0] = np.array(positions)
 
     def init_from_string(self, lines: list[str]):
         for line in lines:
@@ -223,16 +233,16 @@ class PLPatchyParticle(PatchyBaseParticleType, PatchyBaseParticle):
     all_letters = ['C', 'H', 'O', 'N', 'P', 'S', 'F', 'K', 'I', 'Y']
 
     def __init__(self, patches: list[PLPatch] = [], particle_name: Union[str, None]=None, type_id=0, index_=0, position=np.array([0., 0., 0.]), radius=0.5):
-        super().__init__(type_id, patches)
-        self._position = position
+        PatchyBaseParticleType.__init__(self, type_id, patches)
+        PatchyBaseParticle.__init__(self, index_, type_id, position)
 
         self.unique_id = index_
         self._radius = radius
         self._patch_ids = None
         self.v = np.array([0., 0., 0.])
         self.L = np.array([0., 0., 0.])
-        self.a1 = None
-        self.a3 = None
+        self.a1 = np.array([0, 0, 1])
+        self.a3 = np.array([1, 0, 0])
 
         if particle_name is None:
             self._name = f"particletype_{self.type_id()}"
@@ -271,8 +281,15 @@ class PLPatchyParticle(PatchyBaseParticleType, PatchyBaseParticle):
         self.a3 = a3
 
     def rotate(self, rot_matrix: np.ndarray):
+        """
+        Rotates particle in-place, applying rotation matrix to self.a1, self.a3, and all patches
+        """
+        assert rot_matrix.shape == (3, 3)
+        assert abs(np.linalg.det(rot_matrix) - 1) < 1e-6
         self.a1 = np.dot(rot_matrix, self.a1)
         self.a3 = np.dot(rot_matrix, self.a3)
+        for patch in self.patches():
+            patch.rotate(rot_matrix)
 
     def set_random_orientation(self):
         self.a1 = random_unit_vector()
@@ -286,90 +303,90 @@ class PLPatchyParticle(PatchyBaseParticleType, PatchyBaseParticle):
         if abs(np.dot(self.a1, self.a3)) > 1e-10:
             raise IOError("Could not generate random orientation?")
 
-    def get_patch_position(self, patchid: int) -> np.ndarray:
-        assert -1 < patchid < self.num_patches(), "Index out of bounds"
-        p = self._patches[patchid]
-        return p.position()[0] * self.a1 + p.position()[1] * self.a2 + p.position()[2] * self.a3
+    # def get_patch_position(self, patchid: int) -> np.ndarray:
+    #     assert -1 < patchid < self.num_patches(), "Index out of bounds"
+    #     p = self._patches[patchid]
+    #     return p.position()[0] * self.a1 + p.position()[1] * self.a2 + p.position()[2] * self.a3
+    #
+    # def get_patch_orientation_a1(self, patchid) -> np.ndarray:
+    #     p: PLPatch = self.patch(patchid)
+    #     v = np.array(self.a1 * p.a1()[0] + self.a2 * p.a1()[1] + self.a3 * p.a1()[2])
+    #     return v
+    #
+    # def get_patch_orientation_a2(self, patchid) -> np.ndarrayh:
+    #     p: PLPatch = self.patch(patchid)
+    #     if np.dot(p.a2(), p.a2()) < 0.9999:  # account for rounding errors
+    #         print("PRIMARY MAX CRITICAL ERRROR MAX CRITICAL ERROR", p.a2(), np.dot(p.a2(), p.a2()))
+    #     v = np.array(self.a1 * p.a2()[0] + self.a2 * p.a2()[1] + self.a3 * p.a2()[2])
+    #     if np.dot(v, v) < 0.9999:  # account for rounding errors
+    #         print("MAX CRITICAL ERROR MAX CRITICAL ERROR", v, np.dot(v, v))
+    #     return v
+    #
+    # def set_patch_a2_orientation(self, patchid, new_a2):
+    #     p: PLPatch = self.patch(patchid)
+    #     coor = np.array([np.dot(new_a2, self.a1), np.dot(new_a2, self.a2), np.dot(new_a2, self.a3)])
+    #     p.set_a2(coor / np.sqrt(np.dot(coor, coor)))
 
-    def get_patch_orientation_a1(self, patchid) -> np.ndarray:
-        p: PLPatch = self.patch(patchid)
-        v = np.array(self.a1 * p.a1()[0] + self.a2 * p.a1()[1] + self.a3 * p.a1()[2])
-        return v
+    # def aligned_with(self, p: PLPatchyParticle) -> Union[None, dict[int, int]]:
+    #     # checks if paticles are aligned
+    #     # print 'Verification of alignment ', self.cm_pos, p.cm_pos
+    #     if len(self.patches()) != len(p.patches()):
+    #         return None
+    #     correspondence = {}
+    #     for i, patchA in enumerate(self.patches()):
+    #         positionA = self.get_patch_position(i)
+    #         for j, patchB in enumerate(p.patches()):
+    #             positionB = p.get_patch_position(j)
+    #
+    #             val = np.dot(positionA / norm(positionA), positionB / norm(positionB))
+    #             if val > 1.0 - myepsilon:
+    #                 if j in correspondence.values():
+    #                     # print 'Error two patches would correspond to the same patch'
+    #                     return None
+    #                 else:
+    #                     correspondence[i] = j
+    #                     # print 'CHECKING patch positions, we have MATCH ' ,i,j, positionA, positionB, np.dot(positionA/l2norm(positionA),positionB/l2norm(positionB))
+    #                     break
+    #         if i not in correspondence.keys():
+    #             # print 'Could not match patch ',i
+    #             return None
+    #
+    #     # print 'Found perfect correspondence',correspondence
+    #     return correspondence
 
-    def get_patch_orientation_a2(self, patchid) -> np.ndarrayh:
-        p: PLPatch = self.patch(patchid)
-        if np.dot(p.a2(), p.a2()) < 0.9999:  # account for rounding errors
-            print("PRIMARY MAX CRITICAL ERRROR MAX CRITICAL ERROR", p.a2(), np.dot(p.a2(), p.a2()))
-        v = np.array(self.a1 * p.a2()[0] + self.a2 * p.a2()[1] + self.a3 * p.a2()[2])
-        if np.dot(v, v) < 0.9999:  # account for rounding errors
-            print("MAX CRITICAL ERROR MAX CRITICAL ERROR", v, np.dot(v, v))
-        return v
-
-    def set_patch_a2_orientation(self, patchid, new_a2):
-        p: PLPatch = self.patch(patchid)
-        coor = np.array([np.dot(new_a2, self.a1), np.dot(new_a2, self.a2), np.dot(new_a2, self.a3)])
-        p.set_a2(coor / np.sqrt(np.dot(coor, coor)))
-
-    def aligned_with(self, p: PLPatchyParticle) -> Union[None, dict[int, int]]:
-        # checks if paticles are aligned
-        # print 'Verification of alignment ', self.cm_pos, p.cm_pos
-        if len(self.patches()) != len(p.patches()):
-            return None
-        correspondence = {}
-        for i, patchA in enumerate(self.patches()):
-            positionA = self.get_patch_position(i)
-            for j, patchB in enumerate(p.patches()):
-                positionB = p.get_patch_position(j)
-
-                val = np.dot(positionA / norm(positionA), positionB / norm(positionB))
-                if val > 1.0 - myepsilon:
-                    if j in correspondence.values():
-                        # print 'Error two patches would correspond to the same patch'
-                        return None
-                    else:
-                        correspondence[i] = j
-                        # print 'CHECKING patch positions, we have MATCH ' ,i,j, positionA, positionB, np.dot(positionA/l2norm(positionA),positionB/l2norm(positionB))
-                        break
-            if i not in correspondence.keys():
-                # print 'Could not match patch ',i
-                return None
-
-        # print 'Found perfect correspondence',correspondence
-        return correspondence
-
-    def align_with(self, part2: PLPatchyParticle) -> tuple:
-        all_pos = [x.position() for x in self.patches()]
-        all2_pos = [x.position() for x in part2.patches()]
-        print('Trying to align FROM:', all_pos, '\n TO: ', all2_pos)
-        for pi, p in enumerate(self._patches):
-            for qi, q in enumerate(self._patches):
-                if qi != pi:
-                    for li, l in enumerate(part2.patches()):
-                        for fi, f in enumerate(part2.patches()):
-                            if li != fi:
-                                # print 'Aligning patch %d with %d; and %d with %d' % (pi,li,qi,fi)
-                                v1 = p.position() / norm(p.position())
-                                v2 = l.position() / norm(l.position())
-                                b1 = q.position() / norm(q.position())
-                                b2 = f.position() / norm(f.position())
-                                v1 = np.matrix(v1).transpose()
-                                b1 = np.matrix(b1).transpose()
-                                B = v1 * v2 + b1 * b2
-                                U, s, V = np.linalg.svd(B, full_matrices=True)
-                                M = np.diag([1, 1, np.linalg.det(U) * np.linalg.det(V)])
-                                R = U * M * V
-                                rot = np.asarray(R)
-                                test = copy.deepcopy(part2)
-                                test.rotate(rot)
-                                c = self.aligned_with(test)
-                                if c is not None:
-                                    # print 'Success! '
-                                    xxx = [test.get_patch_position(i) for i in range(len(test.patches()))]
-                                    # print 'Using rotation \n', rot
-                                    # print 'After rotatoin patches change to ',xxx
-                                    return c, rot
-        # print 'MAXIMUM ERROR'
-        raise IOError('Cannot align patches')
+    # def align_with(self, part2: PLPatchyParticle) -> tuple:
+    #     all_pos = [x.position() for x in self.patches()]
+    #     all2_pos = [x.position() for x in part2.patches()]
+    #     print('Trying to align FROM:', all_pos, '\n TO: ', all2_pos)
+    #     for pi, p in enumerate(self._patches):
+    #         for qi, q in enumerate(self._patches):
+    #             if qi != pi:
+    #                 for li, l in enumerate(part2.patches()):
+    #                     for fi, f in enumerate(part2.patches()):
+    #                         if li != fi:
+    #                             # print 'Aligning patch %d with %d; and %d with %d' % (pi,li,qi,fi)
+    #                             v1 = p.position() / norm(p.position())
+    #                             v2 = l.position() / norm(l.position())
+    #                             b1 = q.position() / norm(q.position())
+    #                             b2 = f.position() / norm(f.position())
+    #                             v1 = np.matrix(v1).transpose()
+    #                             b1 = np.matrix(b1).transpose()
+    #                             B = v1 * v2 + b1 * b2
+    #                             U, s, V = np.linalg.svd(B, full_matrices=True)
+    #                             M = np.diag([1, 1, np.linalg.det(U) * np.linalg.det(V)])
+    #                             R = U * M * V
+    #                             rot = np.asarray(R)
+    #                             test = copy.deepcopy(part2)
+    #                             test.rotate(rot)
+    #                             c = self.aligned_with(test)
+    #                             if c is not None:
+    #                                 # print 'Success! '
+    #                                 xxx = [test.get_patch_position(i) for i in range(len(test.patches()))]
+    #                                 # print 'Using rotation \n', rot
+    #                                 # print 'After rotatoin patches change to ',xxx
+    #                                 return c, rot
+    #     # print 'MAXIMUM ERROR'
+    #     raise IOError('Cannot align patches')
 
     # def align_with(self, part2, rot_matrix=None):
     #     # this method tries to align particle with particle p, so that their patches overlap
@@ -512,16 +529,16 @@ class PLPatchyParticle(PatchyBaseParticleType, PatchyBaseParticle):
         self.v = np.array([float(x) for x in ls[9:12]])
         self.L = np.array([float(x) for x in ls[12:15]])
 
-    def save_type_to_string(self, extras={}) -> str:
-        outs = 'particle_%d = { \n type = %d \n ' % (self.type_id(), self.type_id())
-        outs = outs + 'patches = '
-        for i, p in enumerate(self._patches):
-            outs = outs + str(p.get_id())
-            if i < len(self._patches) - 1:
-                outs = outs + ','
-        outs += "\n".join([f"{key} = {extras[key]}" for key in extras])
-        outs = outs + ' \n } \n'
-        return outs
+    # def save_type_to_string(self, extras={}) -> str:
+    #     outs = 'particle_%d = { \n type = %d \n ' % (self.type_id(), self.type_id())
+    #     outs = outs + 'patches = '
+    #     for i, p in enumerate(self._patches):
+    #         outs = outs + str(p.get_id())
+    #         if i < len(self._patches) - 1:
+    #             outs = outs + ','
+    #     outs += "\n".join([f"{key} = {extras[key]}" for key in extras])
+    #     outs = outs + ' \n } \n'
+    #     return outs
 
     def save_conf_to_string(self) -> str:
         conf_string = '%f %f %f %f %f %f %f %f %f %f %f %f %f %f %f' % (
@@ -623,6 +640,7 @@ class PLPatchyParticle(PatchyBaseParticleType, PatchyBaseParticle):
 
 # TODO: something with this class
 class PLPSimulation(Scene):
+
     _box_size: np.ndarray
     _particle_types: BaseParticleSet
     _E_tot: float
@@ -951,4 +969,38 @@ class PLPSimulation(Scene):
 
     def set_time(self, t):
         self._time = t
-                                                                                                                        
+
+    def patchy_interaction_strength(self, p1: PLPatchyParticle, p2: PLPatchyParticle) -> float:
+        """
+        Computes the energy of the patch-patch iteraction strength between two particles.
+        does not consider hard-sphere repulsiob potential
+        # TODO: FINISH WRITING
+        """
+        energy = 0
+        for p1patch, p2patch in zip(p1.patches(), p2.patches()):
+            # check if patches are complimentary
+            if p1patch.can_bind(p2patch):
+                # check binding geometry
+                # (warning: sus)
+                patch1_pos = p1patch.position() @ p1.rotation() + p1.position()
+                patch2_pos = p2patch.position() @ p2.rotation() + p2.position()
+                # todo: verify that this behavior is correct!
+                d = dist(patch1_pos, patch2_pos)
+                # 4 * patch.width = 2 x patch radius x 2 patches
+
+    def particles_bound(self, p1: PLPatchyParticle, p2: PLPatchyParticle) -> bool:
+        """
+        Checks if two particles in this scene are bound
+        """
+        # TODO: employ patch-patch energy computations
+        # return self.patchy_interaction_strength(p1, p2) < -0.1
+        # for now, assume any two complimentary patches within 0.1 units are bound
+        for p1patch, p2patch in zip(p1.patches(), p2.patches()):
+            if p1patch.can_bind(p2patch):
+                # check binding geometry
+                # (warning: sus)
+                patch1_pos = p1patch.position() @ p1.rotation() + p1.position()
+                patch2_pos = p2patch.position() @ p2.rotation() + p2.position()
+                if dist(patch1_pos, patch2_pos) <= PATCHY_CUTOFF:
+                    return True
+        return False
