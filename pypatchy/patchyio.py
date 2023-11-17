@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 from typing import Union, IO
 from abc import ABC, abstractmethod
 from pathlib import Path
@@ -62,7 +63,7 @@ class BasePatchyWriter(ABC):
     @abstractmethod
     def write(self,
               scene: Scene,
-              stage: Stage,
+              stage: Union[Stage, None] = None,
               **kwargs
               ) -> dict[str, str]:
         """
@@ -72,13 +73,20 @@ class BasePatchyWriter(ABC):
         """
         pass
 
+    @abstractmethod
+    def write_top(self, scene: Scene, top_path: Union[str, Path]):
+        pass
+
     def write_conf(self, scene: Scene, p: Path):
         assert scene.get_conf() is not None
         conf = scene.get_conf()
         rr.write_conf(str(p), conf)
 
     @abstractmethod
-    def read_scene(self, top_file: Path, traj_file: Path, particle_types: BaseParticleSet) -> Scene:
+    def read_scene(self,
+                   top_file: Union[Path, str],
+                   traj_file: Union[Path, str],
+                   particle_types: BaseParticleSet) -> Scene:
         pass
 
 
@@ -98,33 +106,61 @@ class FWriter(BasePatchyWriter):
             ("patch_types_N", f"{scene.particle_types().num_patches()}")
         ]
 
+    def write_top(self, scene: Scene, top_path: Union[str, Path]):
+        if isinstance(top_path, str):
+            top_path = str(top_path)
+
+        particle_set = scene.particle_types()
+
+        particle_type_counts = scene.particle_type_counts()
+
+        total_num_particles = sum(particle_type_counts.values())
+
+        with top_path.open("w") as top_file:
+            # write top file
+            # first line of file
+            top_file.write(f"{total_num_particles} {particle_set.num_particle_types()}\n")
+            # second line of file
+            top_file.write(" ".join([
+                f"{particle.type_id()} " * particle_type_counts[particle.type_id()] for particle in
+                particle_set.particles()
+            ]))
+
+
+    def particle_type_string(self, particle: PLPatchyParticle, extras: dict[str, str] = {}) -> str:
+        outs = 'particle_%d = { \n type = %d \n ' % (particle.type_id(), particle.type_id())
+        outs = outs + 'patches = '
+        for i, p in enumerate(particle.patches()):
+            outs = outs + str(p.get_id())
+            if i < len(particle.patches()) - 1:
+                outs = outs + ','
+        outs += "\n".join([f"{key} = {extras[key]}" for key in extras])
+        outs = outs + ' \n } \n'
+        return outs
+
     def write(self,
               scene: Scene,
-              stage: Stage,
+              stage: Union[Stage, None] = None,
               **kwargs) -> dict[str, str]:
         particle_fn = kwargs["particle_file"]
         patchy_fn = kwargs["patchy_file"]
-        init_top = stage.adjfn(kwargs["topology"])
-        init_conf = stage.adjfn(kwargs["conf_file"])
+        if stage is not None:
+            init_top = stage.adjfn(kwargs["topology"])
+            init_conf = stage.adjfn(kwargs["conf_file"])
+        else:
+            init_top = kwargs["topology"]
+            init_conf = kwargs["conf_file"]
         # write top and particles/patches spec files
         # first convert particle json into PLPatchy objects (cf plpatchy.py)
 
         particles = scene.particle_types()
         particle_type_counts = scene.particle_type_counts()
 
-        plparticles, patches = to_PL(particles, 1, 0)
+        plparticles = to_PL(particles, 1, 0)
 
         total_num_particles = sum(particle_type_counts.values())
-        with self.file(init_top) as top_file, \
+        with self.file(particle_fn) as particles_file, \
                 self.file(patchy_fn) as patches_file:
-            # first write the top file
-            # first line of file
-            top_file.write(f"{total_num_particles} {len(particles)}\n")
-            # second line of file
-            top_file.write(" ".join([
-                f"{particle.type_id()} " * particle_type_counts[particle.type_id()] for particle in
-                particles.particles()
-            ]))
 
             # swrite particles and patches file
             for particle_patchy, particle_type in zip(plparticles, particles.particles()):
@@ -134,15 +170,9 @@ class FWriter(BasePatchyWriter):
                     # adjust for patch multiplier from multidentate
 
                     patches_file.write(self.save_patch_to_str(patch_obj))
+                particles_file.write(self.particle_type_string(particle_patchy))
 
-        # write topology
-        with (self.directory() / init_top).open("w") as handle:
-            # write num particles, num types
-            handle.write(f"{scene.num_particles()} {scene.num_particle_types()}")
-            # write types
-            handle.write(" ".join([str(p.get_type()) for p in scene.particles()]))
-            # write trailing newline
-            handle.write("\n")
+        self.write_top(scene, self.directory() / init_top)
 
         # write conf
         self.write_conf(scene, self.directory() / init_conf)
@@ -286,41 +316,34 @@ class JWriter(BasePatchyWriter, ABC):
 
     def write(self,
               scene: Scene,
-              stage: Stage,
+              stage: Union[Stage, None] = None,
               **kwargs
               ) -> dict[str, str]:
 
         # file info
         particle_fn = kwargs["particle_file"]
         patchy_fn = kwargs["patchy_file"]
-        init_top = stage.adjfn(kwargs["topology"])
-        init_conf = stage.adjfn(kwargs["conf_file"])
+        if stage is not None:
+            init_top = stage.adjfn(kwargs["topology"])
+            init_conf = stage.adjfn(kwargs["conf_file"])
+        else:
+            init_top = kwargs["topology"]
+            init_conf = kwargs["conf_file"]
         particles_type_list: BaseParticleSet = kwargs["particle_types"]
 
         # write top and particles/patches spec files
         # first convert particle json into PLPatchy objects (cf plpatchy.py)
         particles = scene.particle_types()
-        particle_type_counts = scene.particle_type_counts()
 
         pl_set = to_PL(particles,
                        kwargs[NUM_TEETH_KEY],
                        kwargs[DENTAL_RADIUS_KEY])
 
-        total_num_particles = sum(particle_type_counts.values())
         self.write_conf(scene, self.directory() / init_conf)
 
         with self.file(init_top) as top_file, \
-                self.file(init_conf) as conf_file, \
                 self.file(particle_fn) as particles_file, \
                 self.file(patchy_fn) as patches_file:
-            # write top file
-            # first line of file
-            top_file.write(f"{total_num_particles} {pl_set.num_particle_types()}\n")
-            # second line of file
-            top_file.write(" ".join([
-                f"{particle.type_id()} " * particle_type_counts[particle.type_id()] for particle in
-                pl_set.particles()
-            ]))
 
             # write particles and patches file
             for particle_patchy, particle_type in zip(pl_set.particles(), particles_type_list.particles()):
@@ -332,6 +355,13 @@ class JWriter(BasePatchyWriter, ABC):
                     extradict = self.get_patch_extras(particle_type, patch_idx)
                     patches_file.write(self.save_patch_to_str(patch_obj, extradict))
                 particles_file.write(self.get_particle_extras(particle_patchy, particle_type))
+
+        # shorthand b/c i don't want to mess w/ scene object passed as param
+
+        scene_cpy = copy.deepcopy(scene)
+        scene_cpy.set_particle_types(pl_set)
+
+        self.write_top(scene, init_top)
 
         self.write_conf(scene, self.directory() / init_conf)
 
@@ -347,7 +377,7 @@ class JWriter(BasePatchyWriter, ABC):
 class JFWriter(JWriter, FWriter):
 
     def get_particle_extras(self, plpartcle: PLPatchyParticle, particle_type: PatchyBaseParticleType) -> str:
-        return plpartcle.save_type_to_string()
+        return self.particle_type_string(plpartcle)
 
     def get_patch_extras(self, particle_type: PolycubeRuleCubeType, patch_idx: int) -> dict:
         allo_conditional = particle_type.patch_conditional(
@@ -357,8 +387,20 @@ class JFWriter(JWriter, FWriter):
 
 
 class JLWriter(JWriter):
+
+    def particle_type_string(self, particle: PLPatchyParticle, extras: dict[str, str] = {}) -> str:
+        outs = 'particle_%d = { \n type = %d \n ' % (particle.type_id(), particle.type_id())
+        outs = outs + 'patches = '
+        for i, p in enumerate(particle.patches()):
+            outs = outs + str(p.get_id())
+            if i < len(particle.patches()) - 1:
+                outs = outs + ','
+        outs += "\n".join([f"{key} = {extras[key]}" for key in extras])
+        outs = outs + ' \n } \n'
+        return outs
+
     def get_particle_extras(self, plparticle: PLPatchyParticle, particle_type: PatchyBaseParticleType) -> str:
-        return plparticle.save_type_to_string({"state_size": particle_type.state_size()})
+        return self.particle_type_string(plparticle, {"state_size": particle_type.state_size()})
 
     def get_patch_extras(self, particle_type: PatchyBaseParticleType, patch_idx: int) -> dict:
         # adjust for patch multiplier from multiparticale_patchesdentate
@@ -379,7 +421,7 @@ class LWriter(BasePatchyWriter):
 
     def write(self,
               scene: Scene,
-              stage: Stage,
+              stage: Union[Stage, None] = None,
               **kwargs
               ) -> dict[str, str]:
         particles = scene.particle_types()
@@ -413,6 +455,7 @@ class LWriter(BasePatchyWriter):
 
 
 __writers = {
+    "flavio": FWriter(),
     "josh_flavio": JFWriter(),
     # "josh_lorenzo": JLWriter(),
     # "lorenzo": LWriter()

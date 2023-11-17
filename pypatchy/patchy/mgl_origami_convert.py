@@ -13,9 +13,9 @@ from ..dna_structure import DNABase, construct_strands, BASE_BASE, rc, POS_BASE
 from random import choice
 import itertools
 
-from ..patchy.mglparticle import MGLParticle, MGLPatch
+from ..patchy.mgl import MGLParticle, MGLPatch
 from ..patchy_base_particle import Scene, PatchyBaseParticle
-from ..util import dist, normalize
+from ..util import dist, normalize, get_output_dir
 
 
 # todo: MORE PARAMETERS
@@ -164,7 +164,7 @@ class MGLOrigamiConverter:
         # if only one particle type
         if isinstance(particle_types, DNAParticle):
             self.particle_type_map = {
-                particle.color(): particle_types for particle in self.patchy_scene.particle_types().particles()
+                particle.get_type(): particle_types for particle in self.patchy_scene.particle_types().particles()
             }
 
         else:  # forward-proof for heterogenous systems
@@ -307,21 +307,21 @@ class MGLOrigamiConverter:
         print()
         return placed_confs
 
-    def particle_pair_candidates(self) -> Generator[tuple[MGLParticle], None, None]:
-        """
-        Returns all possible pairs of particles,
-        as defined by interaction range between centers of mass
-        """
-        handeled_candidates = set()
-        for i, p1 in enumerate(self.patchy_scene.particles()):
-            for j, p2 in enumerate(self.patchy_scene.particles()):
-                # if the particles are different and the distance is less than the maximum interaction distance
-                if i != j and dist(p1.cms(),
-                                   p2.cms()) <= self.particle_delta:
-                    if (i, j) not in handeled_candidates and not (j, i) in handeled_candidates:  # prevent repeats
-                        handeled_candidates.add((i, j))
-                        assert (p1.type_id(), p2.type_id()) == (i, j)
-                        yield p1, p2
+    # def particle_pair_candidates(self) -> Generator[tuple[MGLParticle], None, None]:
+    #     """
+    #     Returns all possible pairs of particles,
+    #     as defined by interaction range between centers of mass
+    #     """
+    #     handeled_candidates = set()
+    #     for i, p1 in enumerate(self.patchy_scene.particles()):
+    #         for j, p2 in enumerate(self.patchy_scene.particles()):
+    #             # if the particles are different and the distance is less than the maximum interaction distance
+    #             if i != j and dist(p1.cms(),
+    #                                p2.cms()) <= self.particle_delta:
+    #                 if (i, j) not in handeled_candidates and not (j, i) in handeled_candidates:  # prevent repeats
+    #                     handeled_candidates.add((i, j))
+    #                     assert (p1.type_id(), p2.type_id()) == (i, j)
+    #                     yield p1, p2
 
     # def patches_to_bind(p1, p2, patch_delta, cos_theta_max):
     #     for q,patch_1 in enumerate(p1.patches):
@@ -349,17 +349,14 @@ class MGLOrigamiConverter:
         assert particle_1.type_id() != particle_2.type_id()
         # keep in mind: we can't use patch internal IDs here because it enumerates differently!
         # find all possible pairings between two patches on particle 1 and particle 2
-        possible_bindings = list(itertools.product(enumerate(particle_1.patches()), enumerate(particle_2.patches())))
         # filter patches that don't pair
-        possible_bindings = [(patch1, patch2) for patch1, patch2 in possible_bindings
-                             if self.patches_can_bind(patch1[1], patch2[1])]
-
+        possible_bindings = list(self.patchy_scene.iter_binding_patches(particle_1, particle_2))
         # sort by distance, ascending order
 
         def sort_by_distance(p):
             patch1, patch2 = p
-            return dist(particle_1.cms() + patch1[1].position(),
-                        particle_2.cms() + patch2[1].position())
+            return dist(particle_1.position() + patch1.position(),
+                        particle_2.position() + patch2.position())
 
         possible_bindings.sort(key=sort_by_distance)
         # lists for patches that have been handled on particles 1 and 2
@@ -395,7 +392,7 @@ class MGLOrigamiConverter:
         """
         Creates double-stranded linkers to bind particles together
         """
-        assert self.patchy_scene.patch_ids_unique()
+        # assert self.patchy_scene.patch_ids_unique()
         # please please do not call this method with dna particles that don't correspond
         # in order to the mgl particles
 
@@ -407,7 +404,7 @@ class MGLOrigamiConverter:
 
         patchpaircount = 0
         # loop particles
-        for p1, p2 in self.particle_pair_candidates():
+        for p1, p2 in self.patchy_scene.iter_bound_particles():
             # i and j are particle unique ids
             # actually UIDs not type IDs
             i = p1.type_id()
@@ -505,13 +502,32 @@ class MGLOrigamiConverter:
         return self.dna_particles
 
     def convert(self,
-                write_top_path: Union[Path, None] = None,
-                write_conf_path: Union[Path, None] = None,
-                write_oxview_path: Union[Path, None] = None):
+                write_top_path: Union[Path, str, None] = None,
+                write_conf_path: Union[Path, str, None] = None,
+                write_oxview_path: Union[Path, str, None] = None):
         """
         Converts a scene containing joined MGL particles to an oxDNA model consisting of
         DNA origamis joined by sticky end handles.
         """
+
+        # sanitize inputs
+        if write_top_path is not None:
+            if isinstance(write_top_path, str):
+                write_top_path = Path(write_top_path)
+            if not write_top_path.is_absolute():
+                write_top_path = get_output_dir() / write_top_path
+
+        if write_conf_path is not None:
+            if isinstance(write_conf_path, str):
+                write_conf_path = Path(write_conf_path)
+            if not write_conf_path.is_absolute():
+                write_conf_path = get_output_dir() / write_conf_path
+
+        if write_oxview_path is not None:
+            if isinstance(write_oxview_path, str):
+                write_oxview_path = Path(write_oxview_path)
+            if not write_oxview_path.is_absolute():
+                write_oxview_path = get_output_dir() / write_oxview_path
 
         particles = self.get_particles()
 
