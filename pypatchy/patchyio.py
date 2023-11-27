@@ -9,9 +9,12 @@ import numpy as np
 import oxDNA_analysis_tools.UTILS.RyeReader as rr
 
 from pypatchy.patchy.patchy_scripts import to_PL
-from pypatchy.patchy.plpatchy import PLPatchyParticle, export_interaction_matrix, PLPatch, PLPSimulation
+from pypatchy.patchy.pl.plpatchy import export_interaction_matrix
+from pypatchy.patchy.pl.plparticle import PLPatchyParticle
+from pypatchy.patchy.pl.plscene import PLPSimulation
 from pypatchy.patchy.stage import Stage
-from pypatchy.patchy_base_particle import PatchyBaseParticleType, Scene
+from pypatchy.patchy_base_particle import PatchyBaseParticleType
+from pypatchy.scene import Scene
 from pypatchy.patchy_base_particle import BaseParticleSet
 from pypatchy.polycubeutil.polycubesRule import PolycubeRuleCubeType
 from pypatchy.util import get_server_config, PATCHY_FILE_FORMAT_KEY
@@ -80,7 +83,7 @@ class BasePatchyWriter(ABC):
     def write_conf(self, scene: Scene, p: Path):
         assert scene.get_conf() is not None
         conf = scene.get_conf()
-        rr.write_conf(str(p), conf)
+        rr.write_conf(str(self.directory() / p), conf)
 
     @abstractmethod
     def read_scene(self,
@@ -106,10 +109,8 @@ class FWriter(BasePatchyWriter):
             ("patch_types_N", f"{scene.particle_types().num_patches()}")
         ]
 
-    def write_top(self, scene: Scene, top_path: Union[str, Path]):
-        if isinstance(top_path, str):
-            top_path = str(top_path)
-
+    def write_top(self, scene: Scene, top_path: str):
+        top_path = self.directory() / top_path
         particle_set = scene.particle_types()
 
         particle_type_counts = scene.particle_type_counts()
@@ -121,10 +122,7 @@ class FWriter(BasePatchyWriter):
             # first line of file
             top_file.write(f"{total_num_particles} {particle_set.num_particle_types()}\n")
             # second line of file
-            top_file.write(" ".join([
-                f"{particle.type_id()} " * particle_type_counts[particle.type_id()] for particle in
-                particle_set.particles()
-            ]))
+            top_file.write(" ".join([str(particle.get_type()) for particle in scene.particles()]))
 
 
     def particle_type_string(self, particle: PLPatchyParticle, extras: dict[str, str] = {}) -> str:
@@ -172,10 +170,10 @@ class FWriter(BasePatchyWriter):
                     patches_file.write(self.save_patch_to_str(patch_obj))
                 particles_file.write(self.particle_type_string(particle_patchy))
 
-        self.write_top(scene, self.directory() / init_top)
+        self.write_top(scene, init_top)
 
         # write conf
-        self.write_conf(scene, self.directory() / init_conf)
+        self.write_conf(scene, init_conf)
 
         return {
             "particle_file": particle_fn,
@@ -339,7 +337,7 @@ class JWriter(BasePatchyWriter, ABC):
                        kwargs[NUM_TEETH_KEY],
                        kwargs[DENTAL_RADIUS_KEY])
 
-        self.write_conf(scene, self.directory() / init_conf)
+        self.write_conf(scene,init_conf)
 
         with self.file(init_top) as top_file, \
                 self.file(particle_fn) as particles_file, \
@@ -363,7 +361,7 @@ class JWriter(BasePatchyWriter, ABC):
 
         self.write_top(scene, init_top)
 
-        self.write_conf(scene, self.directory() / init_conf)
+        self.write_conf(scene,  init_conf)
 
         return {
             "topology": init_top,
@@ -444,7 +442,7 @@ class LWriter(BasePatchyWriter):
         interactions_file = self.directory() / "interactions.txt"
         export_interaction_matrix(patches, interactions_file)
 
-        self.write_conf(scene, self.directory() / init_conf)
+        self.write_conf(scene, init_conf)
 
         return {
             "conf_file": init_conf,

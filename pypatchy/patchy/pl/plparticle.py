@@ -1,113 +1,14 @@
-#!/usr/bin/env python
 from __future__ import annotations
-import itertools
-import math
-import random
-from math import sqrt
-from pathlib import Path
-from typing import Union, IO, Iterable, Any
-# This file loads patchy particle file from topology and Configuration
-import numpy as np
+
 import copy
+from pathlib import Path
 
-from numpy.linalg import norm
-from oxDNA_analysis_tools.UTILS.data_structures import TopInfo, Configuration
+from typing import Union
 
-from pypatchy.patchy_base_particle import BasePatchType, PatchyBaseParticleType, BaseParticleSet, Scene, \
-    PatchyBaseParticle
-from pypatchy.util import random_unit_vector, dist
+import numpy as np
 
-"""
-Library for handling patchy-lock (PL) systems in pypatchy
-Where constants etc. exist they should be the same as / similar to the Patchy interactions
-in C++
-"""
-
-myepsilon = 0.00001
-
-# cutoff patch-patch distance, after which interaction cannot occur
-PATCHY_CUTOFF = 0.18
-# copied from oxDNA defs.h
-# bounded arc-cosine?
-LRACOS = lambda x: 0 if x > 1 else math.pi if x < -1 else math.acos(x)
-
-def load_patches(filename: Union[str, Path],
-                 num_patches=0) -> list[PLPatch]:
-    if isinstance(filename, str):
-        filename = Path(filename)
-    j = 0
-    Np = 0
-    patches = [PLPatch() for _ in range(num_patches)]
-
-    with open(filename, 'r') as f:
-        lines = f.readlines()
-        for line in lines:
-            line = line.strip()
-            if len(line) > 1 and line[0] != '#':
-                if 'patch_' and '{' in line:
-                    strargs = []
-                    k = j + 1
-                    while '}' not in lines[k]:
-                        strargs.append(lines[k].strip())
-                        k = k + 1
-                    patch = PLPatch()
-                    # print 'Loaded patch',strargs
-                    patch.init_from_string(strargs)
-                    index = patch.type_id()
-                    # flexable patch indexing
-                    # probably not optimized speed wise but optimized for flexibility
-                    if index >= len(patches):
-                        patches += [None for _ in range(index - len(patches) + 1)]
-                    patches[index] = patch
-                    Np += 1
-            j = j + 1
-
-    if num_patches != 0 and Np != num_patches:
-        raise IOError('Loaded %d patches, as opposed to the desired %d types ' % (Np, num_patches))
-    return patches
-
-
-def load_particles(filename: Union[str, Path],
-                   patch_types: list[PLPatch],
-                   num_particles=0) -> list[PLPatchyParticle]:
-    particles: list[PLPatchyParticle] = [PLPatchyParticle() for _ in range(num_particles)]
-    Np = 0
-    with open(filename, 'r') as f:
-        lines = f.readlines()
-        j = 0
-        for line in lines:
-            line = line.strip()
-            if len(line) > 1 and line[0] != '#':
-                if 'particle_' and '{' in line:
-                    strargs = []
-                    k = j + 1
-                    while '}' not in lines[k]:
-                        strargs.append(lines[k].strip())
-                        k = k + 1
-                    particle = PLPatchyParticle()
-                    # print 'Loaded particle ',strargs
-                    particle.init_from_string(strargs)
-                    particle.fill_patches(patch_types)
-                    index: int = particle.type_id()
-                    # flexable particle indexing
-                    # probably not optimized speed wise but optimized for flexibility
-                    if index >= len(particles):
-                        particles += [None for _ in range(index - len(particles) + 1)]
-                    particles[index] = copy.deepcopy(particle)
-                    Np += 1
-            j = j + 1
-    return particles
-
-
-def export_interaction_matrix(patches, filename="interactions.txt"):
-    with open(filename, 'w') as f:
-        f.writelines(
-            [
-                f"patchy_eps[{p1.type_id()}][{p2.type_id()}] = 1.0\n"
-                for p1, p2 in itertools.combinations(patches, 2)
-                if p1.color() == p2.color()
-            ]
-        )
+from pypatchy.patchy_base_particle import BasePatchType, PatchyBaseParticleType, PatchyBaseParticle, BaseParticleSet
+from pypatchy.util import random_unit_vector
 
 
 class PLPatch(BasePatchType):
@@ -288,8 +189,6 @@ class PLPatchyParticle(PatchyBaseParticleType, PatchyBaseParticle):
         assert abs(np.linalg.det(rot_matrix) - 1) < 1e-6
         self.a1 = np.dot(rot_matrix, self.a1)
         self.a3 = np.dot(rot_matrix, self.a3)
-        for patch in self.patches():
-            patch.rotate(rot_matrix)
 
     def set_random_orientation(self):
         self.a1 = random_unit_vector()
@@ -637,370 +536,70 @@ class PLPatchyParticle(PatchyBaseParticleType, PatchyBaseParticle):
     def rotation(self) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         return self.a1, self.a2, self.a3
 
+    def __contains__(self, item: PLPatch):
+        return any([p == item for p in self.patches()])
 
-# TODO: something with this class
-class PLPSimulation(Scene):
 
-    _box_size: np.ndarray
-    _particle_types: BaseParticleSet
-    _E_tot: float
-    _E_pot: float
-    _E_kin: float
+class PLParticleSet(BaseParticleSet):
+    """
+    Particle set class for PL Particles
+    The main reason this subclass was created was in order to store data for multidentate particle mapping
+    """
+    __udt_source: Union[None, BaseParticleSet]
+    # maps patch in source to patches in this set
+    __patch_map: Union[None, dict[int, set[int]]]
+    # reverse of __patch_map, maps patches in this set to patches in source
+    __patch_src_map: Union[None, dict[int, int]]
 
-    _time: int
+    def __init__(self,
+                 particles: Union[None, list[PLPatchyParticle]] = None,
+                 src: Union[None, BaseParticleSet] = None,
+                 src_mapping: Union[None, dict[int, set[int]]] = None
+                 ):
+        if particles is None:
+            particles = []
+        super().__init__(particles)
+        assert (src is None) == (src_mapping is None), "Unclear if this particle has a source mapping!"
+        self.__udt_source = src
+        self.__patch_map = src_mapping
+        if self.has_udt_src():
+            self.__patch_src_map = dict()
+            for src_patch_idx, mdt_patches in self.__patch_map.items():
+                for patch_id in mdt_patches:
+                    self.__patch_src_map[patch_id] = src_patch_idx
 
-    def __init__(self, seed=69):
-        super().__init__()
-        self._box_size = np.array([0., 0., 0.])
-        self._E_tot = 0.
-        self._E_pot = 0.
-        self._E_kin = 0.
-        self._time = 0
+    def get_src(self) -> PLParticleSet:
+        return self.__udt_source
 
-        random.seed(seed)
+    def has_udt_src(self) -> bool:
+        return self.get_src() is not None
 
-        self._colorbank = []
-
-    def set_radius(self, radius):
-        for p in self._particles:
-            p.set_radius(radius)
-
-    def generate_random_color(self, particle_id=-1) -> str:
-        # random.seed(seed)
-        if True or len(self._colorbank) < 1 or particle_id == -1:
-            r = [random.random() for _ in range(3)]
-            color = np.array2string(np.array(r), separator=",")[1:-1]
-            # color = '%f,%f,%f' % (r[0], r[1], r[2])
-            return color
-        else:
-            return self._colorbank[particle_id]
-
-    def translate(self, translation_vector: np.ndarray):
-        for p in self._particles:
-            p.translate(translation_vector)
-
-    def box_size(self) -> np.ndarray:
-        return self._box_size
-
-    def set_box_size(self, box: Union[np.ndarray, list]):
-        self._box_size = np.array(box)
-
-    def check_for_particle_overlap(self, particle: PLPatchyParticle, dist_cutoff=1.0) -> bool:
+    def get_src_patch(self, patch: PLPatch) -> PLPatch:
         """
-        Checks if a particle overlaps any other particles in the simulation.
-        Returns:
-            true if the particle overlaps another particle, false otherwise
+        Given a patch in this particle set, returns the corresponding unidentate patch
+        in the source set
         """
-        # print 'Adding ', particle.cm_pos
-        for p in self._particles:
-            dist = self.dist_2particles(particle, p)
-            # print ' Looking at distance from ', p.cm_pos,dist
-            if dist <= dist_cutoff:
-                # print 'Unfortunately overlaps with ',p.cm_pos,dist
-                return True
-                # print 'Check is fine!'
-        return False
+        # unclear if this fail behavior is correct
+        assert self.has_udt_src(), "No source particle set!"
+        assert patch in self.patches(), "Invalid patch provided as arg!"
+        return self.get_src().patch(self.__patch_src_map[patch.get_id()])
 
-    def add_particles(self, particles: list[PLPatchyParticle], strict_check=True):
-        # adds particles to the field, also initializes paricle types and patchy types based on these data
-        # it overwrites any previosuly stored particle!!
-        self._particles = copy.deepcopy(particles)
-        self.N = len(particles)
-        # now treat types:
-        saved_types = {}
-        for p in self.particles():
-            if p.get_type() not in saved_types.keys():
-                saved_types[p.get_type()] = copy.deepcopy(p)
-
-    def insert_particle(self,
-                        particle: PLPatchyParticle,
-                        check_overlap=False):
-        if check_overlap:
-            if self.check_for_particle_overlap(particle):
-                return False
-        self._particles.append(particle)
-        if particle.type_id() not in [x.type_id() for x in self._particle_types.particles()]:
-            self._particle_types.add_particle(particle)
-        return True
-
-    def dist_2particles(self, p1: PLPatchyParticle, p2: PLPatchyParticle):
+    def patch_groups(self, particle: Union[int, PLPatchyParticle, None] = None) -> list[set[int]]:
         """
-        Calculate the wrapped distance between two points in a 3D box.
-
-        :param p1: numpy array [x, y, z] for first point.
-        :param p2: numpy array [x, y, z] for second point.
-        :param box_size: numpy array [length, width, height] for the box dimensions.
-        :return: wrapped distance between p1 and p2.
+        Returns the patches in this particle set, grouped by the
         """
+        assert self.is_multidentate()
+        if particle is None:
+            return [set(patches) for patches in self.__patch_map.values()]
+        if isinstance(particle, int):
+            particle = self.particle(particle)
+        return [set(patches) for patches in self.__patch_map.values() if any([self.patch(patch_id) in particle for patch_id in patches])]
 
-        # Calculate the difference in each dimension
-        delta = (p2.position() % self.box_size()) - (p1.position() % self.box_size())
 
-        # Wrap the differences where necessary
-        delta = np.where(np.abs(delta) > self.box_size() / 2, self.box_size() - np.abs(delta), delta)
+    def is_multidentate(self) -> bool:
+        return self.has_udt_src() and self.get_src().num_patches() != self.num_patches()
 
-        return np.linalg.norm(delta)
-
-    def add_particle_rand_positions(self, particles: Iterable[PLPatchyParticle],
-                                    nTries=1e3,
-                                    overlap_min_dist: float=1.0):
-        # loop particles
-        for p in particles:
-            t = 0
-            # set max tries so it doesn't go forever
-            while t < nTries:
-                # random position
-                new_pos = np.random.rand(3) * (self._box_size - overlap_min_dist) + (overlap_min_dist / 2)
-                p.set_position(new_pos)
-                if not self.check_for_particle_overlap(p, overlap_min_dist):
-                    break
-                t += 1
-            if t == nTries:
-                raise Exception(f"Could not find a position to place a particle! nTries={nTries}")
-            # randomize orientation
-            p.set_random_orientation()
-            self.add_particle(p)
-
-    def num_particle_types(self) -> int:
-        return self.particle_types().num_particle_types()
-
-    # def load_configuration(self,
-    #                        configuration_file: str,
-    #                        conf_to_skip=0,
-    #                        close_file=True):
-    #     _conf = open(configuration_file, 'r')
-    #     if conf_to_skip > 0:
-    #         conf_lines = 3 + self.N
-    #         for j in range(conf_lines * conf_to_skip):
-    #             _conf.readline()
-    #
-    #     self.read_next_configuration(_conf)
-    #
-    #     if close_file:
-    #         _conf.close()
-    #
-    #     return _conf
-
-    # def read_next_configuration(self, file_handle: IO) -> Union[bool, IO]:
-    #     _conf = file_handle
-    #
-    #     timeline = _conf.readline()
-    #     time = 0.
-    #     if len(timeline) == 0:
-    #         return False
-    #     else:
-    #         time = float(timeline.split()[2])
-    #
-    #     box = np.array([float(x) for x in _conf.readline().split()[2:]])
-    #     [E_tot, E_pot, E_kin] = [float(x) for x in _conf.readline().split()[2:5]]
-    #
-    #     self._box_size = box
-    #     self._E_tot = E_tot
-    #     self._E_pot = E_pot
-    #     self._E_kin = E_kin
-    #
-    #     for i in range(self.N):
-    #         ls = _conf.readline().split()
-    #         self._particles[i].fill_configuration(np.array(ls))
-    #
-    #     return _conf
-    #
-    # def bring_in_box(self, all_positive=False):
-    #     for p in self._particles:
-    #         nx = np.rint(p.cm_pos[0] / float(self._box_size[0])) * self._box_size[0]
-    #         ny = np.rint(p.cm_pos[1] / float(self._box_size[1])) * self._box_size[1]
-    #         nz = np.rint(p.cm_pos[2] / float(self._box_size[2])) * self._box_size[2]
-    #         # print np.array([nx,ny,nz])
-    #         p.cm_pos -= np.array([nx, ny, nz])
-    #         if all_positive:
-    #             for i in range(3):
-    #                 if p.cm_pos[i] < 0:
-    #                     p.cm_pos[i] += self._box_size[i]
-
-    # def get_color(self, index: int):
-    #     if abs(index) >= 20:
-    #         index = abs(index) - 20
-    #     # print index
-    #     # print self._patch_colors
-    #     # return self.generate_random_color()
-    #     return self._patch_colors[index]
-    #     #
-    #     # if not ispatch:
-    #     #     if index < 0 or index >= len(self._particle_colors):
-    #     #         if index in self._complementary_colors.keys():
-    #     #             return self._complementary_colors[index]
-    #     #         else:
-    #     #             return self.generate_random_color()
-    #     #     else:
-    #     #         return self._particle_colors[index]
-    #     # else:
-    #     #     if index < 0 or index >= len(self._patch_colors):
-    #     #         if index in self._complementary_colors.keys():
-    #     #             return self._complementary_colors[index]
-    #     #         else:
-    #     #             return self.generate_random_color(index)
-    #     #     else:
-    #     #         return self._patch_colors[index]
-
-    # def export_to_mgl(self,
-    #                   filename: str,
-    #                   regime: str = 'w',
-    #                   icosahedron=True):
-    #     out = open(filename, regime)
-    #     sout = f".Box: {np.array2string(self._box_size, separator=',')[1:-1]}\n"
-    #     # sout = ".Box:%f,%f,%f\n" % (self._box_size[0], self._box_size[1], self._box_size[2])
-    #     for p in self._particles:
-    #         patch_colors = [self.get_color(pat.color()) for pat in p.patches()]
-    #         particle_color = self.get_color(p.type_id())
-    #         sout = sout + p.export_to_mgl(patch_colors, particle_color) + '\n'
-    #         if icosahedron:
-    #             p.print_icosahedron(particle_color)
-    #
-    #     out.write(sout)
-    #     out.close()
-
-    #
-    # def export_to_lorenzian_mgl(self,
-    #                             filename: str,
-    #                             regime: str = 'w',
-    #                             icosahedron: bool = True):
-    #     out = open(filename, regime)
-    #     sout = ".Box:%f,%f,%f\n" % (self._box_size[0], self._box_size[1], self._box_size[2])
-    #     for p in self._particles:
-    #         patch_colors = [self.get_color(pat.color()) for pat in p.patches()]
-    #         particle_color = self.get_color(p.type_id())
-    #         sout = sout + p.export_to_lorenzian_mgl(patch_colors, particle_color) + '\n'
-    #         if icosahedron:
-    #             p.print_icosahedron(particle_color)
-    #
-    #     out.write(sout)
-    #     out.close()
-
-    # def export_to_francesco_mgl(self,
-    #                             filename: str,
-    #                             regime: str = 'w',
-    #                             icosahedron: bool = True):
-    #     with open(filename, regime) as fout:
-    #         sout = f".Box:{np.array2string(self._box_size, separator=',')}\n"
-    #         # sout = ".Box:%f,%f,%f\n" % (self._box_size[0], self._box_size[1], self._box_size[2])
-    #         for p in self._particles:
-    #             patch_colors = [self.get_color(pat.color()) for pat in p.patches()]
-    #             particle_type = p.type_id()
-    #             patch_position_0 = p.cm_pos + p.get_patch_position(0)
-    #             patch_position_1 = p.cm_pos + p.get_patch_position(1)
-    #             line = '%d %f %f %f %f %f %f %f %f %f' % (
-    #                 particle_type, p.cm_pos[0], p.cm_pos[1], p.cm_pos[2], patch_position_0[0], patch_position_0[1],
-    #                 patch_position_0[2], patch_position_1[0], patch_position_1[1], patch_position_1[2])
-    #             particle_color = self.get_color(p.type_id())
-    #             sout = sout + line + '\n'  # p.export_to_lorenzian_mgl(patch_colors,particle_color) + '\n'
-    #             if icosahedron:
-    #                 p.print_icosahedron(particle_color)
-    #
-    #         fout.write(sout)
-
-    # def export_to_xyz(self,
-    #                   filename: str,
-    #                   regime: str = 'w'):
-    #     with open(filename, regime) as fout:
-    #
-    #         sout = str(len(self._particles)) + '\n'
-    #         sout += "Box:%f,%f,%f\n" % (self._box_size[0], self._box_size[1], self._box_size[2])
-    #         for p in self._particles:
-    #             sout = sout + p.export_to_xyz() + '\n'
-    #
-    #         fout.write(sout)
-
-    # def from_top_conf(self, top: TopInfo, conf: Configuration):
-    #     rw = get_writer()
-    #     rw.read_top(Path(top.path), self)
-    #
-    #     self._time = conf.time
-    #     self._E_pot, self._E_kin, self._E_tot = conf.energy
-    #     self._box_size = conf.box
-    #
-    #     for i, p in enumerate(self.particles()):
-    #         p.a1 = conf.a1s[i, :]
-    #         p.a3 = conf.a3s[i, :]
-    #         p.set_position(conf.positions[i, :])
-    # #
-    # def to_top_conf(self, top_path: Path, conf_path: Path) -> tuple[TopInfo, Configuration]:
-    #     rw = get_writer()
-    #     top = TopInfo(str(top_path), self.num_particles())
-    #     rw.write_top(top_path, self)
-    #
-    #     particle_positions = np.stack([p.position() for p in self.particles()])
-    #     particle_a1s = np.stack([p.a1 for p in self.particles()])
-    #     particle_a3s = np.stack([p.a3 for p in self.particles()])
-    #
-    #     conf = Configuration(self._time,
-    #                          self._box_size,
-    #                          np.array([self._E_pot, self._E_kin, self._E_tot]),
-    #                          particle_positions,
-    #                          particle_a1s,
-    #                          particle_a3s)
-    #
-    #     return top, conf
-
-    def particle_types(self) -> BaseParticleSet:
-        return self._particle_types
-
-    def set_particle_types(self, ptypes: BaseParticleSet):
-        self._particle_types = ptypes
-
-    def get_conf(self) -> Configuration:
-        positions: np.ndarray = np.array([
-            p.position() for p in self.particles()
-        ])
-        a1s: np.ndarray = np.array([
-            p.a1 for p in self.particles()
-        ])
-        a3s: np.ndarray = np.array([
-            p.a3 for p in self.particles()
-        ])
-
-        return Configuration(
-            self._time,
-            self.box_size(),
-            np.array([self._E_pot, self._E_kin, self._E_tot]),
-            positions,
-            a1s,
-            a3s
-        )
-
-    def set_time(self, t):
-        self._time = t
-
-    def patchy_interaction_strength(self, p1: PLPatchyParticle, p2: PLPatchyParticle) -> float:
-        """
-        Computes the energy of the patch-patch iteraction strength between two particles.
-        does not consider hard-sphere repulsiob potential
-        # TODO: FINISH WRITING
-        """
-        energy = 0
-        for p1patch, p2patch in zip(p1.patches(), p2.patches()):
-            # check if patches are complimentary
-            if p1patch.can_bind(p2patch):
-                # check binding geometry
-                # (warning: sus)
-                patch1_pos = p1patch.position() @ p1.rotation() + p1.position()
-                patch2_pos = p2patch.position() @ p2.rotation() + p2.position()
-                # todo: verify that this behavior is correct!
-                d = dist(patch1_pos, patch2_pos)
-                # 4 * patch.width = 2 x patch radius x 2 patches
-
-    def particles_bound(self, p1: PLPatchyParticle, p2: PLPatchyParticle) -> bool:
-        """
-        Checks if two particles in this scene are bound
-        """
-        # TODO: employ patch-patch energy computations
-        # return self.patchy_interaction_strength(p1, p2) < -0.1
-        # for now, assume any two complimentary patches within 0.1 units are bound
-        for p1patch, p2patch in zip(p1.patches(), p2.patches()):
-            if p1patch.can_bind(p2patch):
-                # check binding geometry
-                # (warning: sus)
-                patch1_pos = p1patch.position() @ p1.rotation() + p1.position()
-                patch2_pos = p2patch.position() @ p2.rotation() + p2.position()
-                if dist(patch1_pos, patch2_pos) <= PATCHY_CUTOFF:
-                    return True
-        return False
+    def mdt_rep(self, udt_id: int) -> set[PLPatch]:
+        assert self.has_udt_src()
+        assert udt_id in self.__patch_map
+        return {self.patch(i) for i in self.__patch_map[udt_id]}

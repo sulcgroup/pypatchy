@@ -16,7 +16,8 @@ from scipy.spatial.transform import Rotation
 
 from pypatchy.vis_util import get_particle_color
 
-from pypatchy.patchy_base_particle import Scene, PatchyBaseParticle, BaseParticleSet
+from pypatchy.patchy_base_particle import PatchyBaseParticle, BaseParticleSet
+from pypatchy.scene import Scene
 from pypatchy.polycubeutil.polycubesRule import PolycubesRule, diridx, PolycubeRuleCubeType, RULE_ORDER, PolycubesPatch
 
 from pypatchy.structure import TypedStructure, Structure

@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import os
 from datetime import timedelta
-from typing import Union
+from typing import Union, Iterable
 
 from dateutil.relativedelta import relativedelta
 from scipy.spatial.transform import Rotation as R
@@ -100,6 +100,11 @@ def get_spec_json(name, folder) -> dict:
             return json.load(f)
     except IOError as e:
         print(f"No file named {name} in {get_local_dir() / 'spec_files' / folder}!")
+
+def is_sorted(target: Iterable[int]) -> bool:
+    if not isinstance(target, list):
+        target = list(target)
+    return all([target[i-1] < target[i] < target[i+1] for i in range(1, len(target)-1)])
 
 
 class BadSimulationDirException(Exception):

@@ -500,6 +500,12 @@ class DNAStructure:
     def add_strand(self, strand: DNAStructureStrand):
         self.strands.append(strand)
 
+    def strand_3p(self, strand_idx: int) -> DNABase:
+        return self.strands[strand_idx][-1]
+
+    def strand_5p(self, strand_idx: int) -> DNABase:
+        return self.strands[strand_idx][0]
+
     def export_oxview(self, ovfile: Path):
         assert ovfile.parent.exists()
         if not self.has_valid_box():

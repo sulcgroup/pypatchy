@@ -30,7 +30,8 @@ from ..analpipe.analysis_data import PDPipelineData, TIMEPOINT_KEY
 from ..analpipe.analysis_pipeline_step import AnalysisPipelineStep, PipelineData, AggregateAnalysisPipelineStep, \
     AnalysisPipelineHead, PipelineStepDescriptor, PipelineDataType
 from .patchy_sim_observable import PatchySimObservable, observable_from_file
-from ..patchy_base_particle import BaseParticleSet, Scene
+from ..patchy_base_particle import BaseParticleSet
+from ..scene import Scene
 from ..patchyio import NUM_TEETH_KEY, get_writer, BasePatchyWriter, DENTAL_RADIUS_KEY
 from ..slurm_log_entry import SlurmLogEntry
 from ..slurmlog import SlurmLog
@@ -38,7 +39,7 @@ from ..util import get_param_set, simulation_run_dir, get_server_config, get_log
     is_server_slurm, SLURM_JOB_CACHE, append_to_file_name
 from .ensemble_parameter import EnsembleParameter, ParameterValue
 from .simulation_specification import PatchySimulation, ParamSet
-from .plpatchy import PLPSimulation
+from .pl.plscene import PLPSimulation
 from .patchy_scripts import to_PL
 from ..polycubeutil.polycubesRule import PolycubesRule
 

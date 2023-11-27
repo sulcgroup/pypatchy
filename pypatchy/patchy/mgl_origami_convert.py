@@ -8,13 +8,17 @@ from oxDNA_analysis_tools.UTILS.RyeReader import Configuration
 from Bio.SVDSuperimposer import SVDSuperimposer
 
 from .dna_particle import DNAParticle
+from .patchy_scripts import mgl_to_pl
+from .pl.plparticle import PLPatchyParticle, PLPatch
+from .pl.plscene import PLPSimulation
 from ..dna_structure import DNABase, construct_strands, BASE_BASE, rc, POS_BASE
 
 from random import choice
 import itertools
 
-from ..patchy.mgl import MGLParticle, MGLPatch
-from ..patchy_base_particle import Scene, PatchyBaseParticle
+from ..patchy.mgl import MGLParticle, MGLPatch, MGLScene
+from ..patchy_base_particle import PatchyBaseParticle
+from ..scene import Scene
 from ..util import dist, normalize, get_output_dir
 
 
@@ -110,13 +114,13 @@ class MGLOrigamiConverter:
     color_sequences: dict[str, str]
     bondcount: int
     particle_type_map: dict[str, DNAParticle]
-    patchy_scene: Scene
+    patchy_scene: PLPSimulation
     dna_particles: list[DNAParticle]
     padding: float  # manually-entered extra spacing
     dist_ratio: float
 
     def __init__(self,
-                 mgl: Scene,
+                 scene: Union[MGLScene, PLPSimulation],
                  particle_types: Union[Path, DNAParticle,
                                        dict[str, DNAParticle]],
                  # additional arguements (optional)
@@ -132,7 +136,7 @@ class MGLOrigamiConverter:
         """
         Initializes this converter using a few required params and a lot of optional fine-tuning params
         Parameters:
-            mgl: an MGLScene object representing the structure we're making with the particles
+            scene: an MGLScene object representing the structure we're making with the particles
             particle_types: describes the DNA origamis that will be used for particles.
             can be a single origami or a dict relating mgl colors to origamis
             spacer_length: length of poly-T spacer between particle and sticky end
@@ -159,7 +163,9 @@ class MGLOrigamiConverter:
         self.dna_particles = None
 
         # inputs
-        self.patchy_scene = mgl
+        if isinstance(scene, MGLScene):
+            scene = mgl_to_pl(scene)
+        self.patchy_scene = scene
 
         # if only one particle type
         if isinstance(particle_types, DNAParticle):
@@ -278,6 +284,124 @@ class MGLOrigamiConverter:
         if reverse_match:
             self.color_match_overrides[match] = colorstr
 
+    def match_patches_to_strands(self,
+                                 p: PLPatchyParticle,
+                                 dna: DNAParticle) -> np.ndarray:
+        """
+        Computes a rotation of this DNA particle that makes the patches on that particle line up with the
+        3' ends of patch strands.
+        Parameters:
+            patch_groups: groups of patches that should be kept as a block for the purposes of
+        Returns:
+            a tuple where the first element is a rotation matrix (3x3), and the second is a mapping of patch IDs
+            to patch strand
+            For all but unidentate patches, the length of the sets of strands will be 1
+        """
+        # construct list of patch groups (can be 1 patch / group)
+        # load each patch on the mgl particle
+
+        # for patch in p.patches():
+            # scale patch with origami
+            # skip magic padding when scaling patch local coords
+            # patchy_patches.append(patch.position() / self.scale_factor(p))
+        # assert len(patchy_patches) == len(self.patch_centerpoints())
+        # generate matrix of origami patch matrices
+        best_rms = np.Inf
+        # test different patch arrangements in mgl vs. origami. use best option.
+        # best_order should be ordering of dna patches which best matches particle patches
+        # iterate possible n-length permutations of the patches on the DNA particle,
+        # where n is the number of patches on the patchy particles
+
+        # compute best ordering of patches
+        best_rot, patch_group_map = self.align_patches(p, dna)
+
+        for udt_id, strand_group_idx in patch_group_map.items():
+            strand_group = dna.patch_strand_ids[strand_group_idx]
+            patch_group = self.patchy_scene.particle_types().mdt_rep(udt_id)
+            # compute strand mapping
+            strand_map: dict[int, int] = dna.align_patch_strands(patch_group, strand_group, dna.scale_factor(p))
+            dna.assign_patches_strands(strand_map)
+
+        print(f"Superimposed DNA origami on patchy particle {p.get_id()} with RMS={best_rms}")
+        print(f"RMS / circumfrance: {best_rms / (2 * math.pi * dna.center2patch_conf())}")
+        return best_rot
+
+    def link_patchy_particle(self, p: PLPatchyParticle, dna: DNAParticle):
+        """
+        Links a patchy particle to a DNA structure, rotating the structure so that the orientation of the 3' ends of
+        the patch strands match the position of the patches on the particle
+        Note: PLEASE do not link multiple DNAParticle instances to the same patchy particle or vice
+        versa!!!
+
+        Parameters:
+            p (PatchyBaseParticle): a patchy particle to link to a DNA particle
+            dna (DNAParticle): a dna particle to link with the patchy particle
+        """
+        # assert len(self.patch_strand_ids) >= p.num_patches() or p.num_patches() % len(self.patch_strand_ids) == 0, \
+        assert len(dna.flat_strand_ids) >= p.num_patches(), \
+            f"Not enough patches on DNA particle ({len(dna.patch_strand_ids)}) to link DNA particle to " \
+            f"on patchy particle({p.num_patches()})!"
+        # allow user to force multidentacy, but activate it automatically
+        # if the particle has more patches than the number of patch strand groups
+        # if force_mdt or p.num_patches() > len(self.patch_strand_ids):
+        if not dna.has_strand_map():
+            rot = self.match_patches_to_strands(p, dna)
+
+        # call self.transform BEFORE linking the particle!
+        dna.transform(rot.T)
+        # self.patch_strand_ids = [self.patch_strand_ids[i] for i in best_order[:-1]] # skip last position (centerpoint)
+        dna.linked_particle = p
+
+
+    def align_patches(self, p: PLPatchyParticle, dna: DNAParticle) -> tuple[np.ndarray, dict[int,int]]:
+        """
+        Aligns patch centerpoints with the average positions of multidentate patches
+        Returns:
+            the ordering of groups of dna strand IDs that best matches the patches on the provided particle
+        """
+        sup = SVDSuperimposer()
+        # clone dna particle
+        pl_patch_centers = {}  # start with centerpoint of the particle (assumed to be 0,0,0)
+        # load each patch on the patchy particle
+        for patch in p.patches():
+            # if patch is multidentate, get src patch id as map key
+            if self.patchy_scene.particle_types().is_multidentate():
+                patch_type_id = self.patchy_scene.particle_types().get_src_patch(patch).get_id()
+            else:
+                # use patch id as map key, will end up with identity mappigng
+                patch_type_id = patch.get_id()
+            if patch_type_id not in pl_patch_centers:
+                pl_patch_centers[patch_type_id] = list()
+            # scale patch with origami
+            pl_patch_centers[patch_type_id].append(patch.position() / dna.scale_factor(p))
+        # remember patch id order
+        pid_order = list(pl_patch_centers.keys())
+        assert len(pid_order) <= len(dna.patch_strand_ids)
+        # compute patch centers
+        m1 = np.stack([np.mean(plocs, axis=0) for plocs in pl_patch_centers.values()])
+        assert m1.shape == (len(pid_order),3)
+        # generate matrix of origami patches + centerpoint
+        m2 = dna.get_patch_cmss()
+        best_rms = np.Inf
+        best_order = None
+        best_rot = None
+        cms = dna.cms()
+        # loop permutations of patche strand gorups
+        for perm in itertools.permutations(range(len(dna.patch_strand_ids)), r=len(pid_order)):
+            # configure svd superimposer
+            sup.set(np.concatenate([m1[perm, :], np.zeros((1,3))], axis=0),
+                    np.concatenate([m2, cms[np.newaxis, :]], axis=0))
+            # FIRE
+            sup.run()
+            # if rms is better
+            if sup.get_rms() < best_rms:
+                # save order
+                best_order = dict(zip(pid_order, perm))
+                best_rot = sup.rot
+                # save rms
+                best_rms = sup.get_rms()
+        return best_rot, best_order
+
     def position_particles(self) -> list[DNAParticle]:
         """
         Positions particles?
@@ -286,15 +410,13 @@ class MGLOrigamiConverter:
         # get scene particles
         particles = self.patchy_scene.particles()
         placed_confs = []  # output prom_p
-        # everyone's most favorite aligning tool
-        sup = SVDSuperimposer()
         pl = len(particles)
         for i, particle in enumerate(particles):
             # clone dna particle
             origami: DNAParticle = deepcopy(self.get_dna_origami(particle))
             print(f"{i + 1}/{pl}", end="\r")
-            origami.link_patchy_particle(particle)
-            linker_len = (self.spacer_length * 2 + self.sticky_length) * BASE_BASE
+            self.link_patchy_particle(particle, origami)
+            linker_len = (self.spacer_length * 2 + self.sticky_length) * BASE_BASE,
             # scale_factor = origami.scale_factor(particle) / self.padding
             scale_factor = self.get_dist_ratio() * self.padding
             # magic numbers needed again for things not to clash

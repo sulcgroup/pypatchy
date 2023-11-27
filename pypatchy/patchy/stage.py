@@ -5,7 +5,7 @@ from typing import Union, Iterable
 import numpy as np
 from ..patchy.simulation_specification import PatchySimulation
 
-from ..patchy.plpatchy import PLPSimulation
+from .pl.plscene import PLPSimulation
 from ..polycubeutil.polycube_structure import PolycubeStructure
 from ..util import get_input_dir, append_to_file_name
 
