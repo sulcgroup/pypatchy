@@ -1,14 +1,10 @@
 from __future__ import annotations
 
-import abc
-import itertools
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from pathlib import Path
-from typing import Union, Any, Iterable, Generator
+from typing import Union, Any, Iterable
 
 import numpy as np
-from oxDNA_analysis_tools.UTILS.data_structures import Configuration, TopInfo
 
 
 class PatchyBaseParticleType(ABC):
@@ -157,12 +153,11 @@ class BaseParticleSet:
     _particle_types: list
     _patch_types: list
 
-    def __init__(self, particles: Union[list[PatchyBaseParticleType, None]] = None):
-        if particles is None:
-            self._particle_types = []
-        else:
-            self._particle_types = particles
+    def __init__(self, particles: Union[list[PatchyBaseParticleType, BaseParticleSet, None]] = None):
+        self._particle_types = []
         self._patch_types = []
+        if particles is not None:
+            self.add_particles(particles)
 
     def particles(self):
         return self._particle_types
@@ -293,59 +288,3 @@ class PatchyBaseParticle(ABC):
         pass
 
 
-class Scene(ABC):
-    _particles: list[PatchyBaseParticle]
-
-    def __init__(self):
-        self._particles = []
-
-    def particles(self) -> list[PatchyBaseParticle]:
-        """
-        Returns a list of individual particles in this scene
-        """
-        return self._particles
-
-    def num_particles(self) -> int:
-        return len(self._particles)
-
-    def particle_type_counts(self) -> dict[int, int]:
-        counts = {p.type_id(): 0 for p in self.particle_types().particles()}
-        for particle in self.particles():
-            counts[particle.get_type()] += 1
-        return counts
-
-    def add_particle(self, p: PatchyBaseParticle):
-        self._particles.append(p)
-
-    def add_particles(self, particles: Iterable[PatchyBaseParticle]):
-        self._particles.extend(particles)
-
-    @abstractmethod
-    def num_particle_types(self) -> int:
-        pass
-
-    @abstractmethod
-    def particle_types(self) -> BaseParticleSet:
-        pass
-
-    @abstractmethod
-    def set_particle_types(self, ptypes: BaseParticleSet):
-        pass
-
-    @abstractmethod
-    def get_conf(self) -> Configuration:
-        pass
-
-    @abstractmethod
-    def particles_bound(self, p1: PatchyBaseParticle, p2: PatchyBaseParticle) -> bool:
-        pass
-
-    def iter_bound_particles(self) -> Generator[tuple[PatchyBaseParticle, PatchyBaseParticle]]:
-        for p1, p2 in itertools.combinations(self.particles(), 2):
-            if self.particles_bound(p1, p2):
-                yield p1, p2
-
-    def iter_binding_patches(self, p1: PatchyBaseParticle, p2: PatchyBaseParticle) -> Generator[tuple[BasePatchType, BasePatchType], None, None]:
-        for p1, p2 in zip(p1.patches(), p2.patches()):
-            if p1.can_bind(p2):
-                yield p1, p2

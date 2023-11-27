@@ -13,7 +13,8 @@ from collections import defaultdict
 
 import igraph as ig
 
-from pypatchy.patchy_base_particle import PatchyBaseParticle, Scene
+from pypatchy.patchy_base_particle import PatchyBaseParticle
+from pypatchy.scene import Scene
 from pypatchy.util import getRotations, enumerateRotations, from_xyz
 
 from pypatchy.polycubeutil.polycubesRule import *

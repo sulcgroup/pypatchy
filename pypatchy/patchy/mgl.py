@@ -8,8 +8,9 @@ from pathlib import Path
 import numpy as np
 from oxDNA_analysis_tools.UTILS.data_structures import TopInfo, Configuration
 
-from ..patchy_base_particle import BasePatchType, PatchyBaseParticleType, Scene, PatchyBaseParticle, \
+from ..patchy_base_particle import BasePatchType, PatchyBaseParticleType, PatchyBaseParticle, \
     BaseParticleSet
+from ..scene import Scene
 from pypatchy.util import dist
 
 # todo: bidict?
