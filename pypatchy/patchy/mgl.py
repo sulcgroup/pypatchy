@@ -222,6 +222,13 @@ class MGLScene(Scene):
                     return True
         return False
 
+    def set_particle_types(self, ptypes: BaseParticleSet):
+        """
+        please don't
+        ok to be more specific the concept of "particle type" doesn't apply super well to mgl
+        so you can;'t really set the particle types k sorry
+        """
+        pass
 
 
 def load_mgl(file_path: Path) -> MGLScene:
@@ -261,3 +268,4 @@ def load_mgl(file_path: Path) -> MGLScene:
             p = MGLParticle(particle_position, r, particle_color, i, patches)
             mgl.add_particle(p)
         return mgl
+

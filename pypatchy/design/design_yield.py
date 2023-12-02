@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import sys
 import json
+from pathlib import Path
+
 import matplotlib.pyplot as plt
 
 from pypatchy.design.pathway import Joint, Pathway
@@ -666,13 +668,16 @@ class YieldAllosteryDesigner(PolycubeStructure):
                 #             next_head_nodes.add(current_node)
                 #     cycle_nodes_to_process = next_head_nodes
 
-    def describe_design_path(self, dp: DesignPathType):
+    def describe_design_path(self, dp: DesignPathType, filename: Union[None, Path] = None):
         print(dp.describe())
-        layout = nx.spring_layout(self.graph)
+        layout = nx.spring_layout(self.graph, seed=69)
         xs = max([len(dp.get_instances(p)) for p in dp.generic_paths()])
         ys = 1 + len(dp.generic_paths())
         fig, axs = plt.subplots(ncols=xs, nrows=ys, figsize=(4 * xs, 4 * ys))
         fig.set_label(f"Path Hash {hash(frozenset(dp.type_path()))}")
+        # handle xs=1
+        if xs == 1:
+            axs = axs[:, np.newaxis]
         self.draw_structure_graph(axs[0, 0], layout)
         # erase dostractomg empty plots
         for x in range(1, xs):
@@ -712,6 +717,8 @@ class YieldAllosteryDesigner(PolycubeStructure):
                 axs[ i+1, xtra].set_visible(False)
         # fig.tight_layout()
         plt.show()
+        if filename is not None:
+            fig.savefig(filename)
     # def pathway(self, *args: int):
     #     for i, j, k in triplets(args):
     #         e1 = (i, j)
@@ -933,7 +940,7 @@ class YieldAllosteryDesigner(PolycubeStructure):
         # if len(p) was less than 2, nothing happened in that for-loop because a 2-length path has no triples
         return len(p) > 2
 
-    def summarize(self):
+    def summarize(self, proot: Union[None, Path] = None):
         self.compute_design_paths()
         fig, ax = plt.subplots(figsize=(14, 8))
         label_mapping = nx.get_node_attributes(self._design_path_tree, "dp_id")
@@ -957,9 +964,14 @@ class YieldAllosteryDesigner(PolycubeStructure):
         plt.axis('off')
         plt.tight_layout()
         plt.show()
+        if proot is not None:
+            fig.savefig(proot / f"cyclesfig.svg")
 
-        for dp in self.design_paths():
-            self.describe_design_path(dp)
+        for i, dp in enumerate(self.design_paths()):
+            if proot is not None:
+                self.describe_design_path(dp, proot / f"design_path_{i}.svg")
+            else:
+                self.describe_design_path(dp)
 
 
 def triplets(iterable: typing.Iterable):
