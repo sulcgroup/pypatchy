@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import IO, Union
+from typing import IO, Union, Any
 
 from .stage import Stage
 from ..util import get_spec_json
@@ -12,6 +12,19 @@ class PatchySimObservable:
     """
     A class describing an oxDNA observable that can be added to a patchy particle interaction
     """
+    observable_name: str
+    file_name: str
+    is_linear_tile: bool
+    log_ppc: float  # ??
+    log_n0: float  # ??
+    log_fact: float  # ??
+    print_every: int
+    start_observe_stepnum: int
+    stop_observe_stepnum: Union[int, None]
+    only_write_last: bool
+    update_name_with_time: bool
+    cols: Any  # ????
+
     def __init__(self, **kwargs):
         # for all param meanings, see https://lorenzo-rovigatti.github.io/oxDNA/observables.html
         self.observable_name = kwargs["observable_name"]

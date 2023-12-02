@@ -14,7 +14,7 @@ TIMEPOINT_KEY = "timepoint"
 
 
 class PipelineDataType(Enum):
-    # raw data from trajectory.dat - currently not used
+    # raw data from trajectory.dat
     PIPELINE_DATATYPE_RAWDATA = 0
     # data from an observable
     PIPELINE_DATATYPE_OBSERVABLE = 1

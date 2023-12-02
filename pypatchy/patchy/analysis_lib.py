@@ -80,7 +80,7 @@ class LoadParticlesTraj(AnalysisPipelineHead):
              ensemble: PatchySimulationEnsemble,
              sim: PatchySimulation,
              stages: list[Stage],
-             *args: list[Path]) -> PipelineData:
+             *args: list[Path]) -> RawPipelineData:
         # load first conf (not incl in traj for some reason)
         # iter stages
         staged_data = []
@@ -383,6 +383,9 @@ class ClassifyPolycubeClusters(AnalysisPipelineStep):
     load_cached_files = load_cached_pd_data
 
     def exec(self, input_data_1: ObjectPipelineData, input_data_2: ObjectPipelineData) -> PDPipelineData:
+        """
+        Executes the step
+        """
         # use data class types to identify inputs
         if isinstance(input_data_2, RawPipelineData):
             graph_input_data = input_data_1
