@@ -611,6 +611,7 @@ class PolycubeRuleCubeType(PatchyBaseParticleType):
             newPatches.append(p.rotate(r))
         self._patches = newPatches
 
+
 class PolycubesRule(BaseParticleSet):
     def __init__(self, **kwargs):
         """
@@ -848,5 +849,31 @@ class PolycubesRule(BaseParticleSet):
             return self == str(other)
         else:
             return str(self) == other
+
+    def concat(self, other: PolycubesRule):
+        """
+        Joins two polycubes rules by shifting one and concatinating
+        """
+        other = other >> (self.num_colors() + 1)
+        return self + other
+
+    def __add__(self, other: PolycubesRule) -> PolycubesRule:
+        return PolycubesRule(rule_str=str(self) + "_" + str(other))
+
+    def __rshift__(self, n: int) -> PolycubesRule:
+        """
+        "left-shifts" a rule by increasing all colors by n
+        """
+        cpy: PolycubesRule = copy.deepcopy(self)
+        for patch in cpy.patches():
+            if patch.color() > 0:
+                patch.set_color(patch.color() + n)
+            else:
+                patch.set_color(patch.color() - n)
+        return cpy
+
+    def num_colors(self) -> int:
+        return len(self.color_set())
+
 
 # TODO: integrate with C++ TLM / Polycubes
