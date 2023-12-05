@@ -245,6 +245,17 @@ def PL_to_rule(particles: list[PLPatchyParticle], ) -> Union[None, PolycubesRule
         }
         for particle in particles])
 
+POLYCUBE_NULL_A1: np.ndarray = np.array([
+    1,
+    0,
+    0
+])
+
+POLYCUBE_NULL_A3: np.ndarray = np.array([
+    0,
+    0,
+    1
+])
 
 def polycube_to_pl(polycube: PolycubeStructure,
                    nteeth=1,
@@ -263,6 +274,8 @@ def polycube_to_pl(polycube: PolycubeStructure,
                                     type_id=pl_type.type_id(),
                                     index_=cube.get_id(),
                                     position=cube.position())
+        particle.a1 = POLYCUBE_NULL_A1
+        particle.a3 = POLYCUBE_NULL_A3
         particle.rotate(cube.rotation().as_matrix())
         pl.add_particle(particle)
         maxs = np.max([maxs, particle.position()], axis=0)

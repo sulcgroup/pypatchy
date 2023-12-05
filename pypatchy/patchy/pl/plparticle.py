@@ -117,6 +117,9 @@ class PLPatch(BasePatchType):
         else:
             return self.color() == other.color()
 
+    def __str__(self) -> str:
+        return f"Patch type {self.get_id()} with color {self.color()} and strength {self.strength()} in position {self.position()}"
+
 
 class PLPatchyParticle(PatchyBaseParticleType, PatchyBaseParticle):
     # HATE making the particle type and the particle the same class but refactoring is objectively not the
@@ -133,7 +136,12 @@ class PLPatchyParticle(PatchyBaseParticleType, PatchyBaseParticle):
 
     all_letters = ['C', 'H', 'O', 'N', 'P', 'S', 'F', 'K', 'I', 'Y']
 
-    def __init__(self, patches: list[PLPatch] = [], particle_name: Union[str, None]=None, type_id=0, index_=0, position=np.array([0., 0., 0.]), radius=0.5):
+    def __init__(self, patches: list[PLPatch] = [],
+                 particle_name: Union[str, None]=None,
+                 type_id=0,
+                 index_=0,
+                 position=np.array([0., 0., 0.]),
+                 radius=0.5):
         PatchyBaseParticleType.__init__(self, type_id, patches)
         PatchyBaseParticle.__init__(self, index_, type_id, position)
 
@@ -187,8 +195,8 @@ class PLPatchyParticle(PatchyBaseParticleType, PatchyBaseParticle):
         """
         assert rot_matrix.shape == (3, 3)
         assert abs(np.linalg.det(rot_matrix) - 1) < 1e-6
-        self.a1 = np.dot(rot_matrix, self.a1)
-        self.a3 = np.dot(rot_matrix, self.a3)
+        self.a1 = rot_matrix @ self.a1
+        self.a3 = rot_matrix @ self.a3
 
     def set_random_orientation(self):
         self.a1 = random_unit_vector()
@@ -581,7 +589,7 @@ class PLParticleSet(BaseParticleSet):
         """
         # unclear if this fail behavior is correct
         assert self.has_udt_src(), "No source particle set!"
-        assert patch in self.patches(), "Invalid patch provided as arg!"
+        assert patch in self, "Invalid patch provided as arg!"
         return self.get_src().patch(self.__patch_src_map[patch.get_id()])
 
     def patch_groups(self, particle: Union[int, PLPatchyParticle, None] = None) -> list[set[int]]:
@@ -603,3 +611,28 @@ class PLParticleSet(BaseParticleSet):
         assert self.has_udt_src()
         assert udt_id in self.__patch_map
         return {self.patch(i) for i in self.__patch_map[udt_id]}
+
+    def __contains__(self, item: Union[PLPatch, PLPatchyParticle]) -> bool:
+        """
+        Flexable method which can accept PLPatch or PLPatchyParticle objects
+        """
+        if isinstance(item, PLPatch):
+            for patch in self.patches():
+                # use patch ids
+                if patch.get_id() == item.get_id():
+                    # double check homeopathy (wrong word?)
+                    assert patch.color() == item.color(), "Mismatch between patch colors"
+                    assert patch.strength() == item.strength(), "Mismatch between patch sterengths"
+                    assert (abs(patch.a1() - item.a1()) < 1e-6).all(), "Mismatch between patch a1 vectors"
+                    assert (abs(patch.a2() - item.a2()) < 1e-6).all(), "Mismatch between patch a3 vectors"
+                    assert (abs(patch.position() - item.position()) < 1e-6).all(), "Mismatch between patch position vectors"
+                    return True
+            return False
+        elif isinstance(item, PLPatchyParticle):
+            for particle in self.particles():
+                if particle.get_type() == item.get_type():
+                    assert item.num_patches() == particle.num_patches(), "Mismatch between particle type patch counts!"
+                    return True
+            return False
+        else:
+            raise TypeError(f"{str(item)} has invalid type {type(item)} for PLParticleSet::__contains__")

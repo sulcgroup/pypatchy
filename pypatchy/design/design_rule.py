@@ -51,7 +51,7 @@ from .sat_problem import SATProblem, SATClause, interrupt
 from .solution import SATSolution
 
 from .solve_params import *
-import libpolycubes
+from . import libpolycubes
 
 RELSAT_EXE = 'relsat'
 
