@@ -25,7 +25,6 @@ from pypatchy.util import from_xyz, getRotations, get_input_dir
 
 
 class PolycubeStructure(TypedStructure, Scene):
-
     # mypy type specs
     rule: PolycubesRule
     cubeMap: dict[bytes, PolycubesStructureCube]
@@ -328,6 +327,7 @@ class PolycubeStructure(TypedStructure, Scene):
     def particles_bound(self, p1: PatchyBaseParticle, p2: PatchyBaseParticle) -> bool:
         return self.graph.has_edge(p1.get_id(), p2.get_id())
 
+
 class PolycubesStructureCube(PatchyBaseParticle):
     _type_cube: PolycubeRuleCubeType
 
@@ -337,13 +337,21 @@ class PolycubesStructureCube(PatchyBaseParticle):
                  cube_rotation: Union[np.ndarray, int],
                  cube_type: PolycubeRuleCubeType,
                  state: list[bool] = [True]):
+        """
+        Parameters:
+            uid (int): a unique identifier for this cube
+            cube_position (np.ndarray): the position of the particle, as a 3-length integer vector
+            cube_rotation (np.ndarray, int): a quaternion or integer represtation of cube rotation
+        """
         super(PolycubesStructureCube, self).__init__(uid, cube_type.type_id(), cube_position)
         if isinstance(cube_rotation, np.ndarray) and len(cube_rotation) == 4:
+            # if rotation hsa been passed as a quaternion
             self._rot = Rotation.from_quat(cube_rotation)
         elif isinstance(cube_rotation, int):
+            # if rotation is a an integer, representing an index in rotation enumeration
             self._rot = Rotation.from_matrix(getRotations()[cube_rotation])
         else:
-            assert False, "Rotation matrices or whatever not supported yet."
+            raise TypeError("Rotation matrices or whatever not supported yet.")
         self._state = state
         self._type_cube = cube_type
 
