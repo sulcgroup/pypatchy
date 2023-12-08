@@ -11,7 +11,7 @@ from .dna_particle import DNAParticle
 from .patchy_scripts import mgl_to_pl
 from .pl.plparticle import PLPatchyParticle, PLPatch
 from .pl.plscene import PLPSimulation
-from ..dna_structure import DNABase, construct_strands, BASE_BASE, rc, POS_BASE
+from ..dna_structure import DNABase, construct_strands, BASE_BASE, rc, POS_BASE, DNAStructure
 
 from random import choice
 import itertools
@@ -111,11 +111,12 @@ class MGLOrigamiConverter:
     This class facilitates the conversion of a patchy particle model (in MGL format) to
     a set of connected DNA origamis
     """
-    color_sequences: dict[str, str]
+    color_sequences: dict[Union[int, str], str]
     bondcount: int
     particle_type_map: dict[str, DNAParticle]
     patchy_scene: PLPSimulation
-    dna_particles: list[DNAParticle]
+    # mapping where keys are PL particle UIDs and values are DNA particles
+    dna_particles: dict[int, DNAParticle]
     padding: float  # manually-entered extra spacing
     dist_ratio: float
 
@@ -189,6 +190,12 @@ class MGLOrigamiConverter:
             assert particle_type in self.particle_type_map, f"Particle type {particle_type} not in type map!"
             return self.particle_type_map[particle_type]
 
+    def get_full_conf(self) -> DNAStructure:
+        print("merging the topologies")
+        particles = self.get_particles()
+        merged_conf = sum(particles[1:], start=particles[0])
+        return merged_conf
+
     def get_dist_ratio(self) -> float:
         """
         gets the scaling value used to convert the particle scene to the oxDNA conf
@@ -250,31 +257,32 @@ class MGLOrigamiConverter:
 
         return self.color_sequences[colorstr]
 
-    def assign_color_sequence(self, colorstr: str, seq: str):
+    def assign_color_sequence(self, color: int, seq: str):
         """
         Assigns the color given by colorstr the specific sequence sequence specified
         Automatically assigns the corresponding color the reverse compliment
         """
         assert len(seq) == self.sticky_length, "Incompatible sequence length"
-        self.color_sequences[colorstr] = seq
-        self.color_sequences[self.get_color_match(colorstr)] = rc(seq)
+        self.color_sequences[color] = seq
+        self.color_sequences[-color] = rc(seq)
 
-    def get_color_match(self, colorstr: str) -> str:
-        if colorstr in self.color_match_overrides:
-            return self.color_match_overrides[colorstr]
+    def get_color_match(self, color: Union[int, str]) -> Union[int, str]:
+        if color in self.color_match_overrides:
+            return self.color_match_overrides[color]
         else:
-            if colorstr.startswith("dark"):
-                return colorstr[4:]
+            if isinstance(color, str):
+                if color.startswith("dark"):
+                    return color[4:]
+                else:
+                    return f"dark{color}"
             else:
-                return f"dark{colorstr}"
+                if not isinstance(color, int):
+                    raise TypeError(f"Invalid color type {type(color)}")
+                else:
+                    return -color
 
     def get_expected_pad_distance(self) -> float:
         return (self.sticky_length + 2.0 * self.spacer_length) * POS_BASE
-
-    def patches_can_bind(self,
-                         patch1: MGLPatch,
-                         patch2: MGLPatch) -> bool:
-        return self.get_color_match(patch1.color()) == patch2.color()
 
     def set_color_match(self,
                         colorstr: str,
@@ -341,19 +349,17 @@ class MGLOrigamiConverter:
         assert len(dna.flat_strand_ids) >= p.num_patches(), \
             f"Not enough patches on DNA particle ({len(dna.patch_strand_ids)}) to link DNA particle to " \
             f"on patchy particle({p.num_patches()})!"
-        # allow user to force multidentacy, but activate it automatically
-        # if the particle has more patches than the number of patch strand groups
-        # if force_mdt or p.num_patches() > len(self.patch_strand_ids):
+        # compute strand mapping
         if not dna.has_strand_map():
             rot = self.match_patches_to_strands(p, dna)
 
         # call self.transform BEFORE linking the particle!
-        dna.transform(rot.T)
+        dna.transform(rot)
         # self.patch_strand_ids = [self.patch_strand_ids[i] for i in best_order[:-1]] # skip last position (centerpoint)
         dna.linked_particle = p
+        self.dna_particles[p.get_id()] = dna
 
-
-    def align_patches(self, p: PLPatchyParticle, dna: DNAParticle) -> tuple[np.ndarray, dict[int,int]]:
+    def align_patches(self, p: PLPatchyParticle, dna: DNAParticle) -> tuple[np.ndarray, dict[int, int]]:
         """
         Aligns patch centerpoints with the average positions of multidentate patches
         Returns:
@@ -378,10 +384,10 @@ class MGLOrigamiConverter:
         pid_order = list(pl_patch_centers.keys())
         assert len(pid_order) <= len(dna.patch_strand_ids)
         # compute patch centers
-        m1 = np.stack([np.mean(plocs, axis=0) for plocs in pl_patch_centers.values()])
-        assert m1.shape == (len(pid_order),3)
+        pl_centers = np.stack([np.mean(plocs, axis=0) for plocs in pl_patch_centers.values()])
+        assert pl_centers.shape == (len(pid_order), 3)
         # generate matrix of origami patches + centerpoint
-        m2 = dna.get_patch_cmss()
+        dna_patch_cmss = dna.get_patch_cmss()
         best_rms = np.Inf
         best_order = None
         best_rot = None
@@ -389,8 +395,13 @@ class MGLOrigamiConverter:
         # loop permutations of patche strand gorups
         for perm in itertools.permutations(range(len(dna.patch_strand_ids)), r=len(pid_order)):
             # configure svd superimposer
-            sup.set(np.concatenate([m1[perm, :], np.zeros((1,3))], axis=0),
-                    np.concatenate([m2, cms[np.newaxis, :]], axis=0))
+            m1 = np.concatenate([pl_centers, np.zeros(shape=(1, 3))], axis=0)
+            m2 = np.concatenate([dna_patch_cmss[perm, :], cms[np.newaxis, :]], axis=0)
+            if m1.shape != m2.shape:
+                raise Exception(f"Mismatch between patch position matrix on pl particle ({m1.shape}) "
+                                f"and on dna particle ({m2.shape})")
+            sup.set(m1, m2)
+
             # FIRE
             sup.run()
             # if rms is better
@@ -407,6 +418,7 @@ class MGLOrigamiConverter:
         Positions particles?
         IDK
         """
+        self.dna_particles = dict()
         # get scene particles
         particles = self.patchy_scene.particles()
         placed_confs = []  # output prom_p
@@ -415,6 +427,7 @@ class MGLOrigamiConverter:
             # clone dna particle
             origami: DNAParticle = deepcopy(self.get_dna_origami(particle))
             print(f"{i + 1}/{pl}", end="\r")
+            # link DNA particle to pl particle
             self.link_patchy_particle(particle, origami)
             linker_len = (self.spacer_length * 2 + self.sticky_length) * BASE_BASE,
             # scale_factor = origami.scale_factor(particle) / self.padding
@@ -458,120 +471,130 @@ class MGLOrigamiConverter:
     #                 if costheta >= cos_theta_max:
     #                     yield (q, patch_1), (z, patch_2)
 
-    def patches_to_bind(self,
-                        particle_1: MGLParticle,
-                        particle_2: MGLParticle) -> Generator[tuple[tuple[int, MGLPatch],
-                                                                    tuple[int, MGLPatch]],
-                                                              None,
-                                                              None]:
-        """
-        Returns:
-            a generator which produces pairs of tuples, each of which consists of patch index and patch object
-        """
-        assert particle_1.type_id() != particle_2.type_id()
-        # keep in mind: we can't use patch internal IDs here because it enumerates differently!
-        # find all possible pairings between two patches on particle 1 and particle 2
-        # filter patches that don't pair
-        possible_bindings = list(self.patchy_scene.iter_binding_patches(particle_1, particle_2))
-        # sort by distance, ascending order
-
-        def sort_by_distance(p):
-            patch1, patch2 = p
-            return dist(particle_1.position() + patch1.position(),
-                        particle_2.position() + patch2.position())
-
-        possible_bindings.sort(key=sort_by_distance)
-        # lists for patches that have been handled on particles 1 and 2
-        handled_p1 = [False for _ in particle_1.patches()]
-        handled_p2 = [False for _ in particle_2.patches()]
-        # iterate through possible pairs of patches
-        for (q, patch_1), (z, patch_2) in possible_bindings:
-            # skip patches we've already handled
-            if not handled_p1[q] and not handled_p2[z]:
-                # if the two patches are within bonding distance (mgl units)
-                patch1_position = particle_1.cms() + patch_1.position()
-                patch2_position = particle_2.cms() + patch_1.position()
-                # compute patch distance
-                patches_distance = dist(patch1_position, patch2_position)
-                if (patches_distance <= self.bond_length) or \
-                        (self.flexable_patch_distances and (self.bondcount < self.expected_num_edges)):
-                    # https://stackoverflow.com/questions/2827393/angles-between-two-n-dimensional-vectors-in-python
-                    # normalize patches
-                    patch1norm = patch_1.position() / np.linalg.norm(patch_1.position())
-                    patch2norm = patch_2.position() / np.linalg.norm(patch_2.position())
-                    costheta = abs(float(np.clip(np.dot(patch1norm,
-                                                        patch2norm), -1.0, 1.0)))
-                    # confusing,ly, cos theta-max is the cosine of the maximum angle
-                    # so we check if cos theta is LESS than cos theta-max
-                    if costheta >= self.cos_theta_max:
-                        handled_p1[q] = handled_p2[z] = True
-                        yield (q, patch_1), (z, patch_2)
-                else:  # can do this because list is sorted
-                    break
+    # def patches_to_bind(self,
+    #                     particle_1: MGLParticle,
+    #                     particle_2: MGLParticle) -> Generator[tuple[tuple[int, MGLPatch],
+    #                                                                 tuple[int, MGLPatch]],
+    #                                                           None,
+    #                                                           None]:
+    #     """
+    #     Returns:
+    #         a generator which produces pairs of tuples, each of which consists of patch index and patch object
+    #     """
+    #     assert particle_1.type_id() != particle_2.type_id()
+    #     # keep in mind: we can't use patch internal IDs here because it enumerates differently!
+    #     # find all possible pairings between two patches on particle 1 and particle 2
+    #     # filter patches that don't pair
+    #     possible_bindings = list(self.patchy_scene.iter_binding_patches(particle_1, particle_2))
+    #     # sort by distance, ascending order
+    #
+    #     def sort_by_distance(p):
+    #         patch1, patch2 = p
+    #         return dist(particle_1.position() + patch1.position(),
+    #                     particle_2.position() + patch2.position())
+    #
+    #     possible_bindings.sort(key=sort_by_distance)
+    #     # lists for patches that have been handled on particles 1 and 2
+    #     handled_p1 = set()
+    #     handled_p2 = set()
+    #     # iterate through possible pairs of patches
+    #     for patch_1, patch_2 in possible_bindings:
+    #         # skip patches we've already handled
+    #         if not handled_p1[q] and not handled_p2[z]:
+    #             # if the two patches are within bonding distance (mgl units)
+    #             patch1_position = particle_1.cms() + patch_1.position()
+    #             patch2_position = particle_2.cms() + patch_1.position()
+    #             # compute patch distance
+    #             patches_distance = dist(patch1_position, patch2_position)
+    #             if (patches_distance <= self.bond_length) or \
+    #                     (self.flexable_patch_distances and (self.bondcount < self.expected_num_edges)):
+    #                 # https://stackoverflow.com/questions/2827393/angles-between-two-n-dimensional-vectors-in-python
+    #                 # normalize patches
+    #                 patch1norm = patch_1.position() / np.linalg.norm(patch_1.position())
+    #                 patch2norm = patch_2.position() / np.linalg.norm(patch_2.position())
+    #                 costheta = abs(float(np.clip(np.dot(patch1norm,
+    #                                                     patch2norm), -1.0, 1.0)))
+    #                 # confusing,ly, cos theta-max is the cosine of the maximum angle
+    #                 # so we check if cos theta is LESS than cos theta-max
+    #                 if costheta >= self.cos_theta_max:
+    #                     handled_p1[q] = handled_p2[z] = True
+    #                     yield (q, patch_1), (z, patch_2)
+    #             else:  # can do this because list is sorted
+    #                 break
 
     def bind_particles3p(self,
                          dna_particles: list[DNAParticle]):
         """
         Creates double-stranded linkers to bind particles together
         """
+
+        # use pl function to iter bound particles
+        for p1, p2 in self.patchy_scene.iter_bound_particles():
+            p1_dna = self.get_dna_particle(p1)
+            p2_dna = self.get_dna_particle(p2)
+            # iter pairs of patches that connect p1 to p2
+            for patch1, patch2 in self.patchy_scene.iter_binding_patches(p1, p2):
+                self.bind_patches_3p(p1_dna,
+                                      patch1,
+                                      p2_dna,
+                                      patch2)
+
+        #OLD CODE
+
         # assert self.patchy_scene.patch_ids_unique()
         # please please do not call this method with dna particles that don't correspond
         # in order to the mgl particles
 
-        patch_occupancies = [False for _ in itertools.chain.from_iterable(
-            [[patch.get_id() for patch in particle.patches()] for particle in self.patchy_scene.particles()])]
-
-        # loop possible pairs of particles
-        # patch_occupancies = [[False for _ in p.patches()] for p in particles]
-
-        patchpaircount = 0
-        # loop particles
-        for p1, p2 in self.patchy_scene.iter_bound_particles():
-            # i and j are particle unique ids
-            # actually UIDs not type IDs
-            i = p1.type_id()
-            j = p2.type_id()
-            assert i != j, "Particle should not bind to self!"
-            # grab DNAParticle objects
-            p1_dna: DNAParticle = dna_particles[i]
-            p2_dna: DNAParticle = dna_particles[j]
-            # loop through the patch pairs on each particle that can bind
-            for (q, patch1), (z, patch2) in self.patches_to_bind(p1, p2):
-                assert -1 < patch1.get_id() < len(patch_occupancies), "Mismatch between patch ID on structure and scene patches!"
-                assert -1 < patch2.get_id() < len(patch_occupancies), "Mismatch between patch ID on structure and scene patches!"
-                assert patch1.get_id() != patch2.get_id()
-                # if either patch is bound, stop!
-                if not patch_occupancies[patch1.get_id()] and not patch_occupancies[patch2.get_id()]:
-                    patch_occupancies[patch1.get_id()] = patch_occupancies[patch2.get_id()] = True
-
-                    # for the positions of each of the 2 patches that are about to bind to each other
-                    for patch_idx1, patch_idx2 in patch_idxs_to_bind(q,
-                                                                     z,
-                                                                     p1_dna,
-                                                                     p2_dna):
-                        self.bind_patches_3p(p1_dna,
-                                             q,
-                                             patch_idx1,
-                                             patch1,
-                                             p2_dna,
-                                             z,
-                                             patch_idx2,
-                                             patch2)
-
-                    self.bondcount += 1
-                else:
-                    print("Patch occupied!")
-        print(f"Created {self.bondcount} dna patch bonds")
+        # patch_occupancies = [False for _ in itertools.chain.from_iterable(
+        #     [[patch.get_id() for patch in particle.patches()] for particle in self.patchy_scene.particles()])]
+        #
+        # # loop possible pairs of particles
+        # # patch_occupancies = [[False for _ in p.patches()] for p in particles]
+        #
+        # patchpaircount = 0
+        # # loop particles
+        # for p1, p2 in self.patchy_scene.iter_bound_particles():
+        #     # i and j are particle unique ids
+        #     # actually UIDs not type IDs
+        #     i = p1.type_id()
+        #     j = p2.type_id()
+        #     assert i != j, "Particle should not bind to self!"
+        #     # grab DNAParticle objects
+        #     p1_dna: DNAParticle = dna_particles[i]
+        #     p2_dna: DNAParticle = dna_particles[j]
+        #     # loop through the patch pairs on each particle that can bind
+        #     for (q, patch1), (z, patch2) in self.patches_to_bind(p1, p2):
+        #         assert -1 < patch1.get_id() < len(patch_occupancies), "Mismatch between patch ID on structure and scene patches!"
+        #         assert -1 < patch2.get_id() < len(patch_occupancies), "Mismatch between patch ID on structure and scene patches!"
+        #         assert patch1.get_id() != patch2.get_id()
+        #         # if either patch is bound, stop!
+        #         if not patch_occupancies[patch1.get_id()] and not patch_occupancies[patch2.get_id()]:
+        #             patch_occupancies[patch1.get_id()] = patch_occupancies[patch2.get_id()] = True
+        #
+        #             # for the positions of each of the 2 patches that are about to bind to each other
+        #             for patch_idx1, patch_idx2 in patch_idxs_to_bind(q,
+        #                                                              z,
+        #                                                              p1_dna,
+        #                                                              p2_dna):
+        #                 self.bind_patches_3p(p1_dna,
+        #                                      q,
+        #                                      patch_idx1,
+        #                                      patch1,
+        #                                      p2_dna,
+        #                                      z,
+        #                                      patch_idx2,
+        #                                      patch2)
+        #
+        #             self.bondcount += 1
+        #         else:
+        #             print("Patch occupied!")
+        # print(f"Created {self.bondcount} dna patch bonds")
 
     def bind_patches_3p(self,
-                        particle1_dna: DNAParticle,
-                        dna_patch1_id: int,
-                        dna_patch1_strand: int,
-                        patch1: MGLPatch,
-                        particle2_dna: DNAParticle,
-                        dna_patch2_id: int,
-                        dna_patch2_strand: int,
-                        patch2: MGLPatch):
+                        particle1: DNAParticle,
+                        patch1: PLPatch,
+                        particle2: DNAParticle,
+                        patch2: PLPatch):
         """
         Binds two patches together by adding sticky ends at the 3' ends.
         Parameters:
@@ -584,12 +607,11 @@ class MGLOrigamiConverter:
             dna_patch2_strand (int): the index of the strand in the patch strands (NOT particle strands!)
             patch2 (MGLPatch): mgl patch object?
         """
-        # find nucleotides which will be extended to form patches
-        patch1_nucleotide: DNABase = particle1_dna.patch_strand_3end(dna_patch1_id, dna_patch1_strand)
-        patch2_nucleotide: DNABase = particle2_dna.patch_strand_3end(dna_patch2_id, dna_patch2_strand)
 
-        start_position1 = patch1_nucleotide.pos
-        start_position2 = patch2_nucleotide.pos
+        # find nucleotides which will be extended to form patches
+
+        start_position1 = particle1.patch_3p(patch1).pos
+        start_position2 = particle2.patch_3p(patch2).pos
 
         start_vector_1 = normalize(start_position2 - start_position1)
 
@@ -610,9 +632,60 @@ class MGLOrigamiConverter:
                                              rbases=patch2_seq)
         strand1 = strand1[:len(patch1_seq)]  # shave off dummy spacer from previous line of code
 
+        particle1.patch_strand(patch1).prepend(strand1[::-1])
+        particle2.patch_strand(patch2).prepend(strand2[::-1])
 
-        particle1_dna.patch_strand(dna_patch1_id, dna_patch1_strand).prepend(strand1[::-1])
-        particle2_dna.patch_strand(dna_patch2_id, dna_patch2_strand).prepend(strand2[::-1])
+
+    # def bind_patches_3p(self,
+    #                     particle1_dna: DNAParticle,
+    #                     dna_patch1_id: int,
+    #                     dna_patch1_strand: int,
+    #                     patch1: MGLPatch,
+    #                     particle2_dna: DNAParticle,
+    #                     dna_patch2_id: int,
+    #                     dna_patch2_strand: int,
+    #                     patch2: MGLPatch):
+    #     """
+    #     Binds two patches together by adding sticky ends at the 3' ends.
+    #     Parameters:
+    #         particle1_dna (DNAParticle): DNAParticle object representing particle a
+    #         dna_patch1_id (int): the index in DNAParticleType::patch_strand_ids of the patch to bind
+    #         dna_patch1_strand (int): the index of the strand in the patch strands (NOT particle strands!)
+    #         patch1 (MGLPatch): mgl patch object?
+    #         particle2_dna (DNAParticle): DNAParticle object representing particle b
+    #         dna_patch2_id (int): the index in DNAParticleType::patch_strand_ids of the patch to bind
+    #         dna_patch2_strand (int): the index of the strand in the patch strands (NOT particle strands!)
+    #         patch2 (MGLPatch): mgl patch object?
+    #     """
+    #     # find nucleotides which will be extended to form patches
+    #     patch1_nucleotide: DNABase = particle1_dna.patch_strand_3end(dna_patch1_id, dna_patch1_strand)
+    #     patch2_nucleotide: DNABase = particle2_dna.patch_strand_3end(dna_patch2_id, dna_patch2_strand)
+    #
+    #     start_position1 = patch1_nucleotide.pos
+    #     start_position2 = patch2_nucleotide.pos
+    #
+    #     start_vector_1 = normalize(start_position2 - start_position1)
+    #
+    #     patch_distance = dist(start_position1, start_position2)
+    #
+    #     # check distances
+    #     if patch_distance > 2 * self.get_expected_pad_distance():
+    #         print(f"Distance between patches = {patch_distance}. "
+    #               f"Expected distance {self.get_expected_pad_distance()}")
+    #
+    #     # retrieve sequences from map + add spacers
+    #     patch1_seq = self.spacer_length * "T" + self.color_sequence(patch1.color())
+    #     patch2_seq = self.spacer_length * "T" + self.color_sequence(patch2.color())
+    #
+    #     strand1, strand2 = construct_strands(patch1_seq + self.spacer_length * "T",  # need to add fake spacer to make code no go boom
+    #                                          start_position1 + start_vector_1 * BASE_BASE,
+    #                                          start_vector_1,
+    #                                          rbases=patch2_seq)
+    #     strand1 = strand1[:len(patch1_seq)]  # shave off dummy spacer from previous line of code
+    #
+    #
+    #     particle1_dna.patch_strand(dna_patch1_id, dna_patch1_strand).prepend(strand1[::-1])
+    #     particle2_dna.patch_strand(dna_patch2_id, dna_patch2_strand).prepend(strand2[::-1])
 
     def get_particles(self) -> list[DNAParticle]:
         """
@@ -620,37 +693,36 @@ class MGLOrigamiConverter:
         """
         if self.dna_particles is None:
             print("positioning particles")
-            self.dna_particles = self.position_particles()
-        return self.dna_particles
+            self.position_particles()
+        return list(self.dna_particles.values())
 
-    def convert(self,
-                write_top_path: Union[Path, str, None] = None,
-                write_conf_path: Union[Path, str, None] = None,
-                write_oxview_path: Union[Path, str, None] = None):
+    def get_dna_particle(self, pl: Union[int, PLPatchyParticle]) -> DNAParticle:
+        """
+        Gets the DNA particle instace (not type) for a PL particle instance
+        """
+        # position particles if missing
+        self.get_particles()
+        if isinstance(pl, PLPatchyParticle):
+            return self.get_dna_particle(pl.get_id())
+        else:
+            assert isinstance(pl, int)
+            assert pl in self.dna_particles
+            return self.dna_particles[pl]
+
+    def construct_types(self):
+        """
+        Constructs "type particles" for each DNA particle.
+        Important so we can keep same color strands the same on types
+        """
+        pass
+
+    def convert(self):
         """
         Converts a scene containing joined MGL particles to an oxDNA model consisting of
         DNA origamis joined by sticky end handles.
         """
 
         # sanitize inputs
-        if write_top_path is not None:
-            if isinstance(write_top_path, str):
-                write_top_path = Path(write_top_path)
-            if not write_top_path.is_absolute():
-                write_top_path = get_output_dir() / write_top_path
-
-        if write_conf_path is not None:
-            if isinstance(write_conf_path, str):
-                write_conf_path = Path(write_conf_path)
-            if not write_conf_path.is_absolute():
-                write_conf_path = get_output_dir() / write_conf_path
-
-        if write_oxview_path is not None:
-            if isinstance(write_oxview_path, str):
-                write_oxview_path = Path(write_oxview_path)
-            if not write_oxview_path.is_absolute():
-                write_oxview_path = get_output_dir() / write_oxview_path
-
         particles = self.get_particles()
 
         print("binding particles using 3p patches")
@@ -658,22 +730,36 @@ class MGLOrigamiConverter:
         assert self.expected_num_edges == -1 or self.bondcount == self.expected_num_edges, \
             "Wrong number of bonds created!"
 
-        print("merging the topologies")
-
-        merged_conf = sum(particles[1:], start=particles[0])
-        # spit out the topology
-        if write_top_path:
-            assert write_conf_path
-            assert write_top_path.parent.exists()
-            assert write_conf_path.parent.exists()
-            if write_top_path.parent != write_conf_path.parent:
-                print("You're technically allowed to do this but I do wonder why")
-            merged_conf.export_top_conf(write_top_path, write_conf_path)
-            print(f"Wrote topopogy file to {str(write_top_path)}")
-
-            print(f"Wrote conf file to {str(write_conf_path)}")
-
-        if write_oxview_path:
-            merged_conf.export_oxview(write_oxview_path)
-            print(f"Wrote OxView file to {str(write_oxview_path)}")
         print("Done!")
+
+    def save_top_dat(self, write_top_path: Union[Path, str], write_conf_path: Union[Path, str]):
+        if isinstance(write_top_path, str):
+            write_top_path = Path(write_top_path)
+        if not write_top_path.is_absolute():
+            write_top_path = get_output_dir() / write_top_path
+
+        if isinstance(write_conf_path, str):
+            write_conf_path = Path(write_conf_path)
+        if not write_conf_path.is_absolute():
+            write_conf_path = get_output_dir() / write_conf_path
+
+        assert write_top_path.parent.exists()
+        assert write_conf_path.parent.exists()
+        if write_top_path.parent != write_conf_path.parent:
+            print("You're technically allowed to do this but I do wonder why")
+
+        merged_conf = self.get_full_conf()
+
+        merged_conf.export_top_conf(write_top_path, write_conf_path)
+        print(f"Wrote topopogy file to {str(write_top_path)}")
+
+        print(f"Wrote conf file to {str(write_conf_path)}")
+    def save_oxview(self, write_oxview_path: Union[Path, str]):
+        if isinstance(write_oxview_path, str):
+            write_oxview_path = Path(write_oxview_path)
+        if not write_oxview_path.is_absolute():
+            write_oxview_path = get_output_dir() / write_oxview_path
+
+        merged_conf = self.get_full_conf()
+        merged_conf.export_oxview(write_oxview_path)
+        print(f"Wrote OxView file to {str(write_oxview_path)}")

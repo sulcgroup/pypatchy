@@ -29,14 +29,14 @@ DEFAULT_SB_ARGS = {
 
 def plot_analysis_data(e: PatchySimulationEnsemble,
                        analysis_data_source: PipelineStepDescriptor,
-                       data_source_key: str,
+                       data_source_key: str = YIELD_KEY,
                        other_spec: Union[None, list[ParameterValue], list[tuple]] = None,
                        cols: Union[None, str, EnsembleParameter] = None,
                        rows: Union[None, str, EnsembleParameter] = None,
                        color: Union[None, str, EnsembleParameter] = None,
                        stroke: Union[None, str, EnsembleParameter] = None,
                        trange: Union[None, tuple[int, int]] = None,
-                       norm: Union[None, str] = None
+                       norm: Union[None, str, int, float] = None
                        ) -> sb.FacetGrid:
     """
     Uses seaborn to construct a plot of data provided with the output values on the y axis
@@ -88,12 +88,21 @@ def plot_analysis_data(e: PatchySimulationEnsemble,
                 print(f"Warning: ensemble parameter {col} not accounted for in visualization! problems may arise!")
 
     if norm:
-        def normalize_row(row):
-            sim = row.drop([TIMEPOINT_KEY, data_source_key]).to_dict()
-            # sim = data_source.get().iloc[row].drop([TIMEPOINT_KEY, data_source_key]).to_dict()
-            sim = e.get_simulation(**sim)
-            return row[data_source_key] / e.sim_get_param(sim, norm)
-            # data.loc[row, data_source_key] /= e.sim_get_param(sim, norm)
+        if isinstance(norm, int) or isinstance(norm, float):
+            def normalize_row(row):
+                sim = row.drop([TIMEPOINT_KEY, data_source_key]).to_dict()
+                # sim = data_source.get().iloc[row].drop([TIMEPOINT_KEY, data_source_key]).to_dict()
+                sim = e.get_simulation(**sim)
+                return row[data_source_key] / norm
+                # data.loc[row, data_source_key] /= e.sim_get_param(sim, norm)
+
+        else:
+            def normalize_row(row):
+                sim = row.drop([TIMEPOINT_KEY, data_source_key]).to_dict()
+                # sim = data_source.get().iloc[row].drop([TIMEPOINT_KEY, data_source_key]).to_dict()
+                sim = e.get_simulation(**sim)
+                return row[data_source_key] / e.sim_get_param(sim, norm)
+                # data.loc[row, data_source_key] /= e.sim_get_param(sim, norm)
 
         data[data_source_key] = data.apply(normalize_row, axis=1)
 

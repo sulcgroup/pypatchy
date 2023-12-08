@@ -159,6 +159,35 @@ class DNAParticle (DNAStructure):
         assert a.shape == (len(self.patch_strand_ids), 3)
         return a
 
+    def patch_strand_id(self, patch: Union[int, PLPatch]) -> int:
+        """
+        Returns the DNA strand that corresponds to the provided patch
+        """
+        if not self.has_linked():
+            raise Exception("Cannot get matching DNA strand from patch if no linked particle")
+        if isinstance(patch, PLPatch):
+            return self.patch_strand_id(patch.get_id())
+        else:
+            if not isinstance(patch, int):
+                raise TypeError(f"Invalid patch identifier type {type(patch)}")
+            if patch not in self.patch_strand_map:
+                raise IndexError(f"No DNA strand corresponding to patch with ID {patch}")
+            strand_id = self.patch_strand_map[patch]
+            if strand_id > self.nstrands:
+                raise IndexError(f"Patch strand ID {strand_id} is invalid")
+            return strand_id
+
+    def patch_strand(self, patch: Union[int, PLPatch]) -> DNAStructureStrand:
+        return self.strands[self.patch_strand_id(patch)]
+
+    def patch_3p(self, patch: Union[int, PLPatch]) -> DNABase:
+        strand = self.patch_strand_id(patch)
+        return self.strand_3p(strand)
+
+    def patch_5p(self, patch: Union[int, PLPatch]) -> DNABase:
+        strand = self.patch_strand_id(patch)
+        return self.strand_5p(strand)
+
     def get_patch_strand_3p_positions(self) -> list[np.ndarray]:
         """
         Returns the positions of the 3' nucleotides of the patches, as matrices of coords
@@ -174,43 +203,43 @@ class DNAParticle (DNAStructure):
             self.dna_patch_positions(i).mean(axis=0) for i in range(len(self.patch_strand_ids))
         ]
 
-    def patch_strand_3end(self, patch_idx: int, patch_strand_idx: int) -> DNABase:
-        """
-        Finds the DNA base object at the 3' end of a strand corresponding to a patch
-        This method involves a lot of tricky indexing
+    # def patch_strand_3end(self, patch_idx: int, patch_strand_idx: int) -> DNABase:
+    #     """
+    #     Finds the DNA base object at the 3' end of a strand corresponding to a patch
+    #     This method involves a lot of tricky indexing
+    #
+    #     Parameters:
+    #         patch_idx (int) the index in self.patch_strand_ids of the patch to find
+    #         patch_strand_idx (int) the index in the list of patch strands of the strand to access
+    #     """
+    #     return self.patch_strand(patch_idx, patch_strand_idx)[0]  # return 3' residue
 
-        Parameters:
-            patch_idx (int) the index in self.patch_strand_ids of the patch to find
-            patch_strand_idx (int) the index in the list of patch strands of the strand to access
-        """
-        return self.patch_strand(patch_idx, patch_strand_idx)[0]  # return 3' residue
+    # def patch_strand(self, patch_idx: int, patch_strand_idx: int) -> DNAStructureStrand:
+    #     """
+    #     Returns strand object corresponding to patch and idx within patch
+    #
+    #     Parameters:
+    #         patch_idx (int) the index in self.patch_strand_ids of the patch to find
+    #         patch_strand_idx (int) the index in the list of patch strands of the strand to access
+    #     """
+    #     return self.strands[self.patch_strand_id(patch_idx, patch_strand_idx)]
 
-    def patch_strand(self, patch_idx: int, patch_strand_idx: int) -> DNAStructureStrand:
-        """
-        Returns strand object corresponding to patch and idx within patch
-
-        Parameters:
-            patch_idx (int) the index in self.patch_strand_ids of the patch to find
-            patch_strand_idx (int) the index in the list of patch strands of the strand to access
-        """
-        return self.strands[self.patch_strand_id(patch_idx, patch_strand_idx)]
-
-    def patch_strand_id(self, patch_idx: int, patch_strand_idx: int) -> int:
-        """
-        Returns strand id corresponding to patch and idx within patch
-
-        Parameters:
-            patch_idx (int) the index in self.patch_strand_ids of the patch to find
-            patch_strand_idx (int) the index in the list of patch strands of the strand to access
-        """
-        assert -1 < patch_idx < len(self.patch_strand_ids), f"Invalid patch idx {patch_idx}"
-        # get patch strands
-        patch_strands: list[int] = self.patch_strand_ids[patch_idx]
-        assert -1 < patch_strand_idx < len(patch_strands), f"Invalid patch strand index {patch_strand_idx}"
-        # get strand ID
-        strand_id = patch_strands[patch_strand_idx]
-        assert -1 < strand_id < len(self.strands), f"Invaliud strand ID {strand_id}"
-        return strand_id
+    # def patch_strand_id(self, patch_idx: int, patch_strand_idx: int) -> int:
+    #     """
+    #     Returns strand id corresponding to patch and idx within patch
+    #
+    #     Parameters:
+    #         patch_idx (int) the index in self.patch_strand_ids of the patch to find
+    #         patch_strand_idx (int) the index in the list of patch strands of the strand to access
+    #     """
+    #     assert -1 < patch_idx < len(self.patch_strand_ids), f"Invalid patch idx {patch_idx}"
+    #     # get patch strands
+    #     patch_strands: list[int] = self.patch_strand_ids[patch_idx]
+    #     assert -1 < patch_strand_idx < len(patch_strands), f"Invalid patch strand index {patch_strand_idx}"
+    #     # get strand ID
+    #     strand_id = patch_strands[patch_strand_idx]
+    #     assert -1 < strand_id < len(self.strands), f"Invaliud strand ID {strand_id}"
+    #     return strand_id
 
     def dna_patch_positions(self, patch_idx: int) -> np.ndarray:
         """

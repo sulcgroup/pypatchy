@@ -643,13 +643,20 @@ class ComputeClusterSizeData(AnalysisPipelineStep):
         # loop timepoints in input graph data
         for timepoint in input_graphs.get():
             if timepoint % self.output_tstep == 0:
-                graph_sizes = [len(g) for g in input_graphs[timepoint] if len(g) >= self.minsize]
-                cluster_size_data[TIMEPOINT_KEY] = timepoint
-                cluster_size_data[self.MIN_KEY].append(min(graph_sizes))
-                cluster_size_data[self.MAX_KEY].append(max(graph_sizes))
-                cluster_size_data[self.MEDIAN_KEY].append(np.median(np.array(graph_sizes)))
-                cluster_size_data[self.MEDIAN_KEY].append(sum(graph_sizes) / len(graph_sizes))
-                cluster_size_data[self.STDEV_KEY].append(np.std(np.array(graph_sizes)))
+                graph_sizes = [len(g) for g in input_graphs.get()[timepoint] if len(g) >= self.minsize]
+                cluster_size_data[TIMEPOINT_KEY].append(timepoint)
+                if not len(graph_sizes):
+                    cluster_size_data[self.MIN_KEY].append(0)
+                    cluster_size_data[self.MAX_KEY].append(0)
+                    cluster_size_data[self.MEDIAN_KEY].append(0)
+                    cluster_size_data[self.MEAN_KEY].append(0)
+                    cluster_size_data[self.STDEV_KEY].append(0)
+                else:
+                    cluster_size_data[self.MIN_KEY].append(min(graph_sizes))
+                    cluster_size_data[self.MAX_KEY].append(max(graph_sizes))
+                    cluster_size_data[self.MEDIAN_KEY].append(np.median(np.array(graph_sizes)))
+                    cluster_size_data[self.MEAN_KEY].append(sum(graph_sizes) / len(graph_sizes))
+                    cluster_size_data[self.STDEV_KEY].append(np.std(np.array(graph_sizes)))
         return PDPipelineData(pd.DataFrame.from_dict(data=cluster_size_data), input_graphs.trange())
 
     def get_output_data_type(self) -> PipelineDataType:
