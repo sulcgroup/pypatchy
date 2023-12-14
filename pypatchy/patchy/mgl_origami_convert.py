@@ -1,5 +1,6 @@
 import math
 from copy import deepcopy
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Generator, Iterable, Union
 
@@ -106,14 +107,23 @@ def patch_idxs_to_bind(patch_id_1: int,
         range(patch_positions2.shape[0]))
 
 
-class MGLOrigamiConverter:
+@dataclass
+class PatchyOriRelation:  # name?
+    patchy: PLPatchyParticle
+    dna: DNAParticle
+    rot: np.ndarray
+    perm: dict[int, int]
+    rms: float
+
+
+class PatchyOrigamiConverter:
     """
     This class facilitates the conversion of a patchy particle model (in MGL format) to
     a set of connected DNA origamis
     """
     color_sequences: dict[Union[int, str], str]
     bondcount: int
-    particle_type_map: dict[str, DNAParticle]
+    particle_type_map: dict[int, DNAParticle]
     patchy_scene: PLPSimulation
     # mapping where keys are PL particle UIDs and values are DNA particles
     dna_particles: dict[int, DNAParticle]
@@ -122,8 +132,8 @@ class MGLOrigamiConverter:
 
     def __init__(self,
                  scene: Union[MGLScene, PLPSimulation],
-                 particle_types: Union[Path, DNAParticle,
-                                       dict[str, DNAParticle]],
+                 # particle_types: Union[Path, DNAParticle,
+                 #                     dict[str, DNAParticle]],
                  # additional arguements (optional)
                  spacer_length: int = 16,
                  particle_delta: float = 1.2,
@@ -168,22 +178,15 @@ class MGLOrigamiConverter:
             scene = mgl_to_pl(scene)
         self.patchy_scene = scene
 
-        # if only one particle type
-        if isinstance(particle_types, DNAParticle):
-            self.particle_type_map = {
-                particle.get_type(): particle_types for particle in self.patchy_scene.particle_types().particles()
-            }
-
-        else:  # forward-proof for heterogenous systems
-            assert isinstance(particle_types, dict)
-            self.particle_type_map = particle_types
+        self.particle_type_map = dict()
 
         # optional parameters
         self.flexable_patch_distances = flexable_patch_distances
         self.expected_num_edges = expected_num_edges
         assert not flexable_patch_distances or expected_num_edges > 0
 
-    def get_dna_origami(self, particle_type: Union[str, int, PatchyBaseParticle]) -> DNAParticle:
+    def get_dna_origami(self,
+                        particle_type: Union[str, int, PatchyBaseParticle]) -> DNAParticle:
         if isinstance(particle_type, PatchyBaseParticle):
             return self.get_dna_origami(particle_type.get_type())
         else:
@@ -210,7 +213,6 @@ class MGLOrigamiConverter:
 
             # WARNING! this algorithm could become very intense very quickly for large scenes
             for p1, p2 in self.patchy_scene.iter_bound_particles():
-
                 # compute distance between two particles in the scene (mgl or pl)
                 particles_distance = dist(p1.position(), p2.position())
                 # technically radius() isn't a member of BaseParticle
@@ -236,7 +238,6 @@ class MGLOrigamiConverter:
             self.dist_ratio = dist_ratio
 
         return self.dist_ratio
-
 
     # TODO: write better?
     def color_sequence(self, colorstr: str) -> str:
@@ -266,6 +267,28 @@ class MGLOrigamiConverter:
         self.color_sequences[color] = seq
         self.color_sequences[-color] = rc(seq)
 
+    def assign_particles(self, dna: DNAParticle, *args: Union[str, PLPatchyParticle, int]):
+        """
+        Assigns a dna particle to one or more patchy particle types
+        """
+
+        # if no particle was provided, assume we're assigning the same DNA particle to
+        # all patchy particle types.
+        if not len(args):
+            patchy_types: list[PLPatchyParticle] = self.patchy_scene.particle_types().particles()
+        else:
+            patchy_types: list[PLPatchyParticle] = []
+            for a in args:
+                if isinstance(a, PLPatchyParticle):
+                    patchy_types.append(a)
+                else:
+                    ptype = self.patchy_scene.particle_types().particle(a)
+                    patchy_types.append(ptype)
+        for patchy_type in patchy_types:
+            dna_cpy = deepcopy(dna)
+            self.particle_type_map[patchy_type.get_type()] = dna_cpy
+            self.link_patchy_particle(patchy_type, dna_cpy)
+
     def get_color_match(self, color: Union[int, str]) -> Union[int, str]:
         if color in self.color_match_overrides:
             return self.color_match_overrides[color]
@@ -294,45 +317,38 @@ class MGLOrigamiConverter:
 
     def match_patches_to_strands(self,
                                  p: PLPatchyParticle,
-                                 dna: DNAParticle) -> np.ndarray:
+                                 dna: DNAParticle) -> PatchyOriRelation:
         """
         Computes a rotation of this DNA particle that makes the patches on that particle line up with the
         3' ends of patch strands.
         Parameters:
-            patch_groups: groups of patches that should be kept as a block for the purposes of
+            p (PLPatchyParticle): a patchy particle (type) to link
+            dna (DNAParticle):
         Returns:
-            a tuple where the first element is a rotation matrix (3x3), and the second is a mapping of patch IDs
-            to patch strand
-            For all but unidentate patches, the length of the sets of strands will be 1
+            a dataclass instance describing the relationship between the patchy particle
+            and the dna origami
         """
         # construct list of patch groups (can be 1 patch / group)
         # load each patch on the mgl particle
-
-        # for patch in p.patches():
-            # scale patch with origami
-            # skip magic padding when scaling patch local coords
-            # patchy_patches.append(patch.position() / self.scale_factor(p))
-        # assert len(patchy_patches) == len(self.patch_centerpoints())
-        # generate matrix of origami patch matrices
-        best_rms = np.Inf
         # test different patch arrangements in mgl vs. origami. use best option.
         # best_order should be ordering of dna patches which best matches particle patches
         # iterate possible n-length permutations of the patches on the DNA particle,
         # where n is the number of patches on the patchy particles
 
         # compute best ordering of patches
-        best_rot, patch_group_map = self.align_patches(p, dna)
+        relation = self.align_patches(p, dna)
 
-        for udt_id, strand_group_idx in patch_group_map.items():
+        for udt_id, strand_group_idx in relation.perm.items():
             strand_group = dna.patch_strand_ids[strand_group_idx]
+            # get the multidentate representation of the patch
             patch_group = self.patchy_scene.particle_types().mdt_rep(udt_id)
             # compute strand mapping
             strand_map: dict[int, int] = dna.align_patch_strands(patch_group, strand_group, dna.scale_factor(p))
             dna.assign_patches_strands(strand_map)
 
-        print(f"Superimposed DNA origami on patchy particle {p.get_id()} with RMS={best_rms}")
-        print(f"RMS / circumfrance: {best_rms / (2 * math.pi * dna.center2patch_conf())}")
-        return best_rot
+        print(f"Superimposed DNA origami on patchy particle {p.get_id()} with RMS={relation.rms}")
+        print(f"RMS / circumfrance: {relation.rms / (2 * math.pi * dna.center2patch_conf())}")
+        return PatchyOriRelation(p, dna, relation.rot, relation.perm, relation.rms)
 
     def link_patchy_particle(self, p: PLPatchyParticle, dna: DNAParticle):
         """
@@ -351,15 +367,15 @@ class MGLOrigamiConverter:
             f"on patchy particle({p.num_patches()})!"
         # compute strand mapping
         if not dna.has_strand_map():
-            rot = self.match_patches_to_strands(p, dna)
-
+            relation = self.match_patches_to_strands(p, dna)
+        else:
+            relation = PatchyOriRelation(p, dna, np.identity(3), dna.patch_strand_map, 0)
         # call self.transform BEFORE linking the particle!
-        dna.transform(rot)
+        dna.transform(relation.rot)
         # self.patch_strand_ids = [self.patch_strand_ids[i] for i in best_order[:-1]] # skip last position (centerpoint)
         dna.linked_particle = p
-        self.dna_particles[p.get_id()] = dna
 
-    def align_patches(self, p: PLPatchyParticle, dna: DNAParticle) -> tuple[np.ndarray, dict[int, int]]:
+    def align_patches(self, p: PLPatchyParticle, dna: DNAParticle) -> PatchyOriRelation:
         """
         Aligns patch centerpoints with the average positions of multidentate patches
         Returns:
@@ -411,119 +427,39 @@ class MGLOrigamiConverter:
                 best_rot = sup.rot
                 # save rms
                 best_rms = sup.get_rms()
-        return best_rot, best_order
+        return PatchyOriRelation(p, dna, best_rot, best_order, best_rms)
 
-    def position_particles(self) -> list[DNAParticle]:
+    def ready_to_position(self) -> bool:
+        return all([ptype.get_type() in self.particle_type_map
+                    for ptype in self.patchy_scene.particle_types()])
+
+    def position_particles(self):
         """
         Positions particles?
         IDK
         """
+        assert self.ready_to_position()
         self.dna_particles = dict()
         # get scene particles
-        particles = self.patchy_scene.particles()
-        placed_confs = []  # output prom_p
+        particles: list[PLPatchyParticle] = self.patchy_scene.particles()
         pl = len(particles)
         for i, particle in enumerate(particles):
             # clone dna particle
             origami: DNAParticle = deepcopy(self.get_dna_origami(particle))
             print(f"{i + 1}/{pl}", end="\r")
-            # link DNA particle to pl particle
-            self.link_patchy_particle(particle, origami)
-            linker_len = (self.spacer_length * 2 + self.sticky_length) * BASE_BASE,
-            # scale_factor = origami.scale_factor(particle) / self.padding
+            origami.instance_align(particle)
+
+            # compute scale factor
             scale_factor = self.get_dist_ratio() * self.padding
-            # magic numbers needed again for things not to clash
-            # origami.box = self.mgl_scene.box_size() / scale_factor
             # scale factor tells us how to convert MGL distance units into our DNA model distances
+            # transform origami
             origami.transform(tran=particle.position() * scale_factor)
 
             # we finished the positioning
-            placed_confs.append(origami)
+            self.dna_particles[particle.get_id()] = origami
         print()
-        return placed_confs
 
-    # def particle_pair_candidates(self) -> Generator[tuple[MGLParticle], None, None]:
-    #     """
-    #     Returns all possible pairs of particles,
-    #     as defined by interaction range between centers of mass
-    #     """
-    #     handeled_candidates = set()
-    #     for i, p1 in enumerate(self.patchy_scene.particles()):
-    #         for j, p2 in enumerate(self.patchy_scene.particles()):
-    #             # if the particles are different and the distance is less than the maximum interaction distance
-    #             if i != j and dist(p1.cms(),
-    #                                p2.cms()) <= self.particle_delta:
-    #                 if (i, j) not in handeled_candidates and not (j, i) in handeled_candidates:  # prevent repeats
-    #                     handeled_candidates.add((i, j))
-    #                     assert (p1.type_id(), p2.type_id()) == (i, j)
-    #                     yield p1, p2
-
-    # def patches_to_bind(p1, p2, patch_delta, cos_theta_max):
-    #     for q,patch_1 in enumerate(p1.patches):
-    #         for z,patch_2 in enumerate(p2.patches):
-    #             if dist(p1.cms + patch_1.pos - (p2.cms+patch_2.pos)) <= patch_delta and colors_pair(patch_1, patch_2):
-    #                 #https://stackoverflow.com/questions/2827393/angles-between-two-n-dimensional-vectors-in-python
-    #                 patch1norm = patch_1.pos / np.linalg.norm(patch_1.pos)
-    #                 patch2norm = patch_2.pos / np.linalg.norm(patch_2.pos)
-    #                 costheta = abs(float(np.clip(np.dot(patch1norm, patch2norm), -1.0, 1.0)))
-    #                  # confusing,ly, cos theta-max is the cosine of the maximum angle
-    #                  # so we check if cos theta is LESS than cos theta-max
-    #                 if costheta >= cos_theta_max:
-    #                     yield (q, patch_1), (z, patch_2)
-
-    # def patches_to_bind(self,
-    #                     particle_1: MGLParticle,
-    #                     particle_2: MGLParticle) -> Generator[tuple[tuple[int, MGLPatch],
-    #                                                                 tuple[int, MGLPatch]],
-    #                                                           None,
-    #                                                           None]:
-    #     """
-    #     Returns:
-    #         a generator which produces pairs of tuples, each of which consists of patch index and patch object
-    #     """
-    #     assert particle_1.type_id() != particle_2.type_id()
-    #     # keep in mind: we can't use patch internal IDs here because it enumerates differently!
-    #     # find all possible pairings between two patches on particle 1 and particle 2
-    #     # filter patches that don't pair
-    #     possible_bindings = list(self.patchy_scene.iter_binding_patches(particle_1, particle_2))
-    #     # sort by distance, ascending order
-    #
-    #     def sort_by_distance(p):
-    #         patch1, patch2 = p
-    #         return dist(particle_1.position() + patch1.position(),
-    #                     particle_2.position() + patch2.position())
-    #
-    #     possible_bindings.sort(key=sort_by_distance)
-    #     # lists for patches that have been handled on particles 1 and 2
-    #     handled_p1 = set()
-    #     handled_p2 = set()
-    #     # iterate through possible pairs of patches
-    #     for patch_1, patch_2 in possible_bindings:
-    #         # skip patches we've already handled
-    #         if not handled_p1[q] and not handled_p2[z]:
-    #             # if the two patches are within bonding distance (mgl units)
-    #             patch1_position = particle_1.cms() + patch_1.position()
-    #             patch2_position = particle_2.cms() + patch_1.position()
-    #             # compute patch distance
-    #             patches_distance = dist(patch1_position, patch2_position)
-    #             if (patches_distance <= self.bond_length) or \
-    #                     (self.flexable_patch_distances and (self.bondcount < self.expected_num_edges)):
-    #                 # https://stackoverflow.com/questions/2827393/angles-between-two-n-dimensional-vectors-in-python
-    #                 # normalize patches
-    #                 patch1norm = patch_1.position() / np.linalg.norm(patch_1.position())
-    #                 patch2norm = patch_2.position() / np.linalg.norm(patch_2.position())
-    #                 costheta = abs(float(np.clip(np.dot(patch1norm,
-    #                                                     patch2norm), -1.0, 1.0)))
-    #                 # confusing,ly, cos theta-max is the cosine of the maximum angle
-    #                 # so we check if cos theta is LESS than cos theta-max
-    #                 if costheta >= self.cos_theta_max:
-    #                     handled_p1[q] = handled_p2[z] = True
-    #                     yield (q, patch_1), (z, patch_2)
-    #             else:  # can do this because list is sorted
-    #                 break
-
-    def bind_particles3p(self,
-                         dna_particles: list[DNAParticle]):
+    def bind_particles3p(self):
         """
         Creates double-stranded linkers to bind particles together
         """
@@ -535,11 +471,11 @@ class MGLOrigamiConverter:
             # iter pairs of patches that connect p1 to p2
             for patch1, patch2 in self.patchy_scene.iter_binding_patches(p1, p2):
                 self.bind_patches_3p(p1_dna,
-                                      patch1,
-                                      p2_dna,
-                                      patch2)
+                                     patch1,
+                                     p2_dna,
+                                     patch2)
 
-        #OLD CODE
+        # OLD CODE
 
         # assert self.patchy_scene.patch_ids_unique()
         # please please do not call this method with dna particles that don't correspond
@@ -598,13 +534,9 @@ class MGLOrigamiConverter:
         """
         Binds two patches together by adding sticky ends at the 3' ends.
         Parameters:
-            particle1_dna (DNAParticle): DNAParticle object representing particle a
-            dna_patch1_id (int): the index in DNAParticleType::patch_strand_ids of the patch to bind
-            dna_patch1_strand (int): the index of the strand in the patch strands (NOT particle strands!)
+            particle1 (DNAParticle): DNAParticle object representing particle a
             patch1 (MGLPatch): mgl patch object?
-            particle2_dna (DNAParticle): DNAParticle object representing particle b
-            dna_patch2_id (int): the index in DNAParticleType::patch_strand_ids of the patch to bind
-            dna_patch2_strand (int): the index of the strand in the patch strands (NOT particle strands!)
+            particle2 (DNAParticle): DNAParticle object representing particle b
             patch2 (MGLPatch): mgl patch object?
         """
 
@@ -626,7 +558,8 @@ class MGLOrigamiConverter:
         patch1_seq = self.spacer_length * "T" + self.color_sequence(patch1.color())
         patch2_seq = self.spacer_length * "T" + self.color_sequence(patch2.color())
 
-        strand1, strand2 = construct_strands(patch1_seq + self.spacer_length * "T",  # need to add fake spacer to make code no go boom
+        strand1, strand2 = construct_strands(patch1_seq + self.spacer_length * "T",
+                                             # need to add fake spacer to make code no go boom
                                              start_position1 + start_vector_1 * BASE_BASE,
                                              start_vector_1,
                                              rbases=patch2_seq)
@@ -634,7 +567,6 @@ class MGLOrigamiConverter:
 
         particle1.patch_strand(patch1).prepend(strand1[::-1])
         particle2.patch_strand(patch2).prepend(strand2[::-1])
-
 
     # def bind_patches_3p(self,
     #                     particle1_dna: DNAParticle,
@@ -709,24 +641,14 @@ class MGLOrigamiConverter:
             assert pl in self.dna_particles
             return self.dna_particles[pl]
 
-    def construct_types(self):
-        """
-        Constructs "type particles" for each DNA particle.
-        Important so we can keep same color strands the same on types
-        """
-        pass
-
     def convert(self):
         """
         Converts a scene containing joined MGL particles to an oxDNA model consisting of
         DNA origamis joined by sticky end handles.
         """
 
-        # sanitize inputs
-        particles = self.get_particles()
-
         print("binding particles using 3p patches")
-        self.bind_particles3p(particles)
+        self.bind_particles3p()
         assert self.expected_num_edges == -1 or self.bondcount == self.expected_num_edges, \
             "Wrong number of bonds created!"
 
@@ -754,6 +676,7 @@ class MGLOrigamiConverter:
         print(f"Wrote topopogy file to {str(write_top_path)}")
 
         print(f"Wrote conf file to {str(write_conf_path)}")
+
     def save_oxview(self, write_oxview_path: Union[Path, str]):
         if isinstance(write_oxview_path, str):
             write_oxview_path = Path(write_oxview_path)

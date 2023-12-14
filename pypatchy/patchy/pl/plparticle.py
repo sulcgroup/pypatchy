@@ -544,6 +544,9 @@ class PLPatchyParticle(PatchyBaseParticleType, PatchyBaseParticle):
     def rotation(self) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         return self.a1, self.a2, self.a3
 
+    def rotmatrix(self) -> np.ndarray:
+        return np.stack(self.rotation())
+
     def __contains__(self, item: PLPatch):
         return any([p == item for p in self.patches()])
 
@@ -606,6 +609,15 @@ class PLParticleSet(BaseParticleSet):
 
     def is_multidentate(self) -> bool:
         return self.has_udt_src() and self.get_src().num_patches() != self.num_patches()
+
+    def particle(self, identifier: Union[int, str]) -> PLPatchyParticle:
+        if isinstance(identifier, int):
+            return BaseParticleSet.particle(self, identifier)
+        else:
+            for p in self.particles():
+                if p.name() == identifier:
+                    return p
+            raise IndexError(f"No particle in this set with name {identifier}")
 
     def mdt_rep(self, udt_id: int) -> set[PLPatch]:
         assert self.has_udt_src()
