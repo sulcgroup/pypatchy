@@ -6,7 +6,7 @@ from typing import Union
 import numpy as np
 from Bio.SVDSuperimposer import SVDSuperimposer
 
-from .pl.plparticle import PLPatch
+from .pl.plparticle import PLPatch, PLPatchyParticle
 from ..patchy_base_particle import PatchyBaseParticle, BasePatchType
 
 from ..dna_structure import DNAStructure, DNABase, DNAStructureStrand
@@ -356,3 +356,14 @@ class DNAParticle (DNAStructure):
         # if self.has_linked():
         #     self.linked_particle.rotate(rot)
         #     self.linked_particle.translate(tran)
+
+    def instance_align(self, particle: PLPatchyParticle):
+        """
+        Aligns a dna particle which has already been linked to a patchy particle type
+        to a specific patchy particle instance
+        """
+        assert particle.type_id() == self.linked_particle.get_type()
+        # set origami rotation to match particle instance rotation
+        self.transform(rot=particle.rotmatrix())
+        # link particle instance (replacing type particle)
+        self.linked_particle = particle
