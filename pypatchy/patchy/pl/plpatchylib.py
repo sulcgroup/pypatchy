@@ -7,7 +7,8 @@ from typing import Union
 # This file loads patchy particle file from topology and Configuration
 import copy
 
-from pypatchy.patchy.pl.plparticle import PLPatch, PLPatchyParticle, PLParticleSet
+from pypatchy.patchy.pl.plparticle import PLPatchyParticle, PLParticleSet
+from pypatchy.patchy.pl.plpatch import PLPatch
 
 """
 Library for handling patchy-lock (PL) systems in pypatchy

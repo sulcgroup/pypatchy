@@ -1666,7 +1666,7 @@ class PatchySimulationEnsemble:
     # server_config = get_server_config()
     #
     # # write top and particles/patches spec files
-    # # first convert particle json into PLPatchy objects (cf plpatchy.py)
+    # # first convert particle json into PLPatchy objects (cf plpatchylib.py)
     # particles, patches = to_PL(self.particle_set,
     #                            self.sim_get_param(sim, NUM_TEETH_KEY),
     #                            self.sim_get_param(sim, DENTAL_RADIUS_KEY))

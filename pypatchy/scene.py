@@ -36,6 +36,10 @@ class Scene(ABC):
     def add_particles(self, particles: Iterable[PatchyBaseParticle]):
         self._particles.extend(particles)
 
+    def get_particle(self, pidx: int) -> PatchyBaseParticle:
+        assert self._particles[pidx].get_id() == pidx
+        return self._particles[pidx]
+
     @abstractmethod
     def num_particle_types(self) -> int:
         pass
@@ -61,7 +65,15 @@ class Scene(ABC):
             if self.particles_bound(p1, p2):
                 yield p1, p2
 
-    def iter_binding_patches(self, p1: PatchyBaseParticle, p2: PatchyBaseParticle) -> Generator[tuple[BasePatchType, BasePatchType], None, None]:
-        for p1, p2 in zip(p1.patches(), p2.patches()):
-            if p1.can_bind(p2):
+    def iter_binding_patches(self, particle1: PatchyBaseParticle, particle2: PatchyBaseParticle) -> Generator[tuple[BasePatchType, BasePatchType], None, None]:
+        for p1, p2 in itertools.product(particle1.patches(), particle2.patches()):
+            if self.patches_bound(particle1, p1, particle2, p2):
                 yield p1, p2
+
+    @abstractmethod
+    def patches_bound(self,
+                      particle1: PatchyBaseParticle,
+                      p1: BasePatchType,
+                      particle2: PatchyBaseParticle,
+                      p2: BasePatchType) -> bool:
+        pass

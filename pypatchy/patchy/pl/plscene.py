@@ -8,8 +8,9 @@ from typing import Union, Iterable
 import numpy as np
 from oxDNA_analysis_tools.UTILS.data_structures import Configuration
 
-from pypatchy.patchy.pl.plpatchy import PATCHY_CUTOFF
+from pypatchy.patchy.pl.plpatchylib import PATCHY_CUTOFF
 from pypatchy.patchy.pl.plparticle import PLPatchyParticle, PLParticleSet
+from pypatchy.patchy.pl.plpatch import PLPatch
 from pypatchy.patchy_base_particle import BaseParticleSet
 from pypatchy.scene import Scene
 from pypatchy.util import dist
@@ -358,25 +359,37 @@ class PLPSimulation(Scene):
             if p1patch.can_bind(p2patch):
                 # check binding geometry
                 # (warning: sus)
-                patch1_pos = p1patch.position() @ p1.rotation() + p1.position()
-                patch2_pos = p2patch.position() @ p2.rotation() + p2.position()
+                patch1_pos = p1.patch_position(p1patch)
+                patch2_pos = p2.patch_position(p2patch)
                 # todo: verify that this behavior is correct!
                 d = dist(patch1_pos, patch2_pos)
                 # 4 * patch.width = 2 x patch radius x 2 patches
 
-    def particles_bound(self, p1: PLPatchyParticle, p2: PLPatchyParticle) -> bool:
+    def particles_bound(self,
+                        p1: Union[PLPatchyParticle, int],
+                        p2: Union[PLPatchyParticle, int]) -> bool:
         """
         Checks if two particles in this scene are bound
         """
+        if isinstance(p1, int):
+            return self.particles_bound(self.get_particle(p1), self.get_particle(p2))
         # TODO: employ patch-patch energy computations
         # return self.patchy_interaction_strength(p1, p2) < -0.1
         # for now, assume any two complimentary patches within 0.1 units are bound
         for p1patch, p2patch in itertools.product(p1.patches(), p2.patches()):
-            if p1patch.can_bind(p2patch):
-                # check binding geometry
-                # (warning: sus)
-                patch1_pos = p1patch.position() @ p1.rotation() + p1.position()
-                patch2_pos = p2patch.position() @ p2.rotation() + p2.position()
-                if dist(patch1_pos, patch2_pos) <= PATCHY_CUTOFF:
-                    return True
+            if self.patches_bound(p1, p1patch, p2, p2patch):
+                return True
+
+        return False
+
+    def patches_bound(self,
+                      particle1: PLPatchyParticle,
+                      p1: PLPatch,
+                      particle2: PLPatchyParticle,
+                      p2: PLPatch) -> bool:
+        # TODO: better calculationzs
+        patch1_pos = particle1.patch_position(p1)
+        patch2_pos = particle2.patch_position(p2)
+        if dist(patch1_pos, patch2_pos) <= PATCHY_CUTOFF:
+            return True
         return False

@@ -240,7 +240,13 @@ def rotidx(r: dict[int, dict[int, int]]) -> int:
             return key
     return -1  # invalid rotation dict
 
-def getSignedAngle(v1: np.ndarray, v2: np.ndarray, axis: np.ndarray) -> float:
+def getSignedAngle(v1: np.ndarray,
+                   v2: np.ndarray,
+                   axis: np.ndarray) -> float:
+    """
+    nightmare code
+    computes the angle from vector v1 to vector v2 around axis... probably
+    """
     s = np.cross(v1, v2)
     c = v1.dot(v2)
     a = np.arctan2(np.linalg.norm(s), c)

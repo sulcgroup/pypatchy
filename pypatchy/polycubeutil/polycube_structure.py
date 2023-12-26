@@ -51,7 +51,7 @@ class PolycubeStructure(TypedStructure, Scene):
         self.cubeMap = {}
         # nodes in the graph are cube uids
         # edges attrs are FACE INDEXES IN RULE_ORDER, IN THE CUBE TYPE
-        self.cubeList = []
+        self._particles = []
         if "structure" in kwargs:
             # structure passed as nested dict, as read from json
             for cube_idx, cube in enumerate(kwargs["structure"]):
@@ -73,7 +73,7 @@ class PolycubeStructure(TypedStructure, Scene):
                                                  cube_type,
                                                  cube["state"])
                 self.cubeMap[cube_position.tobytes()] = cubeObj
-                self.cubeList.append(cubeObj)
+                self._particles.append(cubeObj)
                 self.graph.add_node(cube_idx, cube=cubeObj)
         elif "cubes" in kwargs:
             # structure passed as list of cube objects
@@ -81,7 +81,7 @@ class PolycubeStructure(TypedStructure, Scene):
                 if isinstance(cube, dict):
                     cube = PolycubesStructureCube()
                 assert cube.get_type() in [ct.type_id() for ct in self.rule.particles()], "Cube type not found in rule!"
-                self.cubeList.append(cube)
+                self._particles.append(cube)
                 self.cubeMap[cube.position().tobytes()] = cube
                 self.graph.add_node(cube.get_id(), cube=cube)
         else:
@@ -89,7 +89,7 @@ class PolycubeStructure(TypedStructure, Scene):
             pass
 
         # loop cube pairs (brute-forcing topology)
-        for cube1, cube2 in itertools.combinations(self.cubeList, 2):
+        for cube1, cube2 in itertools.combinations(self._particles, 2):
             # if cubes are adjacent
             if np.linalg.norm(cube1.position() - cube2.position()) == 1:
                 d1 = cube2.position() - cube1.position()
@@ -112,11 +112,11 @@ class PolycubeStructure(TypedStructure, Scene):
                                 ))
 
     def num_cubes_of_type(self, ctidx: int) -> int:
-        return sum([1 for cube in self.cubeList if cube.get_cube_type().type_id() == ctidx])
+        return sum([1 for cube in self._particles if cube.get_cube_type().type_id() == ctidx])
 
     def get_cube(self, uid: int) -> PolycubesStructureCube:
         # assert -1 < uid < len(self.cubeList)
-        for cube in self.cubeList:
+        for cube in self._particles:
             if cube.get_id() == uid:
                 return cube
         raise Exception(f"No cube with ID {uid}")
@@ -142,7 +142,7 @@ class PolycubeStructure(TypedStructure, Scene):
         # Iterate over the cycles
         for cycle in cycle_list:
             # Convert each cycle to a tuple of node types (cube types)
-            pattern = tuple(sorted(self.cubeList[node].get_type().type_id() for node in cycle))
+            pattern = tuple(sorted(self._particles[node].get_type().type_id() for node in cycle))
 
             # Append the cycle to the list of cycles of the same pattern
             cycles_by_pattern[pattern].append(cycle)
@@ -180,10 +180,10 @@ class PolycubeStructure(TypedStructure, Scene):
         return self.graph.get_edge_data(node, adj)["dirIdx"]
 
     def get_arrow_local_diridx(self, n: int, adj: int) -> int:
-        return self.cubeList[n].typedir(self.get_arrow_diridx(n, adj))
+        return self._particles[n].typedir(self.get_arrow_diridx(n, adj))
 
     def particle_type(self, particle_id: int) -> int:
-        return self.cubeList[particle_id].get_type()
+        return self._particles[particle_id].get_type()
 
     def graph_undirected(self) -> nx.Graph:
         return self.graph.to_undirected()
@@ -286,7 +286,7 @@ class PolycubeStructure(TypedStructure, Scene):
         assert tran.shape[0] == 3
         transformed_structure = copy.deepcopy(self)
         transformed_structure.cubeMap = {}
-        for cube in transformed_structure.cubeList:
+        for cube in transformed_structure._particles:
             cube.set_position(cube.position() @ rot + tran)
             transformed_structure.cubeMap[cube.position().tobytes()] = cube
 
@@ -298,7 +298,7 @@ class PolycubeStructure(TypedStructure, Scene):
              a Structre object that's a substructure of this
         """
         assert nx.algorithms.components.is_strongly_connected(self.graph.subgraph(nodes))
-        return PolycubeStructure(cubes=[c for i, c in enumerate(self.cubeList) if i in nodes], rule=self.rule)
+        return PolycubeStructure(cubes=[c for i, c in enumerate(self._particles) if i in nodes], rule=self.rule)
 
     def num_particle_types(self) -> int:
         return self.rule.num_particle_types()
@@ -313,7 +313,7 @@ class PolycubeStructure(TypedStructure, Scene):
         """
         MUCH faster than the base-class Structure method!
         """
-        return np.stack([cube.position() for cube in self.cubeList])
+        return np.stack([cube.position() for cube in self._particles])
 
     def draw_structure_graph(self, ax: plt.Axes, layout: Union[None, dict] = None):
         if layout is None:
@@ -322,10 +322,31 @@ class PolycubeStructure(TypedStructure, Scene):
         nx.draw(self.graph, ax=ax, with_labels=True, node_color=ptypemap, pos=layout)
 
     def set_particle_types(self, ptypes: BaseParticleSet):
-        rule = ptypes
+        self.rule = ptypes
 
     def particles_bound(self, p1: PatchyBaseParticle, p2: PatchyBaseParticle) -> bool:
         return self.graph.has_edge(p1.get_id(), p2.get_id())
+
+    def patches_bound(self,
+                      particle1: PolycubesStructureCube,
+                      p1: PolycubesPatch,
+                      particle2: PolycubesStructureCube,
+                      p2: PolycubesPatch) -> bool:
+        if p1.color() + p2.color() != 0:
+            return False
+        if (particle2.position() != particle1.position() + p1.direction()).any():
+            return False
+        if (particle1.position() != particle2.position() + p2.direction()).any():
+            return False
+        if ((p1.alignDir() - p2.alignDir()) > 1e-6).any():
+            return False
+        return True
+
+    def num_connections(self):
+        """
+        Returns: the number of cube-cube connections in this structure
+        """
+        return len(self.graph.edges) / 2  # divide by 2 b/c graph is bidirerctional
 
 
 class PolycubesStructureCube(PatchyBaseParticle):
@@ -361,6 +382,9 @@ class PolycubesStructureCube(PatchyBaseParticle):
     def rotation(self) -> Rotation:
         return self._rot
 
+    def rot_mat(self) -> np.ndarray:
+        return self.rotation().as_matrix()
+
     def rotate(self, rotation: Rotation):
         """
         todo: more param options
@@ -394,8 +418,11 @@ class PolycubesStructureCube(PatchyBaseParticle):
             else:
                 return self._state[i]
 
-    def patches(self):
-        return self.get_cube_type().patches()
+    def patches(self) -> list[PolycubesPatch]:
+        """
+        Returns the patches on this polycube, rotated correctly
+        """
+        return [p.rotate(self.rot_mat()) for p in self.get_cube_type().patches()]
 
 
 def load_polycube(file_path: Union[Path, str]) -> PolycubeStructure:

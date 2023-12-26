@@ -388,11 +388,11 @@ class YieldAllosteryDesigner(PolycubeStructure):
             self.vjoints[n] = set()
             adj_edges = self.graph.out_edges(n)
             adj_nodes = [v for u, v in adj_edges]
-            ncube = self.cubeList[n]
+            ncube = self._particles[n]
             for n1, n3 in itertools.permutations(adj_nodes, 2):
                 # grab cube objects for n1, n3
-                n1cube = self.cubeList[n1]
-                n3cube = self.cubeList[n3]
+                n1cube = self._particles[n1]
+                n3cube = self._particles[n3]
                 # grab diridxs of in, out edges. could be important if we ever want to
                 # diversify this algorityhm out of cubes
                 d1in = self.graph.get_edge_data(n1, n)["dirIdx"]
@@ -871,7 +871,7 @@ class YieldAllosteryDesigner(PolycubeStructure):
     #                 yield p
 
     def get_graphs_center(self, node_list):
-        return sum([self.cubeList[n].get_position() for n in node_list]) / len(node_list)
+        return sum([self._particles[n].get_position() for n in node_list]) / len(node_list)
 
     # def get_design_path(self, cycles):
     #
@@ -918,18 +918,18 @@ class YieldAllosteryDesigner(PolycubeStructure):
         # iterate through triplets in the design path
         for prev_node, curr_node, next_node in triplets(p):
             # the cube type at the origin of the design path can't occur anywhere else in the path
-            if self.cubeList[curr_node].get_type().type_id() == self.cubeList[p[0]].get_type().type_id():
+            if self._particles[curr_node].get_type().type_id() == self._particles[p[0]].get_type().type_id():
                 return False
             curr_prev_edge = self.get_arrow_local_diridx(curr_node, prev_node)
             curr_next_edge = self.get_arrow_local_diridx(curr_node, next_node)
             # "back" and "front" here are meant not in a physical sense but in the sense of the cycle
             # synonyms to "next" and "prev" kinda
             # get cube type so we use the same patch ids for different cube instances of the same type
-            back_patch = self.cubeList[curr_node].get_type().patch(curr_prev_edge)
-            front_patch = self.cubeList[curr_node].get_type().patch(curr_next_edge)
+            back_patch = self._particles[curr_node].get_type().patch(curr_prev_edge)
+            front_patch = self._particles[curr_node].get_type().patch(curr_next_edge)
             # cube behavior is
             behavior = (back_patch.get_id(),
-                        self.cubeList[curr_node].get_type().type_id(),
+                        self._particles[curr_node].get_type().type_id(),
                         front_patch.get_id())
 
             # if the path passes through the same behavior in reverse, it's not valid

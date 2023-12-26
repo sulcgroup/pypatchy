@@ -401,7 +401,7 @@ class ClassifyPolycubeClusters(AnalysisPipelineStep):
             self.CLUSTER_EDGE_LEN_STD_KEY: [],
             self.CLUSTER_NUM_DROPPED_EDGES_KEY: []
         }
-        polycube_type_ids = [cube.get_type() for cube in self.target_polycube.cubeList]
+        polycube_type_ids = [cube.get_type() for cube in self.target_polycube._particles]
         polycube_type_map = {
             type_id: polycube_type_ids.count(type_id)
             for type_id in set(polycube_type_ids)

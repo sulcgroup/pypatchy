@@ -1,25 +1,26 @@
+import copy
 import math
+import os
 from copy import deepcopy
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Generator, Iterable, Union
+from typing import Iterable, Union
 
 import numpy as np
 from oxDNA_analysis_tools.UTILS.RyeReader import Configuration
 from Bio.SVDSuperimposer import SVDSuperimposer
 
-from .dna_particle import DNAParticle
+from .dna_particle import DNAParticle, PatchyOriRelation
 from .patchy_scripts import mgl_to_pl
-from .pl.plparticle import PLPatchyParticle, PLPatch
+from .pl.plparticle import PLPatchyParticle
+from .pl.plpatch import PLPatch
 from .pl.plscene import PLPSimulation
-from ..dna_structure import DNABase, construct_strands, BASE_BASE, rc, POS_BASE, DNAStructure
+from ..dna_structure import construct_strands, BASE_BASE, rc, POS_BASE, DNAStructure
 
 from random import choice
 import itertools
 
-from ..patchy.mgl import MGLParticle, MGLPatch, MGLScene
+from ..patchy.mgl import MGLPatch, MGLScene
 from ..patchy_base_particle import PatchyBaseParticle
-from ..scene import Scene
 from ..util import dist, normalize, get_output_dir
 
 
@@ -107,15 +108,6 @@ def patch_idxs_to_bind(patch_id_1: int,
         range(patch_positions2.shape[0]))
 
 
-@dataclass
-class PatchyOriRelation:  # name?
-    patchy: PLPatchyParticle
-    dna: DNAParticle
-    rot: np.ndarray
-    perm: dict[int, int]
-    rms: float
-
-
 class PatchyOrigamiConverter:
     """
     This class facilitates the conversion of a patchy particle model (in MGL format) to
@@ -123,6 +115,7 @@ class PatchyOrigamiConverter:
     """
     color_sequences: dict[Union[int, str], str]
     bondcount: int
+    # map where the keys are patchy particle tpye IDs and the values are DNA type particles
     particle_type_map: dict[int, DNAParticle]
     patchy_scene: PLPSimulation
     # mapping where keys are PL particle UIDs and values are DNA particles
@@ -267,7 +260,9 @@ class PatchyOrigamiConverter:
         self.color_sequences[color] = seq
         self.color_sequences[-color] = rc(seq)
 
-    def assign_particles(self, dna: DNAParticle, *args: Union[str, PLPatchyParticle, int]):
+    def assign_particles(self,
+                         dna: DNAParticle,
+                         *args: Union[str, PLPatchyParticle, int]):
         """
         Assigns a dna particle to one or more patchy particle types
         """
@@ -328,17 +323,14 @@ class PatchyOrigamiConverter:
             a dataclass instance describing the relationship between the patchy particle
             and the dna origami
         """
-        # construct list of patch groups (can be 1 patch / group)
-        # load each patch on the mgl particle
-        # test different patch arrangements in mgl vs. origami. use best option.
-        # best_order should be ordering of dna patches which best matches particle patches
-        # iterate possible n-length permutations of the patches on the DNA particle,
-        # where n is the number of patches on the patchy particles
-
         # compute best ordering of patches
         relation = self.align_patches(p, dna)
 
+        # now individually map strands onto patches
+        # udt_id = id of unidentate expression of patch
+        # strand_group_idx = idx in dna of list of DNA strands that correspond to patch
         for udt_id, strand_group_idx in relation.perm.items():
+            # get strand IDs
             strand_group = dna.patch_strand_ids[strand_group_idx]
             # get the multidentate representation of the patch
             patch_group = self.patchy_scene.particle_types().mdt_rep(udt_id)
@@ -348,6 +340,7 @@ class PatchyOrigamiConverter:
 
         print(f"Superimposed DNA origami on patchy particle {p.get_id()} with RMS={relation.rms}")
         print(f"RMS / circumfrance: {relation.rms / (2 * math.pi * dna.center2patch_conf())}")
+        assert p.num_patches() == len(dna.patch_strand_map)
         return PatchyOriRelation(p, dna, relation.rot, relation.perm, relation.rms)
 
     def link_patchy_particle(self, p: PLPatchyParticle, dna: DNAParticle):
@@ -370,7 +363,7 @@ class PatchyOrigamiConverter:
             relation = self.match_patches_to_strands(p, dna)
         else:
             relation = PatchyOriRelation(p, dna, np.identity(3), dna.patch_strand_map, 0)
-        # call self.transform BEFORE linking the particle!
+        # apply the rotation to the dna structure so it matches the particle
         dna.transform(relation.rot)
         # self.patch_strand_ids = [self.patch_strand_ids[i] for i in best_order[:-1]] # skip last position (centerpoint)
         dna.linked_particle = p
@@ -378,12 +371,14 @@ class PatchyOrigamiConverter:
     def align_patches(self, p: PLPatchyParticle, dna: DNAParticle) -> PatchyOriRelation:
         """
         Aligns patch centerpoints with the average positions of multidentate patches
+        Parameters:
+
         Returns:
-            the ordering of groups of dna strand IDs that best matches the patches on the provided particle
+            a PatchyOriRelation object storing the patch order, rotation matrix, and rms
+            to superimpose the DNA structure onto the patchy particle
         """
         sup = SVDSuperimposer()
-        # clone dna particle
-        pl_patch_centers = {}  # start with centerpoint of the particle (assumed to be 0,0,0)
+        pl_patch_centers = {}
         # load each patch on the patchy particle
         for patch in p.patches():
             # if patch is multidentate, get src patch id as map key
@@ -398,21 +393,26 @@ class PatchyOrigamiConverter:
             pl_patch_centers[patch_type_id].append(patch.position() / dna.scale_factor(p))
         # remember patch id order
         pid_order = list(pl_patch_centers.keys())
-        assert len(pid_order) <= len(dna.patch_strand_ids)
-        # compute patch centers
+        assert len(pid_order) <= len(dna.patch_strand_ids), "Too many patches on patchy particle " \
+                                                            "to map onto this DNA particle!"
+        # compute centerpoints of each multidentate patch on the patchy particle
         pl_centers = np.stack([np.mean(plocs, axis=0) for plocs in pl_patch_centers.values()])
         assert pl_centers.shape == (len(pid_order), 3)
-        # generate matrix of origami patches + centerpoint
+        # compute centers of mass of patches on DNA particle
         dna_patch_cmss = dna.get_patch_cmss()
+        # lower rms = better so start with inf. rms
         best_rms = np.Inf
         best_order = None
         best_rot = None
+        # compute center of mass of DNA particle
         cms = dna.cms()
         # loop permutations of patche strand gorups
         for perm in itertools.permutations(range(len(dna.patch_strand_ids)), r=len(pid_order)):
             # configure svd superimposer
-            m1 = np.concatenate([pl_centers, np.zeros(shape=(1, 3))], axis=0)
-            m2 = np.concatenate([dna_patch_cmss[perm, :], cms[np.newaxis, :]], axis=0)
+            # m1 = generate matrix of origami patches + centerpoint
+            m1 = np.concatenate([dna_patch_cmss[perm, :], cms[np.newaxis, :]], axis=0)
+            # m2 = patchy particle patches + centerpoint
+            m2 = np.concatenate([pl_centers, np.zeros(shape=(1, 3))], axis=0)
             if m1.shape != m2.shape:
                 raise Exception(f"Mismatch between patch position matrix on pl particle ({m1.shape}) "
                                 f"and on dna particle ({m2.shape})")
@@ -447,6 +447,7 @@ class PatchyOrigamiConverter:
             # clone dna particle
             origami: DNAParticle = deepcopy(self.get_dna_origami(particle))
             print(f"{i + 1}/{pl}", end="\r")
+            # align dna particle with patchy
             origami.instance_align(particle)
 
             # compute scale factor
@@ -474,57 +475,6 @@ class PatchyOrigamiConverter:
                                      patch1,
                                      p2_dna,
                                      patch2)
-
-        # OLD CODE
-
-        # assert self.patchy_scene.patch_ids_unique()
-        # please please do not call this method with dna particles that don't correspond
-        # in order to the mgl particles
-
-        # patch_occupancies = [False for _ in itertools.chain.from_iterable(
-        #     [[patch.get_id() for patch in particle.patches()] for particle in self.patchy_scene.particles()])]
-        #
-        # # loop possible pairs of particles
-        # # patch_occupancies = [[False for _ in p.patches()] for p in particles]
-        #
-        # patchpaircount = 0
-        # # loop particles
-        # for p1, p2 in self.patchy_scene.iter_bound_particles():
-        #     # i and j are particle unique ids
-        #     # actually UIDs not type IDs
-        #     i = p1.type_id()
-        #     j = p2.type_id()
-        #     assert i != j, "Particle should not bind to self!"
-        #     # grab DNAParticle objects
-        #     p1_dna: DNAParticle = dna_particles[i]
-        #     p2_dna: DNAParticle = dna_particles[j]
-        #     # loop through the patch pairs on each particle that can bind
-        #     for (q, patch1), (z, patch2) in self.patches_to_bind(p1, p2):
-        #         assert -1 < patch1.get_id() < len(patch_occupancies), "Mismatch between patch ID on structure and scene patches!"
-        #         assert -1 < patch2.get_id() < len(patch_occupancies), "Mismatch between patch ID on structure and scene patches!"
-        #         assert patch1.get_id() != patch2.get_id()
-        #         # if either patch is bound, stop!
-        #         if not patch_occupancies[patch1.get_id()] and not patch_occupancies[patch2.get_id()]:
-        #             patch_occupancies[patch1.get_id()] = patch_occupancies[patch2.get_id()] = True
-        #
-        #             # for the positions of each of the 2 patches that are about to bind to each other
-        #             for patch_idx1, patch_idx2 in patch_idxs_to_bind(q,
-        #                                                              z,
-        #                                                              p1_dna,
-        #                                                              p2_dna):
-        #                 self.bind_patches_3p(p1_dna,
-        #                                      q,
-        #                                      patch_idx1,
-        #                                      patch1,
-        #                                      p2_dna,
-        #                                      z,
-        #                                      patch_idx2,
-        #                                      patch2)
-        #
-        #             self.bondcount += 1
-        #         else:
-        #             print("Patch occupied!")
-        # print(f"Created {self.bondcount} dna patch bonds")
 
     def bind_patches_3p(self,
                         particle1: DNAParticle,
@@ -567,57 +517,7 @@ class PatchyOrigamiConverter:
 
         particle1.patch_strand(patch1).prepend(strand1[::-1])
         particle2.patch_strand(patch2).prepend(strand2[::-1])
-
-    # def bind_patches_3p(self,
-    #                     particle1_dna: DNAParticle,
-    #                     dna_patch1_id: int,
-    #                     dna_patch1_strand: int,
-    #                     patch1: MGLPatch,
-    #                     particle2_dna: DNAParticle,
-    #                     dna_patch2_id: int,
-    #                     dna_patch2_strand: int,
-    #                     patch2: MGLPatch):
-    #     """
-    #     Binds two patches together by adding sticky ends at the 3' ends.
-    #     Parameters:
-    #         particle1_dna (DNAParticle): DNAParticle object representing particle a
-    #         dna_patch1_id (int): the index in DNAParticleType::patch_strand_ids of the patch to bind
-    #         dna_patch1_strand (int): the index of the strand in the patch strands (NOT particle strands!)
-    #         patch1 (MGLPatch): mgl patch object?
-    #         particle2_dna (DNAParticle): DNAParticle object representing particle b
-    #         dna_patch2_id (int): the index in DNAParticleType::patch_strand_ids of the patch to bind
-    #         dna_patch2_strand (int): the index of the strand in the patch strands (NOT particle strands!)
-    #         patch2 (MGLPatch): mgl patch object?
-    #     """
-    #     # find nucleotides which will be extended to form patches
-    #     patch1_nucleotide: DNABase = particle1_dna.patch_strand_3end(dna_patch1_id, dna_patch1_strand)
-    #     patch2_nucleotide: DNABase = particle2_dna.patch_strand_3end(dna_patch2_id, dna_patch2_strand)
-    #
-    #     start_position1 = patch1_nucleotide.pos
-    #     start_position2 = patch2_nucleotide.pos
-    #
-    #     start_vector_1 = normalize(start_position2 - start_position1)
-    #
-    #     patch_distance = dist(start_position1, start_position2)
-    #
-    #     # check distances
-    #     if patch_distance > 2 * self.get_expected_pad_distance():
-    #         print(f"Distance between patches = {patch_distance}. "
-    #               f"Expected distance {self.get_expected_pad_distance()}")
-    #
-    #     # retrieve sequences from map + add spacers
-    #     patch1_seq = self.spacer_length * "T" + self.color_sequence(patch1.color())
-    #     patch2_seq = self.spacer_length * "T" + self.color_sequence(patch2.color())
-    #
-    #     strand1, strand2 = construct_strands(patch1_seq + self.spacer_length * "T",  # need to add fake spacer to make code no go boom
-    #                                          start_position1 + start_vector_1 * BASE_BASE,
-    #                                          start_vector_1,
-    #                                          rbases=patch2_seq)
-    #     strand1 = strand1[:len(patch1_seq)]  # shave off dummy spacer from previous line of code
-    #
-    #
-    #     particle1_dna.patch_strand(dna_patch1_id, dna_patch1_strand).prepend(strand1[::-1])
-    #     particle2_dna.patch_strand(dna_patch2_id, dna_patch2_strand).prepend(strand2[::-1])
+        self.bondcount += 1
 
     def get_particles(self) -> list[DNAParticle]:
         """
@@ -653,6 +553,46 @@ class PatchyOrigamiConverter:
             "Wrong number of bonds created!"
 
         print("Done!")
+
+    def dump_monomers(self, fp: Union[None, Path, str] = None):
+        """
+        Saves all dna particle types in their own .top and .dat files
+        """
+        # handle inputs
+        if fp is None:
+            # default to drop files in output dir
+            fp = get_output_dir()
+        elif isinstance(fp, str):
+            fp = Path(fp)
+            if not fp.is_absolute():
+                fp = get_output_dir() / fp
+        if not fp.exists():
+            os.makedirs(fp)
+        for ptype in self.particle_type_map.values():
+            self.dump_monomer(ptype, fp)
+
+    def dump_monomer(self, ptype: DNAParticle, fp: Path):
+        assert ptype.has_linked(), "Cannot dump monomer for unlinked DNA particle"
+        if np.abs(ptype.linked_particle.rotation() - np.identity(3)).sum() > 1e-6:
+            print("Warning: Particle has non-identity rotation! "
+                  "Patch a1s are going to be messed up! But you can technically proceed")
+        cpy = copy.deepcopy(ptype)
+        # clone to add strands
+        # iter strand id map
+        for patch_idx in cpy.patch_strand_map:
+            # particle types don't have sticky ends added until they're positioned so we need to add them
+            # here before we export
+            patch = self.patchy_scene.particle_types().patch(patch_idx)
+            seq = "T" * self.spacer_length + self.color_sequence(patch.color())
+            # last-base a1 is a really bad method for doing strand vector, compute patch a1 instead
+            strand1, _ = construct_strands(seq,
+                                           cpy.patch_strand(patch_idx)[0].pos,
+                                           patch.a1())
+
+            cpy.patch_strand(patch_idx).prepend(strand1[::-1])
+
+        cpy.export_top_conf(fp / (cpy.linked_particle.name() + ".top"),
+                            fp / (cpy.linked_particle.name() + ".dat"))
 
     def save_top_dat(self, write_top_path: Union[Path, str], write_conf_path: Union[Path, str]):
         if isinstance(write_top_path, str):
