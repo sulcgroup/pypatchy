@@ -112,11 +112,19 @@ class PolycubesPatch(BasePatchType):
         self._key_points[1] = new_align
 
     def get_align_rot_num(self) -> int:
+        # grab face direction
         face_dir = self.direction()
+        # grab align direction
         face_align_dir = self.alignDir()
+        # default alignment for face
         face_align_zero = RULE_ORDER[(self.dirIdx() + 2) % 6]
+        # compute angle
         angleFromTo = getSignedAngle(face_align_zero, face_align_dir, face_dir)
-        return int(4 * angleFromTo / (math.pi * 2))
+        # angle to enumeration
+        align_num = int(4 * angleFromTo / (math.pi * 2))
+        if align_num < 0:
+            align_num += 4
+        return align_num
 
     def set_align_rot(self, new_align: int):
         """
@@ -137,6 +145,9 @@ class PolycubesPatch(BasePatchType):
         return self._activationVar
 
     def rotate(self, rotation: np.ndarray) -> PolycubesPatch:
+        """
+        Rotates and returns copy of patch
+        """
         p = PolycubesPatch(self.get_id(),
                            self.color(),
                            np.matmul(rotation, self.direction()).round(),
@@ -365,8 +376,10 @@ class PolycubeRuleCubeType(PatchyBaseParticleType):
         return self.to_string()
 
     def to_string(self, force_static=False) -> str:
+        # option to force legacy "static representation"
         if force_static or any([isinstance(e, StringConditionalEffect) for e in self.effects()]):
             sz = "#".join([self.patch_string_static(idx) for (idx, _) in enumerate(RULE_ORDER)])
+        # default to dynamic model repr
         else:
             # lmao
             sz = "|".join([

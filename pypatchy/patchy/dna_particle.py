@@ -1,12 +1,16 @@
+from __future__ import annotations
+
 import itertools
 import math
 from collections.abc import Iterable
+from dataclasses import dataclass
 from typing import Union
 
 import numpy as np
 from Bio.SVDSuperimposer import SVDSuperimposer
 
-from .pl.plparticle import PLPatch, PLPatchyParticle
+from .pl.plparticle import PLPatchyParticle
+from .pl.plpatch import PLPatch
 from ..patchy_base_particle import PatchyBaseParticle, BasePatchType
 
 from ..dna_structure import DNAStructure, DNABase, DNAStructureStrand
@@ -64,7 +68,10 @@ class DNAParticle (DNAStructure):
         #
         # self.patch_positions = patch_positions
 
-    def align_patch_strands(self, patches: set[PLPatch], strands: Iterable[int], sf: float) -> dict[int,int]:
+    def align_patch_strands(self,
+                            patches: set[PLPatch],
+                            strands: Iterable[list[int]],
+                            sf: float) -> PatchyOriRelation:
         """
         Aligns a group of patches (representing a single multidentate patch) with the 3' ends of strands
         Returns:
@@ -87,35 +94,8 @@ class DNAParticle (DNAStructure):
             if rms < best_rms:
                 best_rms = rms
                 best_mapping = {patch.get_id(): strand for patch, strand in zip(patches, strand_order)}
-        return best_mapping
+        return PatchyOriRelation(self, )
 
-    def compute_superimposition_transform(self,
-                                          p: PatchyBaseParticle,
-                                          patch_mapping: dict[int, int]) -> tuple[np.ndarray, float]:
-        """
-        Computes the SVD rotation required to rotate the particle such that the patch groups in the values
-        of patch_mapping correspond to the patches on the particle
-        Parameters:
-            patch_mapping: Mapping of patches where keys are indices of patches in p,
-            and the value is a patch, strand combo in self.patch_strand_ids
-        """
-        # everyone's most favorite aligning tool
-        sup = SVDSuperimposer()
-        # compute m1 matrix - patch positions on the particle
-        sf = self.scale_factor(p)
-        m1 = np.array([p.patch(i).position() / sf for i in patch_mapping.keys()])
-        # m1 is the cms, the positions of the six patches
-        m1 = np.stack([self.cms(), *m1])
-        # compute the m2 matrix - positions of strands on the DNA structure
-        patch_map_vals = [patch_mapping[key] for key in sorted(patch_mapping.keys())]
-        m2 = np.stack([np.zeros((3,)), *[self.strand_3p(key).pos for key in patch_map_vals]])
-        # m2 = np.stack([np.zeros((3,)), *[p for i,p in enumerate(patchy_patches) if i in new_order]])
-        # if new_order[len(self.patch_centerpoints())] != len(
-        #         self.patch_centerpoints()):  # definately not optimized lmao
-        #     continue
-        sup.set(np.stack(m1), m2)
-        sup.run()
-        return sup.rot, sup.rms
 
     def linked_particle(self) -> PatchyBaseParticle:
         return self.linked_particle
@@ -362,8 +342,23 @@ class DNAParticle (DNAStructure):
         Aligns a dna particle which has already been linked to a patchy particle type
         to a specific patchy particle instance
         """
-        assert particle.type_id() == self.linked_particle.get_type()
+        assert particle.type_id() == self.linked_particle.get_type(), "Trying to instance align type no compatible!"
+        assert abs(self.linked_particle.rotation() - np.identity(3)).sum() < 1e-6, "Trying to align instance where " \
+                                                                                   "currently matches particle isn't " \
+                                                                                   "identity rotation!"
         # set origami rotation to match particle instance rotation
         self.transform(rot=particle.rotmatrix())
         # link particle instance (replacing type particle)
         self.linked_particle = particle
+
+
+@dataclass
+class PatchyOriRelation:  # name?
+    """
+    Dataclass to describe the relation of a patchy particle to a DNA origami
+    """
+    patchy: PLPatchyParticle
+    dna: DNAParticle
+    rot: np.ndarray
+    perm: dict[int, int]
+    rms: float

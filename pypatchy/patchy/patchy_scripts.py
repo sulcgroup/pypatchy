@@ -10,8 +10,9 @@ import numpy as np
 from scipy.spatial.transform import Rotation as R
 
 from pypatchy.patchy.mgl import MGLScene
-from pypatchy.patchy.pl.plpatchy import load_patches, load_particles, export_interaction_matrix
-from pypatchy.patchy.pl.plparticle import PLPatch, PLPatchyParticle, PLParticleSet
+from pypatchy.patchy.pl.plpatchylib import load_patches, load_particles, export_interaction_matrix
+from pypatchy.patchy.pl.plparticle import PLPatchyParticle, PLParticleSet
+from pypatchy.patchy.pl.plpatch import PLPatch
 from pypatchy.patchy.pl.plscene import PLPSimulation
 from pypatchy.patchy_base_particle import BaseParticleSet
 from pypatchy.polycubeutil.polycube_structure import PolycubeStructure
@@ -264,26 +265,35 @@ def polycube_to_pl(polycube: PolycubeStructure,
     pl = PLPSimulation()
     # convert polycubes rule to multidentate patchy particles
     pl_types = to_PL(polycube.rule, nteeth, dental_radius)
+    pl_types.normalize()
     pl.set_particle_types(pl_types)
     mins = np.full(fill_value=np.inf, shape=3)
     maxs = np.full(fill_value=-np.inf, shape=3)
     # iter cubes in polycube
-    for cube in polycube.cubeList:
+    for cube in polycube._particles:
         pl_type: PLPatchyParticle = pl_types.particle(cube.get_type())
         particle = PLPatchyParticle(copy.deepcopy(pl_type.patches()),
                                     type_id=pl_type.type_id(),
                                     index_=cube.get_id(),
                                     position=cube.position())
-        particle.a1 = POLYCUBE_NULL_A1
-        particle.a3 = POLYCUBE_NULL_A3
+        # particle.a1 = POLYCUBE_NULL_A1
+        # particle.a3 = POLYCUBE_NULL_A3
         particle.rotate(cube.rotation().as_matrix())
         pl.add_particle(particle)
         maxs = np.max([maxs, particle.position()], axis=0)
         mins = np.min([mins, particle.position()], axis=0)
     # compute box
-    pad = (maxs - mins) * pad_frac
+    pad = (maxs - mins) * pad_frac + np.full(fill_value=1, shape=(3,))
     pl.translate(-mins + pad)
     pl.set_box_size(maxs - mins + 2 * pad)
+
+    # verify
+    for cube1, cube2 in polycube.iter_bound_particles():
+        assert pl.particles_bound(cube1.get_id(), cube2.get_id())
+        cube_bindngs_count = len(list(polycube.iter_binding_patches(cube1, cube2)))
+        pl_bindings_count = len(list(pl.iter_binding_patches(pl.get_particle(cube1.get_id()), pl.get_particle(cube2.get_id()))))
+        assert nteeth * cube_bindngs_count == pl_bindings_count
+
     return pl
 
 

@@ -9,7 +9,7 @@ import numpy as np
 import oxDNA_analysis_tools.UTILS.RyeReader as rr
 
 from pypatchy.patchy.patchy_scripts import to_PL
-from pypatchy.patchy.pl.plpatchy import export_interaction_matrix
+from pypatchy.patchy.pl.plpatchylib import export_interaction_matrix
 from pypatchy.patchy.pl.plparticle import PLPatchyParticle
 from pypatchy.patchy.pl.plscene import PLPSimulation
 from pypatchy.patchy.stage import Stage
@@ -149,7 +149,7 @@ class FWriter(BasePatchyWriter):
             init_top = kwargs["topology"]
             init_conf = kwargs["conf_file"]
         # write top and particles/patches spec files
-        # first convert particle json into PLPatchy objects (cf plpatchy.py)
+        # first convert particle json into PLPatchy objects (cf plpatchylib.py)
 
         particles = scene.particle_types()
         particle_type_counts = scene.particle_type_counts()
@@ -330,7 +330,7 @@ class JWriter(BasePatchyWriter, ABC):
         particles_type_list: BaseParticleSet = kwargs["particle_types"]
 
         # write top and particles/patches spec files
-        # first convert particle json into PLPatchy objects (cf plpatchy.py)
+        # first convert particle json into PLPatchy objects (cf plpatchylib.py)
         particles = scene.particle_types()
 
         pl_set = to_PL(particles,
