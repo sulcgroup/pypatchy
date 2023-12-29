@@ -247,6 +247,7 @@ class DNAStructureStrand:
 # i cannot be held resposible for this
 BASE_BASE = 0.3897628551303122  # helical distance between two bases? in oxDNA units?
 POS_BASE = 0.4  # I think this is the conversion factor from base pairs to oxDNA units????
+# gonna say... distance between the helix center of mass of dsDNA to base position?
 CM_CENTER_DS = POS_BASE + 0.2
 POS_BACK = -0.4
 FENE_EPS = 2.0
@@ -306,20 +307,26 @@ def construct_strands(bases: str,
 
     # Setup initial parameters
     # and we need to generate a rotational matrix
+    # R0 is helix starting rotation
     R0 = get_rotation_matrix(helix_direction, rot)
+    # R is the rotation matrix that's applied to each consecutive nucleotide to make the helix a helix
     R = get_rotation_matrix(helix_direction, 1, "bp")
     a1 = v1
     a1 = np.dot(R0, a1)
+    # rb = positions along center axis of helix
     rb = np.array(start_pos)
     a3 = helix_direction
 
-    # Add nt in canonical double helix
+    # order here is base, position, a1, a3
     strand_info: list[tuple[chr, np.ndarray, np.ndarray, np.ndarray]] = []
     for i, base in enumerate(bases):
         # compute nucleotide position, a1, a3
         strand_info.append((base, rb - CM_CENTER_DS * a1, a1, a3,))  # , sequence[i]))
+        # if this isn't the last base in the sequence
         if i != len(bases) - 1:
+            # rotate a1 vector by helix rot
             a1 = np.dot(R, a1)
+            # increment position by a3 vector
             rb += a3 * BASE_BASE
     fwd_strand = strand_from_info(strand_info)
 
@@ -569,10 +576,12 @@ class DNAStructure:
             cluster_counter = len(self.clusters)  # starting cluster idxing
             for i, cluster in enumerate(other.clusters):
                 for uid in cluster:
-                    self.assign_base_to_cluster(uid, i + cluster_counter)
+                    new_structure.assign_base_to_cluster(uid + self.nbases, i + cluster_counter)
         return new_structure
 
-    def assign_base_to_cluster(self, base_identifier: Union[int, tuple[int, int]], cluster_id: Union[int, None]):
+    def assign_base_to_cluster(self,
+                               base_identifier: Union[int, tuple[int, int]],
+                               cluster_id: Union[int, None]):
         """
         Assigns a base to a cluster
         """

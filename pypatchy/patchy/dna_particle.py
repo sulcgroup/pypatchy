@@ -30,7 +30,7 @@ class DNAParticle (DNAStructure):
     patch_strand_map: dict[int, int]
     # i'm going back and forth on whether it's better to have this extend PatchyParticle or
     # include a patchy particle object as a member. currently going w/ the latter
-    linked_particle: PatchyBaseParticle
+    linked_particle: PLPatchyParticle
 
     flat_strand_ids: list[int] = property(lambda x: list(itertools.chain.from_iterable(x.patch_strand_ids)))
 
@@ -67,35 +67,6 @@ class DNAParticle (DNAStructure):
         # self.conf = next(linear_read(get_traj_info(str(dat_file)), self.topology))[0]
         #
         # self.patch_positions = patch_positions
-
-    def align_patch_strands(self,
-                            patches: set[PLPatch],
-                            strands: Iterable[list[int]],
-                            sf: float) -> PatchyOriRelation:
-        """
-        Aligns a group of patches (representing a single multidentate patch) with the 3' ends of strands
-        Returns:
-            a mapping where keys are ids of patches and values are strand ids
-        """
-        sup = SVDSuperimposer()
-
-        # construct matrix of patch positions
-        m1 = np.stack([np.zeros((3,)), *[patch.position() / sf for patch in patches]])
-
-        best_rms = np.inf
-
-        for strand_order in itertools.permutations(strands):
-            # construct ordered set of coords
-            m2 = np.stack([self.cms(), *[self.strand_3p(strand).pos for strand in strand_order]])
-            sup.set(m1, m2)
-            # run the superimposer!
-            sup.run()
-            rms = sup.get_rms()
-            if rms < best_rms:
-                best_rms = rms
-                best_mapping = {patch.get_id(): strand for patch, strand in zip(patches, strand_order)}
-        return PatchyOriRelation(self, )
-
 
     def linked_particle(self) -> PatchyBaseParticle:
         return self.linked_particle
@@ -315,12 +286,16 @@ class DNAParticle (DNAStructure):
     #     #
     #     # return range(start_id, start_id + connection_length)
 
-    def scale_factor(self, p: PatchyBaseParticle) -> float:
+    def scale_factor(self, p: Union[None, PatchyBaseParticle] = None) -> float:
         """
         Computes the particle type's scale factor
-        The scale factor converts between units in MGL space and units in nucleotide-level-model
+        The scale factor converts between units in pl patchy space and units in nucleotide-level-model
         space, and is thus very important for placing origamis relative to each other
         """
+        if p is None:
+            assert self.has_linked()
+            p = self.linked_particle
+
         # distance between origami patch and center
         center2patch_conf = self.center2patch_conf()
         # distance between an arbitrary mgl patch and center - approximates particle radius
@@ -350,6 +325,37 @@ class DNAParticle (DNAStructure):
         self.transform(rot=particle.rotmatrix())
         # link particle instance (replacing type particle)
         self.linked_particle = particle
+
+
+    def check_align(self, tolerence: float = 0.1) -> bool:
+        """
+        checks if the dna particle is correctly aligned to patchy
+        """
+        if not self.has_linked():
+            return False
+        # scale factor
+        sf = self.scale_factor()
+        # distance from center to patches - approxiamtes particle radius
+        center2patch_conf = self.center2patch_conf()
+        for patch_id, strand_id in self.patch_strand_map.items():
+            strand_3p = self.strand_3p(strand_id)
+            patch = self.linked_particle.patch_by_id(patch_id)
+            v1 = patch.position() @ self.linked_particle.rotmatrix() / sf
+            v2 = strand_3p.pos - self.cms()
+
+            v1 /= np.linalg.norm(v1)
+            v2 /= np.linalg.norm(v2)
+            s = np.cross(v1, v2)
+            c = v1.dot(v2)
+            a = np.arctan2(np.linalg.norm(s), c)
+            if a / (2 * math.pi) > tolerence:
+                return False
+            # dist = strand_3p.pos - patch.position() / sf
+            # dist_rel = np.linalg.norm(dist) / (2 * math.pi * center2patch_conf)
+            # if dist_rel > tolerence:
+            #     return False
+        return True
+
 
 
 @dataclass

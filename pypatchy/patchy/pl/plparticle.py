@@ -69,11 +69,19 @@ class PLPatchyParticle(PatchyBaseParticleType, PatchyBaseParticle):
     def set_patches(self, patches: list[PLPatch]):
         self._patches = patches
 
-    def patches(self):
+    def patches(self) -> list[PLPatch]:
         return self._patches
 
     def num_patches(self) -> int:
         return len(self._patches)
+
+    def patch_by_id(self, patch_id: int) -> PLPatch:
+        """
+        warning: O(n) search so don't use too too often
+        """
+        patches = [p for p in self.patches() if p.type_id() == patch_id]
+        assert len(patches) == 1
+        return patches[0]
 
     def set_orientation(self, a1: np.ndarray, a3: np.ndarray):
         assert np.dot(a1, a3) < 1e-6
@@ -100,6 +108,17 @@ class PLPatchyParticle(PatchyBaseParticleType, PatchyBaseParticle):
         for p in cpy.patches():
             p.rotate(self.rotmatrix())
         return cpy
+
+    def matches(self, other: PLPatchyParticle) -> bool:
+        if self.type_id() != other.type_id():
+            return False
+        for i, (p1, p2) in enumerate(zip(self.patches(), other.patches())):
+            if p1.type_id() != p2.type_id():
+                return False
+            if (np.abs(p1.position() - p2.position()) > 1e-6).any():
+                return False
+        return True
+
 
     def set_random_orientation(self):
         self.a1 = random_unit_vector()
@@ -558,5 +577,12 @@ class PLParticleSet(BaseParticleSet):
         else:
             raise TypeError(f"{str(item)} has invalid type {type(item)} for PLParticleSet::__contains__")
 
-    def normalize(self):
-        self._particle_types = [p.normalize() for p in self.particles()]
+    def normalize(self) -> PLParticleSet:
+        if self.has_udt_src():
+            return PLParticleSet([p.normalize() for p in self.particles()],
+                                 src=self.get_src().normalize(),
+                                 src_mapping=copy.deepcopy(self.__patch_map),  # pass-by-refernce hell
+                                 )
+        else:
+            return PLParticleSet([p.normalize() for p in self.particles()])
+

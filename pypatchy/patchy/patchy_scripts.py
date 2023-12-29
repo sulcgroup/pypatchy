@@ -265,7 +265,7 @@ def polycube_to_pl(polycube: PolycubeStructure,
     pl = PLPSimulation()
     # convert polycubes rule to multidentate patchy particles
     pl_types = to_PL(polycube.rule, nteeth, dental_radius)
-    pl_types.normalize()
+    pl_types = pl_types.normalize()
     pl.set_particle_types(pl_types)
     mins = np.full(fill_value=np.inf, shape=3)
     maxs = np.full(fill_value=-np.inf, shape=3)
@@ -277,8 +277,9 @@ def polycube_to_pl(polycube: PolycubeStructure,
                                     index_=cube.get_id(),
                                     position=cube.position())
         # particle.a1 = POLYCUBE_NULL_A1
-        # particle.a3 = POLYCUBE_NULL_A3
+        # particle.a3 = POLYCUBE_NULL_A3\
         particle.rotate(cube.rotation().as_matrix())
+        assert pl_type.matches(particle)
         pl.add_particle(particle)
         maxs = np.max([maxs, particle.position()], axis=0)
         mins = np.min([mins, particle.position()], axis=0)
