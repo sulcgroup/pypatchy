@@ -322,6 +322,9 @@ class PLPSimulation(Scene):
         return self._particle_types
 
     def set_particle_types(self, ptypes: PLParticleSet):
+        """
+        this seems simple. it is not!
+        """
         self._particle_types = ptypes
 
     def get_conf(self) -> Configuration:
@@ -390,6 +393,7 @@ class PLPSimulation(Scene):
         # TODO: better calculationzs
         patch1_pos = particle1.patch_position(p1)
         patch2_pos = particle2.patch_position(p2)
-        if dist(patch1_pos, patch2_pos) <= PATCHY_CUTOFF:
+        d = dist(patch1_pos, patch2_pos)
+        if d <= PATCHY_CUTOFF:
             return True
         return False
