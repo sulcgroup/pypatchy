@@ -154,44 +154,6 @@ class DNAParticle (DNAStructure):
             self.dna_patch_positions(i).mean(axis=0) for i in range(len(self.patch_strand_ids))
         ]
 
-    # def patch_strand_3end(self, patch_idx: int, patch_strand_idx: int) -> DNABase:
-    #     """
-    #     Finds the DNA base object at the 3' end of a strand corresponding to a patch
-    #     This method involves a lot of tricky indexing
-    #
-    #     Parameters:
-    #         patch_idx (int) the index in self.patch_strand_ids of the patch to find
-    #         patch_strand_idx (int) the index in the list of patch strands of the strand to access
-    #     """
-    #     return self.patch_strand(patch_idx, patch_strand_idx)[0]  # return 3' residue
-
-    # def patch_strand(self, patch_idx: int, patch_strand_idx: int) -> DNAStructureStrand:
-    #     """
-    #     Returns strand object corresponding to patch and idx within patch
-    #
-    #     Parameters:
-    #         patch_idx (int) the index in self.patch_strand_ids of the patch to find
-    #         patch_strand_idx (int) the index in the list of patch strands of the strand to access
-    #     """
-    #     return self.strands[self.patch_strand_id(patch_idx, patch_strand_idx)]
-
-    # def patch_strand_id(self, patch_idx: int, patch_strand_idx: int) -> int:
-    #     """
-    #     Returns strand id corresponding to patch and idx within patch
-    #
-    #     Parameters:
-    #         patch_idx (int) the index in self.patch_strand_ids of the patch to find
-    #         patch_strand_idx (int) the index in the list of patch strands of the strand to access
-    #     """
-    #     assert -1 < patch_idx < len(self.patch_strand_ids), f"Invalid patch idx {patch_idx}"
-    #     # get patch strands
-    #     patch_strands: list[int] = self.patch_strand_ids[patch_idx]
-    #     assert -1 < patch_strand_idx < len(patch_strands), f"Invalid patch strand index {patch_strand_idx}"
-    #     # get strand ID
-    #     strand_id = patch_strands[patch_strand_idx]
-    #     assert -1 < strand_id < len(self.strands), f"Invaliud strand ID {strand_id}"
-    #     return strand_id
-
     def dna_patch_positions(self, patch_idx: int) -> np.ndarray:
         """
         Parameters:
@@ -212,79 +174,6 @@ class DNAParticle (DNAStructure):
         return np.mean(
             np.linalg.norm((self.get_patch_cmss() - self.cms()), axis=1)
         )
-
-    # def modify_strand3p(self, strand_id: int, seq: str) -> Iterable[int]:
-    #     """
-    #     Modifies a topology to add a sequence to the 3' end
-    #     Args:
-    #         strand_id : the ID of the strand to modify
-    #         seq : the seqence to append, in 5'->3' order
-    #
-    #     Returns:
-    #         the ids of the bases that have been added
-    #     """
-    #     # # grab seq length
-    #     # connection_length = len(seq)
-    #     # strand_old_len = len(self.topology.strands[strand_id].bases)
-    #     # assert connection_length < strand_old_len, "No I will not explain."
-    #     # # # we know we work with the 3 end so it's the beginning + sticky_length we have to modify
-    #     # # # construct list of bases with new identities at beginning of topology (b/c oxDNA thinks in 3'->5' for some reason?)
-    #     # #
-    #     # # new_bases = [oxutil.Base(t, b.p3, b.p5) for t, b in zip(seq, self.topology.strands[strand_id].bases[:connection_length])]
-    #     # # # "shift" topology by appending the existing strand to our new bases
-    #     # # new_bases.extend([oxutil.Base(
-    #     # #     t,
-    #     # #     p3 + connection_length if p3 != -1 else new_bases[-1].p3, # link end of old strand to new strand
-    #     # #     p5 + connection_length if p5 != -1 else -1)
-    #     # #                   for t, p3, p5 in self.topology.strands[strand_id].bases])
-    #     # # # empty previous bases as we work with tuples and we can't just reasign
-    #     # # # so clear strand bases
-    #     # # self.topology.strands[strand_id].bases.clear()
-    #     # # # and add our new copy strand (with our new sequence at the (3') beginning)
-    #     # # self.topology.strands[strand_id].bases.extend(new_bases)
-    #     # # assert len(self.topology.strands[strand_id].bases) == strand_old_len + connection_length
-    #     #
-    #     # # get id of residue at strand head
-    #     # start_id = self.topology.strands[strand_id].bases[1].p3
-    #     # # make new strand
-    #     # strand = oxutil.make_strand(strand_id, start_id, seq + oxutil.get_seq(self.topology.strands[strand_id]))
-    #     # # assign to topology
-    #     # self.topology.strands[strand_id] = strand
-    #     # assert len(self.topology.strands[strand_id].bases) == strand_old_len + connection_length
-    #     # # update num bases
-    #     # self.topology.nbases += connection_length
-    #     # # update strand delims
-    #     # for i in range(strand_id, len(self.strand_delims)):
-    #     #     self.strand_delims[i] += connection_length
-    #     #     # skip the strand we are working on for shifting, because we have already done it
-    #     #     if i > strand_id:
-    #     #         # shift strand to the right
-    #     #         self.topology.strands[i] = self.topology.strands[i] >> connection_length
-    #     #
-    #     # # update patch positions
-    #     # self.patch_positions = [[
-    #     #     baseid if baseid < start_id else baseid + connection_length for baseid in patch]
-    #     #     for patch in self.patch_positions
-    #     # ]
-    #     #
-    #     # # update conf
-    #     # # a1s
-    #     # self.conf.a1s = np.resize(self.conf.a1s, (self.topology.nbases, 3))  # resize array
-    #     # self.conf.a1s[start_id + connection_length:, :] = self.conf.a1s[start_id:-connection_length, :]  # move data
-    #     # self.conf.a1s[start_id: start_id + connection_length, :] = np.nan  # wipe cells
-    #     #
-    #     # # a3s
-    #     # self.conf.a3s = np.resize(self.conf.a3s, (self.topology.nbases, 3))  # resize array
-    #     # self.conf.a3s[start_id + connection_length:, :] = self.conf.a3s[start_id:-connection_length, :]  # move data
-    #     # self.conf.a3s[start_id: start_id + connection_length, :] = np.nan  # wipe cells
-    #     #
-    #     # # positions
-    #     # self.conf.positions = np.resize(self.conf.positions, (self.topology.nbases, 3))  # resize array
-    #     # self.conf.positions[start_id + connection_length:, :] = self.conf.positions[start_id:-connection_length,
-    #     #                                                         :]  # move data
-    #     # self.conf.positions[start_id: start_id + connection_length, :] = np.nan  # wipe cells
-    #     #
-    #     # return range(start_id, start_id + connection_length)
 
     def scale_factor(self, p: Union[None, PatchyBaseParticle] = None) -> float:
         """
@@ -326,7 +215,6 @@ class DNAParticle (DNAStructure):
         # link particle instance (replacing type particle)
         self.linked_particle = particle
 
-
     def check_align(self, tolerence: float = 0.1) -> bool:
         """
         checks if the dna particle is correctly aligned to patchy
@@ -356,6 +244,44 @@ class DNAParticle (DNAStructure):
             #     return False
         return True
 
+    def get_strand_group_norms(self):
+        a = np.stack([self.strand_group_norm(idx) for idx in range(len(self.patch_strand_ids))])
+        assert a.shape == (len(self.patch_strand_ids), 3)
+        return a
+
+    def strand_group_norm(self, strand_group_idx: int):
+        """
+        computes the vector which is normal to the patch strand group
+        algorithm was produced by chatgpt 3.5 because as I'm writing this openAI is being stupid about
+        the lab card
+        """
+
+        # compute plane of strands
+        patch = self.patch_strand_ids[strand_group_idx]
+        # pos is a 3x1 vector not a 3x vector so concat not stack
+        strand_3p_pts = np.stack([self.strands[strand_id][0].pos for strand_id in patch])
+        centroid = self.dna_patch_positions(strand_group_idx).mean(axis=0)
+        # subtract strand group center from strand positions
+        strands_local = strand_3p_pts - centroid
+        # i do not understand linalg well enough to follow this
+        U, _, Vt = np.linalg.svd(strands_local - np.mean(strands_local, axis=1, keepdims=True))
+        # normal vector produced by svd isn't nessicarily the correct one for the patch
+        normal_vector = Vt[-1, :]
+
+        dna_cms = self.cms()
+
+        # Compute the signed distance from the plane to the additional point
+        signed_distance = np.dot(normal_vector, dna_cms) + np.dot(centroid, normal_vector)
+
+        # If the signed distance is positive, flip the sign of the normal vector
+        if signed_distance > 0:
+            normal_vector *= -1
+
+        dna_radius = np.linalg.norm(centroid - dna_cms)
+
+        normal_vector = normal_vector / np.linalg.norm(normal_vector) * dna_radius
+
+        return normal_vector + centroid
 
 
 @dataclass
