@@ -390,6 +390,8 @@ class PLPSimulation(Scene):
                       p1: PLPatch,
                       particle2: PLPatchyParticle,
                       p2: PLPatch) -> bool:
+        if not p1.can_bind(p2):
+            return False
         # TODO: better calculationzs
         patch1_pos = particle1.patch_position(p1)
         patch2_pos = particle2.patch_position(p2)

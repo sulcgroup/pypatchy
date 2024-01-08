@@ -8,6 +8,7 @@ from typing import Iterable, Union
 import numpy as np
 from oxDNA_analysis_tools.UTILS.RyeReader import Configuration
 from Bio.SVDSuperimposer import SVDSuperimposer
+from scipy.optimize import linear_sum_assignment
 
 from .dna_particle import DNAParticle, PatchyOriRelation
 from .patchy_scripts import mgl_to_pl
@@ -122,6 +123,8 @@ class PatchyOrigamiConverter:
     dna_particles: dict[int, DNAParticle]
     padding: float  # manually-entered extra spacing
     dist_ratio: float
+    sticky_length: Union[int, None]
+    check_strict_rc: bool = True
 
     def __init__(self,
                  scene: Union[MGLScene, PLPSimulation],
@@ -132,10 +135,11 @@ class PatchyOrigamiConverter:
                  particle_delta: float = 1.2,
                  bond_length: float = 0.4,
                  cos_theta_max: float = 0.95,
-                 sticky_length: int = 18,
+                 sticky_length: Union[int, None] = None,
                  padding: float = 1.0,
                  flexable_patch_distances: bool = False,
-                 expected_num_edges: int = -1
+                 expected_num_edges: int = -1,
+                 rel_rms_tolerance = 0.05
                  ):
         """
         Initializes this converter using a few required params and a lot of optional fine-tuning params
@@ -176,6 +180,7 @@ class PatchyOrigamiConverter:
         self.flexable_patch_distances = flexable_patch_distances
         self.expected_num_edges = expected_num_edges
         assert not flexable_patch_distances or expected_num_edges > 0
+        self.rel_rms_tolerance = rel_rms_tolerance
 
     def get_dna_origami(self,
                         particle_type: Union[str, int, PatchyBaseParticle]) -> DNAParticle:
@@ -193,6 +198,14 @@ class PatchyOrigamiConverter:
         #         p.assign_base_to_cluster(b, 0)
         merged_conf = sum(particles[1:], start=particles[0])
         return merged_conf
+
+
+    def check_rms(self, testval: float, dna: DNAParticle) -> float:
+        """
+
+        """
+        rel_rms = testval / dna.patches_sphere_circumfrance()
+        return self.rel_rms_tolerance > rel_rms
 
     def get_dist_ratio(self) -> float:
         """
@@ -247,6 +260,7 @@ class PatchyOrigamiConverter:
             else:
                 # if neither our color nor its match is in the color seqs, generate a new sequence
                 # todo: smarter?
+                assert self.sticky_length is not None, f"Auto-generation of sequences is off but you didn't provide a color sequence for {colorstr}"
                 self.color_sequences[colorstr] = "".join(
                     choice(["A", "T", "C", "G"]) for _ in range(self.sticky_length))
                 print(f"Assigning color {colorstr} random sequence {self.color_sequences[colorstr]}")
@@ -258,7 +272,7 @@ class PatchyOrigamiConverter:
         Assigns the color given by colorstr the specific sequence sequence specified
         Automatically assigns the corresponding color the reverse compliment
         """
-        assert len(seq) == self.sticky_length, "Incompatible sequence length"
+        assert self.sticky_length is None or len(seq) == self.sticky_length, "Incompatible sequence length"
         self.color_sequences[color] = seq
         self.color_sequences[-color] = rc(seq)
 
@@ -328,8 +342,9 @@ class PatchyOrigamiConverter:
         assert (p.rotmatrix() == np.identity(3)).all(), "Cannot perform match on rotated patchy particle!"
         # compute best ordering of patches (unidentate formulation)
         relation = self.align_patches(p, dna)
+        assert self.check_rms(relation.rms, dna)
         # apply rotation (important for future superimposer fun times
-        dna.transform(rot=relation.rot)
+        dna.transform(rot=relation.rot.T)
 
         # udt_id = id of unidentate expression of patch
         # strand_group_idx = idx in dna of list of DNA strands that correspond to patch
@@ -343,7 +358,20 @@ class PatchyOrigamiConverter:
             assert all([(abs(p.patch_by_id(patch.get_id()).position() - patch.position()) < 1e-6).all() for patch in patch_group])
             # compute strand mapping
             strand_map: dict[int, int] = self.align_patch_strands(dna, patch_group, strand_group, dna.scale_factor(p))
-            dna.assign_patches_strands(strand_map)
+            erased_existing = dna.assign_patches_strands(strand_map)
+            assert not erased_existing
+
+        # check superimposition map
+        m2 = np.stack([patch.position() for patch in p.patches()])
+        m1 = np.stack([
+              dna.strand_3p(dna.patch_strand_map[patch.get_id()]).pos
+                for patch in p.patches()
+        ])
+        svd = SVDSuperimposer()
+        svd.set(m1, m2)
+        svd.run()
+        relation.rms = svd.get_rms()
+        self.check_rms(relation.rms, dna)
 
         print(f"Superimposed DNA origami on patchy particle {p.get_id()} with RMS={relation.rms}")
         print(f"RMS / circumfrance: {relation.rms / (2 * math.pi * dna.center2patch_conf())}")
@@ -357,79 +385,110 @@ class PatchyOrigamiConverter:
                             sf: float) -> dict[int, int]:
         """
         Aligns a group of patches (representing a single multidentate patch) with the 3' ends of strands
-        trust me this function is secretly a nightmare
+        using the Hungarian Algorithm for optimal pairing.
         Returns:
             a mapping where keys are ids of patches and values are strand ids
         """
 
         # get patch positions
         patch_positions = np.stack([patch.position() / sf for patch in patches])
-        # get patch centerpoint
-        patch_centroid = patch_positions.mean(axis=0)
-        # make patch positions origin zero
-        # patch_positions = [ppos - patch_centroid for ppos in patch_positions]
-        patch_norm = patch_centroid / np.linalg.norm(patch_centroid)
 
         # get strand positions
         strand_positions = np.stack([dna.strand_3p(strand_id).pos for strand_id in strands])
-        # get strands centerpoint
-        strands_centroid = strand_positions.mean(axis=0)
-        # make strands origin zero
-        # strand_positions = [spos - strands_centroid for spos in strand_positions]
-        strands_norm = strands_centroid / np.linalg.norm(strands_centroid)
 
-        # # check that normals are aligned
-        s = np.cross(patch_norm, strands_norm)
-        c = patch_norm.dot(strands_norm)
-        a = np.arctan2(np.linalg.norm(s), c)
-        # assert a / (2 * math.pi) < .1, "Normal of patch not alinged with strands!!!"
+        # Calculate the distance matrix between each patch and strand position
+        distance_matrix = np.linalg.norm(patch_positions[:, None, :] - strand_positions[None, :, :], axis=2)
 
-        # radius = patch rmsd
-        patches_r = patch_positions.std()
-        strands_r = strands_centroid.std()
+        # Use the Hungarian algorithm to find the optimal pairing
+        patch_indices, strand_indices = linear_sum_assignment(distance_matrix)
 
-        # translate
-        patch_positions = patch_positions - patch_centroid + strands_centroid
-
-        # scale
-        patch_positions *= (strands_r - patches_r)
-
-        # max you can rotate to align patches without messing up strand arrangement
-        theta_max =  2 * math.pi / (2 * len(patches))
-
-        assert patch_positions.shape == strand_positions.shape
-        best_rms = np.inf
-        best_mapping = None
-        all_strand_orderings = itertools.permutations(enumerate(strands))
-        for strand_ordering in all_strand_orderings:
-            strand_idxs, strand_ids = zip(*strand_ordering)
-            m2:np.ndarray = strand_positions[strand_idxs, :]
-            m1:np.ndarray = patch_positions
-            # rms = (m2-m1).std()
-            # if rms < best_rms:
-            #     best_mapping = {
-            #         patch.get_id(): strand
-            #         for patch, strand in zip(patches, strand_ids)
-            #     }
-            # setup svd superimposer
-            rms = (m1-m2).std()
-            # there should PROBABLY only be one rotation matrix that satisfies these conditions???
-            # if not, i should probably check that out, but also we use the one with lowest rms
-            # rms = svd.get_rms()
-            if rms < best_rms:
-                best_rms = rms
-                best_mapping = {
-                    patch.get_id(): strand
-                    for patch, strand in zip(patches, strand_ids)
-                }
-
-        assert best_mapping is not None, "Could not find satisfactory patch mapping!"
-        # check normals in mapping
-        for patch_id, strand_id in best_mapping.items():
-            patch = self.patchy_scene.particle_types().patch(patch_id)
-            strand_3p = dna.strand_3p(strand_id).pos
+        # Create the mapping of patch IDs to strand IDs based on the optimal pairing
+        patch_ids = [patch.get_id() for patch in patches]
+        strand_ids = list(strands)
+        best_mapping = {patch_ids[i]: strand_ids[j] for i, j in zip(patch_indices, strand_indices)}
 
         return best_mapping
+
+    # def align_patch_strands(self,
+    #                         dna: DNAParticle,
+    #                         patches: set[PLPatch],
+    #                         strands: Iterable[int],
+    #                         sf: float) -> dict[int, int]:
+    #     """
+    #     Aligns a group of patches (representing a single multidentate patch) with the 3' ends of strands
+    #     trust me this function is secretly a nightmare
+    #     Returns:
+    #         a mapping where keys are ids of patches and values are strand ids
+    #     """
+    #
+    #     # get patch positions
+    #     patch_positions = np.stack([patch.position() / sf for patch in patches])
+    #     # get patch centerpoint
+    #     patch_centroid = patch_positions.mean(axis=0)
+    #     # make patch positions origin zero
+    #     # patch_positions = [ppos - patch_centroid for ppos in patch_positions]
+    #     patch_norm = patch_centroid / np.linalg.norm(patch_centroid)
+    #
+    #     # get strand positions
+    #     strand_positions = np.stack([dna.strand_3p(strand_id).pos for strand_id in strands])
+    #     # get strands centerpoint
+    #     strands_centroid = strand_positions.mean(axis=0)
+    #     # make strands origin zero
+    #     # strand_positions = [spos - strands_centroid for spos in strand_positions]
+    #     strands_norm = strands_centroid / np.linalg.norm(strands_centroid)
+    #
+    #     # # check that normals are aligned
+    #     s = np.cross(patch_norm, strands_norm)
+    #     c = patch_norm.dot(strands_norm)
+    #     a = np.arctan2(np.linalg.norm(s), c)
+    #     # assert a / (2 * math.pi) < .1, "Normal of patch not alinged with strands!!!"
+    #
+    #     # radius = patch rmsd
+    #     patches_r = patch_positions.std()
+    #     strands_r = strands_centroid.std()
+    #
+    #     # translate
+    #     patch_positions = patch_positions - patch_centroid + strands_centroid
+    #
+    #     # scale
+    #     patch_positions *= (strands_r - patches_r)
+    #
+    #     # max you can rotate to align patches without messing up strand arrangement
+    #     theta_max =  2 * math.pi / (2 * len(patches))
+    #
+    #     assert patch_positions.shape == strand_positions.shape
+    #     best_rms = np.inf
+    #     best_mapping = None
+    #     all_strand_orderings = itertools.permutations(enumerate(strands))
+    #     for strand_ordering in all_strand_orderings:
+    #         strand_idxs, strand_ids = zip(*strand_ordering)
+    #         m2:np.ndarray = strand_positions[strand_idxs, :]
+    #         m1:np.ndarray = patch_positions
+    #         # rms = (m2-m1).std()
+    #         # if rms < best_rms:
+    #         #     best_mapping = {
+    #         #         patch.get_id(): strand
+    #         #         for patch, strand in zip(patches, strand_ids)
+    #         #     }
+    #         # setup svd superimposer
+    #         rms = (m1-m2).std()
+    #         # there should PROBABLY only be one rotation matrix that satisfies these conditions???
+    #         # if not, i should probably check that out, but also we use the one with lowest rms
+    #         # rms = svd.get_rms()
+    #         if rms < best_rms:
+    #             best_rms = rms
+    #             best_mapping = {
+    #                 patch.get_id(): strand
+    #                 for patch, strand in zip(patches, strand_ids)
+    #             }
+    #
+    #     assert best_mapping is not None, "Could not find satisfactory patch mapping!"
+    #     # check normals in mapping
+    #     for patch_id, strand_id in best_mapping.items():
+    #         patch = self.patchy_scene.particle_types().patch(patch_id)
+    #         strand_3p = dna.strand_3p(strand_id).pos
+    #
+    #     return best_mapping
 
     def link_patchy_particle(self, p: PLPatchyParticle, dna: DNAParticle):
         """
@@ -641,6 +700,8 @@ class PatchyOrigamiConverter:
         if patch_distance > 2 * self.get_expected_pad_distance():
             print(f"Distance between patches = {patch_distance}. "
                   f"Expected distance {self.get_expected_pad_distance()}")
+
+        assert not self.check_strict_rc or self.color_sequence(patch1.color()) == rc(self.color_sequence(patch2.color()))
 
         # retrieve sequences from map + add spacers
         patch1_seq = self.spacer_length * "T" + self.color_sequence(patch1.color())
