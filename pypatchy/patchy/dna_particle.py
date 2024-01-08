@@ -81,11 +81,15 @@ class DNAParticle (DNAStructure):
         """
         return self.patch_strand_map is not None
 
-    def assign_patches_strands(self, strand_map: dict):
+    def assign_patches_strands(self, strand_map: dict) -> bool:
         if self.patch_strand_map is None:
             self.patch_strand_map = strand_map
+            return False
         else:
+            # updating will be true if some of the keys in strand_map are already in self.patch_strand_map
+            updating = len(frozenset(self.patch_strand_map.keys()).intersection(strand_map.keys())) > 0
             self.patch_strand_map.update(strand_map)
+            return updating
 
     def assign_patch_strand(self, patch: Union[PLPatch, int], strand_id: int):
         if self.patch_strand_map is None:
@@ -174,6 +178,9 @@ class DNAParticle (DNAStructure):
         return np.mean(
             np.linalg.norm((self.get_patch_cmss() - self.cms()), axis=1)
         )
+
+    def patches_sphere_circumfrance(self):
+        return self.center2patch_conf() * 2 * math.pi
 
     def scale_factor(self, p: Union[None, PatchyBaseParticle] = None) -> float:
         """

@@ -59,12 +59,13 @@ class PolycubeStructure(TypedStructure, Scene):
                 cube_position = from_xyz(cube["position"])
                 # rotation quaternion wxyz
                 cr = cube["rotation"]
-                rot_quaternion = np.array((
-                    cr['x'],
-                    cr['y'],
-                    cr['z'],
-                    cr['w']
-                ))
+                if isinstance(cr, dict):
+                    rot_quaternion = np.array((
+                        cr['x'],
+                        cr['y'],
+                        cr['z'],
+                        cr['w']
+                    ))
                 cube_type = self.rule.particle(cube["type"])
                 # emplace cube in map
                 cubeObj = PolycubesStructureCube(cube_idx,
