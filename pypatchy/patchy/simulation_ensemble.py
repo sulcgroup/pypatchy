@@ -2236,7 +2236,10 @@ class PatchySimulationEnsemble:
         """
         Executes a bash command and returns the output
         """
-        self.get_logger().debug(f">`{command}`")
+        if cwd is not None:
+            self.get_logger().debug(f"`{cwd}$ {command}`")
+        else:
+            self.get_logger().debug(f"`{os.getcwd()}$ {command}`")
         if not is_async:
             response = subprocess.run(command,
                                       shell=True,

@@ -183,7 +183,7 @@ class FWriter(BasePatchyWriter):
         }
 
     def reqd_args(self) -> list[str]:
-        return ["patchy_file", "particle_file", "init_conf", "topology"]
+        return ["patchy_file", "particle_file", "conf_file", "topology"]
 
     def save_patch_to_str(self, patch, extras={}) -> str:
         # print self._type,self._type,self._color,1.0,self._position,self._a1,self._a2
@@ -301,7 +301,7 @@ class JWriter(BasePatchyWriter, ABC):
             ("patchy_file", "patches.txt"),
             ("particle_file", "particles.txt"),
             ("particle_types_N", str(scene.num_particle_types())),
-            ("patch_types_N", str(scene.particle_types().num_patches() * kwargs[NUM_TEETH_KEY]))
+            ("patch_types_N", str(scene.particle_types().num_patches()))
         ]
 
     @abstractmethod
@@ -333,18 +333,18 @@ class JWriter(BasePatchyWriter, ABC):
         # first convert particle json into PLPatchy objects (cf plpatchylib.py)
         particles = scene.particle_types()
 
-        pl_set = to_PL(particles,
-                       kwargs[NUM_TEETH_KEY],
-                       kwargs[DENTAL_RADIUS_KEY])
+        pl_set = to_PL(particles)
+                       # kwargs[NUM_TEETH_KEY],
+                       # kwargs[DENTAL_RADIUS_KEY])
 
-        self.write_conf(scene,init_conf)
+        self.write_conf(scene, init_conf)
 
         with self.file(init_top) as top_file, \
                 self.file(particle_fn) as particles_file, \
                 self.file(patchy_fn) as patches_file:
 
             # write particles and patches file
-            for particle_patchy, particle_type in zip(pl_set.particles(), particles_type_list.particles()):
+            for particle_patchy, particle_type in zip(pl_set, particles_type_list.particles()):
                 # handle writing particles file
                 for i, patch_obj in enumerate(particle_patchy.patches()):
                     # we have to be VERY careful here with indexing to account for multidentate simulations

@@ -399,3 +399,25 @@ class PLPSimulation(Scene):
         if d <= PATCHY_CUTOFF:
             return True
         return False
+
+    def to_multidentate(self,
+                        dental_radius: float,
+                        num_teeth: int,
+                        torsion: bool = True,
+                        follow_surf: bool = False
+                        ) -> PLPSimulation:
+        """
+        Returns a multidentate version of the scene
+        """
+        mdt_particle_set = self.particle_types().to_multidentate(dental_radius, num_teeth, torsion, follow_surf)
+        mdt_scene = PLPSimulation()
+        mdt_scene.set_particle_types(mdt_particle_set)
+        for particle in self.particles():
+            mdt_particle = copy.deepcopy(mdt_particle_set.particle(particle.get_type()))
+            mdt_particle.set_position(particle.position())
+            mdt_particle.set_id(particle.get_id())
+            mdt_particle.set_position(particle.position())
+            mdt_scene.add_particle(mdt_particle)
+        mdt_scene.set_box_size(self.box_size())
+        return mdt_scene
+

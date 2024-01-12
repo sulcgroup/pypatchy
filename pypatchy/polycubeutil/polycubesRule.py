@@ -172,6 +172,9 @@ class PolycubesPatch(BasePatchType):
     def can_bind(self, other: BasePatchType):
         return self.color() == other.color()
 
+    def has_torsion(self):
+        return self.num_key_points() == 2
+
 
 class PolycubeRuleCubeType(PatchyBaseParticleType):
     def __init__(self,

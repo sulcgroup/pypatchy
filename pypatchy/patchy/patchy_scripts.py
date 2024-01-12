@@ -9,15 +9,15 @@ from typing import Union
 import numpy as np
 from scipy.spatial.transform import Rotation as R
 
-from pypatchy.patchy.mgl import MGLScene
-from pypatchy.patchy.pl.plpatchylib import load_patches, load_particles, export_interaction_matrix
-from pypatchy.patchy.pl.plparticle import PLPatchyParticle, PLParticleSet
-from pypatchy.patchy.pl.plpatch import PLPatch
-from pypatchy.patchy.pl.plscene import PLPSimulation
-from pypatchy.patchy_base_particle import BaseParticleSet
-from pypatchy.polycubeutil.polycube_structure import PolycubeStructure
-from pypatchy.polycubeutil.polycubesRule import PolycubesRule, PolycubeRuleCubeType
-from pypatchy.util import rotation_matrix, get_input_dir, to_xyz
+from .mgl import MGLScene, MGLPatch, MGLParticle
+from .pl.plpatchylib import load_patches, load_particles, export_interaction_matrix
+from .pl.plparticle import PLPatchyParticle, PLParticleSet
+from .pl.plpatch import PLPatch
+from .pl.plscene import PLPSimulation
+from ..patchy_base_particle import BaseParticleSet
+from ..polycubeutil.polycube_structure import PolycubeStructure
+from ..polycubeutil.polycubesRule import PolycubesRule, PolycubeRuleCubeType
+from ..util import rotation_matrix, get_input_dir, to_xyz
 
 
 def convert_multidentate(particles: PLParticleSet,
@@ -26,78 +26,9 @@ def convert_multidentate(particles: PLParticleSet,
                          torsion: bool = True,
                          followSurf=False) -> PLParticleSet:
     """
-    Converts a set of patchy particles to multidentate
-    Returns:
-        athe multidentate base particle set
+    DEPRECATED. use object-oriented method instead
     """
-    new_particles: list[PLPatchyParticle] = [None for _ in particles.particles()]
-    patch_counter = 0
-    new_patches = []
-    id_map: dict[int, set[int]] = dict()
-    # iter particles
-    for i_particle, particle in enumerate(particles):
-        new_particle_patches = []
-        # iter patches in particle
-        for patch in particle.get_patches():
-            teeth = [None for _ in range(num_teeth)]
-            is_color_neg = patch.color() < 0
-            # "normalize" color by making the lowest color 0
-            if abs(patch.color()) < 21: assert not torsion, "Torsion cannot be on for same color binding " \
-                                                       "b/c IDK how that works and IDC enough to figure it out"
-            # note that the converse is not true; we can have torsion w/o same color binding
-            colornorm = abs(patch.color()) - 21
-            id_map[patch.get_id()] = set()
-            for tooth in range(num_teeth):
-
-                # grab patch position, a1, a2
-                position = np.copy(patch.position())
-                a1 = np.copy(patch.a1())
-                a2 = np.copy(patch.a2())
-                # theta is the angle of the tooth within the patch
-                theta = tooth / num_teeth * 2 * math.pi
-
-                # assign colors
-                # torsional patches need to be assigned colors to
-                if torsion:
-                    c = colornorm * num_teeth + tooth + 21
-                    if is_color_neg:
-                        # opposite-color patches have to be rotated opposite directions
-                        # b/c mirroring
-                        theta *= -1
-                        # set color sign
-                        c *= -1
-                else:
-                    # non-torsional patches are VERY EASY because you just use the same color again
-                    c = patch.color()
-                    # theta doesn't need to be adjusted for parity because it's the sames
-
-                r = R.identity()
-                if followSurf:
-                    # phi is the angle of the tooth from the center of the patch
-                    psi = dental_radius / particle.radius()
-                    psi_axis = np.cross(a1, a2)  # axis orthogonal to patch direction and orientation
-                    # get rotation
-                    r = R.from_matrix(rotation_matrix(psi_axis, psi))
-                else:
-                    # move tooth position out of center
-                    position += a2 * dental_radius
-                r = r * R.from_matrix(rotation_matrix(a1, theta))
-                position = r.apply(position)
-                a1 = r.apply(a1)
-                # using torsional multidentate patches is HIGHLY discouraged but
-                # this functionality is included for compatibility reasons
-                a2 = r.apply(a2)
-                teeth[tooth] = PLPatch(patch_counter, c, position, a1, a2, 1.0 / num_teeth)
-                id_map[patch.get_id()].add(patch_counter)
-                patch_counter += 1
-            # add all teeth
-            new_particle_patches += teeth
-        new_particles[i_particle] = PLPatchyParticle(type_id=particle.type_id(), index_=i_particle,
-                                                     radius=particle.radius())
-        new_particles[i_particle].set_patches(new_particle_patches)
-        new_patches += new_particle_patches
-    particle_set = PLParticleSet(new_particles, particles, id_map)
-    return particle_set
+    return particles.to_multidentate(dental_radius, num_teeth, torsion, followSurf)
 
 
 def convert_udt_files_to_mdt(patches_file: Union[str, Path],
@@ -178,12 +109,32 @@ def to_PL(particle_set: BaseParticleSet,
     Whatever it means, this function converts an arbitrary particle set into
     PL particles and patches, applying multidentate where applicable.
     """
-    particles: PLParticleSet = PLParticleSet()
     # in the unlikely event this is already a PL particle set
-    if num_teeth == 1 and dental_radius == 0 and isinstance(particle_set, PLParticleSet):
-        return particle_set
-    if all(isinstance(particle, PLPatchyParticle) for particle in particle_set.particles()):
-        return PLParticleSet(particles.particles())
+    if isinstance(particle_set, PLParticleSet):
+        if num_teeth == 1 and dental_radius == 0:
+            return particle_set
+        else:
+            particles = particle_set
+    elif isinstance(particle_set, PolycubesRule):
+        particles = polycube_rule_to_PL(particle_set)
+    elif all([isinstance(p, MGLParticle) for p in particle_set]):
+        particles, _ = mgl_particles_to_pl(particle_set)
+    else:
+        raise Exception("Unrecognized particle types!!")
+
+    # do multidentate convert
+    if num_teeth > 1:
+        particles = convert_multidentate(particles, dental_radius, num_teeth)
+
+    assert particles.num_particle_types() == particle_set.num_particle_types(), \
+        f"Bad conversion! Number of particle types produced {particles.num_particle_types()} not equal to number of particles" \
+        f" in input particle set {particle_set.num_particle_types()}!"
+
+    return particles
+
+
+def polycube_rule_to_PL(particle_set: PolycubesRule) -> PLParticleSet:
+    particles: PLParticleSet = PLParticleSet()
     # iter particles
     for particle in particle_set:
         particle_patches = []
@@ -193,21 +144,21 @@ def to_PL(particle_set: BaseParticleSet,
             pl_color = patch.colornum() - 20 if patch.colornum() < 0 else patch.colornum() + 20
             assert patch.get_id() == particles.num_patches() + len(particle_patches)
             a1 = relPosition / np.linalg.norm(relPosition)
-            # no torsion
-            if patch.num_key_points() == 1:
-                particle_patches.append(PLPatch(patch.get_id(),
-                                                pl_color,
-                                                relPosition,
-                                                a1))
             # torsion
-            elif patch.num_key_points() == 2:
-                particle_patches.append(PLPatch(patch.get_id(),
-                                                pl_color,
-                                                relPosition,
-                                                a1,
-                                                patch.alignDir()))
+            if patch.has_torsion():
+                plpatch = PLPatch(patch.get_id(),
+                                  pl_color,
+                                  relPosition,
+                                  a1,
+                                  patch.alignDir())
+            # no torsion
             else:
-                raise Exception("No idea how to handle whatever you're throwing at me")
+                plpatch = PLPatch(patch.get_id(),
+                                  pl_color,
+                                  relPosition,
+                                  a1)
+            particle_patches.append(plpatch)
+
         # convert to pl particle
         # reuse type ids here, unfortunately
         particle = PLPatchyParticle(type_id=particle.type_id(), particle_name=particle.name(),
@@ -215,11 +166,6 @@ def to_PL(particle_set: BaseParticleSet,
         particle.set_patches(particle_patches)
 
         particles.add_particle(particle)
-
-    # do multidentate convert
-    if num_teeth > 1:
-        particles = convert_multidentate(particles, dental_radius, num_teeth)
-
     return particles
 
 
@@ -246,6 +192,7 @@ def PL_to_rule(particles: list[PLPatchyParticle], ) -> Union[None, PolycubesRule
         }
         for particle in particles])
 
+
 POLYCUBE_NULL_A1: np.ndarray = np.array([
     1,
     0,
@@ -257,6 +204,7 @@ POLYCUBE_NULL_A3: np.ndarray = np.array([
     0,
     1
 ])
+
 
 def polycube_to_pl(polycube: PolycubeStructure,
                    nteeth=1,
@@ -292,11 +240,84 @@ def polycube_to_pl(polycube: PolycubeStructure,
     for cube1, cube2 in polycube.iter_bound_particles():
         assert pl.particles_bound(cube1.get_id(), cube2.get_id())
         cube_bindngs_count = len(list(polycube.iter_binding_patches(cube1, cube2)))
-        pl_bindings_count = len(list(pl.iter_binding_patches(pl.get_particle(cube1.get_id()), pl.get_particle(cube2.get_id()))))
+        pl_bindings_count = len(
+            list(pl.iter_binding_patches(pl.get_particle(cube1.get_id()), pl.get_particle(cube2.get_id()))))
         assert nteeth * cube_bindngs_count == pl_bindings_count
 
     return pl
 
 
-def mgl_to_pl(mgl: MGLScene) -> PLPSimulation:
-    pass
+# TODO: intgrate mapping of pl color to particle type into plparticle set the way udt sourcing is
+def mgl_particles_to_pl(mgl_particles: BaseParticleSet) -> tuple[PLParticleSet, dict[str, PLPatchyParticle]]:
+    pset = PLParticleSet()
+    patch_uid = 0
+    patch_color_map: dict[str, int] = {}
+    color_counter = 1
+    particle_type_colormap: dict[str, PLPatchyParticle] = {}
+    for ptypeidx, mgl_ptype in enumerate(mgl_particles):
+        pl_patches = []
+        for mgl_patch in mgl_ptype.patches():
+            # patch width information is inevitably lost
+            # TODO: mgl -> pl mdt taking into account width
+
+            # work out mgl patch colors
+            # if color isn't in the map
+            if mgl_patch.color() not in patch_color_map:
+                # if the color is "dark[SOMETHING]"
+                if mgl_patch.color().startswith("dark"):
+                    color_str = mgl_patch.color()[4:]
+                    # if the nondark version is in the map
+                    if color_str in patch_color_map:
+                        # add the dark version
+                        patch_color_map[mgl_patch.color()] = -patch_color_map[color_str]
+                    else:
+                        # add the non-dark and dark version
+                        patch_color_map[color_str] = color_counter
+                        patch_color_map[mgl_patch.color()] = -color_counter
+                        color_counter += 1
+                else:
+                    # just add the color
+                    patch_color_map[mgl_patch.color()] = color_counter
+                    color_counter += 1
+
+            patch_color = patch_color_map[mgl_patch.color()]
+
+            p = PLPatch(patch_uid,
+                        patch_color,
+                        mgl_patch.position(),
+                        mgl_patch.position() / np.linalg.norm(mgl_patch.position()))
+            pl_patches.append(p)
+            patch_uid += 1
+        pl_ptype = PLPatchyParticle(pl_patches,
+                                    type_id=ptypeidx)
+        particle_type_colormap[mgl_ptype.color()] = pl_ptype
+        pset.add_particle(pl_ptype)
+    return pset, particle_type_colormap
+
+
+def mgl_to_pl(mgl: MGLScene,
+              pad_frac: float = 0.1) -> PLPSimulation:
+    pl = PLPSimulation()
+    pset, particle_type_colormap = mgl_particles_to_pl(mgl.particle_types())
+    pl.set_particle_types(pset)
+
+    mins = np.full(fill_value=np.inf, shape=3)
+    maxs = np.full(fill_value=-np.inf, shape=3)
+
+    # convert scene
+    for mgl_particle in mgl.particles():
+        pl_type = particle_type_colormap[mgl_particle.color()]
+        particle = PLPatchyParticle(copy.deepcopy(pl_type.patches()),
+                                    type_id=pl_type.type_id(),
+                                    index_=mgl_particle.get_id(),
+                                    position=mgl_particle.position())
+        particle.rotate(mgl_particle.rotation())
+        pl.add_particle(particle)
+        maxs = np.max([maxs, particle.position()], axis=0)
+        mins = np.min([mins, particle.position()], axis=0)
+
+    pad = (maxs - mins) * pad_frac + np.full(fill_value=1, shape=(3,))
+    pl.translate(-mins + pad)
+    pl.set_box_size(maxs - mins + 2 * pad)
+
+    return pl

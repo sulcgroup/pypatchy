@@ -32,7 +32,7 @@ from ..polycubeutil.polycube_structure import PolycubeStructure
 from ..util import get_input_dir
 
 
-# this file contains classes that are useful in analpipe, but aren't required by other PyPatchy modules
+# this file contains classes that are useful in analysis, but aren't required by other PyPatchy modules
 # all classes in this document should extend AnalysisPipelineStep
 
 # class LoadSimulationInfo(AnalysisPipelineHead, ABC):
@@ -119,7 +119,8 @@ class LoadParticlesTraj(AnalysisPipelineHead):
                     # assert (conf.positions < conf.box[np.newaxis, :]).all()
                     confdict[conf.time] = (conf, particle_type_ids)
             staged_data.append(RawPipelineData(confdict))
-        return sum(staged_data, start=RawPipelineData({}))
+        data = sum(staged_data, start=RawPipelineData({}))
+        return RawPipelineData(data.data)
 
     def draw(self) -> tuple[tuple[int, int], draw.Group]:
         (w, y), g = super().draw()

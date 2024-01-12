@@ -127,7 +127,7 @@ class PatchyOrigamiConverter:
     check_strict_rc: bool = True
 
     def __init__(self,
-                 scene: Union[MGLScene, PLPSimulation],
+                 scene: PLPSimulation,
                  # particle_types: Union[Path, DNAParticle,
                  #                     dict[str, DNAParticle]],
                  # additional arguements (optional)

@@ -115,3 +115,6 @@ class PLPatch(BasePatchType):
 
     def __str__(self) -> str:
         return f"Patch type {self.get_id()} with color {self.color()} and strength {self.strength()} in position {self.position()}"
+
+    def has_torsion(self):
+        return self.num_key_points() == 2

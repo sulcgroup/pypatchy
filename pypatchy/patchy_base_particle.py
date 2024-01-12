@@ -144,6 +144,10 @@ class BasePatchType(ABC):
         # apply rotation to all key points
         self._key_points = [p @ r for p in self._key_points]
 
+    @abstractmethod
+    def has_torsion(self):
+        pass
+
 
 class BaseParticleSet:
     """
