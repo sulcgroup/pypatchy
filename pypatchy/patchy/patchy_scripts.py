@@ -17,7 +17,7 @@ from .pl.plscene import PLPSimulation
 from ..patchy_base_particle import BaseParticleSet
 from ..polycubeutil.polycube_structure import PolycubeStructure
 from ..polycubeutil.polycubesRule import PolycubesRule, PolycubeRuleCubeType
-from ..util import rotation_matrix, get_input_dir, to_xyz
+from ..util import rotation_matrix, get_input_dir, to_xyz, angle_between
 
 
 def convert_multidentate(particles: PLParticleSet,
@@ -248,7 +248,8 @@ def polycube_to_pl(polycube: PolycubeStructure,
 
 
 # TODO: intgrate mapping of pl color to particle type into plparticle set the way udt sourcing is
-def mgl_particles_to_pl(mgl_particles: BaseParticleSet) -> tuple[PLParticleSet, dict[str, PLPatchyParticle]]:
+def mgl_particles_to_pl(mgl_particles: BaseParticleSet,
+                        ref_scene: Union[MGLScene, None] = None) -> tuple[PLParticleSet, dict[str, PLPatchyParticle]]:
     pset = PLParticleSet()
     patch_uid = 0
     patch_color_map: dict[str, int] = {}
@@ -292,13 +293,29 @@ def mgl_particles_to_pl(mgl_particles: BaseParticleSet) -> tuple[PLParticleSet, 
                                     type_id=ptypeidx)
         particle_type_colormap[mgl_ptype.color()] = pl_ptype
         pset.add_particle(pl_ptype)
+
+    # if we've provided a reference scene, use it to position A2 vectors (so we can convert multidentate later)
+    if ref_scene is not None:
+        # cry a lot
+        handled_patches : set[int] = {}
+        for (particle1, particle2) in ref_scene.iter_bound_particles():
+            for patch1, patch2 in ref_scene.iter_binding_patches(particle1, particle2):
+                if patch1.get_id() not in handled_patches and patch2.get_id() in handled_patches:
+                    theta = math.pi - angle_between(patch1.position() @ particle1.rotation(),
+                                                    patch2.position() @ particle2.rotation())
+                elif patch1.get_id() not in handled_patches:
+                    pass
+                elif patch2.get_id() not in handled_patches:
+                    pass
+
+
     return pset, particle_type_colormap
 
 
 def mgl_to_pl(mgl: MGLScene,
               pad_frac: float = 0.1) -> PLPSimulation:
     pl = PLPSimulation()
-    pset, particle_type_colormap = mgl_particles_to_pl(mgl.particle_types())
+    pset, particle_type_colormap = mgl_particles_to_pl(mgl.particle_types(), mgl)
     pl.set_particle_types(pset)
 
     mins = np.full(fill_value=np.inf, shape=3)

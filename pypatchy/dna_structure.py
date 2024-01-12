@@ -18,11 +18,13 @@ from .util import rotation_matrix, get_input_dir
 # also NO guarentee that all residues will be continuous! or like meaningfully connected at all!
 RESIDUECOUNT = 0
 
+
 def GEN_UIDS(n: int) -> range:
     global RESIDUECOUNT  # hate it
     r = range(RESIDUECOUNT, RESIDUECOUNT + n)
     RESIDUECOUNT += n
     return r
+
 
 DNABase = namedtuple('DNABase', ['uid', 'base', 'pos', 'a1', 'a3'])
 
@@ -80,7 +82,7 @@ class DNAStructureStrand:
                  positions: np.ndarray,
                  a1s: np.ndarray,
                  a3s: np.ndarray,
-                 uids: Union[np.ndarray, None]=None):
+                 uids: Union[np.ndarray, None] = None):
         assert bases.size == positions.shape[0] == a1s.shape[0] == a3s.shape[0], "Mismatch in strand raws shapes!"
         assert all([b in ("A", "T", "C", "G") for b in bases]), "Invalid base!"
         assert np.all(~np.isnan(positions))
@@ -112,7 +114,8 @@ class DNAStructureStrand:
         Returns: a residue object if a position is specified, or a substrand if a slice is specified
         """
         if isinstance(item, int):
-            return DNABase(self.very_global_uids[item], self.bases[item], self.positions[item, :], self.a1s[item, :], self.a3s[item, :])
+            return DNABase(self.very_global_uids[item], self.bases[item], self.positions[item, :], self.a1s[item, :],
+                           self.a3s[item, :])
         elif isinstance(item, slice):
             # # sanitize start param
             # if item.start is None:
@@ -158,8 +161,8 @@ class DNAStructureStrand:
         self.a1s[start:stop, :] = other.a1s
         self.a3s[start:stop, :] = other.a3s
         if refr_uids == "new":
-            self.very_global_uids[start:stop] = np.array(GEN_UIDS(stop-start))
-        elif refr_uids == "cpy": # USE WITH CAUTION
+            self.very_global_uids[start:stop] = np.array(GEN_UIDS(stop - start))
+        elif refr_uids == "cpy":  # USE WITH CAUTION
             self.very_global_uids[start:stop] = other.very_global_uids
 
     def append(self, other: Union[DNAStructureStrand, DNABase], cpy_uids=False):
@@ -174,13 +177,13 @@ class DNAStructureStrand:
                                            other.a3[np.newaxis, :]))
         elif isinstance(other, DNAStructureStrand):
             self.very_global_uids = np.concatenate([self.very_global_uids, other.very_global_uids if cpy_uids
-                    else np.array(GEN_UIDS(len(other)))])
+            else np.array(GEN_UIDS(len(other)))])
             self.bases = np.concatenate([self.bases, other.bases])
             self.positions = np.concatenate([self.positions, other.positions], axis=0)
             self.a1s = np.concatenate([self.a1s, other.a1s], axis=0)
             self.a3s = np.concatenate([self.a3s, other.a3s], axis=0)
 
-    def prepend(self, other: Union[DNAStructureStrand, DNABase],  cpy_uids=False):
+    def prepend(self, other: Union[DNAStructureStrand, DNABase], cpy_uids=False):
         """
         Depending on the parameter, either concatinates a strand on the 3' of this strand or
         appends a single residue to the end of this strand, in-place
@@ -192,7 +195,7 @@ class DNAStructureStrand:
                                             other.a3[np.newaxis, :]))
         elif isinstance(other, DNAStructureStrand):
             self.very_global_uids = np.concatenate([other.very_global_uids if cpy_uids
-                    else np.array(GEN_UIDS(len(other))), self.very_global_uids])
+                                                    else np.array(GEN_UIDS(len(other))), self.very_global_uids])
             self.bases = np.concatenate([other.bases, self.bases])
             self.positions = np.concatenate([other.positions, self.positions], axis=0)
             self.a1s = np.concatenate([other.a1s, self.a1s], axis=0)
@@ -240,7 +243,11 @@ class DNAStructureStrand:
         # TODO: optional check for distance between adjacent bases?
         return True
 
-
+    def seq(self, from_5p: bool = False) -> str:
+        if from_5p:
+            return "".join([*reversed(self.bases)])
+        else:
+            return "".join(self.bases)
 
 
 # this shit was originally in a file called helix.py
@@ -357,7 +364,7 @@ class DNAStructure:
     time: int
     box: np.ndarray
     energy: np.ndarray
-    clustermap: dict[int, int]   # mapping of base uids to cluster indexes
+    clustermap: dict[int, int]  # mapping of base uids to cluster indexes
     clusters: list[set[int]]  # list of cluster info, where each cluster is a set of base uids
 
     def __init__(self,
@@ -676,17 +683,18 @@ def load_oxview(oxview: Union[str, Path]):
         for ox_sys in ovdata["systems"]:
             for strand_data in ox_sys["strands"]:
                 if strand_data["class"] == "NucleicAcidStrand":
-                    strand = [] # 3' -> 5' list of nucleotides
+                    strand = []  # 3' -> 5' list of nucleotides
                     for i, nuc in enumerate(strand_data["monomers"]):
                         a1 = np.array(nuc["a1"])
                         a3 = np.array(nuc["a3"])
                         pos = np.array(nuc["p"])
                         base = nuc["type"]
                         if "n3" in nuc:
-                            assert i > 0 and strand_data["monomers"][i-1]["id"] == nuc["n3"], "Topology problem!"
+                            assert i > 0 and strand_data["monomers"][i - 1]["id"] == nuc["n3"], "Topology problem!"
 
                         if "n5" in nuc:
-                            assert i < len(strand_data["monomers"]) and strand_data["monomers"][i+1]["id"] == nuc["n5"], "Topology problem!"
+                            assert i < len(strand_data["monomers"]) and strand_data["monomers"][i + 1]["id"] == nuc[
+                                "n5"], "Topology problem!"
                         strand.append((base, pos, a1, a3))
                     s.add_strand(strand_from_info(strand))
                     # load extra stuff (clusters, etc.)

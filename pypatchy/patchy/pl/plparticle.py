@@ -624,11 +624,13 @@ class PLParticleSet(BaseParticleSet):
                     a2 = np.copy(patch.a2())
                     # if the particle type doesn't include an a2
 
+                    # problem!!!!!
                     if a2 is None:
                         if torsion:
                             raise Exception("Cannot treat non-torsional particle set as torsional!")
                         else:
-                            pass
+                            if dental_radius > 0:
+                                raise Exception("Even for non-torsional particles, we need an a2 to align teeth unless teeth are superimposed (dental_radius = 0)")
 
                     # theta is the angle of the tooth within the patch
                     theta = tooth / num_teeth * 2 * math.pi
@@ -649,22 +651,28 @@ class PLParticleSet(BaseParticleSet):
                         # theta doesn't need to be adjusted for parity because it's the sames
 
                     r = R.identity()
-                    if follow_surf:
-                        # phi is the angle of the tooth from the center of the patch
-                        psi = dental_radius / particle.radius()
-                        psi_axis = np.cross(a1, a2)  # axis orthogonal to patch direction and orientation
-                        # get rotation
-                        r = R.from_matrix(rotation_matrix(psi_axis, psi))
+                    if dental_radius > 0:
+                        if follow_surf:
+                            # phi is the angle of the tooth from the center of the patch
+                            psi = dental_radius / particle.radius()
+                            psi_axis = np.cross(a1, a2)  # axis orthogonal to patch direction and orientation
+                            # get rotation
+                            r = R.from_matrix(rotation_matrix(psi_axis, psi))
+                        else:
+                            # move tooth position out of center
+                            position += a2 * dental_radius
+                        r = r * R.from_matrix(rotation_matrix(a1, theta))
+                        position = r.apply(position)
+                        a1 = r.apply(a1)
+                        # using torsional multidentate patches is HIGHLY discouraged but
+                        # this functionality is included for compatibility reasons
+                        a2 = r.apply(a2)
+                        teeth[tooth] = PLPatch(patch_counter, c, position, a1, a2, 1.0 / num_teeth)
+                    # compativility for multidentate patches with 0 radius - may be useful for DNA origami convert
                     else:
-                        # move tooth position out of center
-                        position += a2 * dental_radius
-                    r = r * R.from_matrix(rotation_matrix(a1, theta))
-                    position = r.apply(position)
-                    a1 = r.apply(a1)
-                    # using torsional multidentate patches is HIGHLY discouraged but
-                    # this functionality is included for compatibility reasons
-                    a2 = r.apply(a2)
-                    teeth[tooth] = PLPatch(patch_counter, c, position, a1, a2, 1.0 / num_teeth)
+                        # simply use unidentat patch position and skip a2
+                        teeth[tooth] = PLPatch(patch_counter, c, position, a1, strength=1.0 / num_teeth)
+
                     id_map[patch.get_id()].add(patch_counter)
                     patch_counter += 1
                 # add all teeth

@@ -291,6 +291,14 @@ class DNAParticle (DNAStructure):
         return normal_vector + centroid
 
 
+    def patch_for_strand(self, strand_id: int) -> Union[int, None]:
+        # linear search
+        for pid, sid in self.patch_strand_map.items():
+            if sid == strand_id:
+                return pid
+        return None
+
+
 @dataclass
 class PatchyOriRelation:  # name?
     """
