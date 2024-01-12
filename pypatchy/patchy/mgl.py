@@ -117,8 +117,15 @@ class MGLPatch(BasePatchType):
         assert new_position.shape == (3,)
         self._key_points[0] = new_position
 
+    def has_torsion(self):
+        return False # mgl patches are innately non-torsional
 
+
+"""
+A scene loaded from an MGL file
+"""
 class MGLScene(Scene):
+
     _box_size: np.ndarray
 
     def __init__(self, box_size: np.ndarray = np.zeros((3,))):
@@ -209,26 +216,36 @@ class MGLScene(Scene):
         # iter patch pairs
         for p1patch, p2patch in zip(p1.patches(), p2.patches()):
             # check if patches are complimentary
-            if p1patch.can_bind(p2patch):
-                # check binding geometry
-                # (warning: sus)
-                patch1_pos = p1patch.position() @ p1.rotation() + p1.position()
-                patch2_pos = p2patch.position() @ p2.rotation() + p2.position()
-                # todo: verify that this behavior is correct!
-                d = dist(patch1_pos, patch2_pos)
-                # 4 * patch.width = 2 x patch radius x 2 patches
-                bind_w = 2 * (2 * p1patch.width() + 2 * p2patch.width())
-                if d <= bind_w:
-                    return True
+            if self.patches_bound(p1, p1patch, p2, p2patch):
+                return True
         return False
 
     def set_particle_types(self, ptypes: BaseParticleSet):
         """
         please don't
         ok to be more specific the concept of "particle type" doesn't apply super well to mgl
-        so you can;'t really set the particle types k sorry
+        so you can't really set the particle types k sorry
         """
         pass
+
+    def patches_bound(self,
+                      particle1: MGLParticle,
+                      p1: MGLPatch,
+                      particle2: MGLParticle,
+                      p2: MGLPatch) -> bool:
+        if p1.can_bind(p2):
+            # check binding geometry
+            # (warning: sus)
+            patch1_pos = p1.position() @ particle1.rotation() + particle1.position()
+            patch2_pos = p2.position() @ particle2.rotation() + particle2.position()
+            # todo: verify that this behavior is correct!
+            d = dist(patch1_pos, patch2_pos)
+            # 4 * patch.width = 2 x patch radius x 2 patches
+            bind_w = 2 * (2 * p1.width() + 2 * p2.width())
+            if d <= bind_w:
+                return True
+        return False
+
 
 
 def load_mgl(file_path: Path) -> MGLScene:

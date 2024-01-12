@@ -1,15 +1,18 @@
 from __future__ import annotations
 
 import copy
+import math
 from pathlib import Path
 
 from typing import Union
 
 import numpy as np
+from scipy.spatial.transform import Rotation as R
 
-from pypatchy.patchy.pl.plpatch import PLPatch
-from pypatchy.patchy_base_particle import PatchyBaseParticleType, PatchyBaseParticle, BaseParticleSet
-from pypatchy.util import random_unit_vector
+
+from .plpatch import PLPatch
+from ...patchy_base_particle import PatchyBaseParticleType, PatchyBaseParticle, BaseParticleSet
+from ...util import random_unit_vector, rotation_matrix
 
 
 class PLPatchyParticle(PatchyBaseParticleType, PatchyBaseParticle):
@@ -28,7 +31,7 @@ class PLPatchyParticle(PatchyBaseParticleType, PatchyBaseParticle):
     all_letters = ['C', 'H', 'O', 'N', 'P', 'S', 'F', 'K', 'I', 'Y']
 
     def __init__(self, patches: list[PLPatch] = [],
-                 particle_name: Union[str, None]=None,
+                 particle_name: Union[str, None] = None,
                  type_id=0,
                  index_=0,
                  position=np.array([0., 0., 0.]),
@@ -586,3 +589,89 @@ class PLParticleSet(BaseParticleSet):
         else:
             return PLParticleSet([p.normalize() for p in self.particles()])
 
+    def to_multidentate(self,
+                        dental_radius: float,
+                        num_teeth: int,
+                        torsion: bool = True,
+                        follow_surf: bool = False) -> PLParticleSet:
+        """
+        Converts a set of patchy particles to multidentate
+        Returns:
+            athe multidentate base particle set
+        """
+        new_particles: list[PLPatchyParticle] = [None for _ in self.particles()]
+        patch_counter = 0
+        new_patches = []
+        id_map: dict[int, set[int]] = dict()
+        # iter particles
+        for i_particle, particle in enumerate(self):
+            new_particle_patches = []
+            # iter patches in particle
+            for patch in particle.get_patches():
+                teeth = [None for _ in range(num_teeth)]
+                is_color_neg = patch.color() < 0
+                # "normalize" color by making the lowest color 0
+                if abs(patch.color()) < 21: assert not torsion, "Torsion cannot be on for same color binding " \
+                                                                "b/c IDK how that works and IDC enough to figure it out"
+                # note that the converse is not true; we can have torsion w/o same color binding
+                colornorm = abs(patch.color()) - 21
+                id_map[patch.get_id()] = set()
+                for tooth in range(num_teeth):
+
+                    # grab patch position, a1, a2
+                    position = np.copy(patch.position())
+                    a1 = np.copy(patch.a1())
+                    a2 = np.copy(patch.a2())
+                    # if the particle type doesn't include an a2
+
+                    if a2 is None:
+                        if torsion:
+                            raise Exception("Cannot treat non-torsional particle set as torsional!")
+                        else:
+                            pass
+
+                    # theta is the angle of the tooth within the patch
+                    theta = tooth / num_teeth * 2 * math.pi
+
+                    # assign colors
+                    # torsional patches need to be assigned colors to
+                    if torsion:
+                        c = colornorm * num_teeth + tooth + 21
+                        if is_color_neg:
+                            # opposite-color patches have to be rotated opposite directions
+                            # b/c mirroring
+                            theta *= -1
+                            # set color sign
+                            c *= -1
+                    else:
+                        # non-torsional patches are VERY EASY because you just use the same color again
+                        c = patch.color()
+                        # theta doesn't need to be adjusted for parity because it's the sames
+
+                    r = R.identity()
+                    if follow_surf:
+                        # phi is the angle of the tooth from the center of the patch
+                        psi = dental_radius / particle.radius()
+                        psi_axis = np.cross(a1, a2)  # axis orthogonal to patch direction and orientation
+                        # get rotation
+                        r = R.from_matrix(rotation_matrix(psi_axis, psi))
+                    else:
+                        # move tooth position out of center
+                        position += a2 * dental_radius
+                    r = r * R.from_matrix(rotation_matrix(a1, theta))
+                    position = r.apply(position)
+                    a1 = r.apply(a1)
+                    # using torsional multidentate patches is HIGHLY discouraged but
+                    # this functionality is included for compatibility reasons
+                    a2 = r.apply(a2)
+                    teeth[tooth] = PLPatch(patch_counter, c, position, a1, a2, 1.0 / num_teeth)
+                    id_map[patch.get_id()].add(patch_counter)
+                    patch_counter += 1
+                # add all teeth
+                new_particle_patches += teeth
+            new_particles[i_particle] = PLPatchyParticle(type_id=particle.type_id(), index_=i_particle,
+                                                         radius=particle.radius())
+            new_particles[i_particle].set_patches(new_particle_patches)
+            new_patches += new_particle_patches
+        particle_set = PLParticleSet(new_particles, self, id_map)
+        return particle_set
