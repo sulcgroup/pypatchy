@@ -255,6 +255,14 @@ def getSignedAngle(v1: np.ndarray,
     return a
 
 
+def angle_between(v1: np.ndarray, v2: np.ndarray) -> float:
+    """ Returns the angle in radians between vectors 'v1' and 'v2'::
+    https://stackoverflow.com/questions/2827393/angles-between-two-n-dimensional-vectors-in-python
+    """
+    v1_u = v1 / np.linalg.norm(v1)
+    v2_u = v2 / np.linalg.norm(v2)
+    return np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0))
+
 # function written by ChatGPT
 def inverse_quaternion(q: np.ndarray) -> np.ndarray:
     w, x, y, z = q

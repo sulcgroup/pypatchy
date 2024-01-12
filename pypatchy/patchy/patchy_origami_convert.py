@@ -825,3 +825,41 @@ class PatchyOrigamiConverter:
         merged_conf = self.get_full_conf()
         merged_conf.export_oxview(write_oxview_path)
         print(f"Wrote OxView file to {str(write_oxview_path)}")
+
+    def print_sticky_staples(self, pl_type: Union[int, PLPatchyParticle, None] = None, incl_no_sticky:bool = True):
+        if pl_type is None:
+            for p in self.patchy_scene.particle_types():
+                self.print_sticky_staples(p.get_type())
+        elif isinstance(pl_type, PLPatchyParticle):
+            self.print_sticky_staples(pl_type.get_type())
+        else:
+            ptype = self.particle_type_map[pl_type]
+            assert ptype.has_linked(), "Cannot save stickies for unliked particle"
+            if np.abs(ptype.linked_particle.rotation() - np.identity(3)).sum() > 1e-6:
+                print("Warning: Particle has non-identity rotation! "
+                      "Patch a1s are going to be messed up! But you can technically proceed")
+            # clone to add strands
+            # iter strand id map
+            for strand_id in ptype.flat_strand_ids:
+                strand = copy.deepcopy(ptype.strands[strand_id])
+                # particle types don't have sticky ends added until they're positioned so we need to add them
+                # here before we export
+                patch_id = ptype.patch_for_strand(strand_id)
+
+                if patch_id is not None:
+                    patch = ptype.linked_particle.patch_by_id(patch_id)
+                    seq = "T" * self.spacer_length + self.color_sequence(patch.color())
+                    # last-base a1 is a really bad method for doing strand vector, compute patch a1 instead
+                    strand1, _ = construct_strands(seq,
+                                                   start_pos=ptype.patch_strand(patch_id)[0].pos,
+                                                   helix_direction=patch.a1())
+                    strand.prepend(strand1[::-1])
+                elif not incl_no_sticky:
+                    continue
+                sz = f"Strand {strand_id} : 3' {strand.seq()} 5'"
+                if patch_id is None:
+                    print(f"Patch {patch_id} : " + sz)
+                else:
+                    print(sz)
+
+
