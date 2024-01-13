@@ -833,6 +833,7 @@ class PatchyOrigamiConverter:
         elif isinstance(pl_type, PLPatchyParticle):
             self.print_sticky_staples(pl_type.get_type())
         else:
+            print(f"Particle {pl_type}")
             ptype = self.particle_type_map[pl_type]
             assert ptype.has_linked(), "Cannot save stickies for unliked particle"
             if np.abs(ptype.linked_particle.rotation() - np.identity(3)).sum() > 1e-6:
@@ -856,8 +857,8 @@ class PatchyOrigamiConverter:
                     strand.prepend(strand1[::-1])
                 elif not incl_no_sticky:
                     continue
-                sz = f"Strand {strand_id} : 3' {strand.seq()} 5'"
-                if patch_id is None:
+                sz = f"Strand {strand_id} : 5' {strand.seq(True)} 3'"
+                if patch_id is not None:
                     print(f"Patch {patch_id} : " + sz)
                 else:
                     print(sz)

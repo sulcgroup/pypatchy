@@ -17,7 +17,6 @@ import math
 # global slurm job info cache
 SLURM_JOB_CACHE: dict[int, dict[str, str]] = {}
 
-
 dist = lambda a, b: np.linalg.norm(a - b)
 normalize = lambda v: v / np.linalg.norm(v)
 
@@ -84,11 +83,13 @@ def get_babysitter_refresh() -> int:
     """
     return int(get_server_config()["babysitter_refresh"])
 
+
 def is_server_slurm() -> bool:
     """
     Returns whether the server is a slurm server. Defaults to true for legacy reasons.
     """
     return "is_slurm" not in get_server_config() or get_server_config()["is_slurm"]
+
 
 def get_param_set(filename) -> dict:
     return get_spec_json(filename, "input_files")
@@ -101,10 +102,11 @@ def get_spec_json(name, folder) -> dict:
     except IOError as e:
         print(f"No file named {name} in {get_local_dir() / 'spec_files' / folder}!")
 
+
 def is_sorted(target: Iterable[int]) -> bool:
     if not isinstance(target, list):
         target = list(target)
-    return all([target[i-1] < target[i] < target[i+1] for i in range(1, len(target)-1)])
+    return all([target[i - 1] < target[i] < target[i + 1] for i in range(1, len(target) - 1)])
 
 
 class BadSimulationDirException(Exception):
@@ -240,6 +242,7 @@ def rotidx(r: dict[int, dict[int, int]]) -> int:
             return key
     return -1  # invalid rotation dict
 
+
 def getSignedAngle(v1: np.ndarray,
                    v2: np.ndarray,
                    axis: np.ndarray) -> float:
@@ -259,9 +262,10 @@ def angle_between(v1: np.ndarray, v2: np.ndarray) -> float:
     """ Returns the angle in radians between vectors 'v1' and 'v2'::
     https://stackoverflow.com/questions/2827393/angles-between-two-n-dimensional-vectors-in-python
     """
-    v1_u = v1 / np.linalg.norm(v1)
-    v2_u = v2 / np.linalg.norm(v2)
+    v1_u = normalize(v1)
+    v2_u = normalize(v2)
     return np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0))
+
 
 # function written by ChatGPT
 def inverse_quaternion(q: np.ndarray) -> np.ndarray:
@@ -283,6 +287,27 @@ def all_equal(iterable):
 def is_slurm_job() -> bool:
     return os.environ.get("SLURM_JOB_ID") is not None
 
+
+def halfway_vector(a, b):
+    """ Returns a unit vector halfway between two unit vectors a and b. """
+    # Normalize a and b to be sure they're unit vectors
+    a = normalize(a)
+    b = normalize(b)
+
+    # Check if a and b are opposite
+    if np.allclose(a, -b):
+        # Find an arbitrary vector not parallel to a
+        if a[0] == 0 and a[1] == 0:
+            c = np.array([0, 1, 0])
+        else:
+            c = np.array([-a[1], a[0], 0])
+        return normalize(c)
+
+    # Sum of a and b
+    sum_vector = a + b
+    return normalize(sum_vector)
+
+
 def random_unit_vector():
     """
     Generate a random unit vector in 3-space.
@@ -298,6 +323,7 @@ def random_unit_vector():
 
     return np.array([x, y, z])
 
+
 def append_to_file_name(fn: str, extra: str) -> str:
     """
     appends an additonal string to a file name, before the extension
@@ -309,10 +335,12 @@ def append_to_file_name(fn: str, extra: str) -> str:
     else:
         return fn + "_" + extra
 
+
 # https://docs.python.org/3/library/itertools.html
 def powerset(iterable):
     "powerset([1,2,3]) --> () (1,) (2,) (3,) (1,2) (1,3) (2,3) (1,2,3)"
     s = list(iterable)
-    return chain.from_iterable(combinations(s, r) for r in range(len(s)+1))
+    return chain.from_iterable(combinations(s, r) for r in range(len(s) + 1))
+
 
 PATCHY_FILE_FORMAT_KEY = "patchy_format"

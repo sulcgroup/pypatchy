@@ -246,6 +246,7 @@ class MGLScene(Scene):
                 return True
         return False
 
+
 def load_mgl(file_path: Path) -> MGLScene:
     assert file_path.is_file()
     with file_path.open("r") as f:

@@ -297,17 +297,18 @@ def mgl_particles_to_pl(mgl_particles: BaseParticleSet,
     # if we've provided a reference scene, use it to position A2 vectors (so we can convert multidentate later)
     if ref_scene is not None:
         # cry a lot
-        handled_patches : set[int] = {}
+        handled_patches: set[int] = {}
         for (particle1, particle2) in ref_scene.iter_bound_particles():
             for patch1, patch2 in ref_scene.iter_binding_patches(particle1, particle2):
                 if patch1.get_id() not in handled_patches and patch2.get_id() in handled_patches:
-                    theta = math.pi - angle_between(patch1.position() @ particle1.rotation(),
-                                                    patch2.position() @ particle2.rotation())
+                    # theta = math.pi - angle_between(patch1.position() @ particle1.rotation(),
+                    #                                 patch2.position() @ particle2.rotation())
+                    midvector
+
                 elif patch1.get_id() not in handled_patches:
                     pass
                 elif patch2.get_id() not in handled_patches:
                     pass
-
 
     return pset, particle_type_colormap
 
