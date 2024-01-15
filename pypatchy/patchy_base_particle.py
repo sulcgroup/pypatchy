@@ -68,8 +68,8 @@ class PatchyBaseParticleType(ABC):
             return self._patches[patch_idx]
         else:
             assert isinstance(patch_idx, np.ndarray), "Index is not an int or an np array"
-            assert any([np.linalg.norm(p.position() - patch_idx) < 1e-10 for p in self._patches])
-            return [p for p in self._patches if np.linalg.norm(p.position() - patch_idx) < 1e-10][0]
+            assert any([np.linalg.norm(p.position() - patch_idx) < 1e-6 for p in self._patches])
+            return [p for p in self._patches if np.linalg.norm(p.position() - patch_idx) < 1e-6][0]
 
     @abstractmethod
     def radius(self, normal: np.ndarray = np.zeros(shape=(3,))) -> float:

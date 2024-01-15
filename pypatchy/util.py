@@ -288,7 +288,7 @@ def is_slurm_job() -> bool:
     return os.environ.get("SLURM_JOB_ID") is not None
 
 
-def halfway_vector(a, b):
+def halfway_vector(a: np.ndarray, b: np.ndarray) -> np.ndarray:
     """ Returns a unit vector halfway between two unit vectors a and b. """
     # Normalize a and b to be sure they're unit vectors
     a = normalize(a)
@@ -308,7 +308,7 @@ def halfway_vector(a, b):
     return normalize(sum_vector)
 
 
-def random_unit_vector():
+def random_unit_vector() -> np.ndarray:
     """
     Generate a random unit vector in 3-space.
     WARNING: code came out of chatGPT!!!
