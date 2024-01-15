@@ -439,7 +439,7 @@ class DNAStructure:
                 conffile.write(f"E = {' '.join(self.energy.astype(str))}\n")
 
                 # write top file header
-                topfile.write(f"{self.nstrands} {self.nbases}\n")
+                topfile.write(f"{self.nbases} {self.nstrands}\n")
                 # loop strands
                 base_global_idx = 0
                 for sid, strand in enumerate(self.strands):

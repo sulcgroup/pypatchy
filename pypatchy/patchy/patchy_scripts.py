@@ -17,7 +17,7 @@ from .pl.plscene import PLPSimulation
 from ..patchy_base_particle import BaseParticleSet
 from ..polycubeutil.polycube_structure import PolycubeStructure
 from ..polycubeutil.polycubesRule import PolycubesRule, PolycubeRuleCubeType
-from ..util import rotation_matrix, get_input_dir, to_xyz, angle_between
+from ..util import rotation_matrix, get_input_dir, to_xyz, angle_between, halfway_vector, normalize
 
 
 def convert_multidentate(particles: PLParticleSet,
@@ -297,18 +297,56 @@ def mgl_particles_to_pl(mgl_particles: BaseParticleSet,
     # if we've provided a reference scene, use it to position A2 vectors (so we can convert multidentate later)
     if ref_scene is not None:
         # cry a lot
-        handled_patches: set[int] = {}
+        handled_patches: set[int] = set()
         for (particle1, particle2) in ref_scene.iter_bound_particles():
             for patch1, patch2 in ref_scene.iter_binding_patches(particle1, particle2):
-                if patch1.get_id() not in handled_patches and patch2.get_id() in handled_patches:
+                # if we have handled all patches, just stop
+                if len(handled_patches) == pset.num_patches():
+                    break
+                # get particle 1 type and rotation
+                ptype1 = ref_scene.particle_types()[particle1.color()]
+                p1rot = ref_scene.get_rot(particle1)
+
+                # get particle 2 type and rotation
+                ptype2 = ref_scene.particle_types()[particle2.color()]
+                p2rot = ref_scene.get_rot(particle2)
+
+                # get patch 1 and 2 type IDs
+                ppatchtype1 = ptype1.patch(patch1.position() @ p1rot.T).get_id()
+                ppatchtype2 = ptype2.patch(patch2.position() @ p2rot.T).get_id()
+                if patch1.get_id() not in handled_patches and patch2.get_id() not in handled_patches:
                     # theta = math.pi - angle_between(patch1.position() @ particle1.rotation(),
                     #                                 patch2.position() @ particle2.rotation())
-                    midvector
+                    midvector = halfway_vector(patch1.position(),
+                                               patch2.position())
+                    # compute patch oris
+                    patch1ori = normalize(np.cross(
+                        patch1.position(),
+                        midvector)
+                    )
+                    patch2ori = -normalize(np.cross(
+                        patch2.position(),
+                        midvector)
+                    )
 
-                elif patch1.get_id() not in handled_patches:
-                    pass
-                elif patch2.get_id() not in handled_patches:
-                    pass
+                    assert np.linalg.norm(patch1ori - patch2ori) < 1e-7, "Patch orientation vectors not orthogonal!"
+
+                    pset.patch(ppatchtype1).set_a2(patch1ori @ p1rot.T)
+                    pset.patch(ppatchtype2).set_a2(patch2ori @ p2rot.T)
+                    handled_patches.add(ppatchtype1)
+                    handled_patches.add(ppatchtype2)
+
+                elif patch1.get_id() in handled_patches:
+                    patch1ori = pset.patch(ppatchtype1).a2() @ p1rot.T
+                    pset.patch(ppatchtype1).set_a2(patch1ori @ p2rot.T)
+
+                    handled_patches.add(ppatchtype1)
+                elif patch2.get_id() in handled_patches:
+                    patch2ori = pset.patch(ppatchtype2).a2() @ p2rot.T
+                    pset.patch(ppatchtype2).set_a2(patch2ori @ p1rot.T)
+
+                    handled_patches.add(ppatchtype2)
+        assert pset.num_patches() == len(handled_patches)
 
     return pset, particle_type_colormap
 

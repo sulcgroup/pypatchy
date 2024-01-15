@@ -4,8 +4,10 @@ import itertools
 import re
 from copy import deepcopy
 from pathlib import Path
+from typing import Union
 
 import numpy as np
+from Bio.SVDSuperimposer import SVDSuperimposer
 from oxDNA_analysis_tools.UTILS.data_structures import TopInfo, Configuration
 
 from ..patchy_base_particle import BasePatchType, PatchyBaseParticleType, PatchyBaseParticle, \
@@ -87,6 +89,9 @@ class MGLParticle(PatchyBaseParticleType, PatchyBaseParticle):
         """
         for p in self.patches():
             p.set_position(p.position() @ rotation)
+
+    def patch_matrix(self) -> np.ndarray:
+        return np.stack([p.position() for p in self.patches()])
 
 
 class MGLPatch(BasePatchType):
@@ -180,12 +185,12 @@ class MGLScene(Scene):
             return False
         return True
 
-    def particle_types(self) -> BaseParticleSet:
+    def particle_types(self) -> MGLParticleSet:
         """
         Returns a BaseParticleSet containing the particle types (as defined by color) in this scene
         WARNING: does not check if particles are actually identical - just checks particle colors!!!
         """
-        particle_set = BaseParticleSet()
+        particle_set = MGLParticleSet()
         colors = set()
         particle_type_counter = 0
         patch_type_counter = 0
@@ -220,6 +225,30 @@ class MGLScene(Scene):
                 return True
         return False
 
+    def get_rot(self, p: Union[MGLParticle, int]) -> np.ndarray:
+        """
+        computes the rotation of an mgl particle based on its center and patches
+        Returns:
+            the matrix by which you would need to rotate the type particle of p to make it equal p
+        """
+        if isinstance(p, int):
+            self.get_rot(self.particles()[p])
+        else:
+            sup = SVDSuperimposer()
+            ptype = self.particle_types()[p.color()]
+            # don't search orders
+            m1 = np.concatenate([ptype.patch_matrix(), np.zeros((1, 3))])
+            m2 = np.concatenate([p.patch_matrix(), np.zeros((1, 3))])
+            sup.set(m1, m2)
+            sup.run()
+            assert sup.get_rms() < 1e-6
+            rot, tran = sup.get_rotran()
+            assert np.linalg.norm(tran) < 1e-3
+
+            assert np.linalg.norm(m1 @ rot.T - m2) < 1e-3, "Bad rotation!"
+            return rot.T
+
+
     def set_particle_types(self, ptypes: BaseParticleSet):
         """
         please don't
@@ -245,6 +274,21 @@ class MGLScene(Scene):
             if d <= bind_w:
                 return True
         return False
+
+
+class MGLParticleSet(BaseParticleSet):
+    _colormap: dict[str, MGLParticle]
+
+    def __init__(self, particles: Union[MGLParticleSet, list[MGLParticle], None]=None):
+        self._colormap = {}
+        super().__init__(particles)
+
+    def add_particle(self, particle: MGLParticle):
+        super().add_particle(particle)
+        self._colormap[particle.color()] = particle
+
+    def __getitem__(self, item: str) -> MGLParticle:
+        return self._colormap[item]
 
 
 def load_mgl(file_path: Path) -> MGLScene:

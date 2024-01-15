@@ -3,9 +3,10 @@ import math
 import os
 from copy import deepcopy
 from pathlib import Path
-from typing import Iterable, Union
+from typing import Iterable, Union, Generator
 
 import numpy as np
+import openpyxl
 from oxDNA_analysis_tools.UTILS.RyeReader import Configuration
 from Bio.SVDSuperimposer import SVDSuperimposer
 from scipy.optimize import linear_sum_assignment
@@ -15,7 +16,7 @@ from .patchy_scripts import mgl_to_pl
 from .pl.plparticle import PLPatchyParticle
 from .pl.plpatch import PLPatch
 from .pl.plscene import PLPSimulation
-from ..dna_structure import construct_strands, BASE_BASE, rc, POS_BASE, DNAStructure
+from ..dna_structure import construct_strands, BASE_BASE, rc, POS_BASE, DNAStructure, DNAStructureStrand
 
 from random import choice
 import itertools
@@ -826,12 +827,17 @@ class PatchyOrigamiConverter:
         merged_conf.export_oxview(write_oxview_path)
         print(f"Wrote OxView file to {str(write_oxview_path)}")
 
-    def print_sticky_staples(self, pl_type: Union[int, PLPatchyParticle, None] = None, incl_no_sticky:bool = True):
+    def iter_sticky_staples(self,
+                            pl_type: Union[int, PLPatchyParticle, None] = None,
+                            incl_no_sticky: bool = True) -> Generator[tuple[DNAParticle, int,
+                                                                            int, DNAStructureStrand],
+                                                                      None,
+                                                                      None]:
         if pl_type is None:
             for p in self.patchy_scene.particle_types():
-                self.print_sticky_staples(p.get_type())
+                yield from self.iter_sticky_staples(p.get_type())
         elif isinstance(pl_type, PLPatchyParticle):
-            self.print_sticky_staples(pl_type.get_type())
+            yield from self.iter_sticky_staples(pl_type.get_type())
         else:
             print(f"Particle {pl_type}")
             ptype = self.particle_type_map[pl_type]
@@ -857,10 +863,64 @@ class PatchyOrigamiConverter:
                     strand.prepend(strand1[::-1])
                 elif not incl_no_sticky:
                     continue
-                sz = f"Strand {strand_id} : 5' {strand.seq(True)} 3'"
-                if patch_id is not None:
-                    print(f"Patch {patch_id} : " + sz)
-                else:
-                    print(sz)
+                yield ptype, strand_id, patch_id, strand
+
+    def print_sticky_staples(self, pl_type: Union[int, PLPatchyParticle, None] = None, incl_no_sticky:bool = True):
+        for dna, strand_id, patch_id, strand in self.iter_sticky_staples(pl_type, incl_no_sticky):
+            sz = f"Strand {strand_id} : 5' {strand.seq(True)} 3'"
+            if patch_id is not None:
+                print(f"Patch {patch_id} : " + sz)
+            else:
+                print(sz)
+
+    def export_stickys_staples(self, fp: Path, by_row=True, incl_no_sticky=True):
+        """
+        Exports sticky-end staples to an excel file for ordering
+        """
+        wb = openpyxl.Workbook()
+        ws = wb.active
+
+        idx = 1
+        ws[f"A{idx}"] = "Wells"
+        ws[f"B{idx}"] = "Name"
+        ws[f"C{idx}"] = "Sequences"
+        idx += 1
+        prev_pid = None
+        for i, (dna, strand_id, patch_id, strand) in enumerate(self.iter_sticky_staples(incl_no_sticky=incl_no_sticky)):
+            if patch_id is None and not incl_no_sticky:
+                continue
+            if prev_pid is None:
+                prev_pid = dna.linked_particle.get_type()
+            if by_row and dna.linked_particle.get_type() != prev_pid:
+                # if each particle type should be its own row on the sheet
+                if (idx - 2) % 12 != 0:
+                    idx = 12 * math.ceil((idx-2) / 12) + 2
+                prev_pid = dna.linked_particle.get_type()
+
+
+            # trust me
+            if idx > 97:
+                ws = wb.create_sheet()
+                idx = 1
+
+                ws[f"A{idx}"] = "Wells"
+                ws[f"B{idx}"] = "Name"
+                ws[f"C{idx}"] = "Sequences"
+                idx += 1
+            plate_cell = idx - 2
+
+
+            plate_row = "ABCDEFGH"[int(plate_cell / 12)]
+            plate_col = plate_cell % 12 + 1
+
+            ws[f"A{idx}"] = f"{plate_row}{plate_col}"
+            ws[f"B{idx}"] = f"ParticleType{dna.linked_particle.get_type()}_Strand{strand_id}"
+            if patch_id is not None:
+                ws[f"B{idx}"] = ws[f"B{idx}"].value + f"_Patch{patch_id}"
+            ws[f"C{idx}"] = strand.seq(True)
+            idx += 1
+
+        wb.save(fp)
+
 
 
