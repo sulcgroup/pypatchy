@@ -40,7 +40,7 @@ from ..util import get_param_set, simulation_run_dir, get_server_config, get_log
 from .ensemble_parameter import EnsembleParameter, ParameterValue
 from .simulation_specification import PatchySimulation, ParamSet
 from .pl.plscene import PLPSimulation
-from .patchy_scripts import to_PL
+from .pl.plpatchylib import to_PL
 from ..polycubeutil.polycubesRule import PolycubesRule
 
 EXPORT_NAME_KEY = "export_name"

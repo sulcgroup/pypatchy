@@ -12,7 +12,7 @@ from Bio.SVDSuperimposer import SVDSuperimposer
 from scipy.optimize import linear_sum_assignment
 
 from .dna_particle import DNAParticle, PatchyOriRelation
-from .patchy_scripts import mgl_to_pl
+from .pl.plpatchylib import mgl_to_pl
 from .pl.plparticle import PLPatchyParticle
 from .pl.plpatch import PLPatch
 from .pl.plscene import PLPSimulation
@@ -136,11 +136,11 @@ class PatchyOrigamiConverter:
                  particle_delta: float = 1.2,
                  bond_length: float = 0.4,
                  cos_theta_max: float = 0.95,
-                 sticky_length: Union[int, None] = None,
+                 sticky_length: int = 0,
                  padding: float = 1.0,
                  flexable_patch_distances: bool = False,
                  expected_num_edges: int = -1,
-                 rel_rms_tolerance = 0.05
+                 rel_rms_tolerance = 0.15
                  ):
         """
         Initializes this converter using a few required params and a lot of optional fine-tuning params
