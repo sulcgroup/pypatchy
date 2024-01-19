@@ -13,9 +13,10 @@
 		"backend": "CPU",
         "backend_precision": "double",
 		"interaction_type": "PatchyShapeInteraction",
+		"patchy_file": "patches.txt",
+		"particle_file": "particles.txt",
         "plugin_search_path": "/home/jrevan21/alloassembly/contrib/romano"
 	},
 	"oxdna_path": "/home/jrevan21/alloassembly",
-	"patchy_format": "josh_flavio",
-	"babysitter_refresh": 43200
+	"patchy_format": "josh_flavio"
 }

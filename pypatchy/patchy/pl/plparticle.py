@@ -2,9 +2,8 @@ from __future__ import annotations
 
 import copy
 import math
-from pathlib import Path
 
-from typing import Union
+from typing import Union, Generator
 
 import numpy as np
 from scipy.spatial.transform import Rotation as R
@@ -21,7 +20,6 @@ class PLPatchyParticle(PatchyBaseParticleType, PatchyBaseParticle):
     cm_pos: np.ndarray
     unique_id: int
     _radius: float
-    _patch_ids: Union[None, list[int]]
     v: np.ndarray
     L: np.ndarray
     a1: Union[None, np.ndarray]
@@ -41,7 +39,6 @@ class PLPatchyParticle(PatchyBaseParticleType, PatchyBaseParticle):
 
         self.unique_id = index_
         self._radius = radius
-        self._patch_ids = None
         self.v = np.array([0., 0., 0.])
         self.L = np.array([0., 0., 0.])
         self.a1 = np.array([0, 0, 1])
@@ -386,17 +383,6 @@ class PLPatchyParticle(PatchyBaseParticleType, PatchyBaseParticle):
         return f"{np.array2string(self.cm_pos)[1:-1]} @ 0.5 C[{particle_color}] " \
                f"I {np.array2string(self.a1)[1:-1]} {np.array2string(self.a2)[1:-1]}"
 
-    def init_from_string(self, lines: list[str]):
-        for line in lines:
-            line = line.strip()
-            if len(line) > 1 and line[0] != '#':
-                if "type" in line:
-                    vals = int(line.split('=')[1])
-                    self._type_id = vals
-                if 'patches' in line:
-                    vals = line.split('=')[1]
-                    self._patch_ids = [int(g) for g in vals.split(',')]
-
     def get_a2(self) -> np.ndarray:
         return np.cross(self.a3, self.a1)
 
@@ -443,20 +429,9 @@ class PLPatchyParticle(PatchyBaseParticleType, PatchyBaseParticle):
             sout = sout + g
         return sout
 
-    def export_to_lorenzian_patchy_str(self,
-                                       ninstances: int,
-                                       root: Path = Path("/")) -> str:
-        """
-
-        """
-
-        patches_dat_filename = f"patches_{self.type_id()}.dat"
-        particle_str = f"{ninstances} {self.num_patches()} {','.join([str(pid) for pid in self._patch_ids])} {patches_dat_filename}"
-        patches_dat_filestr = "\n".join(
-            [np.array2string(patch.position(), precision=4)[1:-1] for patch in self.patches()])
-        with open(root / patches_dat_filename, 'w') as f:
-            f.write(patches_dat_filestr)
-        return particle_str
+    def patch_ids(self) -> Generator[int, None, None]:
+        for patch in self.patches():
+            yield patch.get_id()
 
     def export_to_xyz(self,
                       patch_width=0.4,

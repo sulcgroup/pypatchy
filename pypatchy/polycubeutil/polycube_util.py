@@ -4,9 +4,10 @@ import itertools
 
 import numpy as np
 
+from pypatchy.polycubeutil.polycube_structure import PolycubesStructureCube, PolycubeStructure
 from pypatchy.polycubeutil.polycubesRule import PolycubesRule, PolycubeRuleCubeType, PolycubesPatch, rdir, \
     get_orientation
-from pypatchy.structure import FiniteLatticeStructure, PolycubeStructure, PolycubesStructureCube
+from pypatchy.structure import FiniteLatticeStructure
 from pypatchy.util import getRotations
 
 

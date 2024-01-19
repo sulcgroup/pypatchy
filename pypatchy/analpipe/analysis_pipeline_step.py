@@ -5,7 +5,6 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Union
 
-import numpy as np
 import pandas as pd
 
 from pypatchy.patchy.simulation_specification import PatchySimulation

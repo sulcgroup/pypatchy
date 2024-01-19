@@ -10,7 +10,7 @@
         ],
         "input_file_params": {
                 "backend": "CPU",
-        "backend_precision": "double",
+                "backend_precision": "double",
                 "interaction_type": "PatchyShapeInteraction",
         "plugin_search_path": "/home/jrevan21/alloassembly/contrib/romano"
         },

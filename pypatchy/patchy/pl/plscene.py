@@ -8,12 +8,13 @@ from typing import Union, Iterable
 import numpy as np
 from oxDNA_analysis_tools.UTILS.data_structures import Configuration
 
-from pypatchy.patchy.pl.plpatchylib import PATCHY_CUTOFF
+
 from pypatchy.patchy.pl.plparticle import PLPatchyParticle, PLParticleSet
 from pypatchy.patchy.pl.plpatch import PLPatch
-from pypatchy.patchy_base_particle import BaseParticleSet
 from pypatchy.scene import Scene
 from pypatchy.util import dist
+
+PATCHY_CUTOFF = 0.18
 
 
 class PLPSimulation(Scene):
@@ -416,7 +417,6 @@ class PLPSimulation(Scene):
             mdt_particle = copy.deepcopy(mdt_particle_set.particle(particle.get_type()))
             mdt_particle.set_position(particle.position())
             mdt_particle.set_id(particle.get_id())
-            mdt_particle.set_position(particle.position())
             mdt_scene.add_particle(mdt_particle)
         mdt_scene.set_box_size(self.box_size())
         return mdt_scene
