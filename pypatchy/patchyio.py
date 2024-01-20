@@ -622,12 +622,12 @@ class LWriter(BasePatchyWriter):
     def write_top(self, topology: LPatchyTopology, top_file: str):
         with self.file(top_file) as f:
             f.write(f"{len(topology.particles())} {topology.particle_types.num_particle_types()}\n")
-            for particle in topology.particles():
+            for ptype in topology.particle_types:
 
                 # add particle file name to files list
                 # particles_txts_files.append(self.directory() / f"patches_{particle.type_id()}.dat")
-                f.write(self.particle_type_str(topology.particle_types.particle(particle),
-                                               topology.particle_type_count(particle)) + "\n")
+                f.write(self.particle_type_str(ptype,
+                                               topology.particle_type_count(ptype.type_id)) + "\n")
 
     def read_scene(self, top_file: Union[Path, str], traj_file: Union[Path, str],
                    particle_types: BaseParticleSet) -> Scene:
