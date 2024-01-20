@@ -718,7 +718,7 @@ class LWriter(BasePatchyWriter):
         particle_str = f"{nInstances} {particle.num_patches()} {','.join([str(pid) for pid in particle.patch_ids()])} {patches_dat_filename}"
         patches_dat_filestr = "\n".join(
             [np.array2string(patch.position(),
-                             separator=",",
+                             separator=" ",
                              suppress_small=True,
                              formatter={'float_kind': custom_formatter}
                              )[1:-1]
