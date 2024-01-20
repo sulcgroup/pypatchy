@@ -198,7 +198,7 @@ class MGLScene(Scene):
             if particle.color() not in colors:
                 colors.add(particle.color())
                 pcopy = deepcopy(particle)
-                pcopy.set_id(particle_type_counter)
+                pcopy.set_type(particle_type_counter)
                 particle_type_counter += 1
                 for patch in pcopy.patches():
                     patch.set_id(patch_type_counter)

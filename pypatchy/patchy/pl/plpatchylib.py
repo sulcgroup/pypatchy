@@ -1,33 +1,3 @@
-# #!/usr/bin/env python
-# from __future__ import annotations
-# import itertools
-# import math
-# from pathlib import Path
-# from typing import Union
-# # This file loads patchy particle file from topology and Configuration
-# import copy
-#
-# from pypatchy.patchy.pl.plparticle import PLPatchyParticle, PLParticleSet
-# from pypatchy.patchy.pl.plpatch import PLPatch
-#
-# """
-# Library for handling patchy-lock (PL) systems in pypatchy
-# Where constants etc. exist they should be the same as / similar to the Patchy interactions
-# in C++
-# """
-#
-# myepsilon = 0.00001
-#
-# # cutoff patch-patch distance, after which interaction cannot occur
-# PATCHY_CUTOFF = 0.18
-# # copied from oxDNA defs.h
-# # bounded arc-cosine?
-# LRACOS = lambda x: 0 if x > 1 else math.pi if x < -1 else math.acos(x)
-#
-#
-#
-#
-# # TODO: something with this class
 from __future__ import annotations
 
 import copy
@@ -35,8 +5,8 @@ from typing import Union
 
 import numpy as np
 
-from ..mgl import MGLParticle, MGLScene
-from .plparticle import PLParticleSet, PLPatchyParticle
+from ..mgl import MGLParticle, MGLScene, MGLParticleSet
+from .plparticle import PLParticleSet, PLPatchyParticle, PLSourceMap
 from .plpatch import PLPatch
 from .plscene import PLPSimulation
 from ...patchy_base_particle import BaseParticleSet
@@ -149,7 +119,7 @@ def polycube_to_pl(polycube: PolycubeStructure,
     mins = np.full(fill_value=np.inf, shape=3)
     maxs = np.full(fill_value=-np.inf, shape=3)
     # iter cubes in polycube
-    for cube in polycube._particles:
+    for cube in polycube.particles():
         pl_type: PLPatchyParticle = pl_types.particle(cube.get_type())
         particle = PLPatchyParticle(copy.deepcopy(pl_type.patches()),
                                     type_id=pl_type.type_id(),
@@ -178,13 +148,41 @@ def polycube_to_pl(polycube: PolycubeStructure,
     return pl
 
 
-def mgl_particles_to_pl(mgl_particles: BaseParticleSet,
-                        ref_scene: Union[MGLScene, None] = None) -> tuple[PLParticleSet, dict[str, PLPatchyParticle]]:
-    pset = PLParticleSet()
+class MGLPLSourceMap(PLSourceMap):
+    # maps mgl particle color to PL type
+    __color_type_map: dict[str, int]
+    # maps mgl patch color string to PL patch color ints
+    __patch_color_map: dict[str, int]
+
+    def __init__(self,
+                 src: MGLParticleSet,
+                 colorTypeMap: dict[str, int],
+                 patchColorMap: dict[str, int]):
+        super().__init__(src)
+        self.__color_type_map = colorTypeMap
+        self.__patch_color_map = patchColorMap
+
+    def particle_colormap(self) -> dict[str, int]:
+        return self.__color_type_map
+
+    def colored_particle_id(self, color: str) -> int:
+        return self.__color_type_map[color]
+
+    def colormap(self) -> dict[str, int]:
+        return self.__patch_color_map
+
+    # no need to do anything here
+    def normalize(self) -> MGLPLSourceMap:
+        return self
+
+
+def mgl_particles_to_pl(mgl_particles: MGLParticleSet,
+                        ref_scene: Union[MGLScene, None] = None) -> PLParticleSet:
+    particle_type_list = []
     patch_uid = 0
     patch_color_map: dict[str, int] = {}
     color_counter = 1
-    particle_type_colormap: dict[str, PLPatchyParticle] = {}
+    particle_type_colormap: dict[str, int] = {}
     for ptypeidx, mgl_ptype in enumerate(mgl_particles):
         pl_patches = []
         for mgl_patch in mgl_ptype.patches():
@@ -221,8 +219,12 @@ def mgl_particles_to_pl(mgl_particles: BaseParticleSet,
             patch_uid += 1
         pl_ptype = PLPatchyParticle(pl_patches,
                                     type_id=ptypeidx)
-        particle_type_colormap[mgl_ptype.color()] = pl_ptype
-        pset.add_particle(pl_ptype)
+        particle_type_colormap[mgl_ptype.color()] = pl_ptype.get_type()
+        particle_type_list.append(pl_ptype)
+
+    pset = PLParticleSet(particle_type_list, MGLPLSourceMap(mgl_particles,
+                                                            particle_type_colormap,
+                                                            patch_color_map))
 
     # if we've provided a reference scene, use it to position A2 vectors (so we can convert multidentate later)
     if ref_scene is not None:
@@ -278,31 +280,39 @@ def mgl_particles_to_pl(mgl_particles: BaseParticleSet,
                     handled_patches.add(ppatchtype2)
         assert pset.num_patches() == len(handled_patches)
 
-    return pset, particle_type_colormap
+    return pset
 
 
 def mgl_to_pl(mgl: MGLScene,
               pad_frac: float = 0.1) -> PLPSimulation:
     pl = PLPSimulation()
-    pset, particle_type_colormap = mgl_particles_to_pl(mgl.particle_types(), mgl)
+    pset = mgl_particles_to_pl(mgl.particle_types(), mgl)
+    pset = pset.normalize()
     pl.set_particle_types(pset)
 
     mins = np.full(fill_value=np.inf, shape=3)
     maxs = np.full(fill_value=-np.inf, shape=3)
+    pl.set_particle_types(pset)
 
     # convert scene
     for mgl_particle in mgl.particles():
-        pl_type = particle_type_colormap[mgl_particle.color()]
-        particle = PLPatchyParticle(copy.deepcopy(pl_type.patches()),
-                                    type_id=pl_type.type_id(),
-                                    index_=mgl_particle.get_id(),
-                                    position=mgl_particle.position())
-        particle.rotate(mgl_particle.rotation())
+        pl_type = pset.particle(pset.get_src_map().colored_particle_id(mgl_particle.color()))
+        # particle = PLPatchyParticle(copy.deepcopy(pl_type.patches()),
+        #                             type_id=pl_type.type_id(),
+        #                             index_=mgl_particle.get_id(),
+        #                             position=mgl_particle.position())
+        particle: PLPatchyParticle = copy.deepcopy(pl_type)
+        particle.set_uid(mgl_particle.get_id())
+        particle.set_position(mgl_particle.position())
+        # things get messy here, because we can't assume the mgl rotations are correct
+        # in fact they're almost certainly not
+        rot = pl_type.rotation_from_to(mgl_particle,
+                                       pset.get_src_map().colormap())
+        assert rot is not False, f"Cannot rotate particle {particle.get_id()} to match particle type {pl_type.type_id()}"
+        particle.rotate(rot)
         pl.add_particle(particle)
         maxs = np.max([maxs, particle.position()], axis=0)
         mins = np.min([mins, particle.position()], axis=0)
-
-    pl.set_particle_types(pl.particle_types().normalize())
 
     pad = (maxs - mins) * pad_frac + np.full(fill_value=1, shape=(3,))
     pl.translate(-mins + pad)

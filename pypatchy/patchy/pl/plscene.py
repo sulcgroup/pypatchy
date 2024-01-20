@@ -410,13 +410,22 @@ class PLPSimulation(Scene):
         """
         Returns a multidentate version of the scene
         """
+        # convert scene particle set to multidentate
         mdt_particle_set = self.particle_types().to_multidentate(dental_radius, num_teeth, torsion, follow_surf)
         mdt_scene = PLPSimulation()
+        # assign scene particle types
         mdt_scene.set_particle_types(mdt_particle_set)
+        # loop particles in scene
         for particle in self.particles():
+            # clone type particle from particle set
             mdt_particle = copy.deepcopy(mdt_particle_set.particle(particle.get_type()))
+            # assign position
             mdt_particle.set_position(particle.position())
-            mdt_particle.set_id(particle.get_id())
+            # assign rotation
+            mdt_particle.rotate(particle.rotmatrix())
+            # assign UID
+            mdt_particle.set_uid(particle.get_id())
+            # add particle to scene
             mdt_scene.add_particle(mdt_particle)
         mdt_scene.set_box_size(self.box_size())
         return mdt_scene

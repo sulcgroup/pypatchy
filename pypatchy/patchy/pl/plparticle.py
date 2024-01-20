@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import copy
 import math
+from abc import abstractmethod, ABC
 
 from typing import Union, Generator
 
 import numpy as np
 from scipy.spatial.transform import Rotation as R
-
 
 from .plpatch import PLPatch
 from ...patchy_base_particle import PatchyBaseParticleType, PatchyBaseParticle, BaseParticleSet
@@ -44,13 +44,22 @@ class PLPatchyParticle(PatchyBaseParticleType, PatchyBaseParticle):
         self.a1 = np.array([0, 0, 1])
         self.a3 = np.array([1, 0, 0])
 
-        if particle_name is None:
-            self._name = f"particletype_{self.type_id()}"
-        else:
-            self._name = particle_name
+        self._name = particle_name
 
     def name(self) -> str:
-        return self._name
+        if self._name is None:
+            if self.unique_id:
+                return f"particle_{self.get_uid()}"
+            else:
+                return f"particletype_{self.type_id()}"
+        else:
+            return self._name
+
+    def set_uid(self, new_uid: int):
+        self.unique_id = new_uid
+
+    def get_uid(self) -> int:
+        return self.unique_id
 
     def radius(self, normal: np.ndarray = np.zeros(shape=(3,))) -> float:
         """
@@ -118,7 +127,6 @@ class PLPatchyParticle(PatchyBaseParticleType, PatchyBaseParticle):
             if (np.abs(p1.position() - p2.position()) > 1e-6).any():
                 return False
         return True
-
 
     def set_random_orientation(self):
         self.a1 = random_unit_vector()
@@ -456,39 +464,33 @@ class PLPatchyParticle(PatchyBaseParticleType, PatchyBaseParticle):
         return p.position() @ self.rotmatrix() + self.position()
 
 
-class PLParticleSet(BaseParticleSet):
-    """
-    Particle set class for PL Particles
-    The main reason this subclass was created was in order to store data for multidentate particle mapping
-    """
-    __udt_source: Union[None, BaseParticleSet]
+class PLSourceMap(ABC):
+    __src_set: BaseParticleSet
+
+    def __init__(self, src: PLParticleSet):
+        self.__src_set = src
+
+    def src_set(self) -> BaseParticleSet:
+        return self.__src_set
+
+    @abstractmethod
+    def normalize(self):
+        pass
+
+
+class PLMultidentateSourceMap(PLSourceMap):
     # maps patch in source to patches in this set
-    __patch_map: Union[None, dict[int, set[int]]]
+    __patch_map: dict[int, set[int]]
     # reverse of __patch_map, maps patches in this set to patches in source
-    __patch_src_map: Union[None, dict[int, int]]
+    __patch_src_map: dict[int, int]
 
-    def __init__(self,
-                 particles: Union[None, list[PLPatchyParticle]] = None,
-                 src: Union[None, BaseParticleSet] = None,
-                 src_mapping: Union[None, dict[int, set[int]]] = None
-                 ):
-        if particles is None:
-            particles = []
-        super().__init__(particles)
-        assert (src is None) == (src_mapping is None), "Unclear if this particle has a source mapping!"
-        self.__udt_source = src
+    def __init__(self, src: PLParticleSet, src_mapping: dict[int, set[int]]):
+        super().__init__(src)
         self.__patch_map = src_mapping
-        if self.has_udt_src():
-            self.__patch_src_map = dict()
-            for src_patch_idx, mdt_patches in self.__patch_map.items():
-                for patch_id in mdt_patches:
-                    self.__patch_src_map[patch_id] = src_patch_idx
-
-    def get_src(self) -> PLParticleSet:
-        return self.__udt_source
-
-    def has_udt_src(self) -> bool:
-        return self.get_src() is not None
+        self.__patch_src_map = dict()
+        for src_patch_idx, mdt_patches in self.__patch_map.items():
+            for patch_id in mdt_patches:
+                self.__patch_src_map[patch_id] = src_patch_idx
 
     def get_src_patch(self, patch: PLPatch) -> PLPatch:
         """
@@ -496,9 +498,56 @@ class PLParticleSet(BaseParticleSet):
         in the source set
         """
         # unclear if this fail behavior is correct
-        assert self.has_udt_src(), "No source particle set!"
-        assert patch in self, "Invalid patch provided as arg!"
-        return self.get_src().patch(self.__patch_src_map[patch.get_id()])
+        assert patch.get_id() in self.__patch_src_map, "Invalid patch provided as arg!"
+        return self.src_set().patch(self.__patch_src_map[patch.get_id()])
+
+    def patch_groups(self) -> list[set[int]]:
+        return [set(patches) for patches in self.__patch_map.values()]
+
+    def patch_map(self) -> dict[int, set[int]]:
+        return self.__patch_map
+
+    def map_patch(self, udt_id: int) -> set[int]:
+        assert udt_id in self.__patch_map
+
+        return self.__patch_map[udt_id]
+
+    def normalize(self) -> PLMultidentateSourceMap:
+        return PLMultidentateSourceMap(self.src_set().normalize(), src_mapping=copy.deepcopy(self.patch_map()))
+
+
+class PLParticleSet(BaseParticleSet):
+    """
+    Particle set class for PL Particles
+    The main reason this subclass was created was in order to store data for multidentate particle mapping
+    But it can also store other mappings
+    """
+
+    __src_map: PLSourceMap
+
+    # __udt_source: Union[None, BaseParticleSet]
+    # # maps patch in source to patches in this set
+    # __patch_map: Union[None, dict[int, set[int]]]
+    # # reverse of __patch_map, maps patches in this set to patches in source
+    # __patch_src_map: Union[None, dict[int, int]]
+
+    def __init__(self,
+                 particles: Union[None, list[PLPatchyParticle]] = None,
+                 source_map: Union[PLSourceMap, None] = None
+                 ):
+        if particles is None:
+            particles = []
+        super().__init__(particles)
+        self.__src_map = source_map
+
+    def get_src_map(self) -> PLSourceMap:
+        return self.__src_map
+
+    def get_src(self) -> PLParticleSet:
+        return self.get_src_map().src_set()
+
+    def has_udt_src(self) -> bool:
+        return self.get_src() is not None and isinstance(self.get_src(), PLMultidentateSourceMap)
 
     def patch_groups(self, particle: Union[int, PLPatchyParticle, None] = None) -> list[set[int]]:
         """
@@ -506,11 +555,11 @@ class PLParticleSet(BaseParticleSet):
         """
         assert self.is_multidentate()
         if particle is None:
-            return [set(patches) for patches in self.__patch_map.values()]
+            return self.get_src_map().patch_groups()
         if isinstance(particle, int):
             particle = self.particle(particle)
-        return [set(patches) for patches in self.__patch_map.values() if any([self.patch(patch_id) in particle for patch_id in patches])]
-
+        return list(filter(self.get_src_map().patch_groups(),
+                           lambda patches: any([self.patch(patch_id) in particle for patch_id in patches])))
 
     def is_multidentate(self) -> bool:
         return self.has_udt_src() and self.get_src().num_patches() != self.num_patches()
@@ -526,8 +575,7 @@ class PLParticleSet(BaseParticleSet):
 
     def mdt_rep(self, udt_id: int) -> set[PLPatch]:
         assert self.has_udt_src()
-        assert udt_id in self.__patch_map
-        return {self.patch(i) for i in self.__patch_map[udt_id]}
+        return {self.patch(i) for i in self.get_src().map_patch(udt_id)}
 
     def __contains__(self, item: Union[PLPatch, PLPatchyParticle]) -> bool:
         """
@@ -556,11 +604,16 @@ class PLParticleSet(BaseParticleSet):
             raise TypeError(f"{str(item)} has invalid type {type(item)} for PLParticleSet::__contains__")
 
     def normalize(self) -> PLParticleSet:
-        if self.has_udt_src():
+        # the correct way to do this would be to make NormedParticleMap a SourceMap
+        # and then have some sort of source-map-chaining
+        # but i don't cherish THAT cost-benifit analysis
+        if self.get_src_map() is not None:
             return PLParticleSet([p.normalize() for p in self.particles()],
-                                 src=self.get_src().normalize(),
-                                 src_mapping=copy.deepcopy(self.__patch_map),  # pass-by-refernce hell
-                                 )
+                                 source_map=self.get_src_map().normalize())
+        # if self.has_udt_src():
+        #     return PLParticleSet([p.normalize() for p in self.particles()],
+        #                          src=PLMultidentateSourceMap(self.get_src().src_set().normalize(),
+        #                                                      src_mapping=copy.deepcopy(self.get_src().patch_map())))
         else:
             return PLParticleSet([p.normalize() for p in self.particles()])
 
@@ -605,7 +658,8 @@ class PLParticleSet(BaseParticleSet):
                             raise Exception("Cannot treat non-torsional particle set as torsional!")
                         else:
                             if dental_radius > 0:
-                                raise Exception("Even for non-torsional particles, we need an a2 to align teeth unless teeth are superimposed (dental_radius = 0)")
+                                raise Exception(
+                                    "Even for non-torsional particles, we need an a2 to align teeth unless teeth are superimposed (dental_radius = 0)")
 
                     # theta is the angle of the tooth within the patch
                     theta = tooth / num_teeth * 2 * math.pi
@@ -656,5 +710,5 @@ class PLParticleSet(BaseParticleSet):
                                                          radius=particle.radius())
             new_particles[i_particle].set_patches(new_particle_patches)
             new_patches += new_particle_patches
-        particle_set = PLParticleSet(new_particles, self, id_map)
+        particle_set = PLParticleSet(new_particles, PLMultidentateSourceMap(self, id_map))
         return particle_set

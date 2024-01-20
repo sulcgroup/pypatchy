@@ -822,7 +822,7 @@ class PolycubesRule(BaseParticleSet):
         if patch.get_id() is not None and patch.get_id() != -1:
             assert patch.get_id() == self.num_patches()
         else:
-            patch.set_id(self.num_patches())
+            patch.set_type_id(self.num_patches())
         self._patch_types.append(patch)
 
     def sort_by_num_patches(self):
@@ -840,7 +840,7 @@ class PolycubesRule(BaseParticleSet):
 
     def reindex(self):
         for i, particle_type in enumerate(self._particle_types):
-            particle_type.set_id(i)
+            particle_type.set_type_id(i)
 
     def draw_rule(self, draw_width=800) -> drawsvg.Drawing:
         """
