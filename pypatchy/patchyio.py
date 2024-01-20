@@ -620,9 +620,10 @@ class LWriter(BasePatchyWriter):
                 raise ValueError("Cannot assign colors such that interacting patches add to zero")
 
     def write_top(self, topology: LPatchyTopology, top_file: str):
-
         with self.file(top_file) as f:
+            f.write(f"{len(topology.particles())} {topology.particle_types.num_particle_types()}\n")
             for particle in topology.particles():
+
                 # add particle file name to files list
                 # particles_txts_files.append(self.directory() / f"patches_{particle.type_id()}.dat")
                 f.write(self.particle_type_str(topology.particle_types.particle(particle),
