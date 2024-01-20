@@ -1611,8 +1611,11 @@ class PatchySimulationEnsemble:
             # write more parameters
             ensemble_var_names = sim.var_names()
 
-            for param in ["T", "narrow_type"]:
-                inputfile.write(f"{param} = {self.sim_get_param(sim, param)}" + "\n")
+            inputfile.write(f"T = {self.sim_get_param(sim, 'T')}" + "\n")
+            try:
+                inputfile.write(f"narrow_type = {self.sim_get_param(sim, 'narrow_type')}" + "\n")
+            except NoSuchParamError as e:
+                self.get_logger().info(f"No narrow type specified for simulation {sim}.")
 
             # write external observables file path
             if len(self.observables) > 0:
