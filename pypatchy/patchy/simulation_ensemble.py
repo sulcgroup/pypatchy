@@ -190,13 +190,13 @@ def find_ensemble(*args: str, **kwargs) -> PatchySimulationEnsemble:
         with cfg_file_path.open("r") as cfg_file:
             try:
                 cfg = json.load(cfg_file)
-                return build_ensemble(cfg, {
-                    "setup_date": sim_init_date.strftime("%Y-%m-%d"),
-                })
             except JSONDecodeError as e:
-                raise JSONDecodeError(msg=f"Error parsing file {str(cfg_file_path)}! {e.msg}",
+                raise JSONDecodeError(msg=f"Error parsing patchy ensemble spec file {str(cfg_file_path)}! {e.msg}",
                                       doc=e.doc,
                                       pos=e.pos)
+            return build_ensemble(cfg, {
+                "setup_date": sim_init_date.strftime("%Y-%m-%d"),
+            })
 
     elif any([key in kwargs for key in ["metadata_file_name", "metadata_file", "mdf", "mdt", "metadata"]]):
         metadata_file_name: str = [kwargs[key] for key in ["metadata_file_name",
