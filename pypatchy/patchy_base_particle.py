@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import itertools
 from abc import ABC, abstractmethod
 from copy import deepcopy
 from typing import Union, Any, Iterable
 
 import numpy as np
+from Bio.SVDSuperimposer import SVDSuperimposer
 
 
 class PatchyBaseParticleType(ABC):
@@ -29,7 +31,7 @@ class PatchyBaseParticleType(ABC):
         """
         return self._type_id
 
-    def set_id(self, new_id: int):
+    def set_type_id(self, new_id: int):
         """
         Sets particle id
         """
@@ -196,13 +198,13 @@ class BaseParticleSet:
         # if particle.type_id() is not None and particle.type_id() != -1:
         #     assert particle.type_id() == self.num_particle_types()
         # else:
-        particle.set_id(self.num_particle_types())
+        particle.set_type_id(self.num_particle_types())
         self._particle_types.append(particle)
         for patch in particle.patches():
             if patch not in self.patches():
                 if patch.get_id() != self.num_patches():
                     pp = deepcopy(patch)
-                    pp.set_id(self.num_patches())
+                    pp.set_type_id(self.num_patches())
                     self.add_patch(pp)
                 else:
                     self.add_patch(patch)
@@ -237,6 +239,9 @@ class PatchyBaseParticle(ABC):
         Returns id number of particle's type
         """
         return self._type_id
+
+    def set_type(self, new_typeid: int):
+        self._type_id = new_typeid
 
     def get_id(self) -> int:
         return self._uid
@@ -291,4 +296,37 @@ class PatchyBaseParticle(ABC):
     def rotate(self, rotation: Any):
         pass
 
+    def rotation_from_to(self, p2: PatchyBaseParticle, colormap: Union[dict, None] = {}) -> Union[False, np.ndarray]:
+        """
+        Computes the rotation required to rotate the particle so it matches the particle p2
+        if the particles cannot be so rotated, returns False
+        Parameters:
+            p2: particle to compare to
+            colormap: mapping of color types on p2 to p1
+        """
 
+        patches_1 = [(patch.color(), patch.position())
+                        for patch in self.patches()]
+        patches_2 = [(patch.color(), patch.position())
+                        for patch in p2.patches()]
+        ptypes1, pposs1 = zip(*patches_1)
+
+        # if the patch types don't line up, return false
+        best_rot = None
+        best_rms = np.inf
+        for perm in itertools.permutations(patches_2):
+            ptypes2, pposs2 = zip(*perm)
+            if not all([p1_color == (p2_color if colormap is None else colormap[p2_color])
+                        for p1_color, p2_color in zip(ptypes1, ptypes2)]):
+                continue
+            m1 = np.stack([*pposs1, np.zeros(3)])
+            m2 = np.stack([*pposs2, np.zeros(3)])
+            svd = SVDSuperimposer()
+            svd.set(m2, m1)
+            svd.run()
+            if svd.get_rms() < best_rms:
+                best_rms = svd.get_rms()
+                best_rot, _ = svd.get_rotran()
+        if best_rot is None:
+            return False
+        return best_rot

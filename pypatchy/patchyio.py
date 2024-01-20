@@ -189,7 +189,7 @@ class FWriter(BasePatchyWriter):
             # first line of file
             top_file.write(f"{topology.num_particles()} {topology.num_particle_types()}\n")
             # second line of file
-            top_file.write(" ".join([str(particle.get_type()) for particle in topology.particles()]))
+            top_file.write(" ".join([str(particle) for particle in topology.particles()]))
 
     def particle_type_string(self, particle: PLPatchyParticle, extras: dict[str, str] = {}) -> str:
         outs = 'particle_%d = { \n type = %d \n ' % (particle.type_id(), particle.type_id())
