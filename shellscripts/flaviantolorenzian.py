@@ -8,6 +8,6 @@ from pypatchy.patchyio import get_writer
 
 if __name__ == "__main__":
     if len(sys.argv) > 2:
-        get_writer("flavio").set_write_directory(os.getcwd())
-        get_writer("lorenzo").set_write_directory(os.getcwd())
+        get_writer("flavio").set_directory(os.getcwd())
+        get_writer("lorenzo").set_directory(os.getcwd())
         convert_flavian_to_lorenzian(*sys.argv[1:])

@@ -52,7 +52,7 @@ class BasePatchyWriter(ABC):
         to oxDNA input files
         """
 
-    def set_write_directory(self, directory):
+    def set_directory(self, directory):
         self._writing_directory = directory
 
     def directory(self) -> Path:
@@ -202,6 +202,20 @@ class FWriter(BasePatchyWriter):
         outs = outs + ' \n } \n'
         return outs
 
+    def write_particles_patches(self, particles: PLParticleSet, particle_fn: str, patchy_fn: str):
+        with self.file(particle_fn) as particles_file, \
+                self.file(patchy_fn) as patches_file:
+
+            # swrite particles and patches file
+            for particle_patchy in particles.particles():
+                # handle writing particles file
+                for patch_idx, patch_obj in enumerate(particle_patchy.patches()):
+                    # we have to be VERY careful here with indexing to account for multidentate simulations
+                    # adjust for patch multiplier from multidentate
+
+                    patches_file.write(self.save_patch_to_str(patch_obj))
+                particles_file.write(self.particle_type_string(particle_patchy))
+
     def write(self,
               scene: Scene,
               stage: Union[Stage, None] = None,
@@ -223,18 +237,7 @@ class FWriter(BasePatchyWriter):
         plparticles = to_PL(particles, 1, 0)
 
         total_num_particles = sum(particle_type_counts.values())
-        with self.file(particle_fn) as particles_file, \
-                self.file(patchy_fn) as patches_file:
-
-            # swrite particles and patches file
-            for particle_patchy, particle_type in zip(plparticles, particles.particles()):
-                # handle writing particles file
-                for patch_idx, patch_obj in enumerate(particle_patchy.patches()):
-                    # we have to be VERY careful here with indexing to account for multidentate simulations
-                    # adjust for patch multiplier from multidentate
-
-                    patches_file.write(self.save_patch_to_str(patch_obj))
-                particles_file.write(self.particle_type_string(particle_patchy))
+        self.write_particles_patches(scene.particle_types(), particle_fn, patchy_fn)
 
         self.write_top(self.get_scene_top(scene), init_top)
 
