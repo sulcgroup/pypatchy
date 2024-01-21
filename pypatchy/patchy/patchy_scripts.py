@@ -49,7 +49,7 @@ def convert_udt_files_to_mdt(patches_file: Union[str, Path],
     dental_radius = float(dental_radius)
     num_teeth = int(num_teeth)
     follow_surf = follow_surf.lower() == "true"
-    get_writer("flavio").set_write_directory(patches_file.parent)
+    get_writer("flavio").set_directory(patches_file.parent)
     particle_set = get_writer("flavio").read_particle_types(patches_file, particles_file)
     new_particles = convert_multidentate(particle_set, dental_radius, num_teeth, follow_surf)
 

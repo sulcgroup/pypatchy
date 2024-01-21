@@ -1518,7 +1518,7 @@ class PatchySimulationEnsemble:
         if extras is None:
             extras = {}
         # set writer directory to simulation folder path
-        self.writer.set_write_directory(self.folder_path(sim))
+        self.writer.set_directory(self.folder_path(sim))
 
         # get server config
         if replacer_dict is None:
