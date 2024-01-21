@@ -566,7 +566,7 @@ class LWriter(BasePatchyWriter):
                     # iter lines in patch files
                     for (patch_id, patch_line) in zip(patchIDs, patches_file):
                         # unfortunately patch_idx doesn't correspond to patch_id
-                        patch_coords = np.array([int(i) for i in patch_line.split(",")])
+                        patch_coords = np.array([int(i) for i in patch_line.split()])
                         patch_type = PLPatch(type_id=patch_id, relposition=patch_coords, a1=normalize(patch_coords))
                         patches.append(patch_type)
                 particle_type = PLPatchyParticle(patches, type_id=pid, index_=pid)
