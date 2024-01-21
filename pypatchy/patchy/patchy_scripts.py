@@ -92,3 +92,23 @@ def convert_flavian_to_lorenzian(patches_file: str,
 # TODO: intgrate mapping of pl color to particle type into plparticle set the way udt sourcing is
 
 
+def lorenzian_to_flavian(lorenzian_folder: Union[Path, str], flavian_folder: Union[Path, str]):
+    """
+
+    """
+    if isinstance(lorenzian_folder, str):
+        lorenzian_folder = Path(lorenzian_folder)
+    if isinstance(flavian_folder, str):
+        flavian_folder = Path(flavian_folder)
+    assert flavian_folder != lorenzian_folder, "Must have different origin and destination folders"
+    get_writer("lorenzo").set_directory(lorenzian_folder)
+    topology: LWriter.LPatchyTopology = get_writer("lorenzo").read_top("init.top")
+    get_writer("flavio").set_directory(flavian_folder)
+    ftop = FWriter.FPatchyTopology(topology.particles())
+    get_writer("flavio").write_top(ftop, "init.top")
+    get_writer("flavio").write_particles_patches(topology.particle_types, "particles.txt", "patches.txt")
+
+
+
+
+
