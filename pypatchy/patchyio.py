@@ -119,6 +119,14 @@ class BasePatchyWriter(ABC):
         def particle_type_count(self, p) -> int:
             pass
 
+        @abstractmethod
+        def num_particle_types(self) -> int:
+            pass
+
+        @abstractmethod
+        def num_particles(self) -> int:
+            pass
+
 
 class FWriter(BasePatchyWriter):
     """
@@ -347,8 +355,8 @@ class FWriter(BasePatchyWriter):
 
     class FPatchyTopology(BasePatchyWriter.PatchyTopology):
 
-        nParticleTypes: int
-        topology_particles: list[int]
+        nParticleTypes: int # number of particle types
+        topology_particles: list[int] # list of particles, where each value is a type ID
         type_counts: dict[int, int]  # particle type ID -> count
 
         def __init__(self, top_particles: list[Union[PatchyBaseParticle, int]]):
@@ -689,7 +697,7 @@ class LWriter(BasePatchyWriter):
         """
         particle_types: PLParticleSet
         type_counts: dict[int, int]
-        particle_ids: list[int]
+        particle_ids: list[int]  # list of particles where each value is the particle's type ID
 
         def __init__(self, particle_types: PLParticleSet, particles: Union[list[int], dict[int, int]]):
             """
@@ -720,6 +728,12 @@ class LWriter(BasePatchyWriter):
 
         def particles(self) -> list[int]:
             return self.particle_ids
+
+        def num_particles(self) -> int:
+            return len(self.particle_ids)
+
+        def num_particle_types(self) -> int:
+            return self.particle_types.num_particle_types()
 
     def particle_type_str(self, particle: PLPatchyParticle, nInstances: int) -> str:
         patches_dat_filename = f"patches_{particle.type_id()}.dat"
