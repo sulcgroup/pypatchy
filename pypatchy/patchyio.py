@@ -687,7 +687,7 @@ class LWriter(BasePatchyWriter):
                 [
                     f"patchy_eps[{p1.type_id()}][{p2.type_id()}] = 1.0\n"
                     for p1, p2 in itertools.combinations(patches, 2)
-                    if p1.color() == p2.color()
+                    if p1.color() == -p2.color()
                 ]
             )
 
