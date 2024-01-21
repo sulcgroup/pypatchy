@@ -52,8 +52,11 @@ class BasePatchyWriter(ABC):
         to oxDNA input files
         """
 
-    def set_directory(self, directory):
-        self._writing_directory = directory
+    def set_directory(self, directory: Union[Path, str]):
+        if isinstance(directory, Path):
+            self._writing_directory = directory
+        else:
+            self._writing_directory = Path(directory)
 
     def directory(self) -> Path:
         return self._writing_directory
@@ -549,6 +552,7 @@ class LWriter(BasePatchyWriter):
         particle_type_counts = {}
         # load topology file, which contains particle type info and type counts
         with self.file(top_file, "r") as f:
+            f.readline()
             for pid, line in enumerate(f):
                 nInstances, nPatches, patchIDs, patchesfn = line.split()
                 nPatches = int(nPatches)
