@@ -27,6 +27,7 @@ from ..analpipe.analysis_data import PDPipelineData, ObjectPipelineData, TIMEPOI
 
 import drawsvg as draw
 
+from ..patchyio import get_writer
 from ..polycubeutil.polycubesRule import PolycubesRule
 from ..polycubeutil.polycube_structure import PolycubeStructure
 from ..util import get_input_dir
@@ -47,8 +48,6 @@ class LoadParticlesTraj(AnalysisPipelineHead):
     Loads the simulation trajectory.
 
     Should produce a Data
-
-    Note that I have not yet tested this class so it will likely collapse in spectacular fashion if used
     """
 
     normalize_coords: bool
@@ -58,14 +57,10 @@ class LoadParticlesTraj(AnalysisPipelineHead):
                  normalize_coords=True,
                  input_tstep: Union[int, None] = 1,
                  output_tstep: Union[int, None] = None):
-                 # traj_file_regex=r"trajectory.dat",
-                 # first_conf_file_name="init.conf"):
         """
         Constructor for traj read step
         I strongly advise initializing with:
         input_tstep = ensemble.get_input_file_param("print_conf_interval")
-        traj_file_regex = ensemble.get_input_file_param("trajectory_file")
-        first_conf_file_name = ensemble.get_input_file_param("conf_file")
         """
         super().__init__(name, input_tstep, output_tstep)
         self.normalize_coords = normalize_coords
@@ -85,15 +80,14 @@ class LoadParticlesTraj(AnalysisPipelineHead):
         # iter stages
         staged_data = []
         for stage, top_file, first_conf_file_path, traj_file_path in zip(stages, *args):
-            with top_file.open("r") as f:
-                f.readline()  # skip line
-                particle_type_ids = [int(i) for i in f.readline().split()]
+            get_writer().set_directory(traj_file_path.parent)
+            top = get_writer().read_top(top_file)
             top_info, init_conf_info = describe(str(top_file), str(first_conf_file_path))
             firstconf = get_confs(traj_info=init_conf_info,
                                   top_info=top_info,
                                   start_conf=0,
                                   n_confs=1)[0]
-            confdict = {0: (firstconf, particle_type_ids)}
+            confdict = {0: (firstconf, top.get_particles_types())}
             # load trajectory confs
             top_info, traj_info = describe(
                 str(top_file),
@@ -117,7 +111,7 @@ class LoadParticlesTraj(AnalysisPipelineHead):
                     if self.normalize_coords:
                         conf = inbox(conf, True)
                     # assert (conf.positions < conf.box[np.newaxis, :]).all()
-                    confdict[conf.time] = (conf, particle_type_ids)
+                    confdict[conf.time] = (conf, top.get_particles_types())
             staged_data.append(RawPipelineData(confdict))
         data = sum(staged_data, start=RawPipelineData({}))
         return RawPipelineData(data.data)
@@ -125,7 +119,7 @@ class LoadParticlesTraj(AnalysisPipelineHead):
     def draw(self) -> tuple[tuple[int, int], draw.Group]:
         (w, y), g = super().draw()
         g.append(draw.Rectangle(0, y, w, 40, stroke="black", stroke_width=1, fill="tan"))
-        g.append(draw.Text("TODO: write description!", font_size=7, x=1, y=y+7))
+        g.append(draw.Text("TODO: write description!", font_size=7, x=1, y=y + 7))
         y += 40
         return (w, y), g
 
@@ -138,6 +132,27 @@ class LoadParticlesTraj(AnalysisPipelineHead):
             PipelineDataType.PIPELINE_DATATYPE_DATAFRAME
         """
         return PipelineDataType.PIPELINE_DATATYPE_RAWDATA
+
+
+class LoadEnergies(AnalysisPipelineHead):
+    POTENTIAL_ENERGY_KEY = "pe"
+    KINETIC_ENERGY_KEY = "ke"
+    TOTAL_ENERGY_KEY = "te"
+
+    def get_data_in_filenames(self) -> list[str]:
+        return ["energy_file"]
+
+    load_cached_files = load_cached_object_data
+
+    def exec(self, _, __, stages: list[Stage], energy_files: list[Path]) -> PDPipelineData:
+        stages_data = [pd.read_csv(stage_energy_file, sep="\s+", header=None) for stage_energy_file in energy_files]
+        df = pd.concat(stages_data)
+        df.columns = [TIMEPOINT_KEY, self.POTENTIAL_ENERGY_KEY, self.KINETIC_ENERGY_KEY, self.TOTAL_ENERGY_KEY]
+        df.set_index(TIMEPOINT_KEY, inplace=True)
+        return PDPipelineData(df, df[TIMEPOINT_KEY].data)
+
+    def get_output_data_type(self) -> PipelineDataType:
+        return PipelineDataType.PIPELINE_DATATYPE_DATAFRAME
 
 
 class BlobsFromClusters(AnalysisPipelineHead):
@@ -184,23 +199,6 @@ class BlobsFromClusters(AnalysisPipelineHead):
                  output_tstep: Union[int, None] = None):
         super().__init__(name, int(source.print_every), output_tstep)
         self.source_observable = source
-
-
-class GraphsToStructures(AnalysisPipelineHead):
-    """
-    Returns a list of Structure objects from an observable
-    """
-    def get_data_in_filenames(self) -> list[str]:
-        pass
-
-    def load_cached_files(self, f: Path) -> PipelineData:
-        pass
-
-    def exec(self, *args: Union[PipelineData, AnalysisPipelineStep]) -> PipelineData:
-        pass
-
-    def get_output_data_type(self) -> PipelineDataType:
-        pass
 
 
 class GraphsFromClusterTxt(AnalysisPipelineHead):
@@ -265,9 +263,10 @@ class GraphsFromClusterTxt(AnalysisPipelineHead):
     def draw(self) -> tuple[tuple[int, int], draw.Group]:
         (w, y), g = super().draw()
         g.append(draw.Rectangle(0, y, w, 40, stroke="black", stroke_width=1, fill="tan"))
-        g.append(draw.Text(f"Source Observable: {self.source_observable.file_name}", font_size=7, x=1, y=y + 7))  # TODO: more info?
+        g.append(draw.Text(f"Source Observable: {self.source_observable.file_name}", font_size=7, x=1,
+                           y=y + 7))  # TODO: more info?
         y += 10
-        g.append(draw.Text("TODO: write description!", font_size=7, x=1, y=y+7))
+        g.append(draw.Text("TODO: write description!", font_size=7, x=1, y=y + 7))
         y += 28
         return (w, y), g
 
@@ -322,24 +321,22 @@ class ClassifyClusters(AnalysisPipelineStep):
         return PDPipelineData(pd.DataFrame.from_dict(data=cluster_cats_data),
                               input_data.trange()[input_data.trange() % self.output_tstep == 0])
 
-    def can_parallelize(self):
-        return True
-
     def get_output_data_type(self):
         return PipelineDataType.PIPELINE_DATATYPE_DATAFRAME
 
     def draw(self) -> tuple[tuple[int, int], draw.Group]:
         (w, y), g = super().draw()
         g.append(draw.Rectangle(0, y, w, 40, stroke="black", stroke_width=1, fill="tan"))
-        g.append(draw.Text(f"Target topology: {self.target.name}", font_size=7, x=1, y=y+7))
+        g.append(draw.Text(f"Target topology: {self.target.name}", font_size=7, x=1, y=y + 7))
         y += 12
         g.append(draw.Text("This step classifies cluster graphs as 'match', 'smaller subset',\n"
                            "'smaller not subset', or 'non-match'. The step uses igraph's \n"
                            "`get_subisomorphisms_vf2` function. The step produces a dataframe \n"
                            "where each row is a cluster with columns for category, size ratio, \n"
-                           "and timepoint.", font_size=7, x=1, y=y+7))
+                           "and timepoint.", font_size=7, x=1, y=y + 7))
         y += 28
         return (w, y), g
+
 
 class ClassifyPolycubeClusters(AnalysisPipelineStep):
     """
@@ -436,8 +433,9 @@ class ClassifyPolycubeClusters(AnalysisPipelineStep):
                         # test that all particle types in the structure are in the polycube,
                         # and are contained the same or fewer number of times
                         if all(
-                            [type_id in polycube_type_map and particle_type_counts[type_id] <= polycube_type_map[type_id]
-                             for type_id in particle_type_counts]
+                                [type_id in polycube_type_map and particle_type_counts[type_id] <= polycube_type_map[
+                                    type_id]
+                                 for type_id in particle_type_counts]
                         ):
                             avg_edge_len = np.mean(edge_lens)
                             edge_len_std = np.std(edge_lens)
@@ -462,7 +460,7 @@ class ClassifyPolycubeClusters(AnalysisPipelineStep):
         for p1, p2 in g.edges:
             distance = np.linalg.norm(
                 conf.positions[p1, :] -
-                    conf.positions[p2, :])
+                conf.positions[p2, :])
             if self.graphedgelen > 0 and abs(distance - self.graphedgelen) > self.graphedgetolerence:
                 g2.remove_edge(p1, p2)
                 continue
@@ -480,7 +478,7 @@ class ClassifyPolycubeClusters(AnalysisPipelineStep):
     def draw(self) -> tuple[tuple[int, int], draw.Group]:
         (w, y), g = super().draw()
         g.append(draw.Rectangle(0, y, w, 40, stroke="black", stroke_width=1, fill="tan"))
-        g.append(draw.Text(f"Target topology: {self.target.name}", font_size=7, x=1, y=y+7))
+        g.append(draw.Text(f"Target topology: {self.target.name}", font_size=7, x=1, y=y + 7))
         y += 12
         g.append(draw.Text("This step classifies cluster graphs as 'match', 'smaller subset',\n"
                            "'smaller not subset', or 'non-match'. The step uses igraph's \n"
@@ -488,9 +486,10 @@ class ClassifyPolycubeClusters(AnalysisPipelineStep):
                            "The function oeperates by TODO EXPLAIN\n"
                            "The step produces a dataframe \n"
                            "where each row is a cluster with columns for category, size ratio, \n"
-                           "average node distance, stdev of node distances, and timepoint.", font_size=7, x=1, y=y+7))
+                           "average node distance, stdev of node distances, and timepoint.", font_size=7, x=1, y=y + 7))
         y += 28
         return (w, y), g
+
 
 # class SmartClassifyClusters(ClassifyClusters):
 #     """
@@ -548,7 +547,7 @@ class ComputeClusterYield(AnalysisPipelineStep):
     def __init__(self,
                  name: str,
                  cutoff: float,
-                 overreach: bool,
+                 overreach: bool = False,
                  input_tstep: Union[int, None] = None,
                  output_tstep: Union[int, None] = None):
         super().__init__(name, input_tstep, output_tstep)
@@ -599,11 +598,11 @@ class ComputeClusterYield(AnalysisPipelineStep):
     def draw(self) -> tuple[tuple[int, int], draw.Group]:
         (w, y), g = super().draw()
         g.append(draw.Rectangle(0, y, w, 40, stroke="black", stroke_width=1, fill="tan"))
-        g.append(draw.Text(f"Cutoff: {self.cutoff}", font_size=7, x=1, y=y+7))
+        g.append(draw.Text(f"Cutoff: {self.cutoff}", font_size=7, x=1, y=y + 7))
         y += 10
-        g.append(draw.Text(f"Overreach: {self.overreach}", font_size=7, x=1, y=y+7))
+        g.append(draw.Text(f"Overreach: {self.overreach}", font_size=7, x=1, y=y + 7))
         y += 10
-        g.append(draw.Text("TODO: write description!", font_size=7, x=1, y=y+7))
+        g.append(draw.Text("TODO: write description!", font_size=7, x=1, y=y + 7))
         y += 16
         return (w, y), g
 
@@ -629,7 +628,6 @@ class ComputeClusterSizeData(AnalysisPipelineStep):
         self.minsize = minsize
 
     load_cached_files = load_cached_pd_data
-
 
     def exec(self, input_graphs: ObjectPipelineData) -> PDPipelineData:
 
@@ -670,9 +668,9 @@ class ComputeClusterSizeData(AnalysisPipelineStep):
     def draw(self) -> tuple[tuple[int, int], draw.Group]:
         (w, y), g = super().draw()
         g.append(draw.Rectangle(0, y, w, 40, stroke="black", stroke_width=1, fill="tan"))
-        g.append(draw.Text(f"Min Cluster Size: {self.minsize}", font_size=7, x=1, y=y+7))
+        g.append(draw.Text(f"Min Cluster Size: {self.minsize}", font_size=7, x=1, y=y + 7))
         y += 10
-        g.append(draw.Text("TODO: write description!", font_size=7, x=1, y=y+7))
+        g.append(draw.Text("TODO: write description!", font_size=7, x=1, y=y + 7))
         y += 30
         return (w, y), g
 
