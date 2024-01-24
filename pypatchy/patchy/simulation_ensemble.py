@@ -121,7 +121,7 @@ def normalize_date(d):
 
 def find_ensemble(*args: str, **kwargs) -> PatchySimulationEnsemble:
     """
-    External method to construct PatchySimulationEnsemble objects
+    External method to construct PatchySimulationEnsemble objects. nightmare,
     """
 
     if len(args) > 0:
@@ -165,9 +165,8 @@ def find_ensemble(*args: str, **kwargs) -> PatchySimulationEnsemble:
                     exportname = json.load(f)["export_name"]
                 if metadata_file_exist(exportname, sim_init_date):
                     return find_ensemble(exportname, sim_init_date)
-            else:
-                print(f"Warning: could not find metadata file for {simname} at {sim_init_date.strftime('%Y-%m-%d')}")
-                return find_ensemble(cfg=simname, date=sim_init_date)
+            print(f"Warning: could not find metadata file for {simname} at {sim_init_date.strftime('%Y-%m-%d')}")
+            return find_ensemble(cfg=simname, date=sim_init_date)
 
     elif any([key in kwargs for key in ["cfg_file_name", "cfg_file", "cfg"]]):
         # if the user is specifying a cfg file

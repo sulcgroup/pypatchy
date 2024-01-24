@@ -86,7 +86,7 @@ class BasePatchyWriter(ABC):
         pass
 
     @abstractmethod
-    def read_top(self, top_file: str):
+    def read_top(self, top_file: str) -> PatchyTopology:
         pass
 
     def write_conf(self, scene: Scene, p: Path):
@@ -115,9 +115,14 @@ class BasePatchyWriter(ABC):
         pass
 
     class PatchyTopology(ABC):
+        particle_ids: list[int]  # list of particles where each value is the particle's type ID
+
         @abstractmethod
         def particle_type_count(self, p) -> int:
             pass
+
+        def get_particles_types(self) -> list[int]:
+            return self.particle_ids
 
         @abstractmethod
         def num_particle_types(self) -> int:
@@ -697,7 +702,6 @@ class LWriter(BasePatchyWriter):
         """
         particle_types: PLParticleSet
         type_counts: dict[int, int]
-        particle_ids: list[int]  # list of particles where each value is the particle's type ID
 
         def __init__(self, particle_types: PLParticleSet, particles: Union[list[int], dict[int, int]]):
             """
