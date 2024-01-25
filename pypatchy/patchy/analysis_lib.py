@@ -139,16 +139,19 @@ class LoadEnergies(AnalysisPipelineHead):
     KINETIC_ENERGY_KEY = "ke"
     TOTAL_ENERGY_KEY = "te"
 
+    def __init__(self, step_name: str):
+        super(LoadEnergies, self).__init__(step_name, 1)
+
     def get_data_in_filenames(self) -> list[str]:
         return ["energy_file"]
 
-    load_cached_files = load_cached_object_data
+    load_cached_files = load_cached_pd_data
 
     def exec(self, _, __, stages: list[Stage], energy_files: list[Path]) -> PDPipelineData:
         stages_data = [pd.read_csv(stage_energy_file, sep="\s+", header=None) for stage_energy_file in energy_files]
         df = pd.concat(stages_data)
         df.columns = [TIMEPOINT_KEY, self.POTENTIAL_ENERGY_KEY, self.KINETIC_ENERGY_KEY, self.TOTAL_ENERGY_KEY]
-        return PDPipelineData(df, df[TIMEPOINT_KEY].data)
+        return PDPipelineData(df, df[TIMEPOINT_KEY].values)
 
     def get_output_data_type(self) -> PipelineDataType:
         return PipelineDataType.PIPELINE_DATATYPE_DATAFRAME
@@ -398,7 +401,7 @@ class ClassifyPolycubeClusters(AnalysisPipelineStep):
             self.CLUSTER_EDGE_LEN_STD_KEY: [],
             self.CLUSTER_NUM_DROPPED_EDGES_KEY: []
         }
-        polycube_type_ids = [cube.get_type() for cube in self.target_polycube._particles]
+        polycube_type_ids = [cube.get_type() for cube in self.target_polycube.particles()]
         polycube_type_map = {
             type_id: polycube_type_ids.count(type_id)
             for type_id in set(polycube_type_ids)
