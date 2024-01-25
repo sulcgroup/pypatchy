@@ -138,6 +138,8 @@ class LoadEnergies(AnalysisPipelineHead):
     POTENTIAL_ENERGY_KEY = "pe"
     KINETIC_ENERGY_KEY = "ke"
     TOTAL_ENERGY_KEY = "te"
+    # bad things happen if we try to recompute. i could try to solve or i could Not
+    force_recompute = True
 
     def __init__(self, step_name: str):
         super(LoadEnergies, self).__init__(step_name, 1)
