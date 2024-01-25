@@ -148,7 +148,6 @@ class LoadEnergies(AnalysisPipelineHead):
         stages_data = [pd.read_csv(stage_energy_file, sep="\s+", header=None) for stage_energy_file in energy_files]
         df = pd.concat(stages_data)
         df.columns = [TIMEPOINT_KEY, self.POTENTIAL_ENERGY_KEY, self.KINETIC_ENERGY_KEY, self.TOTAL_ENERGY_KEY]
-        df.set_index(TIMEPOINT_KEY, inplace=True)
         return PDPipelineData(df, df[TIMEPOINT_KEY].data)
 
     def get_output_data_type(self) -> PipelineDataType:
