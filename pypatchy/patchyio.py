@@ -666,9 +666,7 @@ class LWriter(BasePatchyWriter):
               ) -> dict[str, str]:
         particles_base = scene.particle_types()
 
-        particles: PLParticleSet = to_PL(particles_base,
-                                         kwargs[NUM_TEETH_KEY],
-                                         kwargs[DENTAL_RADIUS_KEY])
+        particles: PLParticleSet = to_PL(particles_base)
 
         init_top = kwargs["topology"]
         init_conf = kwargs["conf_file"]
@@ -686,11 +684,11 @@ class LWriter(BasePatchyWriter):
             "DPS_interaction_matrix_file": interactions_file
         }
 
-    def export_interaction_matrix(self, patches, filename: str):
+    def export_interaction_matrix(self, patches: list[PLPatch], filename: str):
         with self.file(filename, "w") as f:
             f.writelines(
                 [
-                    f"patchy_eps[{p1.type_id()}][{p2.type_id()}] = 1.0\n"
+                    f"patchy_eps[{p1.type_id()}][{p2.type_id()}] = {p1.strength()}\n"
                     for p1, p2 in itertools.combinations(patches, 2)
                     if p1.color() == -p2.color()
                 ]

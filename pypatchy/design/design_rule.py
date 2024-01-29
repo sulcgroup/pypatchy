@@ -66,10 +66,7 @@ class SolverResponse(Enum):
     SOLN_ERR = 3
 
 
-
 # Polycube SAT Solver
-
-
 class Polysat(SATProblem):
 
     logger: logging.Logger
@@ -732,6 +729,24 @@ class Polysat(SATProblem):
                     ]
                     for r in range(self.nR)]
             ))
+        return constraints
+
+    def gen_no_self_interact(self) -> list[SATClause]:
+        constraints = []
+        # for each species
+        for s in range(self.nS):
+            # for each pair of colors
+            for c1, c2 in itertools.combinations(range(self.nC), 2):
+                if c1 == c2:
+                    continue  # colors should never be self-interacting so we can safely ignore
+                # either the colors do not interact
+                var_no_interact = -self.B(c1, c2)
+                for p in range(self.nP):
+                    # this clause was written by chatGPT so I'm only like 70% sure I trust it
+                    # The clause says: either var_no_interact is True (colors do not interact)
+                    # or at least one patch is not c1 or at least one patch is not c2 for the species
+                    constraints.append([var_no_interact, -self.C(s, p, c1), -self.C(s, p, c2)])
+
         return constraints
 
     def fix_empties(self):

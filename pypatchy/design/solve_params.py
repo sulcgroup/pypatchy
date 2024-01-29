@@ -30,6 +30,7 @@ class SolveParams:
     bindings: list[tuple[int, int, int, int]]
     nS: int
     nC: int
+    forbid_self_interact: bool
 
     def __init__(self, name, **kwargs):
         self.name = name
@@ -47,9 +48,10 @@ class SolveParams:
         self.torsion = kwargs["torsion"] if "torsion" in kwargs else True
         self.maxAltTries = kwargs["maxAltTries"] if "maxAltTries" in kwargs else 32
         self.nanoparticles = kwargs["nanoparticles"] if "nanoparticles" in kwargs else {}
-        self.crystal = 'extraConnections' in kwargs
+        self.crystal = bool(kwargs["crystal"]) if "crystal" in kwargs else 'extraConnections' in kwargs
         self.allo_limits = kwargs["allo_limits"] if "allo_limits" in kwargs else NO_ALLOSTERY
         self.solver_timeout = kwargs["solve_timeout"] if "solve_timeout" in kwargs else 21600
+        self.forbid_self_interact = bool(kwargs["forbid_self_interact"]) if "forbid_self_interact" in kwargs else False
         # default timeout: 6 hrs, which is probably both too long and not long enough
 
     def has_nanoparticles(self):
