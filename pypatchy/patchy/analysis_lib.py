@@ -141,8 +141,12 @@ class LoadEnergies(AnalysisPipelineHead):
     # bad things happen if we try to recompute. i could try to solve or i could Not
     force_recompute = True
 
-    def __init__(self, step_name: str):
-        super(LoadEnergies, self).__init__(step_name, 1)
+    def __init__(self, step_name: str, **kwargs):
+        kwargs["step_name"] = step_name
+
+        if "input_tstep" not in kwargs:
+            kwargs["input_tstep"] = 1
+        super(LoadEnergies, self).__init__(**kwargs)
 
     def get_data_in_filenames(self) -> list[str]:
         return ["energy_file"]
