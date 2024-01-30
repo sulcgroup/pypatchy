@@ -1732,10 +1732,10 @@ class PatchySimulationEnsemble:
                     # write sbatch params, specified externally in server config
                     self.write_sbatch_params(tf)
                     # write parallel command
-                    tf.write(f"parallel=\"parallel --delay 0.2 -j $SLURM_NTASKS --joblog {str(log_path)} --resume\"")
+                    tf.write(f"parallel=\"parallel --delay 0.2 -j $SLURM_NTASKS --joblog {str(log_path)} --resume\"\n")
                     # make parallel exec string
                     parallel_exec = f"$parallel {get_server_config()['oxdna_path']}/build/bin/oxDNA"
-                    parallel_exec += " {1}/input"
+                    parallel_exec += " {1}/input "
                     parallel_exec += " ".join([str(self.folder_path(sim)) for sim in e])
                     # write parallel exec string
                     tf.write(parallel_exec + "\nwait")
