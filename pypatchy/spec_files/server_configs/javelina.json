@@ -1,0 +1,30 @@
+{
+        "slurm_bash_flags": {
+			"p": "run",
+			"t": "14-00:00:00",
+			"N": 1,
+			"ntasks": 2,
+	        "gres": "gpu:1",
+			"c": 1
+        },
+        "slurm_includes": [
+                "source activate oxDNA",
+				"export CUDA_MPS_PIPE_DIRECTORY=/tmp/mps-pipe_$SLURM_TASK_PID",
+				"export CUDA_MPS_LOG_DIRECTORY=/tmp/mps-log_$SLURM_TASK_PID",
+				"mkdir -p $CUDA_MPS_PIPE_DIRECTORY",
+				"mkdir -p $CUDA_MPS_LOG_DIRECTORY",
+				"nvidia-cuda-mps-control -d"
+        ],
+        "input_file_params": {
+                "backend": "CUDA",
+        		"backend_precision": "float",
+                "interaction_type": "DetailedPatchySwapInteraction",
+        		"plugin_search_path": "/home/joshua/oxDNA/contrib/rovigatti",
+        		"DPS_interaction_matrix_file": "interactions.txt"
+        },
+        "oxdna_path": "/home/joshua/oxDNA",
+        "patchy_format": "lorenzo",
+		"absolute_paths": true,
+		"cuda_mps": true
+}
+

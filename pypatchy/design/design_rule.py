@@ -261,7 +261,6 @@ class Polysat(SATProblem):
         """
         assert -1 < s < self.nS
         return self.variable("N", s)
-        return self.variables.setdefault(f'N({s})', len(self.variables) + 1)
 
     def N_multi(self, s: int, t: int) -> int:
         """
