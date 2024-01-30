@@ -1472,7 +1472,7 @@ class PatchySimulationEnsemble:
                     # check paths are absolute if applicable
                     if is_write_abs_paths():
                         # approximation for "is this a file?"
-                        if val.endswith("."):
+                        if isinstance(val, str) and val.endswith("."):
                             # if path isn't absolute
                             if not Path(val).is_absolute():
                                 # prepend folder path
