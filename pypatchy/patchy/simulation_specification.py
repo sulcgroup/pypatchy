@@ -39,6 +39,9 @@ class ParamSet(LogEntryObject):
         return self.parameter_dict[parameter_name]
 
     def var_names(self) -> list[str]:
+        """
+
+        """
         return list(self.parameter_dict.keys())
 
     def __str__(self) -> str:
