@@ -19,7 +19,7 @@ from .patchy_base_particle import PatchyBaseParticleType, PatchyBaseParticle
 from .scene import Scene
 from .patchy_base_particle import BaseParticleSet
 from .polycubeutil.polycubesRule import PolycubeRuleCubeType
-from .util import get_server_config, PATCHY_FILE_FORMAT_KEY, normalize
+from .util import get_server_config, PATCHY_FILE_FORMAT_KEY, normalize, is_write_abs_paths
 
 
 # this approach was suggested by chatGPT.
@@ -192,8 +192,6 @@ class FWriter(BasePatchyWriter):
                             **kwargs) -> list[tuple[str, str]]:
 
         return [
-            ("patchy_file", "patches.txt"),
-            ("particle_file", "particles.txt"),
             ("particle_types_N", f"{scene.num_particle_types()}"),
             ("patch_types_N", f"{scene.particle_types().num_patches()}")
         ]
@@ -236,6 +234,7 @@ class FWriter(BasePatchyWriter):
               scene: Scene,
               stage: Union[Stage, None] = None,
               **kwargs) -> dict[str, str]:
+
         particle_fn = kwargs["particle_file"]
         patchy_fn = kwargs["patchy_file"]
         if stage is not None:
@@ -260,11 +259,17 @@ class FWriter(BasePatchyWriter):
         # write conf
         self.write_conf(scene, init_conf)
 
+        if is_write_abs_paths():
+            particle_fn = self.directory() / particle_fn
+            patchy_fn = self.directory() / patchy_fn
+            init_top = self.directory() / init_top
+            init_conf = self.directory() / init_conf
+
         return {
-            "particle_file": particle_fn,
-            "patchy_file": patchy_fn,
-            "topology": init_top,
-            "init_conf": init_conf
+            "particle_file": str(particle_fn),
+            "patchy_file": str(patchy_fn),
+            "topology": str(init_top),
+            "init_conf": str(init_conf)
         }
 
     def reqd_args(self) -> list[str]:
@@ -415,8 +420,6 @@ class JWriter(BasePatchyWriter, ABC):
                             scene: Scene,
                             **kwargs) -> list[tuple[str, str]]:
         return [
-            ("patchy_file", "patches.txt"),
-            ("particle_file", "particles.txt"),
             ("particle_types_N", str(scene.num_particle_types())),
             ("patch_types_N", str(scene.particle_types().num_patches()))
         ]
@@ -478,6 +481,12 @@ class JWriter(BasePatchyWriter, ABC):
         self.write_top(self.get_scene_top(scene), init_top)
 
         self.write_conf(scene, init_conf)
+
+        if is_write_abs_paths():
+            init_top = self.directory() / init_top
+            particle_fn = self.directory() / particle_fn
+            patchy_fn = self.directory() / patchy_fn
+            init_conf = self.directory() / init_conf
 
         return {
             "topology": init_top,
@@ -677,11 +686,15 @@ class LWriter(BasePatchyWriter):
         self.write_conf(scene, init_conf)
         self.write_top(self.get_scene_top(scene), init_top)
 
-        return {
+        if is_write_abs_paths():
+            init_conf = self.directory() / init_conf
+            init_top = self.directory() / init_top
+            interactions_file = self.directory() / interactions_file
 
-            "conf_file": init_conf,
-            "topology": init_top,
-            "DPS_interaction_matrix_file": interactions_file
+        return {
+            "conf_file": str(init_conf),
+            "topology": str(init_top),
+            "DPS_interaction_matrix_file": str(interactions_file)
         }
 
     def export_interaction_matrix(self, patches: list[PLPatch], filename: str):
@@ -738,7 +751,10 @@ class LWriter(BasePatchyWriter):
             return self.particle_types.num_particle_types()
 
     def particle_type_str(self, particle: PLPatchyParticle, nInstances: int) -> str:
-        patches_dat_filename = f"patches_{particle.type_id()}.dat"
+        if is_write_abs_paths():
+            patches_dat_filename = self.directory() / f"patches_{particle.type_id()}.dat"
+        else:
+            patches_dat_filename = f"patches_{particle.type_id()}.dat"
         particle_str = f"{nInstances} {particle.num_patches()} {','.join([str(pid) for pid in particle.patch_ids()])} {patches_dat_filename}"
         patches_dat_filestr = "\n".join(
             [np.array2string(patch.position(),

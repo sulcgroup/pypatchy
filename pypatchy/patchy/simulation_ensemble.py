@@ -10,7 +10,7 @@ import tempfile
 import time
 from json import JSONDecodeError
 from pathlib import Path
-from typing import Any, Union
+from typing import Any, Union, IO
 
 import numpy as np
 import pandas as pd
@@ -23,6 +23,7 @@ from oxDNA_analysis_tools.UTILS.oxview import from_path
 from oxDNA_analysis_tools.file_info import file_info
 from oxDNA_analysis_tools.UTILS.RyeReader import get_confs, describe, write_conf
 from oxDNA_analysis_tools.UTILS.data_structures import Configuration
+from sympy.utilities.decorator import deprecated
 
 from pypatchy.analpipe.analysis_pipeline import AnalysisPipeline
 from .stage import Stage, NoStageTrajError, IncompleteStageError, StageTrajFileEmptyError
@@ -32,11 +33,12 @@ from ..analpipe.analysis_pipeline_step import AnalysisPipelineStep, PipelineData
 from .patchy_sim_observable import PatchySimObservable, observable_from_file
 from ..patchy_base_particle import BaseParticleSet
 from ..scene import Scene
-from ..patchyio import NUM_TEETH_KEY, get_writer, BasePatchyWriter, DENTAL_RADIUS_KEY
+from ..patchyio import NUM_TEETH_KEY, get_writer, BasePatchyWriter, DENTAL_RADIUS_KEY, FWriter
 from ..slurm_log_entry import SlurmLogEntry
 from ..slurmlog import SlurmLog
 from ..util import get_param_set, simulation_run_dir, get_server_config, get_log_dir, get_input_dir, is_slurm_job, \
-    is_server_slurm, SLURM_JOB_CACHE, append_to_file_name
+    is_server_slurm, SLURM_JOB_CACHE, append_to_file_name, get_slurm_n_tasks, is_mps, is_write_abs_paths, \
+    WRITE_ABS_PATHS_KEY
 from .ensemble_parameter import EnsembleParameter, ParameterValue
 from .simulation_specification import PatchySimulation, ParamSet
 from .pl.plscene import PLPSimulation
@@ -60,7 +62,6 @@ SUBMIT_SLURM_PATTERN = r"Submitted batch job (\d+)"
 
 # for forwards compatibility in case I ever get this working
 EXTERNAL_OBSERVABLES = False
-
 
 def describe_param_vals(*args) -> str:
     return "_".join([str(v) for v in args])
@@ -691,7 +692,7 @@ class PatchySimulationEnsemble:
             logging.error(f"No analysis pipeline found at {str(src)}.")
         self.dump_metadata()
 
-    def n_processes(self):
+    def n_processes(self) -> int:
         return self.metadata["parallel"]
 
     def is_nocache(self) -> bool:
@@ -764,6 +765,13 @@ class PatchySimulationEnsemble:
             return self.particle_set
         if paramname in sim:
             return sim[paramname]
+        try:
+            return self.get_param(paramname)
+        except NoSuchParamError as e:
+            e.set_sim(sim)
+            raise e
+
+    def get_param(self, paramname: str) -> Any:
         # use const_params
         if paramname in self.const_params:
             return self.const_params[paramname]
@@ -778,8 +786,8 @@ class PatchySimulationEnsemble:
         if paramname in get_server_config()["input_file_params"]:
             return get_server_config()["input_file_params"][paramname]
         # TODO: custom exception here
-        raise NoSuchParamError(self, sim, paramname)
-        # raise Exception(f"Parameter {paramname} not found ANYWHERE!!!")
+        raise NoSuchParamError(self, paramname)
+
 
     def paramfile(self, sim: PatchySimulation, paramname: str) -> Path:
         """
@@ -941,13 +949,13 @@ class PatchySimulationEnsemble:
 
                 if "rel_volume" in stage_info:
                     relvol = stage_info["rel_volume"]
-                    box_side = (relvol * num_particles) ** (1/3)
+                    box_side = (relvol * num_particles) ** (1 / 3)
 
                 # if density format
                 elif "density" in stage_info:
                     # box side length = cube root of n / density
                     density = stage_info["density"]
-                    box_side = (num_particles / density) ** (1/3)
+                    box_side = (num_particles / density) ** (1 / 3)
 
                 else:
                     density = self.sim_get_param(sim, "density")
@@ -1002,7 +1010,7 @@ class PatchySimulationEnsemble:
         Computes the number of particles in a stage. Includes particles added in this stage and
         all previous stages
         """
-        return sum([s.num_particles_to_add() for s in self.sim_get_stages(sim)[:stage.idx()+1]])  # incl passed stage
+        return sum([s.num_particles_to_add() for s in self.sim_get_stages(sim)[:stage.idx() + 1]])  # incl passed stage
 
     def sim_most_recent_stage(self, sim: PatchySimulation) -> Stage:
         """
@@ -1066,14 +1074,14 @@ class PatchySimulationEnsemble:
     def num_ensemble_parameters(self) -> int:
         return len(self.ensemble_params)
 
-    def get_ensemble_parameter(self, ens_param_name: str) -> EnsembleParameter:
-        """
-        Return
-            the EnsembleParameter object with the provided name
-        """
-        param_match = [p for p in self.ensemble_params if p.param_key == ens_param_name]
-        assert len(param_match) == 1, "ensemble parameter name problem bad bad bad!!!"
-        return param_match[0]
+    # def get_ensemble_parameter(self, ens_param_name: str) -> EnsembleParameter:
+    #     """
+    #     Return
+    #         the EnsembleParameter object with the provided name
+    #     """
+    #     param_match = [p for p in self.ensemble_params if p.param_key == ens_param_name]
+    #     assert len(param_match) == 1, "ensemble parameter name problem bad bad bad!!!"
+    #     return param_match[0]
 
     def tld(self) -> Path:
         return simulation_run_dir() / self.long_name()
@@ -1233,6 +1241,7 @@ class PatchySimulationEnsemble:
             self.sim_get_param(self.get_simulation(**kwargs))
         else:
             assert sim is not None, "No simulation provided!"
+            assert isinstance(get_writer(), FWriter), "Can only show confs for FlavioWriter!!!"
             self.show_conf(sim, self.time_length(sim))
             # from_path(self.paramfile(sim, "lastconf_file"),
             #           self.paramfile(sim, "topology"),
@@ -1400,7 +1409,18 @@ class PatchySimulationEnsemble:
         print([p.name for p in self.folder_path(sim).iterdir()])
 
     # ----------------------- Setup Methods ----------------------------------- #
-    def do_setup(self, sims: Union[list[PatchySimulation], None] = None, stage: Union[None, str, Stage] = None):
+    def do_setup(self,
+                 sims: Union[list[PatchySimulation], None] = None,
+                 stage: Union[None, str, Stage] = None):
+        """
+
+        """
+        # check for mps stuff
+        mps = is_mps()
+        if mps:
+            assert is_write_abs_paths(), f"Can't use MPS without setting " \
+                                                        f"\"{WRITE_ABS_PATHS_KEY}\" to True."
+            assert is_server_slurm(), "Can't use MPS on non-Slurm system!"
         if sims is None:
             sims = self.ensemble()
         self.get_logger().info("Setting up folder / file structure...")
@@ -1421,17 +1441,11 @@ class PatchySimulationEnsemble:
             if EXTERNAL_OBSERVABLES:
                 self.get_logger().info("Writing observable json, as nessecary...")
                 self.write_sim_observables(sim)
-            # write .sh script
-            self.get_logger().info("Writing sbatch scripts...")
-            # self.write_confgen_script(sim)
-            self.write_run_script(sim)
-
-    def write_confgen_script(self, sim: PatchySimulation):
-        with open(self.get_run_confgen_sh(sim), "w+") as confgen_file:
-            self.write_sbatch_params(sim, confgen_file)
-            confgen_file.write(
-                f"{get_server_config()['oxdna_path']}/build/bin/confGenerator input {self.sim_get_param(sim, 'density')}\n")
-        self.bash_exec(f"chmod u+x {self.get_run_confgen_sh(sim)}")
+            # skip writing sbatch script if mps is off
+            if not mps:
+                # write .sh script
+                self.get_logger().info("Writing sbatch scripts...")
+                self.write_run_script(sim)
 
     def write_run_script(self, sim: PatchySimulation, input_file="input"):
         # if no stage name provided use first stage
@@ -1456,14 +1470,14 @@ class PatchySimulationEnsemble:
         with open(self.folder_path(sim) / slurm_script_name, "w+") as slurm_file:
             # bash header
 
-            self.write_sbatch_params(sim, slurm_file)
+            self.write_sbatch_params(slurm_file)
 
             # skip confGenerator call because we will invoke it directly later
-            slurm_file.write(f"{server_config['oxdna_path']}/build/bin/oxDNA {input_file}\n")
+            slurm_file.write(f"{server_config['oxdis_write_abs_pathsna_path']}/build/bin/oxDNA {input_file}\n")
 
         self.bash_exec(f"chmod u+x {self.folder_path(sim)}/{slurm_script_name}")
 
-    def write_sbatch_params(self, sim: PatchySimulation, slurm_file):
+    def write_sbatch_params(self, slurm_file: IO):
         server_config = get_server_config()
 
         slurm_file.write("#!/bin/bash\n")
@@ -1601,6 +1615,7 @@ class PatchySimulationEnsemble:
                     else:
                         val = self.sim_get_param(sim, paramname)
                     inputfile.write(f"{paramname} = {val}\n")
+
             # write extras
             for key, val in extras.items():
                 if key in replacer_dict:
@@ -1624,11 +1639,12 @@ class PatchySimulationEnsemble:
                     for i, obsrv in enumerate(self.observables.values()):
                         obsrv.write_input(inputfile, i, stage, analysis)
 
-    def write_sim_observables(self, sim: PatchySimulation):
+    def write_sim_observables(self, sim: PatchySimulation, rel_paths: bool = True):
         if len(self.observables) > 0:
             with open(self.folder_path(sim) / "observables.json", "w+") as f:
                 json.dump({f"data_output_{i + 1}": obs.to_dict() for i, obs in enumerate(self.observables.values())}, f)
 
+    @deprecated
     def gen_confs(self):
         """
         DEPRECATED
@@ -1663,14 +1679,70 @@ class PatchySimulationEnsemble:
         else:
             pass
 
-    def start_simulations(self, e: Union[None, list[PatchySimulation]] = None, stage: Union[str, None] = None):
+    def start_simulations(self,
+                          e: Union[None, list[PatchySimulation]] = None,
+                          stage: Union[str, None] = None):
         """
         Starts all simulations
         """
         if e is None:
             e = self.ensemble()
-        for sim in e:
-            self.start_simulation(sim, stage_name=stage)
+
+        # check for batch execution
+        try:
+            batch = is_mps()
+            assert not batch or is_write_abs_paths(), "Cannot run using MPS without absolute paths!!!"
+        except NoSuchParamError:
+            batch = False
+
+        # normal circumstances - no batch exec, do the old way
+        if not batch:
+            for sim in e:
+                self.start_simulation(sim, stage_name=stage)
+        else:
+            # if the number of simulations to run requires more than one task
+            if len(e) > get_slurm_n_tasks():
+                # split list into two subgroups, first one short enough to run, second one ???
+                group1, group2 = e[:get_slurm_n_tasks()], e[get_slurm_n_tasks():]
+                # batch process the first group
+                self.start_simulations(group1, stage)
+                # second group will recursion as needed
+                self.start_simulations(group2, stage)
+            else:
+                # batch execution for CUDA + MPS
+                assert stage is None, "TODO: make staged assembly play nice with MPS"
+
+                # idiot-proofing, the idiot here being me
+                for sim in e:
+                    assert self.folder_path(sim).exists(), "Missing some simulation folder path(s)!"
+
+                # TODO: more assertions
+                # make temporary slurm script file
+                if not (get_log_dir() / "slurm_mps_logs").exists():
+                    (get_log_dir() / "slurm_mps_logs").mkdir(parents=True)
+
+                # nightmare log filename
+                log_path = get_log_dir() / "slurm_mps_logs" / f"{self.long_name()}" \
+                                                              f"_runon{datetime.datetime.now().strftime('%Y-%m-%d-%H-%M')}" \
+                                                              f"_job$SLURM_JOBID.log"
+
+                fd, temp_file_path = tempfile.mkstemp()
+                with os.fdopen(fd, "w") as tf:
+                    # write sbatch params, specified externally in server config
+                    self.write_sbatch_params(tf)
+                    # write parallel command
+                    tf.write(f"parallel=\"parallel --delay 0.2 -j $SLURM_NTASKS --joblog {str(log_path)} --resume\"")
+                    # make parallel exec string
+                    parallel_exec = f"$parallel {get_server_config()['oxdna_path']}/build/bin/oxDNA"
+                    parallel_exec += " {1}/input"
+                    parallel_exec += " ".join([str(self.folder_path(sim)) for sim in e])
+                    # write parallel exec string
+                    tf.write(parallel_exec + "\nwait")
+                # update tempfile permissions
+                os.chmod(temp_file_path, 0o755)
+                self.bash_exec(f"sbatch {temp_file_path}")
+                # TODO: better slurm logging!
+
         self.dump_metadata()
 
     def ok_to_run(self, sim: PatchySimulation, stage: Stage) -> bool:
@@ -1725,7 +1797,7 @@ class PatchySimulationEnsemble:
                             f"Already running job for sim {repr(sim)}, stage {stage.name()} (jobid={jid}! Skipping...")
                         return False
             except NoStageTrajError as e:
-                pass # if no stage has a traj error everything is probably fine, just needs to run 1st stage
+                pass  # if no stage has a traj error everything is probably fine, just needs to run 1st stage
         return True
 
     def start_simulation(self,
@@ -1742,7 +1814,6 @@ class PatchySimulationEnsemble:
         Parameters:
              sim : simulation to start
              script_name : the name of the slurm script file
-             job_type : the label of the job type, for logging purposes
         """
 
         if stage_name is not None:
@@ -1817,34 +1888,34 @@ class PatchySimulationEnsemble:
     #     """
     #     return self.folder_path(sim) / "slurm_script.sh"
 
-    def get_run_confgen_sh(self, sim: PatchySimulation) -> Path:
-        return self.folder_path(sim) / "gen_conf.sh"
+    # def get_run_confgen_sh(self, sim: PatchySimulation) -> Path:
+    #     return self.folder_path(sim) / "gen_conf.sh"
 
-    def gen_conf(self, sim: PatchySimulation) -> int:
+    # def gen_conf(self, sim: PatchySimulation) -> int:
+    #
+    #     """
+    #     Runs a conf generator. These are run as slurm jobs if you're on a slurm server,
+    #     or as non-background tasks otherwise
+    #     """
+    #     if is_server_slurm():
+    #         response = self.bash_exec(f"sbatch --chdir={self.folder_path(sim)} {self.folder_path(sim)}/gen_conf.sh")
+    #         jobid = int(re.search(SUBMIT_SLURM_PATTERN, response).group(1))
+    #         self.append_slurm_log(SlurmLogEntry(
+    #             pid=jobid,
+    #             simulation=sim,
+    #             job_type="confgen",
+    #             script_path=self.folder_path(sim) / "gen_conf.sh",
+    #             log_path=self.folder_path(sim) / f"run{jobid}.out"
+    #         ))
+    #         return jobid
+    #     else:
+    #         self.bash_exec(f"bash gen_conf.sh > confgenlog.out", cwd=self.folder_path(sim))
+    #         # jobid = re.search(r'\[\d+\]\s+(\d+)', response).group(1)
+    #         # slurm logs aren't valid when not on a slurm server
+    #         return -1
 
-        """
-        Runs a conf generator. These are run as slurm jobs if you're on a slurm server,
-        or as non-background tasks otherwise
-        """
-        if is_server_slurm():
-            response = self.bash_exec(f"sbatch --chdir={self.folder_path(sim)} {self.folder_path(sim)}/gen_conf.sh")
-            jobid = int(re.search(SUBMIT_SLURM_PATTERN, response).group(1))
-            self.append_slurm_log(SlurmLogEntry(
-                pid=jobid,
-                simulation=sim,
-                job_type="confgen",
-                script_path=self.folder_path(sim) / "gen_conf.sh",
-                log_path=self.folder_path(sim) / f"run{jobid}.out"
-            ))
-            return jobid
-        else:
-            self.bash_exec(f"bash gen_conf.sh > confgenlog.out", cwd=self.folder_path(sim))
-            # jobid = re.search(r'\[\d+\]\s+(\d+)', response).group(1)
-            # slurm logs aren't valid when not on a slurm server
-            return -1
-
-    def get_conf_file(self, sim: PatchySimulation) -> Path:
-        return self.folder_path(sim) / "init.conf"
+    # def get_conf_file(self, sim: PatchySimulation) -> Path:
+    #     return self.folder_path(sim) / self.sim_get_param(sim, "conf_file")
 
     # ------------- ANALYSIS FUNCTIONS --------------------- #
     def clear_pipeline(self):
@@ -2061,7 +2132,7 @@ class PatchySimulationEnsemble:
             files = [self, sim, stages]
             for file_name_in in step.get_data_in_filenames():
                 assert isinstance(file_name_in, str), f"Unexpected file_name_in parameter type {type(file_name_in)}." \
-                                                   f"Regexes no longer supported."
+                                                      f"Regexes no longer supported."
                 # add all files of this type, in an order corresponding to `stages`
                 try:
                     # for files that are parameters (topology, conf, etc.)
@@ -2159,18 +2230,23 @@ class PatchySimulationEnsemble:
 
 
 class NoSuchParamError(Exception):
-    def __init__(self,
-                 e: PatchySimulationEnsemble,
-                 sim: PatchySimulation,
-                 param_name: str):
+    _ensemble: PatchySimulationEnsemble
+    _sim: Union[None, PatchySimulation]
+    _param_name: str
+    def __init__(self, e: PatchySimulationEnsemble, param_name: str, sim: Union[PatchySimulation, None] = None):
         self._ensemble = e
         self._sim = sim
         self._param_name = param_name
 
+    def set_sim(self, sim: Union[PatchySimulation, None]):
+        self._sim = sim
+
     def __str__(self):
-        return f"No value specified for parameter \"{self._param_name}\" " \
-               f"simulation {repr(self._sim)} in " \
-               f"ensemble {self._ensemble.long_name()} "
+        errstr = f"No value specified for parameter \"{self._param_name}\""
+        if self._sim is not None:
+            errstr += f"simulation {repr(self._sim)} in "
+        errstr +=  f"ensemble {self._ensemble.long_name()}"
+        return errstr
 
 
 def process_simulation_data(args: tuple[PatchySimulationEnsemble, AnalysisPipelineStep, PatchySimulation, range]):

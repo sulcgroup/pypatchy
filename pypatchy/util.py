@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import os
 from datetime import timedelta
-from typing import Union, Iterable
+from typing import Union, Iterable, Any
 
 from dateutil.relativedelta import relativedelta
 from scipy.spatial.transform import Rotation as R
@@ -20,6 +20,8 @@ SLURM_JOB_CACHE: dict[int, dict[str, str]] = {}
 dist = lambda a, b: np.linalg.norm(a - b)
 normalize = lambda v: v / np.linalg.norm(v)
 
+WRITE_ABS_PATHS_KEY = "absolute_paths"
+MPS_KEY = "cuda_mps"
 
 def get_local_dir() -> Path:
     return Path.home() / ".pypatchy/"
@@ -53,43 +55,41 @@ def simulation_run_dir() -> Path:
     return Path(cfg['ANALYSIS']['simulation_data_dir'])
 
 
-def get_sample_every() -> int:
-    return int(cfg['ANALYSIS']['sample_every'])
-
-
-def get_cluster_file_name() -> str:
-    return cfg['ANALYSIS']['cluster_file']
-
-
-def get_export_setting_file_name() -> str:
-    return cfg['ANALYSIS']['export_setting_file_name']
-
-
 def get_init_top_file_name() -> str:
     return cfg['ANALYSIS']['init_top_file_name']
-
-
-def get_analysis_params_file_name() -> str:
-    return cfg['ANALYSIS']['analysis_params_file_name']
 
 
 def get_server_config() -> dict:
     return get_spec_json(cfg["SETUP"]["server_config"], "server_configs")
 
 
-def get_babysitter_refresh() -> int:
-    """
-    Returns the interval between babysitter checks, in seconds
-    """
-    return int(get_server_config()["babysitter_refresh"])
-
-
 def is_server_slurm() -> bool:
     """
     Returns whether the server is a slurm server. Defaults to true for legacy reasons.
     """
-    return "is_slurm" not in get_server_config() or get_server_config()["is_slurm"]
+    return "slurm_bash_flags" in get_server_config()
 
+
+# TODO: slurm library? this project is experiancing mission creep
+def get_slurm_bash_flags() -> dict[str, Any]:
+    assert is_server_slurm(), "Trying to get slurm bash flags for a non-slurm setup!"
+    return get_server_config()["slurm_bash_flags"]
+
+
+def get_slurm_n_tasks() -> int:
+    bashflags = get_slurm_bash_flags()
+    if "n" in bashflags:
+        return bashflags["n"]
+    if "ntasks" in bashflags:
+        return bashflags["ntasks"]
+    return 1  # default value
+
+
+def is_write_abs_paths() -> bool:
+    return get_server_config()[WRITE_ABS_PATHS_KEY]
+
+def is_mps() -> bool:
+    return get_server_config()[MPS_KEY]
 
 def get_param_set(filename) -> dict:
     return get_spec_json(filename, "input_files")
