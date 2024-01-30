@@ -1633,6 +1633,8 @@ class PatchySimulationEnsemble:
 
             # write external observables file path
             if len(self.observables) > 0:
+                assert not is_write_abs_paths(), "Absolute file paths aren't currently compatible with observiables!" \
+                                                 " Get on it Josh!!!"
                 if EXTERNAL_OBSERVABLES:
                     inputfile.write(f"observables_file = observables.json" + "\n")
                 else:
@@ -1644,15 +1646,14 @@ class PatchySimulationEnsemble:
             with open(self.folder_path(sim) / "observables.json", "w+") as f:
                 json.dump({f"data_output_{i + 1}": obs.to_dict() for i, obs in enumerate(self.observables.values())}, f)
 
-    @deprecated
-    def gen_confs(self):
-        """
-        DEPRECATED
-        """
-        for sim in self.ensemble():
-            self.gen_conf(sim)
-        # run_confgen does NOT dump metadata
-        self.dump_metadata()
+    # def gen_confs(self):
+    #     """
+    #     DEPRECATED
+    #     """
+    #     for sim in self.ensemble():
+    #         self.gen_conf(sim)
+    #     # run_confgen does NOT dump metadata
+    #     self.dump_metadata()
 
     def dump_metadata(self):
         """

@@ -77,6 +77,8 @@ class PatchySimObservable:
             input_file.write(f"\tname = {stage.name()}_{self.file_name}\n")
         else:
             input_file.write(f"\tname = {self.file_name}\n")
+        # TODO TODO TODO!!! MAKE ABS PATHS WORK HERE
+
         input_file.write(f"\tprint_every = {self.print_every}\n")  # TODO: configure to deal with nonlinear time
         if self.start_observe_stepnum > 0:
             input_file.write(f"\tstart_from = {self.start_observe_stepnum}\n")
