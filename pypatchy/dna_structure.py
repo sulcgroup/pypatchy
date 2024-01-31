@@ -3,14 +3,13 @@ from __future__ import annotations
 import copy
 import json
 from collections import namedtuple
-from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Union, Generator
 
 import numpy as np
-from oxDNA_analysis_tools.UTILS.RyeReader import get_confs, get_top_info, get_traj_info, linear_read
-from oxDNA_analysis_tools.UTILS.data_structures import TopInfo, TrajInfo, Configuration, Strand
+from oxDNA_analysis_tools.UTILS.RyeReader import get_traj_info, linear_read
+from oxDNA_analysis_tools.UTILS.data_structures import TopInfo, Configuration
 from .util import rotation_matrix, get_input_dir
 
 # universal indexer for residues

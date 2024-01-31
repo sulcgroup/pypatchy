@@ -89,3 +89,24 @@ class ParamSet(LogEntryObject):
 
 
 PatchySimulation = ParamSet  # alias for backwards compatibility
+
+
+class NoSuchParamError(Exception):
+    _ensemble: Any
+    _sim: Union[None, PatchySimulation]
+    _param_name: str
+
+    def __init__(self, e: Any, param_name: str, sim: Union[PatchySimulation, None] = None):
+        self._ensemble = e
+        self._sim = sim
+        self._param_name = param_name
+
+    def set_sim(self, sim: Union[PatchySimulation, None]):
+        self._sim = sim
+
+    def __str__(self):
+        errstr = f"No value specified for parameter \"{self._param_name}\""
+        if self._sim is not None:
+            errstr += f"simulation {repr(self._sim)} in "
+        errstr += f"ensemble {self._ensemble.long_name()}"
+        return errstr

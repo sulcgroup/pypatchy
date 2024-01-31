@@ -8,6 +8,7 @@ from ..util import get_spec_json
 
 # TODO: integrate with oxpy.core.observables stuff
 
+# TODOL integrate with ipy_oxdna
 class PatchySimObservable:
     """
     A class describing an oxDNA observable that can be added to a patchy particle interaction
@@ -95,6 +96,37 @@ class PatchySimObservable:
                 input_file.write(f"\t\t{key} = {value}\n")
             input_file.write("\t}\n")
         input_file.write("}\n")
+
+    def write_input_dict(self,
+                         input_dict: dict[str, Any],
+                         i: int,
+                         analysis: bool = False):
+        """
+        Edits an input dict to include
+
+        Args:
+            input_file: an io object for file writing, directing to an oxdna input file
+            i: the index of this observable (important because of how oxdna reads the input file)
+            stage: the stage that we're writing an input file for
+            analysis: if true, this input file is being written for `DNAanalysis` and not `oxdna`
+
+        """
+        if analysis:
+            key = f"analysis_data_output_{i + 1}"
+        else:
+            key = f"data_output_{i + 1}"
+        input_dict[key] = {
+            "name": self.file_name, # TODO: absoulte file pathing!!!
+            "print_every": self.print_every,
+            "stop_at": self.stop_observe_stepnum,
+            "start_from": self.start_observe_stepnum,
+            "only_last": 1,
+            "update_name_with_time": 1,
+            **{
+                f"col_{i_col + 1}": col for i_col, col in enumerate(self.cols)
+            }
+        }
+        # TODO TODO TODO!!! MAKE ABS PATHS WORK HERE
 
 
 def observable_from_file(obs_file_name: str) -> PatchySimObservable:

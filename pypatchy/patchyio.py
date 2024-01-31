@@ -19,7 +19,8 @@ from .patchy_base_particle import PatchyBaseParticleType, PatchyBaseParticle
 from .scene import Scene
 from .patchy_base_particle import BaseParticleSet
 from .polycubeutil.polycubesRule import PolycubeRuleCubeType
-from .util import get_server_config, PATCHY_FILE_FORMAT_KEY, normalize, is_write_abs_paths
+from .util import get_server_config, PATCHY_FILE_FORMAT_KEY, normalize, is_write_abs_paths, NUM_TEETH_KEY, \
+    DENTAL_RADIUS_KEY
 
 
 # this approach was suggested by chatGPT.
@@ -787,5 +788,3 @@ def register_writer(writer_name: str, writer_obj: BasePatchyWriter):
     __writers[writer_name] = writer_obj
 
 
-NUM_TEETH_KEY = "num_teeth"
-DENTAL_RADIUS_KEY = "dental_radius"
