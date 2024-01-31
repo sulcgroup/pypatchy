@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import itertools
 import json
 import os
 from datetime import timedelta
@@ -23,8 +24,10 @@ normalize = lambda v: v / np.linalg.norm(v)
 WRITE_ABS_PATHS_KEY = "absolute_paths"
 MPS_KEY = "cuda_mps"
 
+INFO_DIR_NAME = ".pypatchy"  # todo: this will need to change
+
 def get_local_dir() -> Path:
-    return Path.home() / ".pypatchy/"
+    return Path.home() / f"{INFO_DIR_NAME}/"
 
 
 def get_input_dir() -> Path:
@@ -47,16 +50,12 @@ def get_log_dir() -> Path:
 
 
 cfg = configparser.ConfigParser()
-assert (get_local_dir() / "settings.cfg").exists()
+assert (get_local_dir() / "settings.cfg").exists(), "Missing settings.cfg file!"
 cfg.read(get_local_dir() / 'settings.cfg')
 
 
 def simulation_run_dir() -> Path:
     return Path(cfg['ANALYSIS']['simulation_data_dir'])
-
-
-def get_init_top_file_name() -> str:
-    return cfg['ANALYSIS']['init_top_file_name']
 
 
 def get_server_config() -> dict:
@@ -88,14 +87,32 @@ def get_slurm_n_tasks() -> int:
 def is_write_abs_paths() -> bool:
     return get_server_config()[WRITE_ABS_PATHS_KEY]
 
+
 def is_mps() -> bool:
     return get_server_config()[MPS_KEY]
 
-def get_param_set(filename) -> dict:
-    return get_spec_json(filename, "input_files")
+
+def is_batched() -> bool:
+    batch = is_mps()
+    assert not batch or is_write_abs_paths(), "Cannot run using MPS without absolute paths!!!"
+    return batch
 
 
-def get_spec_json(name, folder) -> dict:
+def get_param_set(filename: str) -> dict:
+    param_set = get_spec_json(filename, "input_files")
+    # backwards compatibility
+    # hardcode these stupid headers, was such a mistake
+    if "PROGRAM_PARAMETERS" in param_set["input"]:
+        param_set["input"] = {
+            key: val for key, val
+            in itertools.chain.from_iterable([
+                subgroup.items() for subgroup
+                in param_set["input"].values()])
+        }
+    return param_set
+
+
+def get_spec_json(name: str, folder: str) -> dict:
     try:
         with open(f"{get_local_dir()}/spec_files/{folder}/{name}.json") as f:
             return json.load(f)
@@ -324,16 +341,16 @@ def random_unit_vector() -> np.ndarray:
     return np.array([x, y, z])
 
 
-def append_to_file_name(fn: str, extra: str) -> str:
-    """
-    appends an additonal string to a file name, before the extension
-    """
-    if fn.find(".") != -1:
-        fn_pre = fn[:fn.find(".")]
-        ext = fn[fn.find("."):]
-        return fn_pre + "_" + extra + ext
-    else:
-        return fn + "_" + extra
+# def append_to_file_name(fn: str, extra: str) -> str:
+#     """
+#     appends an additonal string to a file name, before the extension
+#     """
+#     if fn.find(".") != -1:
+#         fn_pre = fn[:fn.find(".")]
+#         ext = fn[fn.find("."):]
+#         return fn_pre + "_" + extra + ext
+#     else:
+#         return fn + "_" + extra
 
 
 # https://docs.python.org/3/library/itertools.html
@@ -344,3 +361,8 @@ def powerset(iterable):
 
 
 PATCHY_FILE_FORMAT_KEY = "patchy_format"
+
+# for forwards compatibility in case I ever get this working
+EXTERNAL_OBSERVABLES = False # TODO real talk this should be in server config
+NUM_TEETH_KEY = "num_teeth"
+DENTAL_RADIUS_KEY = "dental_radius"
