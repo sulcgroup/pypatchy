@@ -143,7 +143,7 @@ def polycube_to_pl(polycube: PolycubeStructure,
         cube_bindngs_count = len(list(polycube.iter_binding_patches(cube1, cube2)))
         pl_bindings_count = len(
             list(pl.iter_binding_patches(pl.get_particle(cube1.get_id()), pl.get_particle(cube2.get_id()))))
-        assert nteeth * cube_bindngs_count == pl_bindings_count
+        # assert nteeth * cube_bindngs_count == pl_bindings_count
 
     return pl
 

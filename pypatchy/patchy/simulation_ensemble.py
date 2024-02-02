@@ -58,7 +58,7 @@ def describe_param_vals(*args) -> str:
     return "_".join([str(v) for v in args])
 
 
-PatchySimDescriptor = Union[tuple[ParameterValue, ...],
+PatchySimDescriptor = Union[tuple[Union[ParameterValue, tuple[str, Any]], ...],
                             PatchySimulation,
                             list[Union[tuple[ParameterValue, ...], PatchySimulation],
                             ]]
@@ -334,10 +334,7 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
 
 class PatchySimulationEnsemble:
     """
-    Stores data for a group of related simulation
-    class was originally written for setup but I've been folding analysis stuff from
-    `PatchyResults` and `PatchyRunResult` in as well with the aim of eventually deprecating those
-    preferably sooner tather than later
+    Stores data for a group of related simulations
     """
 
     # --------------- GENERAL MEMBER VARS -------------- #
@@ -882,9 +879,17 @@ class PatchySimulationEnsemble:
         return len(self.ensemble_params)
 
     def tld(self) -> Path:
+        """
+        Returns:
+            ensemble root directory
+        """
         return simulation_run_dir() / self.long_name()
 
     def folder_path(self, sim: PatchySimulation, stage: Union[Stage, None] = None) -> Path:
+        """
+        Returns:
+            the path to the working directory of the given simulation, at the given stage
+        """
         if stage is None or stage.idx() == 0:
             return self.tld() / sim.get_folder_path()
         else:
@@ -1498,16 +1503,19 @@ class PatchySimulationEnsemble:
         else:
             pass
 
-    def ipy(self, sim: PatchySimulation, stage: Stage) -> Simulation:
-        # TODO: incorporate stage assembly
+    def ipy(self, sim: PatchySimulation, stage: Union[Stage, None] = None) -> Simulation:
+        #
         if self.sim_num_stages(sim) == 1 or stage.idx() == 0:
-            return Simulation(self.folder_path(sim, stage), self.folder_path(sim, stage))
+            return Simulation(str(self.folder_path(sim, stage)))
         else:
             # parameterize stage from previous stage
-            sim_obj = Simulation(self.folder_path(sim, self.sim_get_stage(sim, stage.idx()-1)),
-                                 self.folder_path(sim, stage))
+            sim_obj = Simulation(str(self.folder_path(sim, self.sim_get_stage(sim, stage.idx()-1))),
+                                 str(self.folder_path(sim, stage)))
             sim_obj.build_sim = stage  # assign stage object as sim builder
             return sim_obj
+
+    def ipy_all(self, sim: PatchySimulation) -> list[Simulation]:
+        return [self.ipy(sim, stage) for stage in self.sim_get_stages(sim)]
 
     def start_simulations(self,
                           e: Union[None, list[PatchySimulation]] = None,
@@ -1527,8 +1535,10 @@ class PatchySimulationEnsemble:
 
             mgr = SimulationManager()
             for sim in e:
-                assert self.folder_path(sim).exists(), "Missing some simulation folder path(s)!"
-                mgr.queue_sim(self.ipy(sim, self.sim_get_stage(sim, stage)))
+                if not self.folder_path(sim).exists():
+                    self.folder_path(sim, stage).mkdir(parents=True)
+                mgr.queue_sim(self.ipy(sim, stage))
+            print("Let the simulating commence!")
             mgr.run()
             # batch execution for CUDA + MPS
 
@@ -1682,28 +1692,28 @@ class PatchySimulationEnsemble:
     # def get_run_confgen_sh(self, sim: PatchySimulation) -> Path:
     #     return self.folder_path(sim) / "gen_conf.sh"
 
-    # def gen_conf(self, sim: PatchySimulation) -> int:
-    #
-    #     """
-    #     Runs a conf generator. These are run as slurm jobs if you're on a slurm server,
-    #     or as non-background tasks otherwise
-    #     """
-    #     if is_server_slurm():
-    #         response = self.bash_exec(f"sbatch --chdir={self.folder_path(sim)} {self.folder_path(sim)}/gen_conf.sh")
-    #         jobid = int(re.search(SUBMIT_SLURM_PATTERN, response).group(1))
-    #         self.append_slurm_log(SlurmLogEntry(
-    #             pid=jobid,
-    #             simulation=sim,
-    #             job_type="confgen",
-    #             script_path=self.folder_path(sim) / "gen_conf.sh",
-    #             log_path=self.folder_path(sim) / f"run{jobid}.out"
-    #         ))
-    #         return jobid
-    #     else:
-    #         self.bash_exec(f"bash gen_conf.sh > confgenlog.out", cwd=self.folder_path(sim))
-    #         # jobid = re.search(r'\[\d+\]\s+(\d+)', response).group(1)
-    #         # slurm logs aren't valid when not on a slurm server
-    #         return -1
+    def gen_conf(self, sim: PatchySimulation) -> int:
+
+        """
+        Runs a conf generator. These are run as slurm jobs if you're on a slurm server,
+        or as non-background tasks otherwise
+        """
+        if is_server_slurm():
+            response = self.bash_exec(f"sbatch --chdir={self.folder_path(sim)} {self.folder_path(sim)}/gen_conf.sh")
+            jobid = int(re.search(SUBMIT_SLURM_PATTERN, response).group(1))
+            self.append_slurm_log(SlurmLogEntry(
+                pid=jobid,
+                simulation=sim,
+                job_type="confgen",
+                script_path=self.folder_path(sim) / "gen_conf.sh",
+                log_path=self.folder_path(sim) / f"run{jobid}.out"
+            ))
+            return jobid
+        else:
+            self.bash_exec(f"bash gen_conf.sh > confgenlog.out", cwd=self.folder_path(sim))
+            # jobid = re.search(r'\[\d+\]\s+(\d+)', response).group(1)
+            # slurm logs aren't valid when not on a slurm server
+            return -1
 
     # def get_conf_file(self, sim: PatchySimulation) -> Path:
     #     return self.folder_path(sim) / self.sim_get_param(sim, "conf_file")
@@ -1841,7 +1851,7 @@ class PatchySimulationEnsemble:
                 # step.output_tstep,
                 0,
                 self.time_length(sim),
-                step.output_tstep)
+                int(step.output_tstep))
             self.get_logger().info(f"Constructed time steps {time_steps}")
         else:
             assert time_steps.step % step.output_tstep == 0, f"Specified step interval {time_steps} " \

@@ -115,4 +115,7 @@ class EnsembleParameter:
         return len(self.param_value_set)
 
     def __contains__(self, item: ParameterValue):
-        return item in self.param_value_set
+        if isinstance(item, ParameterValue):
+            return item in self.param_value_set
+        else:
+            return ParameterValue(*item) in self

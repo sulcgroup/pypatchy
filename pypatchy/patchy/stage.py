@@ -169,7 +169,6 @@ class Stage(BuildSimulation):
                         val = str(self.getctxt().folder_path(self.spec(), self) / val)
             self.input_param_dict[paramname] = f"{val}"
 
-
         # write more parameters
         self.input_param_dict["T"] = self.getctxt().sim_get_param(self.spec(), 'T')
         try:
