@@ -547,7 +547,7 @@ class PLParticleSet(BaseParticleSet):
         return self.get_src_map().src_set()
 
     def has_udt_src(self) -> bool:
-        return self.get_src() is not None and isinstance(self.get_src(), PLMultidentateSourceMap)
+        return self.get_src() is not None and isinstance(self.get_src_map(), PLMultidentateSourceMap)
 
     def patch_groups(self, particle: Union[int, PLPatchyParticle, None] = None) -> list[set[int]]:
         """
@@ -575,7 +575,7 @@ class PLParticleSet(BaseParticleSet):
 
     def mdt_rep(self, udt_id: int) -> set[PLPatch]:
         assert self.has_udt_src()
-        return {self.patch(i) for i in self.get_src().map_patch(udt_id)}
+        return {self.patch(i) for i in self.get_src_map().map_patch(udt_id)}
 
     def __contains__(self, item: Union[PLPatch, PLPatchyParticle]) -> bool:
         """

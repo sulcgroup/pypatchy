@@ -537,7 +537,7 @@ class PatchyOrigamiConverter:
         for patch in p.patches():
             # if patch is multidentate, get src patch id as map key
             if self.patchy_scene.particle_types().is_multidentate():
-                patch_type_id = self.patchy_scene.particle_types().get_src_patch(patch).get_id()
+                patch_type_id = self.patchy_scene.particle_types().get_src_map().get_src_patch(patch).get_id()
             else:
                 # use patch id as map key, will end up with identity mappigng
                 patch_type_id = patch.get_id()
