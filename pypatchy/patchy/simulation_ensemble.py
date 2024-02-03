@@ -1398,9 +1398,6 @@ class PatchySimulationEnsemble:
         server_config = get_server_config()
         with open(self.folder_path(sim) / "input", 'w+') as inputfile:
             # write server config spec
-            inputfile.write("#" * 32 + "\n")
-            inputfile.write(" SERVER PARAMETERS ".center(32, '#') + "\n")
-            inputfile.write("#" * 32 + "\n")
             for key in server_config["input_file_params"]:
                 if key in replacer_dict:
                     val = replacer_dict[key]
@@ -1411,32 +1408,25 @@ class PatchySimulationEnsemble:
             # newline
             inputfile.write("\n")
 
-            # write default input file stuff
-            for paramgroup_key in self.default_param_set['input']:
-                paramgroup = self.default_param_set['input'][paramgroup_key]
-                inputfile.write("#" * 32 + "\n")
-                inputfile.write(f" {paramgroup_key} ".center(32, "#") + "\n")
-                inputfile.write("#" * 32 + "\n\n")
-
-                # loop parameters in group
-                for paramname in paramgroup:
-                    # if we've specified this param in a replacer dict
-                    if paramname in replacer_dict:
-                        val = replacer_dict[paramname]
-                    # if no override
-                    elif paramname not in sim and paramname not in self.const_params:
-                        val = paramgroup[paramname]
-                    else:
-                        val = self.sim_get_param(sim, paramname)
-                    # check paths are absolute if applicable
-                    if is_write_abs_paths():
-                        # approximation for "is this a file?"
-                        if isinstance(val, str) and re.search(r'\.\w+$', val) is not None:
-                            # if path isn't absolute
-                            if not Path(val).is_absolute():
-                                # prepend folder path
-                                val = str(self.folder_path(sim) / val)
-                    inputfile.write(f"{paramname} = {val}\n")
+            # loop parameters in group
+            for paramname in self.default_param_set["input"]:
+                # if we've specified this param in a replacer dict
+                if paramname in replacer_dict:
+                    val = replacer_dict[paramname]
+                # if no override
+                elif paramname not in sim and paramname not in self.const_params:
+                    val = self.default_param_set[paramname]
+                else:
+                    val = self.sim_get_param(sim, paramname)
+                # check paths are absolute if applicable
+                if is_write_abs_paths():
+                    # approximation for "is this a file?"
+                    if isinstance(val, str) and re.search(r'\.\w+$', val) is not None:
+                        # if path isn't absolute
+                        if not Path(val).is_absolute():
+                            # prepend folder path
+                            val = str(self.folder_path(sim) / val)
+                inputfile.write(f"{paramname} = {val}\n")
 
             # write extras
             for key, val in extras.items():
