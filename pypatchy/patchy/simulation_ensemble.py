@@ -1226,11 +1226,7 @@ class PatchySimulationEnsemble:
             self.get_logger().info(f"Stages other than zero don't require setup anymore! I hope!")
             return
         # check for mps stuff
-        mps = is_mps()
-        if mps:
-            assert is_write_abs_paths(), f"Can't use MPS without setting " \
-                                         f"\"{WRITE_ABS_PATHS_KEY}\" to True."
-            assert is_server_slurm(), "Can't use MPS on non-Slurm system!"
+
         if sims is None:
             sims = self.ensemble()
         self.get_logger().info("Setting up folder / file structure...")
@@ -1252,10 +1248,9 @@ class PatchySimulationEnsemble:
                 self.get_logger().info("Writing observable json, as nessecary...")
                 self.write_sim_observables(sim)
             # skip writing sbatch script if mps is off
-            if not mps:
-                # write .sh script
-                self.get_logger().info("Writing sbatch scripts...")
-                self.write_run_script(sim)
+            # write .sh script
+            self.get_logger().info("Writing sbatch scripts...")
+            self.write_run_script(sim)
 
     def write_run_script(self, sim: PatchySimulation, input_file="input"):
         # if no stage name provided use first stage
