@@ -310,6 +310,15 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
     else:
         raise Exception("Missing particle info!")
 
+    if "server_settings" in cfg:
+        if isinstance(cfg["server_settings"], str):
+            server_settings = load_server_settings(cfg["server_settings"])
+        else:
+            assert isinstance(cfg["server_settings"], dict), f"Invalid type for key 'server_settings': {type(cfg['server_settings'])}"
+            server_settings = PatchyServerConfig(**cfg["server_settings"])
+    else:
+        server_settings = get_server_config()
+
     ensemble = PatchySimulationEnsemble(
         export_name,
         setup_date,
@@ -322,6 +331,7 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
         observables,
         analysis_file,
         mdt,
+        server_settings
     )
     if "slurm_log" in mdt:
         for entry in mdt["slurm_log"]:
@@ -380,6 +390,9 @@ class PatchySimulationEnsemble:
     # log of slurm jobs
     slurm_log: SlurmLog
 
+    # customizable server settings
+    server_settings = PatchyServerConfig
+
     # output writer
     writer: BasePatchyWriter
 
@@ -395,6 +408,7 @@ class PatchySimulationEnsemble:
                  observables: dict[str, PatchySimObservable],
                  analysis_file: str,
                  metadata_dict: dict,  # dict of serialized metadata, to preserve it
+                 server_settings: Union[PatchyServerConfig, None] = None
                  ):
         self.export_name = export_name
         self.sim_init_date = setup_date
@@ -445,6 +459,10 @@ class PatchySimulationEnsemble:
         self.analysis_data = dict()
 
         self.writer = get_writer()
+        if self.server_settings is not None:
+            self.server_settings = server_settings
+        else:
+            self.server_settings = get_server_config()
 
     # --------------- Accessors and Mutators -------------------------- #
     def get_simulation(self, *args: Union[tuple[str, Any], ParameterValue], **kwargs) -> Union[
@@ -629,8 +647,8 @@ class PatchySimulationEnsemble:
         if paramname in self.default_param_set["input"]:
             return self.default_param_set["input"][paramname]
         # deeper
-        if paramname in get_server_config()["input_file_params"]:
-            return get_server_config()["input_file_params"][paramname]
+        if paramname in self.server_settings.input_file_params:
+            return self.server_settings.input_file_params[paramname]
         # TODO: custom exception here
         raise NoSuchParamError(self, paramname)
 
@@ -1227,6 +1245,7 @@ class PatchySimulationEnsemble:
         """
 
         """
+        assert is_batched()
         if stage is not None:
             self.get_logger().info(f"Stages other than zero don't require setup anymore! I hope!")
             return
@@ -1280,32 +1299,14 @@ class PatchySimulationEnsemble:
         with open(self.folder_path(sim) / slurm_script_name, "w+") as slurm_file:
             # bash header
 
-            self.write_sbatch_params(slurm_file)
+            self.server_settings.write_sbatch_params(self.export_name, slurm_file)
 
             # skip confGenerator call because we will invoke it directly later
-            slurm_file.write(f"{server_config['oxdis_write_abs_pathsna_path']}/build/bin/oxDNA {input_file}\n")
+            slurm_file.write(f"{server_config.oxdna_path}/build/bin/oxDNA {input_file}\n")
 
         self.bash_exec(f"chmod u+x {self.folder_path(sim)}/{slurm_script_name}")
 
-    def write_sbatch_params(self, slurm_file: IO):
-        server_config = get_server_config()
 
-        slurm_file.write("#!/bin/bash\n")
-
-        # slurm flags
-        for flag_key in server_config["slurm_bash_flags"]:
-            if len(flag_key) > 1:
-                slurm_file.write(f"#SBATCH --{flag_key}=\"{server_config['slurm_bash_flags'][flag_key]}\"\n")
-            else:
-                slurm_file.write(f"#SBATCH -{flag_key} {server_config['slurm_bash_flags'][flag_key]}\n")
-        run_oxdna_counter = 1
-        slurm_file.write(f"#SBATCH --job-name=\"{self.export_name}\"\n")
-        slurm_file.write(f"#SBATCH -o run%j.out\n")
-        # slurm_file.write(f"#SBATCH -e run{run_oxdna_counter}_%j.err\n")
-
-        # slurm includes ("module load xyz" and the like)
-        for line in server_config["slurm_includes"]:
-            slurm_file.write(line + "\n")
 
     def write_setup_files(self,
                           sim: PatchySimulation,
@@ -1495,11 +1496,11 @@ class PatchySimulationEnsemble:
         server_config = get_server_config()
         with open(self.folder_path(sim) / "input", 'w+') as inputfile:
             # write server config spec
-            for key in server_config["input_file_params"]:
+            for key in server_config.input_file_params:
                 if key in replacer_dict:
                     val = replacer_dict[key]
                 else:
-                    val = server_config['input_file_params'][key]
+                    val = server_config.input_file_params[key]
                 inputfile.write(f"{key} = {val}\n")
 
             # newline
@@ -1605,6 +1606,7 @@ class PatchySimulationEnsemble:
         # normal circumstances - no batch exec, do the old way
         if not is_batched():
             for sim in e:
+                self.do_setup(sim)
                 self.start_simulation(sim, stage_name=stage)
         else:
             # if the number of simulations to run requires more than one task
