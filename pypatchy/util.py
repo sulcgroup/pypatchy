@@ -3,8 +3,9 @@ from __future__ import annotations
 import itertools
 import json
 import os
+from dataclasses import dataclass, field
 from datetime import timedelta
-from typing import Union, Iterable, Any
+from typing import Union, Iterable, Any, IO
 
 from dateutil.relativedelta import relativedelta
 from scipy.spatial.transform import Rotation as R
@@ -25,6 +26,7 @@ WRITE_ABS_PATHS_KEY = "absolute_paths"
 MPS_KEY = "cuda_mps"
 
 INFO_DIR_NAME = ".pypatchy"  # todo: this will need to change
+
 
 def get_local_dir() -> Path:
     return Path.home() / f"{INFO_DIR_NAME}/"
@@ -54,12 +56,46 @@ assert (get_local_dir() / "settings.cfg").exists(), "Missing settings.cfg file!"
 cfg.read(get_local_dir() / 'settings.cfg')
 
 
+def load_server_settings(settings_name: str) -> PatchyServerConfig:
+    return PatchyServerConfig(
+        **get_spec_json(settings_name, "server_configs")
+    )
+
+
+@dataclass
+class PatchyServerConfig:
+    oxdna_path: str
+    patchy_format: str
+    slurm_bash_flags: dict[str, Any] = field(default_factory=dict)
+    slurm_includes: list[str] = field(default_factory=list)
+    input_file_params: dict[str, str] = field(default_factory=dict)
+    is_absolute_paths: bool = False
+
+    def write_sbatch_params(self, job_name: str, slurm_file: IO):
+        slurm_file.write("#!/bin/bash\n") # TODO: other shells?
+
+        # slurm flags
+        for flag_key in self.slurm_bash_flags:
+            if len(flag_key) > 1:
+                slurm_file.write(f"#SBATCH --{flag_key}=\"{self.slurm_bash_flags[flag_key]}\"\n")
+            else:
+                slurm_file.write(f"#SBATCH -{flag_key} {self.slurm_bash_flags[flag_key]}\n")
+        run_oxdna_counter = 1
+        slurm_file.write(f"#SBATCH --job-name=\"{job_name}\"\n")
+        slurm_file.write(f"#SBATCH -o run%j.out\n")
+        # slurm_file.write(f"#SBATCH -e run{run_oxdna_counter}_%j.err\n")
+
+        # slurm includes ("module load xyz" and the like)
+        for line in self.slurm_includes:
+            slurm_file.write(line + "\n")
+
+
 def simulation_run_dir() -> Path:
     return Path(cfg['ANALYSIS']['simulation_data_dir'])
 
 
-def get_server_config() -> dict:
-    return get_spec_json(cfg["SETUP"]["server_config"], "server_configs")
+def get_server_config() -> PatchyServerConfig:
+    return load_server_settings(cfg["SETUP"]["server_config"])
 
 
 def is_server_slurm() -> bool:
@@ -363,6 +399,6 @@ def powerset(iterable):
 PATCHY_FILE_FORMAT_KEY = "patchy_format"
 
 # for forwards compatibility in case I ever get this working
-EXTERNAL_OBSERVABLES = False # TODO real talk this should be in server config
+EXTERNAL_OBSERVABLES = False  # TODO real talk this should be in server config
 NUM_TEETH_KEY = "num_teeth"
 DENTAL_RADIUS_KEY = "dental_radius"

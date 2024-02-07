@@ -162,6 +162,7 @@ class FWriter(BasePatchyWriter):
             j = 0
             for line in lines:
                 line = line.strip()
+                # if line is not blank or a comment
                 if len(line) > 1 and line[0] != '#':
                     if 'particle_' and '{' in line:
                         strargs = []
@@ -191,7 +192,7 @@ class FWriter(BasePatchyWriter):
                     patch_ids = [int(g) for g in vals.split(',')]
         assert type_id is not None, "Missing type_id for particle!"  # not really any way to ID this one lmao
         assert patch_ids is not None, f"Missing patches for particle type {type_id}"
-        return PLPatchyParticle(patches, type_id=type_id)
+        return PLPatchyParticle([patches[i] for i in patch_ids], type_id=type_id)
 
     def get_input_file_data(self,
                             scene: Scene,
@@ -314,8 +315,10 @@ class FWriter(BasePatchyWriter):
         j = 0
         Np = 0
         patches = [PLPatch() for _ in range(num_patches)]
+        fpath = self.directory() / filename
+        assert fpath, f"No file called {filename}"
 
-        with self.file(filename) as f:
+        with fpath.open("r") as f:
             lines = f.readlines()
             for line in lines:
                 line = line.strip()
@@ -345,8 +348,13 @@ class FWriter(BasePatchyWriter):
     def read_scene(self,
                    top_file: Path,
                    traj_file: Path,
-                   particle_types: BaseParticleSet) -> Scene:
-        top_info, traj_info = rr.describe(str(top_file), str(traj_file))
+                   particle_types: BaseParticleSet) -> PLPSimulation:
+        """
+        Reads a patchy particle scene from files
+        """
+        top_file = self.directory() / top_file
+        traj_file = self.directory() / traj_file
+        top_info, traj_info = rr.describe(str(self.directory() / top_file), str(self.directory() / traj_file))
         # only retrieve last conf
         conf = rr.get_confs(top_info, traj_info, traj_info.nconfs - 1, 1)[0]
         scene = PLPSimulation()
@@ -801,6 +809,49 @@ class LWriter(BasePatchyWriter):
         with self.file(patches_dat_filename, "w") as f:
             f.write(patches_dat_filestr)
         return particle_str
+
+
+class SWriter(BasePatchyWriter):
+    """
+    Subhian patchy file writer
+    """
+    def get_input_file_data(self, scene: Scene, **kwargs) -> list[tuple[str, str]]:
+        pass
+
+    def reqd_args(self) -> list[str]:
+        pass
+
+    def write(self, scene: Scene, stage: Union[Stage, None] = None, **kwargs) -> dict[str, str]:
+        pass
+
+    def write_top(self, topology: SPatchyTopology, top_path: Union[str, Path]):
+        pass
+
+    def read_top(self, top_file: str) -> SPatchyTopology:
+        pass
+
+    def read_particle_types(self, *args):
+        pass
+
+    def read_scene(self, top_file: Union[Path, str], traj_file: Union[Path, str],
+                   particle_types: BaseParticleSet) -> Scene:
+        pass
+
+    def get_scene_top(self, s: Scene) -> SPatchyTopology:
+        pass
+
+    class SPatchyTopology(BasePatchyWriter.PatchyTopology):
+        def particle_type_count(self, p) -> int:
+            pass
+
+        def num_particle_types(self) -> int:
+            pass
+
+        def num_particles(self) -> int:
+            pass
+
+
+# Subhian writer
 
 
 __writers = {

@@ -30,6 +30,9 @@ class PLPatch(BasePatchType):
     def type_id(self) -> int:
         return self._type
 
+    def set_type_id(self, new_val: int):
+        self._type = new_val
+
     def strength(self) -> float:
         return self._strength
 
