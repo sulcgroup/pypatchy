@@ -18,6 +18,7 @@ from oxDNA_analysis_tools.UTILS.oxview import from_path
 from oxDNA_analysis_tools.file_info import file_info
 from oxDNA_analysis_tools.UTILS.RyeReader import get_confs, describe, write_conf
 from oxDNA_analysis_tools.UTILS.data_structures import Configuration
+from pypatchy.patchy.patchy_scripts import lorenzian_to_flavian
 
 from pypatchy.analpipe.analysis_pipeline import AnalysisPipeline
 from .pl.plscene import PLPSimulation
@@ -27,7 +28,7 @@ from ..analpipe.analysis_pipeline_step import AnalysisPipelineStep, PipelineData
     AnalysisPipelineHead, PipelineStepDescriptor, PipelineDataType
 from .patchy_sim_observable import PatchySimObservable, observable_from_file
 from ..patchy_base_particle import BaseParticleSet
-from ..patchyio import get_writer, BasePatchyWriter, FWriter
+from ..patchyio import get_writer, BasePatchyWriter, FWriter, JFWriter, LWriter
 from ..slurm_log_entry import SlurmLogEntry
 from ..slurmlog import SlurmLog
 from ..util import *
@@ -36,7 +37,7 @@ from .simulation_specification import PatchySimulation, ParamSet, NoSuchParamErr
 from .pl.plpatchylib import to_PL
 from ..polycubeutil.polycubesRule import PolycubesRule
 
-from ipy_oxdna.oxdna_simulation import SimulationManager, Simulation
+from ipy_oxdna.oxdna_simulation import SimulationManager, Simulation, Input
 
 EXPORT_NAME_KEY = "export_name"
 PARTICLES_KEY = "particles"
@@ -52,7 +53,6 @@ METADATA_FILE_KEY = "sim_metadata_file"
 LAST_CONTINUE_COUNT_KEY = "continue_count"
 
 SUBMIT_SLURM_PATTERN = r"Submitted batch job (\d+)"
-
 
 
 def describe_param_vals(*args) -> str:
@@ -698,7 +698,7 @@ class PatchySimulationEnsemble:
                 stage_name: str = stage_info["name"]
                 # construct stage objects
                 stages.append(Stage(sim,
-                                    stages[i-1] if i else None,
+                                    stages[i - 1] if i else None,
                                     self,
                                     stage_name,
                                     **stage_init_args
@@ -933,6 +933,11 @@ class PatchySimulationEnsemble:
             return self.time_length(self.ensemble())
         elif isinstance(sim, list):
             return min([self.time_length(s) for s in sim])
+        elif isinstance(sim, tuple): # todo: check single descriptor
+            if len(sim) > 0 and isinstance(sim[0], tuple):
+                return self.time_length(self.get_simulation(*sim))
+            else:
+                return self.time_length(self.get_simulation(sim))
         else:
             try:
                 stage = self.sim_most_recent_stage(sim)
@@ -1225,8 +1230,8 @@ class PatchySimulationEnsemble:
         if stage is not None:
             self.get_logger().info(f"Stages other than zero don't require setup anymore! I hope!")
             return
-        # check for mps stuff
 
+        # check for mps stuff
         if sims is None:
             sims = self.ensemble()
         self.get_logger().info("Setting up folder / file structure...")
@@ -1386,6 +1391,98 @@ class PatchySimulationEnsemble:
         # create input file
         self.write_input_file(sim, stage, replacer_dict, extras, analysis)
 
+    def lorenzian_to_flavian(self,
+                             write_path: Union[Path, str],
+                             sims: Union[None, list[PatchySimulation]] = None):
+        """
+        Converts lorenzian-type files to flavian
+        """
+        # standardize io args
+        write_path = os.path.expanduser(write_path)
+        if isinstance(write_path, str):
+            write_path = Path(write_path)
+        assert write_path.exists(), f"Location to contain ensemble copy data {str(write_path)} does not exist!"
+        assert write_path != self.tld(), "Cannot format-translate to ensemble directory"
+        if sims is None:
+            sims = self.ensemble()
+
+        for sim in sims:
+            for stage in self.sim_get_stages(sim):
+                if (self.folder_path(sim, stage) / "last_conf.dat").exists():
+                    # read data
+                    sim_folder_path = write_path / (self.long_name() + "_flav") / sim.get_folder_path() / stage.name()
+                    sim_folder_path.mkdir(parents=True)
+                    lorenzian_to_flavian(self.folder_path(sim, stage), sim_folder_path)
+                else:
+                    print(f"No last_conf.dat file for simulation {str(sim)} stage {stage.name()}")
+
+    # def rw(self,
+    #        write_writer: Union[BasePatchyWriter, str],
+    #        write_path: Union[Path, str],
+    #        read_writer: Union[BasePatchyWriter, str, None] = None,
+    #        sims: Union[None, list[PatchySimulation]] = None):
+    #     """
+    #     Reads the data from the ensemble and writes it in a different place using a different format
+    #     """
+    #     # standardize io args
+    #     if isinstance(write_writer, str):
+    #         write_writer = get_writer(write_writer)
+    #     if isinstance(read_writer, str):
+    #         read_writer = get_writer(read_writer)
+    #     elif read_writer is None:
+    #         read_writer = self.writer
+    #     assert type(write_writer) != type(read_writer), "Trying to read and write in the same format, which seems " \
+    #                                               "pretty pointless"
+    #     if isinstance(write_path, str):
+    #         write_path = Path(write_path)
+    #     assert write_path.exists(), f"Location to contain ensemble copy data {str(write_path)} does not exist!"
+    #     assert write_path != self.tld(), "Cannot format-translate to ensemble directory"
+    #     if sims is None:
+    #         sims = self.ensemble()
+    #
+    #     (write_path / (self.long_name() + "_copy")).mkdir(parents=True)
+    #
+    #     for sim in sims:
+    #         for stage in self.sim_get_stages(sim):
+    #             # read data
+    #             read_writer.set_directory(self.folder_path(sim, stage))
+    #             input_file = Input(str(read_writer.directory()))
+    #
+    #             # TODO: automate params
+    #             top_file = input_file.input["topology"]
+    #             if Path(top_file).is_absolute():
+    #                 top_file = Path(top_file).suffix
+    #
+    #             if isinstance(read_writer, FWriter) or isinstance(read_writer, JFWriter):
+    #                 # handle absolute vs relative file paths
+    #                 patchy_file_path = input_file.input["patchy_file"]
+    #                 if Path(patchy_file_path).is_absolute():
+    #                     patchy_file_path = Path(patchy_file_path).suffix
+    #                 assert (read_writer.directory() / patchy_file_path).exists(), "Missing patchy file!"
+    #                 particle_file_path = input_file.input["particle_file"]
+    #                 if Path(particle_file_path).is_absolute():
+    #                     particle_file_path = Path(particle_file_path).suffix
+    #
+    #                 ptypes = read_writer.read_particle_types(patchy_file_path, particle_file_path)
+    #                 # top = read_writer.read_top(top_file)
+    #             elif isinstance(read_writer, LWriter):
+    #                 # handle absolute vs relative file paths
+    #                 int_file = input_file.input["DPS_interaction_matrix_file"]
+    #                 if Path(int_file).is_absolute():
+    #                     int_file = Path(int_file).suffix
+    #                 ptypes = read_writer.read_particle_types(top_file,
+    #                                                          int_file)
+    #                 # top = read_writer.read_top(top_file)
+    #             else:
+    #                 raise Exception(f"Invalid or unsupported writer type {type(read_writer)}")
+    #             scene = read_writer.read_scene(top_file,
+    #                                            self.sim_get_param(sim, "conf_file"),
+    #                                            ptypes)
+    #             # write new files
+    #             sim_folder_path = write_path / (self.long_name() + "_copy") / sim.get_folder_path() / stage.name()
+    #             sim_folder_path.mkdir(parents=True)
+    #             write_writer.write(scene)
+
     # imminant deprecation
     def write_input_file(self,
                          sim: PatchySimulation,
@@ -1393,7 +1490,7 @@ class PatchySimulationEnsemble:
                          replacer_dict: [str, str],
                          extras: [str, str],
                          analysis: bool = False):
-        #honestly think this is everything lmao
+        # honestly think this is everything lmao
         # input_file = self.input_file(sim, stage, replacer_dict, extras, analysis)
         server_config = get_server_config()
         with open(self.folder_path(sim) / "input", 'w+') as inputfile:
@@ -1485,13 +1582,13 @@ class PatchySimulationEnsemble:
     def ipy(self, sim: PatchySimulation, stage: Union[Stage, None] = None) -> Simulation:
         #
         if self.sim_num_stages(sim) == 1 or stage.idx() == 0:
-            return Simulation(str(self.folder_path(sim, stage)))
+            sim_obj = Simulation(str(self.folder_path(sim, stage)))
         else:
             # parameterize stage from previous stage
-            sim_obj = Simulation(str(self.folder_path(sim, self.sim_get_stage(sim, stage.idx()-1))),
+            sim_obj = Simulation(str(self.folder_path(sim, self.sim_get_stage(sim, stage.idx() - 1))),
                                  str(self.folder_path(sim, stage)))
-            sim_obj.build_sim = stage  # assign stage object as sim builder
-            return sim_obj
+        sim_obj.build_sim = stage  # assign stage object as sim builder
+        return sim_obj
 
     def ipy_all(self, sim: PatchySimulation) -> list[Simulation]:
         return [self.ipy(sim, stage) for stage in self.sim_get_stages(sim)]
@@ -1514,11 +1611,24 @@ class PatchySimulationEnsemble:
 
             mgr = SimulationManager()
             for sim in e:
-                if not self.folder_path(sim).exists():
-                    self.folder_path(sim, stage).mkdir(parents=True)
-                mgr.queue_sim(self.ipy(sim, stage))
+                if stage is None:
+                    try:
+                        sim_stage = self.sim_most_recent_stage(sim).get_next()
+                    except NoStageTrajError:
+                        # if no stages have been run
+                        sim_stage = self.sim_get_stages(sim)[0]  # first stage
+                else:
+                    sim_stage = self.sim_get_stage(sim, stage)
+                assert sim_stage is not None
+                if not self.folder_path(sim, sim_stage).exists():
+                    self.folder_path(sim, sim_stage).mkdir(parents=True)
+                # if stage unspecified
+
+                ipysim = self.ipy(sim, sim_stage)
+                ipysim.build(clean_build="force")  # todo: integrate stage assembly
+                mgr.queue_sim(ipysim)
             print("Let the simulating commence!")
-            mgr.run()
+            mgr.run(join=True, gpu_mem_block=False)
             # batch execution for CUDA + MPS
 
             # TODO: better slurm logging!
@@ -1877,6 +1987,9 @@ class PatchySimulationEnsemble:
             lock.acquire()
         try:
             self.get_logger().info(f"Caching data in file `{self.get_cache_file(step, sim)}`")
+            if isinstance(sim, tuple):
+                assert not self.is_multiselect(sim)
+                sim = self.get_simulation(*sim)
             step.cache_data(data, self.get_cache_file(step, sim))
         finally:
             if self.is_do_analysis_parallel():
@@ -1907,7 +2020,9 @@ class PatchySimulationEnsemble:
         # if this is a head node, it will take ensemble info, sim info, and
         # file paths instead of previous step data
         elif isinstance(step, AnalysisPipelineHead):
-            assert isinstance(sim, PatchySimulation), "Analysis pipeline head nodes should only take single simulations"
+            assert isinstance(sim, PatchySimulation) or not self.is_multiselect(sim), "Analysis pipeline head nodes should only take single simulations"
+            if not isinstance(sim, PatchySimulation):
+                sim = self.get_simulation(*sim)
             stages: list[Stage] = self.sim_get_stages_between(sim, time_steps.start, time_steps.stop)
             files = [self, sim, stages]
             for file_name_in in step.get_data_in_filenames():
