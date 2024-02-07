@@ -35,7 +35,7 @@ class Stage(BuildSimulation):
     _particles_to_add: list[int]
     _add_method: str
     _stage_vars: dict
-    _ctxt: Any # PatchySimulationEnsemble
+    _ctxt: Any  # PatchySimulationEnsemble
     _sim_spec: PatchySimulation
 
     input_param_dict: dict
@@ -44,7 +44,7 @@ class Stage(BuildSimulation):
     def __init__(self,
                  sim: PatchySimulation,
                  previous_stage: Union[Stage, None],
-                 ctxt: Any, # it's PatchySimulationEnsemble but if we tell it that we get a circular import
+                 ctxt: Any,  # it's PatchySimulationEnsemble but if we tell it that we get a circular import
                  stagename: str,
                  t: int,
                  particles: list[Union[int, str]],
@@ -60,6 +60,9 @@ class Stage(BuildSimulation):
         self._sim_spec = sim
         assert tlen or tend, "Specify stage length with "
         self._prev_stage = previous_stage
+        if previous_stage is not None:
+            self._prev_stage._next_stage = self
+        self._next_stage = None
         self._stage_name = stagename
         self._stage_start_time = t
         self._particles_to_add = particles
@@ -86,6 +89,12 @@ class Stage(BuildSimulation):
 
     def is_first(self) -> bool:
         return self.idx() == 0
+
+    def get_prev(self) -> Union[None, Stage]:
+        return self._prev_stage
+
+    def get_next(self) -> Union[None, Stage]:
+        return self._next_stage
 
     def box_size(self) -> np.ndarray:
         return self._box_size
@@ -127,16 +136,18 @@ class Stage(BuildSimulation):
         reqd_extra_args = {
             a: self.getctxt().sim_get_param(self.spec(), a) for a in self.getctxt().writer.reqd_args()
         }
-        assert "conf_file" in reqd_extra_args
+        assert "conf_file" in reqd_extra_args, "Missing arg for req"
+        self.getctxt().writer.set_directory(self.getctxt().folder_path(self.spec(), self))
         # write top, conf, and others
         files = self.getctxt().writer.write(scene,
-                                  self,
-                                  **reqd_extra_args)
+                                            self,
+                                            **reqd_extra_args)
 
         # update top and dat files in replacer dict
         self.input_param_dict.update(files)
         self.input_param_dict["steps"] = self.end_time()
-        self.input_param_dict["trajectory_file"] = self.adjfn(self.getctxt().sim_get_param(self.spec(), "trajectory_file"))
+        self.input_param_dict["trajectory_file"] = self.adjfn(
+            self.getctxt().sim_get_param(self.spec(), "trajectory_file"))
         self.input_param_dict.update(self.getctxt().writer.get_input_file_data(scene, **reqd_extra_args))
 
     def build_input(self, production=False):
@@ -147,16 +158,16 @@ class Stage(BuildSimulation):
         # write server config spec
         for key in server_config["input_file_params"]:
             val = server_config['input_file_params'][key]
-            self.input_param_dict[key] = f"{val}"
+            self.input_param_dict[key] = val
 
         # write default input file stuff
 
         # loop parameters in group
-        for paramname in self.getctxt().default_param_set:
+        for paramname in self.getctxt().default_param_set["input"]:
             # if we've specified this param in a replacer dict
             # if no override
             if paramname not in self.spec() and paramname not in self.getctxt().const_params:
-                val = self.getctxt().default_param_set[paramname]
+                val = self.getctxt().default_param_set["input"][paramname]
             else:
                 val = self.getctxt().sim_get_param(self.spec(), paramname)
             # check paths are absolute if applicable
@@ -167,7 +178,7 @@ class Stage(BuildSimulation):
                     if not Path(val).is_absolute():
                         # prepend folder path
                         val = str(self.getctxt().folder_path(self.spec(), self) / val)
-            self.input_param_dict[paramname] = f"{val}"
+            self.input_param_dict[paramname] = val
 
         # write more parameters
         self.input_param_dict["T"] = self.getctxt().sim_get_param(self.spec(), 'T')
@@ -190,7 +201,8 @@ class Stage(BuildSimulation):
         with open(self.getctxt().folder_path(self.spec()) / input_json_name, "w+") as f:
             json.dump(self.input_param_dict, f)
 
-        assert (self.getctxt().folder_path(self.spec(), self) / "input.json").exists(), "Didn't correctly set up input file!"
+        assert (self.getctxt().folder_path(self.spec(),
+                                           self) / "input.json").exists(), "Didn't correctly set up input file!"
         self.sim.input = Input(str(self.getctxt().folder_path(self.spec(), self)))
         self.sim.input.write_input(production=production)
 

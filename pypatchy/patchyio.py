@@ -9,6 +9,7 @@ from pathlib import Path
 
 import numpy as np
 import oxDNA_analysis_tools.UTILS.RyeReader as rr
+from ipy_oxdna.oxdna_simulation import Input
 
 from .patchy.pl.plpatch import PLPatch
 from .patchy.pl.plparticle import PLPatchyParticle, PLParticleSet
@@ -42,7 +43,7 @@ class BasePatchyWriter(ABC):
     _writing_directory: Path
 
     def __init__(self):
-        pass
+        self._writing_directory = None
 
     @abstractmethod
     def get_input_file_data(self,
@@ -110,6 +111,10 @@ class BasePatchyWriter(ABC):
                    traj_file: Union[Path, str],
                    particle_types: BaseParticleSet) -> Scene:
         pass
+
+    # @abstractmethod
+    # def read(self) -> Union[Scene, None]:
+    #     pass
 
     @abstractmethod
     def get_scene_top(self, s: Scene) -> PatchyTopology:
@@ -364,6 +369,31 @@ class FWriter(BasePatchyWriter):
                 scene.add_particle(pp)
         return scene
 
+    # def read(self) -> Union[None, PLPSimulation]:
+    #     assert (self.directory() / "input").exists(), "Can't read without input file"  # TODO: custom exception
+    #     input_file = Input(str(self.directory()))
+    #     # can't assume local setup has all values in ensemble json
+    #     # handle absolute vs relative file paths
+    #     patchy_file_path = input_file.input["patchy_file"]
+    #     if Path(patchy_file_path).is_absolute():
+    #         patchy_file_path = Path(patchy_file_path).suffix
+    #     assert (self.directory() / patchy_file_path).exists(), "Missing patchy file!"
+    #     particle_file_path = input_file.input["particle_file"]
+    #     if Path(particle_file_path).is_absolute():
+    #         particle_file_path = Path(particle_file_path).suffix
+    #     assert (self.directory() / particle_file_path).exists(), "Missing particle file!"
+    #     ptypes = self.read_particle_types(patchy_file_path,
+    #                                       particle_file_path)
+    #     # top and conf
+    #     top_file = input_file.input["topology"]
+    #     if Path(top_file).is_absolute():
+    #         top_file = Path(top_file).suffix
+    #     conf_file = input_file.input["conf_file"]
+    #     if Path(conf_file).is_absolute():
+    #         conf_file = Path(conf_file).suffix
+    #     if s
+
+
     class FPatchyTopology(BasePatchyWriter.PatchyTopology):
 
         nParticleTypes: int # number of particle types
@@ -604,6 +634,7 @@ class LWriter(BasePatchyWriter):
         top = self.read_top(topology)
         interaction_matrix = self.read_interaction_matrix(DPS_interaction_matrix_file)
         self.assign_colors(interaction_matrix, top.particle_types.patches())
+        return top.particle_types
 
     def read_interaction_matrix(self, interaction_file: str) -> np.ndarray:
         pattern = r"patchy_eps\[(\d+)\]\[(\d+)\] = (\d+\.?\d*)"
@@ -674,6 +705,8 @@ class LWriter(BasePatchyWriter):
               stage: Union[Stage, None] = None,
               **kwargs
               ) -> dict[str, str]:
+        assert self.directory() is not None, "No writing directory specified!"
+        assert self.directory().exists(), f"Specified writing directory {str(self.directory())} does not exist!"
         particles_base = scene.particle_types()
 
         particles: PLParticleSet = to_PL(particles_base)

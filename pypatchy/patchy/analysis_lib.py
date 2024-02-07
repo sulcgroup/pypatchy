@@ -33,8 +33,6 @@ from ..polycubeutil.polycubesRule import PolycubesRule
 from ..polycubeutil.polycube_structure import PolycubeStructure
 from ..util import get_input_dir
 
-matplotlib.use(backend="qtagg")
-
 # this file contains classes that are useful in analysis, but aren't required by other PyPatchy modules
 # all classes in this document should extend AnalysisPipelineStep
 
