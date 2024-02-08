@@ -516,6 +516,9 @@ class PLMultidentateSourceMap(PLSourceMap):
         return PLMultidentateSourceMap(self.src_set().normalize(), src_mapping=copy.deepcopy(self.patch_map()))
 
 
+@dataclass
+class MultidentateConvertParams()
+
 class PLParticleSet(BaseParticleSet):
     """
     Particle set class for PL Particles
@@ -661,8 +664,8 @@ class PLParticleSet(BaseParticleSet):
                             raise Exception("Cannot treat non-torsional particle set as torsional!")
                         else:
                             if dental_radius > 0:
-                                raise Exception(
-                                    "Even for non-torsional particles, we need an a2 to align teeth unless teeth are superimposed (dental_radius = 0)")
+                                raise Exception("Even for non-torsional particles, we need an a2 to align teeth "
+                                                "unless teeth are superimposed (dental_radius = 0)")
 
                     # theta is the angle of the tooth within the patch
                     theta = tooth / num_teeth * 2 * math.pi

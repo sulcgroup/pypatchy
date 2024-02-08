@@ -79,7 +79,8 @@ def get_descriptor_key(sim: PatchySimDescriptor) -> str:
     """
     returns a string representing the provided descriptor
     """
-    return sim if isinstance(sim, str) else str(sim) if isinstance(sim, PatchySimulation) else describe_param_vals(*sim)
+    return sim if isinstance(sim, str) else str(sim) \
+        if isinstance(sim, PatchySimulation) else describe_param_vals(*sim)
 
 
 def list_simulation_ensembles():
