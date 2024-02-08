@@ -540,6 +540,9 @@ class PLParticleSet(BaseParticleSet):
         super().__init__(particles)
         self.__src_map = source_map
 
+    def patch_colors(self):
+        return set({patch.color() for patch in self.patches()})
+
     def get_src_map(self) -> PLSourceMap:
         return self.__src_map
 
@@ -643,7 +646,7 @@ class PLParticleSet(BaseParticleSet):
                                                                 "b/c IDK how that works and IDC enough to figure it out"
                 # note that the converse is not true; we can have torsion w/o same color binding
                 colornorm = abs(patch.color()) - 21
-                id_map[patch.get_id()] = set()
+                id_map[patch.type_id()] = set()
                 for tooth in range(num_teeth):
 
                     # grab patch position, a1, a2
@@ -702,13 +705,14 @@ class PLParticleSet(BaseParticleSet):
                         # simply use unidentat patch position and skip a2
                         teeth[tooth] = PLPatch(patch_counter, c, position, a1, strength=1.0 / num_teeth)
 
-                    id_map[patch.get_id()].add(patch_counter)
+                    id_map[patch.type_id()].add(patch_counter)
                     patch_counter += 1
                 # add all teeth
                 new_particle_patches += teeth
             new_particles[i_particle] = PLPatchyParticle(type_id=particle.type_id(), index_=i_particle,
                                                          radius=particle.radius())
             new_particles[i_particle].set_patches(new_particle_patches)
+            new_particles[i_particle] = new_particles[i_particle].normalize()
             new_patches += new_particle_patches
         particle_set = PLParticleSet(new_particles, PLMultidentateSourceMap(self, id_map))
         return particle_set

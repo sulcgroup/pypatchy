@@ -20,8 +20,8 @@ from .patchy_base_particle import PatchyBaseParticleType, PatchyBaseParticle
 from .scene import Scene
 from .patchy_base_particle import BaseParticleSet
 from .polycubeutil.polycubesRule import PolycubeRuleCubeType
-from .util import get_server_config, PATCHY_FILE_FORMAT_KEY, normalize, is_write_abs_paths, NUM_TEETH_KEY, \
-    DENTAL_RADIUS_KEY
+from .util import get_server_config, PATCHY_FILE_FORMAT_KEY, normalize, NUM_TEETH_KEY, DENTAL_RADIUS_KEY, \
+    PatchyServerConfig
 
 
 # this approach was suggested by chatGPT.
@@ -41,9 +41,19 @@ class BasePatchyWriter(ABC):
     """
 
     _writing_directory: Path
+    _is_write_abs_paths = False
 
     def __init__(self):
         self._writing_directory = None
+
+    def set_abs_paths(self, b: Union[bool, PatchyServerConfig]):
+        if isinstance(b, bool):
+            self._is_write_abs_paths = b
+        else:
+            self._is_write_abs_paths = b.absolute_paths
+
+    def is_abs_paths(self):
+        return self._is_write_abs_paths
 
     @abstractmethod
     def get_input_file_data(self,
@@ -68,6 +78,9 @@ class BasePatchyWriter(ABC):
 
     @abstractmethod
     def reqd_args(self) -> list[str]:
+        """
+        Returns a list of arguements that need to be passed to `write`
+        """
         pass
 
     @abstractmethod
@@ -88,7 +101,7 @@ class BasePatchyWriter(ABC):
         pass
 
     @abstractmethod
-    def read_top(self, top_file: str) -> PatchyTopology:
+    def read_top(self, top_file: str) -> SWriter.SPatchyTopology:
         pass
 
     def write_conf(self, scene: Scene, p: Path):
@@ -174,9 +187,13 @@ class FWriter(BasePatchyWriter):
                         particles.append(particle)
                 j = j + 1
         particles.sort(key=lambda p: p.get_type())
+        assert all([np.abs(p.rotmatrix() - np.identity(3)).sum() < 1e-6 for p in particles])
+
         return PLParticleSet(particles)
 
-    def particle_from_lines(self, lines: Iterable[str], patches: list[PLPatch]) -> PLPatchyParticle:
+    def particle_from_lines(self,
+                            lines: Iterable[str],
+                            patches: list[PLPatch]) -> PLPatchyParticle:
         type_id = None
         patch_ids = None
         for line in lines:
@@ -192,7 +209,7 @@ class FWriter(BasePatchyWriter):
                     patch_ids = [int(g) for g in vals.split(',')]
         assert type_id is not None, "Missing type_id for particle!"  # not really any way to ID this one lmao
         assert patch_ids is not None, f"Missing patches for particle type {type_id}"
-        return PLPatchyParticle([patches[i] for i in patch_ids], type_id=type_id)
+        return PLPatchyParticle([patches[i] for i in patch_ids], type_id=type_id).normalize()
 
     def get_input_file_data(self,
                             scene: Scene,
@@ -216,7 +233,7 @@ class FWriter(BasePatchyWriter):
         outs = 'particle_%d = { \n type = %d \n ' % (particle.type_id(), particle.type_id())
         outs = outs + 'patches = '
         for i, p in enumerate(particle.patches()):
-            outs = outs + str(p.get_id())
+            outs = outs + str(p.type_id())
             if i < len(particle.patches()) - 1:
                 outs = outs + ','
         outs += "\n".join([f"{key} = {extras[key]}" for key in extras])
@@ -266,7 +283,7 @@ class FWriter(BasePatchyWriter):
         # write conf
         self.write_conf(scene, init_conf)
 
-        if is_write_abs_paths():
+        if self.is_abs_paths():
             particle_fn = self.directory() / particle_fn
             patchy_fn = self.directory() / patchy_fn
             init_top = self.directory() / init_top
@@ -401,11 +418,10 @@ class FWriter(BasePatchyWriter):
     #         conf_file = Path(conf_file).suffix
     #     if s
 
-
     class FPatchyTopology(BasePatchyWriter.PatchyTopology):
 
-        nParticleTypes: int # number of particle types
-        topology_particles: list[int] # list of particles, where each value is a type ID
+        nParticleTypes: int  # number of particle types
+        topology_particles: list[int]  # list of particles, where each value is a type ID
         type_counts: dict[int, int]  # particle type ID -> count
 
         def __init__(self, top_particles: list[Union[PatchyBaseParticle, int]]):
@@ -521,7 +537,7 @@ class JWriter(BasePatchyWriter, ABC):
 
         self.write_conf(scene, init_conf)
 
-        if is_write_abs_paths():
+        if self.is_abs_paths():
             init_top = self.directory() / init_top
             particle_fn = self.directory() / particle_fn
             patchy_fn = self.directory() / patchy_fn
@@ -580,7 +596,7 @@ class JLWriter(JWriter):
         outs = 'particle_%d = { \n type = %d \n ' % (particle.type_id(), particle.type_id())
         outs = outs + 'patches = '
         for i, p in enumerate(particle.patches()):
-            outs = outs + str(p.get_id())
+            outs = outs + str(p.type_id())
             if i < len(particle.patches()) - 1:
                 outs = outs + ','
         outs += "\n".join([f"{key} = {extras[key]}" for key in extras])
@@ -692,7 +708,6 @@ class LWriter(BasePatchyWriter):
         with self.file(top_file) as f:
             f.write(f"{len(topology.particles())} {topology.particle_types.num_particle_types()}\n")
             for ptype in topology.particle_types:
-
                 # add particle file name to files list
                 # particles_txts_files.append(self.directory() / f"patches_{particle.type_id()}.dat")
                 f.write(self.particle_type_str(ptype,
@@ -728,7 +743,7 @@ class LWriter(BasePatchyWriter):
         self.write_conf(scene, init_conf)
         self.write_top(self.get_scene_top(scene), init_top)
 
-        if is_write_abs_paths():
+        if self.is_abs_paths():
             init_conf = self.directory() / init_conf
             init_top = self.directory() / init_top
             interactions_file = self.directory() / interactions_file
@@ -793,7 +808,7 @@ class LWriter(BasePatchyWriter):
             return self.particle_types.num_particle_types()
 
     def particle_type_str(self, particle: PLPatchyParticle, nInstances: int) -> str:
-        if is_write_abs_paths():
+        if self.is_abs_paths():
             patches_dat_filename = self.directory() / f"patches_{particle.type_id()}.dat"
         else:
             patches_dat_filename = f"patches_{particle.type_id()}.dat"
@@ -815,6 +830,7 @@ class SWriter(BasePatchyWriter):
     """
     Subhian patchy file writer
     """
+
     def get_input_file_data(self, scene: Scene, **kwargs) -> list[tuple[str, str]]:
         pass
 
@@ -822,13 +838,70 @@ class SWriter(BasePatchyWriter):
         pass
 
     def write(self, scene: Scene, stage: Union[Stage, None] = None, **kwargs) -> dict[str, str]:
-        pass
+        """
+        writes scene at specified stage to a file, returns a set of parameters to write to input file
+        """
 
     def write_top(self, topology: SPatchyTopology, top_path: Union[str, Path]):
-        pass
+        """
+        writes the provided topology to a topology file
+        """
+        with top_path.open("w") as f:
+            # first line: num particles, num strands(1), num particles (again)
+            f.write(f"{topology.num_particles()} 1 {topology.num_particles()}\n")
+            f.write("\n")
+
+            # then write patch info (equivelant to patches.txt in flavian)
+            for i, patch in enumerate(topology.particle_set().patches()):
+                assert i == patch.get_id(), "Patch index does not match patch ID"
+                patch_position = np.array2string(
+                    patch.position(),
+                    separator=" ",
+                    suppress_small=True,
+                    formatter={'float_kind': custom_formatter}
+                )[1:-1]
+                a1 = np.array2string(
+                    patch.a1,
+                    separator=" ",
+                    suppress_small=True,
+                    formatter={'float_kind': custom_formatter}
+                )[1:-1]
+                a3 = np.array2string(
+                    patch.a3,
+                    separator=" ",
+                    suppress_small=True,
+                    formatter={'float_kind': custom_formatter}
+                )[1:-1]
+                f.write(f"iP {i} {patch.get_color()} {patch.strength()} {patch_position} {a1} {a3}\n")
+
+            f.write("\n")
+
+            # then write particle types info (equivelant to particles.txt in flavian)
+            for particle_type in topology.particle_set():
+                f.write(
+                    f"iC {particle_type.type_id()} {' '.join([patch.get_id() for patch in particle_type.patches()])}\n")
+
+            f.write("\n")
+
+            # then write particle information
+            for ptypeid in topology.list_particles():
+                f.write(f"-3 0 {ptypeid} {topology.particle_set().particle(ptypeid).radius()}\n")
 
     def read_top(self, top_file: str) -> SPatchyTopology:
-        pass
+        with self.file(top_file, "r") as f:
+            header = f.readline()
+
+            for line in f:
+                # line describes patch
+                if line.startswith("iP"):
+                    pass
+
+                # line describes a particle
+                elif line.startswith("iC"):
+                    pass
+                else:
+                    pass
+
 
     def read_particle_types(self, *args):
         pass
@@ -841,34 +914,40 @@ class SWriter(BasePatchyWriter):
         pass
 
     class SPatchyTopology(BasePatchyWriter.PatchyTopology):
+        _particle_set: PLParticleSet
+        _particle_type_counts: dict[int, int]
+
         def particle_type_count(self, p) -> int:
-            pass
+            return self._particle_type_counts[p]
 
         def num_particle_types(self) -> int:
-            pass
+            return len(self._particle_type_counts)
 
         def num_particles(self) -> int:
-            pass
+            return sum(self._particle_type_counts.values())
 
+        def particle_set(self) -> PLParticleSet:
+            return self._particle_set
 
-# Subhian writer
+        def list_particles(self) -> Iterable[int]:
+            return itertools.chain.from_iterable([[itype for i in range(n)]
+                                                  for itype, n in self._particle_type_counts.items()])
 
 
 __writers = {
     "flavio": FWriter(),
     "josh_flavio": JFWriter(),
     # "josh_lorenzo": JLWriter(),
-    "lorenzo": LWriter()
+    "lorenzo": LWriter(),
+    "subhajit": SWriter()
 }
 
 
 def get_writer(writer_key: Union[str, None] = None) -> BasePatchyWriter:
     if writer_key is None:
-        writer_key = get_server_config()[PATCHY_FILE_FORMAT_KEY]
+        writer_key = get_server_config().patchy_format
     return __writers[writer_key]
 
 
 def register_writer(writer_name: str, writer_obj: BasePatchyWriter):
     __writers[writer_name] = writer_obj
-
-

@@ -1245,7 +1245,6 @@ class PatchySimulationEnsemble:
         """
 
         """
-        assert is_batched()
         if stage is not None:
             self.get_logger().info(f"Stages other than zero don't require setup anymore! I hope!")
             return
@@ -1293,8 +1292,6 @@ class PatchySimulationEnsemble:
 
         input_file = stage.adjfn(input_file)
 
-        server_config = get_server_config()
-
         # write slurm script
         with open(self.folder_path(sim) / slurm_script_name, "w+") as slurm_file:
             # bash header
@@ -1302,11 +1299,9 @@ class PatchySimulationEnsemble:
             self.server_settings.write_sbatch_params(self.export_name, slurm_file)
 
             # skip confGenerator call because we will invoke it directly later
-            slurm_file.write(f"{server_config.oxdna_path}/build/bin/oxDNA {input_file}\n")
+            slurm_file.write(f"{self.server_settings.oxdna_path}/build/bin/oxDNA {input_file}\n")
 
         self.bash_exec(f"chmod u+x {self.folder_path(sim)}/{slurm_script_name}")
-
-
 
     def write_setup_files(self,
                           sim: PatchySimulation,
@@ -1343,6 +1338,7 @@ class PatchySimulationEnsemble:
             extras = {}
         # set writer directory to simulation folder path
         self.writer.set_directory(self.folder_path(sim, stage))
+        self.writer.set_abs_paths(self.server_settings.absolute_paths)
 
         # get server config
         if replacer_dict is None:
@@ -1493,14 +1489,13 @@ class PatchySimulationEnsemble:
                          analysis: bool = False):
         # honestly think this is everything lmao
         # input_file = self.input_file(sim, stage, replacer_dict, extras, analysis)
-        server_config = get_server_config()
         with open(self.folder_path(sim) / "input", 'w+') as inputfile:
             # write server config spec
-            for key in server_config.input_file_params:
+            for key in self.server_settings.input_file_params:
                 if key in replacer_dict:
                     val = replacer_dict[key]
                 else:
-                    val = server_config.input_file_params[key]
+                    val = self.server_settings.input_file_params[key]
                 inputfile.write(f"{key} = {val}\n")
 
             # newline
@@ -1517,7 +1512,7 @@ class PatchySimulationEnsemble:
                 else:
                     val = self.sim_get_param(sim, paramname)
                 # check paths are absolute if applicable
-                if is_write_abs_paths():
+                if self.server_settings.absolute_paths:
                     # approximation for "is this a file?"
                     if isinstance(val, str) and re.search(r'\.\w+$', val) is not None:
                         # if path isn't absolute
@@ -1542,7 +1537,7 @@ class PatchySimulationEnsemble:
 
             # write external observables file path
             if len(self.observables) > 0:
-                assert not is_write_abs_paths(), "Absolute file paths aren't currently compatible with observiables!" \
+                assert not self.server_settings.absolute_paths, "Absolute file paths aren't currently compatible with observiables!" \
                                                  " Get on it Josh!!!"
                 if EXTERNAL_OBSERVABLES:
                     inputfile.write(f"observables_file = observables.json" + "\n")
@@ -1604,7 +1599,7 @@ class PatchySimulationEnsemble:
             e = self.ensemble()
 
         # normal circumstances - no batch exec, do the old way
-        if not is_batched():
+        if not self.server_settings.is_batched():
             for sim in e:
                 self.do_setup(sim)
                 self.start_simulation(sim, stage_name=stage)

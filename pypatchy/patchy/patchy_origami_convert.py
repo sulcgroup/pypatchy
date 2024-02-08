@@ -66,7 +66,7 @@ def patch_positions_to_bind(patch_positions1: Iterable[int],
 
 
 def pairwise(iterable):
-    # because i'm stuck on python 3.8
+    # because i have not updated this yet
     a, b = itertools.tee(iterable)
     next(b, None)
     return zip(a, b)
@@ -537,10 +537,10 @@ class PatchyOrigamiConverter:
         for patch in p.patches():
             # if patch is multidentate, get src patch id as map key
             if self.patchy_scene.particle_types().is_multidentate():
-                patch_type_id = self.patchy_scene.particle_types().get_src_map().get_src_patch(patch).get_id()
+                patch_type_id = self.patchy_scene.particle_types().get_src_map().get_src_patch(patch).type_id()
             else:
                 # use patch id as map key, will end up with identity mappigng
-                patch_type_id = patch.get_id()
+                patch_type_id = patch.type_id()
             if patch_type_id not in pl_patch_coords:
                 pl_patch_coords[patch_type_id] = list()
                 pl_patch_norms[patch_type_id] = list()
