@@ -458,11 +458,12 @@ class PatchySimulationEnsemble:
         # construct analysis data dict in case we need it
         self.analysis_data = dict()
 
-        self.writer = get_writer()
         if self.server_settings is not None:
-            self.server_settings = server_settings
+            self.set_server_settings(server_settings)
         else:
             self.server_settings = get_server_config()
+            self.writer = get_writer()
+
 
     # --------------- Accessors and Mutators -------------------------- #
     def get_simulation(self, *args: Union[tuple[str, Any], ParameterValue], **kwargs) -> Union[
@@ -562,6 +563,13 @@ class PatchySimulationEnsemble:
 
     def is_nocache(self) -> bool:
         return "nocache" in self.metadata and self.metadata["nocache"]
+
+    def set_server_settings(self, stgs: Union[PatchyServerConfig, str]):
+        if isinstance(stgs, PatchyServerConfig):
+            self.server_settings = stgs
+        else:
+            self.server_settings = load_server_settings(stgs)
+        self.writer = get_writer(self.server_settings.patchy_format)
 
     def set_nocache(self, bNewVal: bool):
         self.metadata["nocache"] = bNewVal
@@ -1508,7 +1516,7 @@ class PatchySimulationEnsemble:
                     val = replacer_dict[paramname]
                 # if no override
                 elif paramname not in sim and paramname not in self.const_params:
-                    val = self.default_param_set[paramname]
+                    val = self.default_param_set["input"][paramname]
                 else:
                     val = self.sim_get_param(sim, paramname)
                 # check paths are absolute if applicable
@@ -1600,8 +1608,8 @@ class PatchySimulationEnsemble:
 
         # normal circumstances - no batch exec, do the old way
         if not self.server_settings.is_batched():
+            self.do_setup(e)
             for sim in e:
-                self.do_setup(sim)
                 self.start_simulation(sim, stage_name=stage)
         else:
             # if the number of simulations to run requires more than one task
@@ -1666,7 +1674,7 @@ class PatchySimulationEnsemble:
                                           f"is incomplete")
                 return False
 
-        if is_server_slurm():
+        if self.server_settings.is_server_slurm():
             try:
                 most_recent_stage = self.sim_most_recent_stage(sim)
                 if most_recent_stage.idx() > stage.idx():
@@ -1729,7 +1737,7 @@ class PatchySimulationEnsemble:
             job_type_name = "analysis"
         script_name = stage.adjfn(script_name)
 
-        if is_server_slurm():
+        if self.server_settings.is_server_slurm():
             command = f"sbatch --chdir={self.folder_path(sim)}"
         # for non-slurm servers
         else:
@@ -1738,22 +1746,22 @@ class PatchySimulationEnsemble:
         # shouldn't be nessecary anymore but whatever
         if not self.paramstagefile(sim, stage, "conf_file").exists():
             confgen_slurm_jobid = self.gen_conf(sim)
-            if is_server_slurm():
+            if self.server_settings.is_server_slurm():
                 command += f" --dependency=afterok:{confgen_slurm_jobid}"
-        if is_server_slurm():
+        if self.server_settings.is_server_slurm():
             command += f" {script_name}"
         submit_txt = ""
 
         # DO NOT DO RETRIES ON NON SLURM MACHINE!!! THIS IS SUSPECTED OF DESTROYING MY ENTIRE LIFE!!!!
-        if not is_server_slurm():
+        if not self.server_settings.is_server_slurm():
             retries = 1
         for i in range(retries):
-            submit_txt = self.bash_exec(command, is_async=not is_server_slurm(), cwd=self.folder_path(sim))
+            submit_txt = self.bash_exec(command, is_async=not self.server_settings.is_server_slurm(), cwd=self.folder_path(sim))
             if submit_txt:
                 break
             time.sleep(backoff_factor ** i)
 
-        if is_server_slurm():
+        if self.server_settings.is_server_slurm():
             if not submit_txt:
                 raise Exception(f"Submit slurm job failed for simulation {sim}")
 
@@ -1784,7 +1792,7 @@ class PatchySimulationEnsemble:
         Runs a conf generator. These are run as slurm jobs if you're on a slurm server,
         or as non-background tasks otherwise
         """
-        if is_server_slurm():
+        if self.server_settings.is_server_slurm():
             response = self.bash_exec(f"sbatch --chdir={self.folder_path(sim)} {self.folder_path(sim)}/gen_conf.sh")
             jobid = int(re.search(SUBMIT_SLURM_PATTERN, response).group(1))
             self.append_slurm_log(SlurmLogEntry(
