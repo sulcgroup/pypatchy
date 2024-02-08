@@ -93,6 +93,25 @@ class PatchyServerConfig:
         assert not batch or self.absolute_paths, "Cannot run using MPS without absolute paths!!!"
         return batch
 
+    def is_server_slurm(self) -> bool:
+        """
+        Returns whether the server is a slurm server. Defaults to true for legacy reasons.
+        """
+        return len(self.slurm_bash_flags) > 0
+
+    # TODO: slurm library? this project is experiancing mission creep
+    def get_slurm_bash_flags(self) -> dict[str, Any]:
+        assert self.is_server_slurm(), "Trying to get slurm bash flags for a non-slurm setup!"
+        return self.slurm_bash_flags
+
+    def get_slurm_n_tasks(self) -> int:
+        bashflags = self.get_slurm_bash_flags()
+        if "n" in bashflags:
+            return bashflags["n"]
+        if "ntasks" in bashflags:
+            return bashflags["ntasks"]
+        return 1  # default value
+
 
 def simulation_run_dir() -> Path:
     return Path(cfg['ANALYSIS']['simulation_data_dir'])
@@ -100,30 +119,6 @@ def simulation_run_dir() -> Path:
 
 def get_server_config() -> PatchyServerConfig:
     return load_server_settings(cfg["SETUP"]["server_config"])
-
-
-def is_server_slurm() -> bool:
-    """
-    Returns whether the server is a slurm server. Defaults to true for legacy reasons.
-    """
-    return "slurm_bash_flags" in get_server_config()
-
-
-# TODO: slurm library? this project is experiancing mission creep
-def get_slurm_bash_flags() -> dict[str, Any]:
-    assert is_server_slurm(), "Trying to get slurm bash flags for a non-slurm setup!"
-    return get_server_config()["slurm_bash_flags"]
-
-
-def get_slurm_n_tasks() -> int:
-    bashflags = get_slurm_bash_flags()
-    if "n" in bashflags:
-        return bashflags["n"]
-    if "ntasks" in bashflags:
-        return bashflags["ntasks"]
-    return 1  # default value
-
-
 
 
 def get_param_set(filename: str) -> dict:

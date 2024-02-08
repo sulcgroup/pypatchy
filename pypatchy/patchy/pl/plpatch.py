@@ -64,6 +64,9 @@ class PLPatch(BasePatchType):
     def set_a2(self, new_a2: np.ndarray):
         self._key_points[2] = new_a2
 
+    def a3(self) -> np.ndarray:
+        return np.cross(self.a1(), self.a2())
+
     def get_abs_position(self, r) -> np.ndarray:
         return r + self._position
 

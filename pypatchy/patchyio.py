@@ -297,7 +297,7 @@ class FWriter(BasePatchyWriter):
         }
 
     def reqd_args(self) -> list[str]:
-        return ["patchy_file", "particle_file", "conf_file", "topology"]
+        return ["patchy_file", "particle_file", "conf_file", "topology"]  # todo: topology and conf should be builtin
 
     def save_patch_to_str(self, patch: PLPatch, extras: dict = {}) -> str:
         # print self._type,self._type,self._color,1.0,self._position,self._a1,self._a2
@@ -371,7 +371,7 @@ class FWriter(BasePatchyWriter):
         """
         top_file = self.directory() / top_file
         traj_file = self.directory() / traj_file
-        top_info, traj_info = rr.describe(str(self.directory() / top_file), str(self.directory() / traj_file))
+        top_info, traj_info = rr.describe(str(top_file), str(traj_file))
         # only retrieve last conf
         conf = rr.get_confs(top_info, traj_info, traj_info.nconfs - 1, 1)[0]
         scene = PLPSimulation()
@@ -832,21 +832,30 @@ class SWriter(BasePatchyWriter):
     """
 
     def get_input_file_data(self, scene: Scene, **kwargs) -> list[tuple[str, str]]:
-        pass
+        return []  # none
 
     def reqd_args(self) -> list[str]:
-        pass
+        return ["conf_file", "topology"]  # note
 
     def write(self, scene: Scene, stage: Union[Stage, None] = None, **kwargs) -> dict[str, str]:
         """
         writes scene at specified stage to a file, returns a set of parameters to write to input file
         """
+        top: SWriter.SPatchyTopology = self.get_scene_top(scene)
+        self.write_top(top, kwargs["topology"])
+        self.write_conf(scene, kwargs["conf_file"])
+        return {
+            "topology": kwargs["topology"],
+            "conf_file": kwargs["conf_file"]
+        }
 
     def write_top(self, topology: SPatchyTopology, top_path: Union[str, Path]):
         """
         writes the provided topology to a topology file
         """
-        with top_path.open("w") as f:
+        if isinstance(top_path, str):
+            top_path = Path(top_path)
+        with self.file(top_path, "w") as f:
             # first line: num particles, num strands(1), num particles (again)
             f.write(f"{topology.num_particles()} 1 {topology.num_particles()}\n")
             f.write("\n")
@@ -861,25 +870,25 @@ class SWriter(BasePatchyWriter):
                     formatter={'float_kind': custom_formatter}
                 )[1:-1]
                 a1 = np.array2string(
-                    patch.a1,
+                    patch.a1(),
                     separator=" ",
                     suppress_small=True,
                     formatter={'float_kind': custom_formatter}
                 )[1:-1]
                 a3 = np.array2string(
-                    patch.a3,
+                    patch.a3(),
                     separator=" ",
                     suppress_small=True,
                     formatter={'float_kind': custom_formatter}
                 )[1:-1]
-                f.write(f"iP {i} {patch.get_color()} {patch.strength()} {patch_position} {a1} {a3}\n")
+                f.write(f"iP {i} {patch.color()} {patch.strength()} {patch_position} {a1} {a3}\n")
 
             f.write("\n")
 
             # then write particle types info (equivelant to particles.txt in flavian)
             for particle_type in topology.particle_set():
                 f.write(
-                    f"iC {particle_type.type_id()} {' '.join([patch.get_id() for patch in particle_type.patches()])}\n")
+                    f"iC {particle_type.type_id()} {' '.join([f'{patch.get_id()}' for patch in particle_type.patches()])}\n")
 
             f.write("\n")
 
@@ -889,33 +898,86 @@ class SWriter(BasePatchyWriter):
 
     def read_top(self, top_file: str) -> SPatchyTopology:
         with self.file(top_file, "r") as f:
+            patches: list[PLPatch] = []
             header = f.readline()
-
+            nparticles = int(header.split()[0])
+            particle_types_info: list[tuple[int, list[int]]] = []
+            type_counts: dict[int, int] = {}
+            type_radii: dict[int, float] = {}  # subhajit makes my life difficult
+            # can actually ignore this one
             for line in f:
+                if not line.strip() or line.strip().startswith("#"):
+                    continue
+                matches = [float(f) for f in re.findall(r"-?\d+\.?\d*", line)]
                 # line describes patch
                 if line.startswith("iP"):
-                    pass
-
+                    i, color, strength, x, y, z, a1x, a1y, a1z, a3x, a3y, a3z = matches
+                    a1 = np.array([a1x, a1y, a1z])
+                    a3 = np.array([a3x, a3y, a3z])
+                    a2 = np.cross(a1, a3)
+                    patch = PLPatch(i,
+                                    color,
+                                    np.array([x, y, z]),
+                                    a1,
+                                    a2,
+                                    strength)
+                    assert (patch.a3() - a3 < 1e-6).all()
+                    patches.append(patch)
                 # line describes a particle
                 elif line.startswith("iC"):
-                    pass
+                    particle_type_id = int(matches[0])
+                    patch_ids = [int(i) for i in matches[1:]]
+                    particle_types_info.append((particle_type_id, patch_ids))
+                # line hopefully particle instance?
                 else:
-                    pass
+                    category, _, particle_type_id, radius = matches  # TODO: tolerance for longer lines? do not.
+                    assert category == -3, "Not a particle! Ask subhajit."
+                    if particle_type_id in type_counts:
+                        type_counts[particle_type_id] += 1
+                        type_radii[particle_type_id] = radius
+                    else:
+                        type_counts[particle_type_id] = 1
+        particle_types = [
+            PLPatchyParticle(
+                [patches[patch_id] for patch_id in patch_ids],
+                type_id=particle_id,
+                radius=type_radii[particle_id] if particle_id in type_radii else 0.5  # hate hate hate
+            )
+            for particle_id, patch_ids in particle_types_info
+        ]
+        ptypes = PLParticleSet(particle_types)
+        top = SWriter.SPatchyTopology(ptypes, type_counts)
+        assert top.num_particles() == nparticles, "Didn't load particles correctly, somehow"
+        return top
 
+    def read_particle_types(self, topology) -> PLParticleSet:
+        return self.read_top(topology).particle_set()
 
-    def read_particle_types(self, *args):
-        pass
-
-    def read_scene(self, top_file: Union[Path, str], traj_file: Union[Path, str],
+    def read_scene(self,
+                   top_file: Union[Path, str],
+                   traj_file: Union[Path, str],
                    particle_types: BaseParticleSet) -> Scene:
-        pass
+        top = self.read_top(top_file)
+        traj_file = self.directory() / traj_file
+        # terrified of this line of code, i do not think the ryereader method will play nice with subhajit's format
+        top_info, traj_info = rr.describe(str(self.directory() / top_file), str(traj_file))
+        # only retrieve last conf
+        conf = rr.get_confs(top_info, traj_info, traj_info.nconfs - 1, 1)[0]
+        scene = PLPSimulation()
+        scene.set_particle_types(top.particle_set())
+        scene.set_time(conf.time)
+        return scene
 
-    def get_scene_top(self, s: Scene) -> SPatchyTopology:
-        pass
+    def get_scene_top(self, s: PLPSimulation) -> SPatchyTopology:
+        return SWriter.SPatchyTopology(s.particle_types(), s.particle_type_counts())
 
     class SPatchyTopology(BasePatchyWriter.PatchyTopology):
         _particle_set: PLParticleSet
         _particle_type_counts: dict[int, int]
+
+        def __init__(self, particle_set: PLParticleSet, particle_type_counts: dict[int, int]):
+            self._particle_set = particle_set
+            self._particle_type_counts = particle_type_counts
 
         def particle_type_count(self, p) -> int:
             return self._particle_type_counts[p]
