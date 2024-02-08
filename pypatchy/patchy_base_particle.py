@@ -107,6 +107,7 @@ class BasePatchType(ABC):
         Use with caution! Problems will arise if the patch's ID
         doesn't match its index in a PolycubesRule object!!!
         """
+        assert new_id is not None
         self._uid = new_id
 
     def add_key_point(self, pt: np.ndarray) -> int:

@@ -22,9 +22,6 @@ SLURM_JOB_CACHE: dict[int, dict[str, str]] = {}
 dist = lambda a, b: np.linalg.norm(a - b)
 normalize = lambda v: v / np.linalg.norm(v)
 
-WRITE_ABS_PATHS_KEY = "absolute_paths"
-MPS_KEY = "cuda_mps"
-
 INFO_DIR_NAME = ".pypatchy"  # todo: this will need to change
 
 
@@ -69,7 +66,9 @@ class PatchyServerConfig:
     slurm_bash_flags: dict[str, Any] = field(default_factory=dict)
     slurm_includes: list[str] = field(default_factory=list)
     input_file_params: dict[str, str] = field(default_factory=dict)
-    is_absolute_paths: bool = False
+    absolute_paths: bool = False
+    is_slurm: bool = False
+    cuda_mps: bool = False
 
     def write_sbatch_params(self, job_name: str, slurm_file: IO):
         slurm_file.write("#!/bin/bash\n") # TODO: other shells?
@@ -88,6 +87,11 @@ class PatchyServerConfig:
         # slurm includes ("module load xyz" and the like)
         for line in self.slurm_includes:
             slurm_file.write(line + "\n")
+
+    def is_batched(self) -> bool:
+        batch = self.cuda_mps
+        assert not batch or self.absolute_paths, "Cannot run using MPS without absolute paths!!!"
+        return batch
 
 
 def simulation_run_dir() -> Path:
@@ -120,18 +124,6 @@ def get_slurm_n_tasks() -> int:
     return 1  # default value
 
 
-def is_write_abs_paths() -> bool:
-    return get_server_config()[WRITE_ABS_PATHS_KEY]
-
-
-def is_mps() -> bool:
-    return get_server_config()[MPS_KEY]
-
-
-def is_batched() -> bool:
-    batch = is_mps()
-    assert not batch or is_write_abs_paths(), "Cannot run using MPS without absolute paths!!!"
-    return batch
 
 
 def get_param_set(filename: str) -> dict:

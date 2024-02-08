@@ -412,6 +412,7 @@ class PLPSimulation(Scene):
         """
         # convert scene particle set to multidentate
         mdt_particle_set = self.particle_types().to_multidentate(dental_radius, num_teeth, torsion, follow_surf)
+        assert all([np.abs(p.rotmatrix() - np.identity(3)).sum() < 1e-6 for p in mdt_particle_set.particles()])
         mdt_scene = PLPSimulation()
         # assign scene particle types
         mdt_scene.set_particle_types(mdt_particle_set)

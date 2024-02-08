@@ -47,8 +47,8 @@ class DNAParticle (DNAStructure):
         in a multicomponent structure
         """
         DNAStructure.__init__(self, structure.strands, structure.time, structure.box, structure.energy)
-        assert all([all([-1 < sid < len(self.strands) for sid in patch]) for patch in patches]), \
-            "Some patch strand IDs are invalid!"
+        assert all([all([-1 < sid < len(self.strands) for sid in patch])
+                    for patch in patches]), "Some patch strand IDs are invalid!"
         self.patch_strand_ids = patches
         self.linked_particle = patchy_particle
         self.patch_strand_map = None
@@ -95,7 +95,7 @@ class DNAParticle (DNAStructure):
         if self.patch_strand_map is None:
             self.patch_strand_map = {}
         if isinstance(patch, PLPatch):
-            patch = patch.get_id()
+            patch = patch.type_id()
         self.patch_strand_map[patch] = strand_id
 
     def get_patch_cmss(self) -> np.ndarray:
@@ -121,7 +121,7 @@ class DNAParticle (DNAStructure):
         if not self.has_linked():
             raise Exception("Cannot get matching DNA strand from patch if no linked particle")
         if isinstance(patch, PLPatch):
-            return self.patch_strand_id(patch.get_id())
+            return self.patch_strand_id(patch.type_id())
         else:
             if not isinstance(patch, int):
                 raise TypeError(f"Invalid patch identifier type {type(patch)}")

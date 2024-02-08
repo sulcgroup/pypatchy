@@ -16,8 +16,7 @@ from .simulation_specification import NoSuchParamError
 from ..patchy.simulation_specification import PatchySimulation
 from .pl.plscene import PLPSimulation
 from ..polycubeutil.polycube_structure import PolycubeStructure
-from ..util import get_input_dir, is_write_abs_paths, get_server_config, EXTERNAL_OBSERVABLES, NUM_TEETH_KEY, \
-    DENTAL_RADIUS_KEY
+from ..util import get_input_dir, get_server_config, EXTERNAL_OBSERVABLES, NUM_TEETH_KEY, DENTAL_RADIUS_KEY
 
 
 class Stage(BuildSimulation):
@@ -138,6 +137,7 @@ class Stage(BuildSimulation):
         }
         assert "conf_file" in reqd_extra_args, "Missing arg for req"
         self.getctxt().writer.set_directory(self.getctxt().folder_path(self.spec(), self))
+        self.getctxt().writer.set_abs_paths(self.getctxt().server_settings.absolute_paths)
         # write top, conf, and others
         files = self.getctxt().writer.write(scene,
                                             self,
@@ -153,11 +153,8 @@ class Stage(BuildSimulation):
     def build_input(self, production=False):
         input_json_name = self.adjfn("input.json")
 
-        server_config = get_server_config()
-
         # write server config spec
-        for key in server_config["input_file_params"]:
-            val = server_config['input_file_params'][key]
+        for key, val in self.getctxt().server_settings.input_file_params.items():
             self.input_param_dict[key] = val
 
         # write default input file stuff
@@ -171,7 +168,7 @@ class Stage(BuildSimulation):
             else:
                 val = self.getctxt().sim_get_param(self.spec(), paramname)
             # check paths are absolute if applicable
-            if is_write_abs_paths():
+            if self.getctxt().server_settings.input_file_params.absolute_paths:
                 # approximation for "is this a file?"
                 if isinstance(val, str) and re.search(r'\.\w+$', val) is not None:
                     # if path isn't absolute
@@ -189,8 +186,8 @@ class Stage(BuildSimulation):
 
         # write external observables file path
         if len(self.getctxt().observables) > 0:
-            assert not is_write_abs_paths(), "Absolute file paths aren't currently compatible with observiables!" \
-                                             " Get on it Josh!!!"
+            assert not self.getctxt().server_settings.absolute_paths, "Absolute file paths aren't currently compatible" \
+                                                                      " with observiables! Get on it Josh!!!"
             if EXTERNAL_OBSERVABLES:
                 self.input_param_dict["observables_file"] = self.adjfn("observables.json")
             else:

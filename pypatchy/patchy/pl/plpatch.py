@@ -30,11 +30,18 @@ class PLPatch(BasePatchType):
     def type_id(self) -> int:
         return self._type
 
+    # TODO: make sure this isn't a horrible mistake!!!
+    def get_id(self) -> int:
+        return self.type_id()
+
     def set_type_id(self, new_val: int):
         self._type = new_val
 
     def strength(self) -> float:
         return self._strength
+
+    def set_strength(self, new_val: float):
+        self._strength = new_val
 
     def position(self) -> np.ndarray:
         return self._key_points[0]
@@ -109,6 +116,9 @@ class PLPatch(BasePatchType):
                     vals = line.split('=')[1]
                     x, y, z = [float(g) for g in vals.split(',')]
                     self.set_position(np.array([x, y, z]))
+                elif "strength" in line:
+                    val = line.split("=")[1]
+                    self.set_strength(float(val))
 
     def can_bind(self, other: BasePatchType) -> bool:
         if abs(self.color()) > 20:
