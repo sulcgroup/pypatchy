@@ -18,9 +18,13 @@ from oxDNA_analysis_tools.UTILS.oxview import from_path
 from oxDNA_analysis_tools.file_info import file_info
 from oxDNA_analysis_tools.UTILS.RyeReader import get_confs, describe, write_conf
 from oxDNA_analysis_tools.UTILS.data_structures import Configuration
-from pypatchy.patchy.patchy_scripts import lorenzian_to_flavian
 
-from pypatchy.analpipe.analysis_pipeline import AnalysisPipeline
+from ipy_oxdna.oxdna_simulation import SimulationManager, Simulation, Input
+
+from .mgl import MGLParticleSet
+from ..patchy.patchy_scripts import lorenzian_to_flavian
+from ..analpipe.analysis_pipeline import AnalysisPipeline
+from .pl.plparticle import PLParticleSet
 from .pl.plscene import PLPSimulation
 from .stage import Stage, NoStageTrajError, IncompleteStageError, StageTrajFileEmptyError
 from ..analpipe.analysis_data import PDPipelineData, TIMEPOINT_KEY
@@ -28,16 +32,15 @@ from ..analpipe.analysis_pipeline_step import AnalysisPipelineStep, PipelineData
     AnalysisPipelineHead, PipelineStepDescriptor, PipelineDataType
 from .patchy_sim_observable import PatchySimObservable, observable_from_file
 from ..patchy_base_particle import BaseParticleSet
-from ..patchyio import get_writer, BasePatchyWriter, FWriter, JFWriter, LWriter
+from ..patchyio import get_writer, BasePatchyWriter, FWriter
 from ..slurm_log_entry import SlurmLogEntry
 from ..slurmlog import SlurmLog
 from ..util import *
 from .ensemble_parameter import EnsembleParameter, ParameterValue
 from .simulation_specification import PatchySimulation, ParamSet, NoSuchParamError
-from .pl.plpatchylib import to_PL
+from .pl.plpatchylib import to_PL, mgl_to_pl, mgl_particles_to_pl
 from ..polycubeutil.polycubesRule import PolycubesRule
 
-from ipy_oxdna.oxdna_simulation import SimulationManager, Simulation, Input
 
 EXPORT_NAME_KEY = "export_name"
 PARTICLES_KEY = "particles"
@@ -297,6 +300,7 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
                 observables[obserable.observable_name] = obserable
 
     # load particles
+    # todo: revise
     if PARTICLES_KEY in cfg:
         particles: BaseParticleSet = BaseParticleSet(cfg[PARTICLES_KEY])
         # particles: PolycubesRule = PolycubesRule(rule_json=cfg[PARTICLES_KEY])
@@ -308,7 +312,7 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
     elif "rule" in cfg:  # 'rule' tag assumes serialized rule string
         particles: PolycubesRule = PolycubesRule(rule_str=cfg["rule"])
     else:
-        raise Exception("Missing particle info!")
+        print("Warning: No particle info specified!")
 
     if "server_settings" in cfg:
         if isinstance(cfg["server_settings"], str):
@@ -319,20 +323,9 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
     else:
         server_settings = get_server_config()
 
-    ensemble = PatchySimulationEnsemble(
-        export_name,
-        setup_date,
-        particles,
-        mdtfile,
-        analysis_pipeline,
-        default_param_set,
-        const_parameters,
-        ensemble_parameters,
-        observables,
-        analysis_file,
-        mdt,
-        server_settings
-    )
+    ensemble = PatchySimulationEnsemble(export_name, setup_date, mdtfile, analysis_pipeline, default_param_set,
+                                        const_parameters, ensemble_parameters, observables, analysis_file, mdt,
+                                        particles, server_settings)
     if "slurm_log" in mdt:
         for entry in mdt["slurm_log"]:
             sim = ensemble.get_simulation(**entry["simulation"])
@@ -364,7 +357,7 @@ class PatchySimulationEnsemble:
     ensemble_param_name_map: dict[str, EnsembleParameter]
 
     # set of cube types that are used in this ensemble
-    particle_set: BaseParticleSet
+    particle_set: PLParticleSet
 
     observables: dict[str: PatchySimObservable]
 
@@ -399,7 +392,6 @@ class PatchySimulationEnsemble:
     def __init__(self,
                  export_name: str,
                  setup_date: datetime.datetime,
-                 particle_set: BaseParticleSet,
                  metadata_file_name: str,
                  analysis_pipeline: AnalysisPipeline,
                  default_param_set: dict,
@@ -407,11 +399,18 @@ class PatchySimulationEnsemble:
                  ensemble_params: list[EnsembleParameter],
                  observables: dict[str, PatchySimObservable],
                  analysis_file: str,
-                 metadata_dict: dict,  # dict of serialized metadata, to preserve it
-                 server_settings: Union[PatchyServerConfig, None] = None
-                 ):
+                 metadata_dict: dict,
+                 particle_set: Union[MGLParticleSet, PLParticleSet, PolycubesRule, None] = None,
+                 server_settings: Union[PatchyServerConfig, None] = None):
         self.export_name = export_name
         self.sim_init_date = setup_date
+
+        # load server settings ASAP
+        if self.server_settings is not None:
+            self.set_server_settings(server_settings)
+        else:
+            self.server_settings = get_server_config()
+            self.writer = get_writer()
 
         # configure logging ASAP
         # File handler with a higher level (ERROR)
@@ -439,8 +438,6 @@ class PatchySimulationEnsemble:
         #                                       f"log_{self.export_name}_{self.datestr()}.log", mode="a"))
         # logger.addHandler(logging.StreamHandler(sys.stdout))
 
-        self.particle_set = particle_set
-
         self.metadata = metadata_dict
         self.slurm_log = SlurmLog()
         self.analysis_pipeline = analysis_pipeline
@@ -458,11 +455,8 @@ class PatchySimulationEnsemble:
         # construct analysis data dict in case we need it
         self.analysis_data = dict()
 
-        if self.server_settings is not None:
-            self.set_server_settings(server_settings)
-        else:
-            self.server_settings = get_server_config()
-            self.writer = get_writer()
+        if particle_set is not None:
+            self.set_particles(self.particle_set)
 
 
     # --------------- Accessors and Mutators -------------------------- #
@@ -625,6 +619,16 @@ class PatchySimulationEnsemble:
         """
         return len(self.particle_set)
 
+    def set_particles(self, particle_set: Union[PLParticleSet, MGLParticleSet, PolycubesRule]):
+        if isinstance(particle_set, PLParticleSet):
+            self.particle_set = particle_set
+        elif isinstance(particle_set, PolycubesRule):
+            self.particle_set = to_PL(particle_set)
+        elif isinstance(particle_set, MGLParticleSet):
+            self.particle_set = mgl_particles_to_pl(particle_set)
+        else:
+            raise Exception(f"Invalid particle set type {type(particle_set)}")
+
     def sim_get_param(self,
                       sim: PatchySimulation,
                       paramname: str) -> Any:
@@ -643,6 +647,13 @@ class PatchySimulationEnsemble:
         except NoSuchParamError as e:
             e.set_sim(sim)
             raise e
+
+    def sim_get_particles_set(self, sim: PatchySimulation) -> PLParticleSet:
+        if self.sim_get_param(sim, NUM_TEETH_KEY) > 1:
+            return self.particle_set.to_multidentate(self.sim_get_param(sim, NUM_TEETH_KEY),
+                                                     self.sim_get_param(sim, DENTAL_RADIUS_KEY))
+        else:
+            return self.particle_set
 
     def get_param(self, paramname: str) -> Any:
         # use const_params
@@ -1089,13 +1100,10 @@ class PatchySimulationEnsemble:
     def get_scene(self, sim: PatchySimulation, stage: Union[Stage, str]):
         if isinstance(stage, str):
             stage = self.sim_get_stage(sim, stage)
-
         top_file, traj_file = self.sim_get_stage_top_traj(sim, stage)
         return self.writer.read_scene(top_file,
                                       traj_file,
-                                      to_PL(self.particle_set,
-                                            self.sim_get_param(sim, NUM_TEETH_KEY),
-                                            self.sim_get_param(sim, DENTAL_RADIUS_KEY)))
+                                      self.sim_get_particles_set(sim))
         # scene: PLPSimulation()
 
     def is_traj_valid(self, sim: PatchySimulation, stage: Union[Stage, None] = None) -> bool:
