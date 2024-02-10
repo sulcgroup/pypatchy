@@ -1,69 +1,71 @@
 from __future__ import annotations
-import itertools
-import os
-import pathlib
+from dataclasses import dataclass, field
 from typing import Union
 
+from pypatchy.patchy.pl.plparticle import PLParticleSet, MultidentateConvertSettings
 
+PARTICLE_TYPES_KEY = "particle_types"
+MDT_CONVERT_KEY = "mdt_convert"
+
+
+@dataclass
 class ParameterValue:
     """
     A simple ParameterValue has a key that's a parameter (T, narrow_type, density, etc.) and
     values that are ints, strs, or floats
+    Base class is only applicable to basic types (int, float, str, bool). groups of params need ParamValueGroup
+    others are also included
     A more complex ParameterValue consists of a named group of multiple parameters
     """
     param_name: str
-    value_name: str
-    param_value: Union[str, bool, float, dict, int]
+    param_value: Union[str, bool, float, int]  # only basic types allowed here
 
-    def __init__(self, key, val):
-        # values for the parameter can be either simple types (int, str, or float) which are
-        # pretty simple, or object, which are really really not
-        self.param_name = key
-        # if the parameter is grouped, the value name and the value are different
-        if isinstance(val, dict):
-            self.value_name = val['name']
-            self.param_value = val['value']
-        else:  # otherwise the value name and the value are the same
-            self.value_name = str(val)
-            self.param_value = val
+    def __post_init__(self):
+        assert not isinstance(self.param_value, ParameterValue)
 
-    def is_grouped_params(self) -> bool:
-        return isinstance(self.param_value, dict)
+    def value_name(self):
+        return self.param_value
 
+    def __eq__(self, other: ParameterValue) -> bool:
+        return self.param_name == other.param_name and self.value_name() == other.value_name()
+
+
+class ParamValueGroup(ParameterValue):
     """
-    Return a list of names of parameters which have values specified in this ParameterValue object
+    grouped params
     """
+    param_value: dict[str, ParameterValue]
 
     def group_params_names(self) -> list[str]:
         return list(self.param_value.keys())
 
-    """
-    Returns a true if this ParameterValue object specifies a value for the parameter
-    with name param_name
-    """
+    def __getitem__(self, key: str):
+        return self.param_value[key].param_value
 
     def has_param(self, param_name: str) -> bool:
-        if not self.is_grouped_params():
-            return self.param_name == param_name
+        return param_name in self.group_params_names()
+
+    def __contains__(self, val: Union[str, ParameterValue]):
+        if isinstance(val, str):
+            return val in self.param_value
         else:
-            return param_name in self.group_params_names()
+            return val.param_name in self.param_value and self.param_value[val.param_name]
 
-    def __getitem__(self, key: str):
-        assert self.is_grouped_params()
-        return self.param_value[key]
+    def __eq__(self, other: ParameterValue):
+        return isinstance(other, ParamValueGroup) and all([key in self and self[key] == val
+                                                           for key, val in other.param_value.items()])
 
-    def __str__(self) -> str:
-        if not self.is_grouped_params():
-            return str(self.param_value)
-        else:
-            return self.param_name
 
-    def __eq__(self, other: ParameterValue) -> bool:
-        return self.param_name == other.param_name and self.value_name == other.value_name
-    
-    def __hash__(self) -> int:
-        return hash(str(self))
-
+# probably a shorter, worse way to write this
+def parameter_value(key: str, val: Union[dict, str, int, float, bool]) -> Union[ParameterValue, ParamValueGroup]:
+    if isinstance(val, dict):
+        return ParamValueGroup(key, {pkey: parameter_value(pkey, pval) for pkey, pval in val.items()})
+    elif isinstance(val, MultidentateConvertSettings):
+        return MDTConvertParams(val)
+    elif isinstance(val, PLParticleSet):
+        return ParticleSetParam(val)
+    else:
+        return ParameterValue(key, val)
 
 class EnsembleParameter:
     """
@@ -77,7 +79,7 @@ class EnsembleParameter:
         self.param_key = key
         self.param_value_set = [ParameterValue(key, val) for val in paramData]
         self.param_value_map = {
-            p.value_name: p for p in self.param_value_set
+            p.value_name(): p for p in self.param_value_set
         }
 
     def dir_names(self) -> list[str]:
@@ -87,9 +89,9 @@ class EnsembleParameter:
         """
         Returns true if the parameter is grouped, false otherwise
         """
-        assert any(p.is_grouped_params() for p in self.param_value_set) == all(
-            p.is_grouped_params() for p in self.param_value_set)
-        return any(p.is_grouped_params() for p in self.param_value_set)
+        assert any(isinstance(p, ParamValueGroup) for p in self.param_value_set) == all(
+            isinstance(p, ParamValueGroup) for p in self.param_value_set)
+        return any(isinstance(p, ParamValueGroup) for p in self.param_value_set)
 
     def lookup(self, key: str) -> ParameterValue:
         return self.param_value_map[key]
@@ -109,13 +111,30 @@ class EnsembleParameter:
         return iter(self.param_value_set)
 
     def __str__(self) -> str:
-        return f"{self.param_key}: [{','.join([p.value_name for p in self.param_value_set])}]"
+        return f"{self.param_key}: [{','.join([p.value_name() for p in self.param_value_set])}]"
 
     def __len__(self):
         return len(self.param_value_set)
 
     def __contains__(self, item: ParameterValue):
-        if isinstance(item, ParameterValue):
-            return item in self.param_value_set
-        else:
-            return ParameterValue(*item) in self
+        return item in self.param_value_set
+
+
+class ParticleSetParam(ParameterValue, PLParticleSet):
+    set_name: str = field(init=False)
+
+    def __init__(self, particles: PLParticleSet, name=PARTICLE_TYPES_KEY):
+        ParameterValue.__init__(self, PARTICLE_TYPES_KEY, particles)
+        PLParticleSet.__init__(self, particles.particles())
+        self.set_name = name
+
+    def value_name(self):
+        return self.set_name
+
+
+class MDTConvertParams(ParameterValue):
+    convert_params_name: str
+
+    def __init__(self, cvt_settings: MultidentateConvertSettings, convert_params_name: str = MDT_CONVERT_KEY):
+        ParameterValue.__init__(self, MDT_CONVERT_KEY, cvt_settings)
+        self.convert_params_name = convert_params_name

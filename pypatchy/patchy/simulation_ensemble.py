@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 import datetime
+import itertools
 import multiprocessing
-import pickle
 import tempfile
 import time
 from json import JSONDecodeError
-from typing import IO
+from typing import Any
 
-import pandas as pd
 import subprocess
 import re
 import logging
@@ -19,26 +18,23 @@ from oxDNA_analysis_tools.file_info import file_info
 from oxDNA_analysis_tools.UTILS.RyeReader import get_confs, describe, write_conf
 from oxDNA_analysis_tools.UTILS.data_structures import Configuration
 
-from ipy_oxdna.oxdna_simulation import SimulationManager, Simulation, Input
+from ipy_oxdna.oxdna_simulation import SimulationManager, Simulation
 
-from .mgl import MGLParticleSet
 from ..patchy.patchy_scripts import lorenzian_to_flavian
 from ..analpipe.analysis_pipeline import AnalysisPipeline
-from .pl.plparticle import PLParticleSet
 from .pl.plscene import PLPSimulation
 from .stage import Stage, NoStageTrajError, IncompleteStageError, StageTrajFileEmptyError
 from ..analpipe.analysis_data import PDPipelineData, TIMEPOINT_KEY
-from ..analpipe.analysis_pipeline_step import AnalysisPipelineStep, PipelineData, AggregateAnalysisPipelineStep, \
-    AnalysisPipelineHead, PipelineStepDescriptor, PipelineDataType
+from ..analpipe.analysis_pipeline_step import *
 from .patchy_sim_observable import PatchySimObservable, observable_from_file
-from ..patchy_base_particle import BaseParticleSet
 from ..patchyio import get_writer, BasePatchyWriter, FWriter
+from ..server_config import load_server_settings, PatchyServerConfig, get_server_config
 from ..slurm_log_entry import SlurmLogEntry
 from ..slurmlog import SlurmLog
 from ..util import *
-from .ensemble_parameter import EnsembleParameter, ParameterValue
-from .simulation_specification import PatchySimulation, ParamSet, NoSuchParamError
-from .pl.plpatchylib import to_PL, mgl_to_pl, mgl_particles_to_pl
+from .ensemble_parameter import *
+from .simulation_specification import PatchySimulation, ParamSet, NoSuchParamError, get_param_set
+from .pl.plpatchylib import to_PL, polycube_rule_to_PL, load_pl_particles
 from ..polycubeutil.polycubesRule import PolycubesRule
 
 
@@ -261,24 +257,50 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
     default_param_set = get_param_set(
         cfg[DEFAULT_PARAM_SET_KEY] if DEFAULT_PARAM_SET_KEY in cfg else "default")
 
+    params = []
+
+    # load particles
+    # todo: revise
+    if any(key in cfg for key in [PARTICLE_TYPES_KEY, "rule", "cube_types"]):
+        if PARTICLE_TYPES_KEY in cfg:
+            assert isinstance(cfg[PARTICLE_TYPES_KEY], dict), "Must include load info"
+            ptypedict = {**cfg[PARTICLE_TYPES_KEY]}
+            particles = load_pl_particles(**ptypedict)
+
+        elif "cube_types" in cfg:
+            if len(cfg["cube_types"]) > 0 and isinstance(cfg["cube_types"][0], dict):
+                rule: PolycubesRule = PolycubesRule(rule_json=cfg["cube_types"])
+            else:
+                rule: PolycubesRule = PolycubesRule(rule_str=cfg["cube_types"])
+            particles = polycube_rule_to_PL(rule)
+        elif "rule" in cfg:  # 'rule' tag assumes serialized rule string
+            # please for the love of god use this one
+            rule: PolycubesRule = PolycubesRule(rule_str=cfg["rule"])
+            particles = polycube_rule_to_PL(rule)
+        else:
+            raise Exception("wtf")
+        params.append(ParticleSetParam(particles))
+    else:
+        print("Warning: No particle info specified!")
+
+
+    # handle multidentate params
+    if NUM_TEETH_KEY in cfg[CONST_PARAMS_KEY]:
+        assert DENTAL_RADIUS_KEY in cfg[CONST_PARAMS_KEY]
+        num_teeth = cfg[CONST_PARAMS_KEY][NUM_TEETH_KEY]
+        dental_radius = cfg[CONST_PARAMS_KEY][DENTAL_RADIUS_KEY]
+        # only bothering to support legacy conversion params here
+        mdt_convert = MultidentateConvertSettings(num_teeth, dental_radius)
+        params.append(MDTConvertParams(mdt_convert))
+
     # load const params from cfg
     if CONST_PARAMS_KEY in cfg:
-        params = []
-        counter = 1  # style
         for key, val in cfg[CONST_PARAMS_KEY].items():
-            if isinstance(val, dict):
-                # backwards compatibility w/ questionable life choices
-                param_val = {
-                    "name": f"const{counter}",
-                    "value": val
-                }
-                counter += 1
-            else:
-                param_val = val
-            params.append(ParameterValue(key, param_val))
-        const_parameters = ParamSet(params)
-    else:
-        const_parameters = ParamSet([])
+            if key == NUM_TEETH_KEY or key == DENTAL_RADIUS_KEY:
+                continue  # skip in const_params
+            param_val = parameter_value(key, val)
+            params.append(param_val)
+    const_parameters = ParamSet(params)
 
     # load ensemble params from cfg
     # there should always be ensemble params in the cfg
@@ -300,21 +322,6 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
                 obserable = PatchySimObservable(**obserable)
                 observables[obserable.observable_name] = obserable
 
-    # load particles
-    # todo: revise
-    if PARTICLES_KEY in cfg:
-        particles: BaseParticleSet = BaseParticleSet(cfg[PARTICLES_KEY])
-        # particles: PolycubesRule = PolycubesRule(rule_json=cfg[PARTICLES_KEY])
-    elif "cube_types" in cfg:
-        if len(cfg["cube_types"]) > 0 and isinstance(cfg["cube_types"][0], dict):
-            particles: PolycubesRule = PolycubesRule(rule_json=cfg["cube_types"])
-        else:
-            particles = cfg["cube_types"]
-    elif "rule" in cfg:  # 'rule' tag assumes serialized rule string
-        particles: PolycubesRule = PolycubesRule(rule_str=cfg["rule"])
-    else:
-        print("Warning: No particle info specified!")
-
     if "server_settings" in cfg:
         if isinstance(cfg["server_settings"], str):
             server_settings = load_server_settings(cfg["server_settings"])
@@ -326,7 +333,8 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
 
     ensemble = PatchySimulationEnsemble(export_name, setup_date, mdtfile, analysis_pipeline, default_param_set,
                                         const_parameters, ensemble_parameters, observables, analysis_file, mdt,
-                                        particles, server_settings)
+                                        server_settings)
+    # TODO: verify presence of required params
     if "slurm_log" in mdt:
         for entry in mdt["slurm_log"]:
             sim = ensemble.get_simulation(**entry["simulation"])
@@ -335,6 +343,7 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
         ensemble.slurm_log = SlurmLog(*[SlurmLogEntry(**e) for e in mdt["slurm_log"]])
     ensemble.dump_metadata()
     return ensemble
+
 
 
 class PatchySimulationEnsemble:
@@ -357,9 +366,6 @@ class PatchySimulationEnsemble:
     ensemble_params: list[EnsembleParameter]
     ensemble_param_name_map: dict[str, EnsembleParameter]
 
-    # set of cube types that are used in this ensemble
-    particle_set: PLParticleSet
-
     observables: dict[str: PatchySimObservable]
 
     # ------------ SETUP STUFF -------------#
@@ -370,7 +376,7 @@ class PatchySimulationEnsemble:
     # parameter values to use if not specified in `const_params` or in the
     # simulation specification params
     # load from `spec_files/input_files/[name].json`
-    default_param_set: dict[str: Union[dict, Any]]
+    default_param_set: ParamSet
 
     # -------------- STUFF SPECIFIC TO ANALYSIS ------------- #
 
@@ -395,13 +401,12 @@ class PatchySimulationEnsemble:
                  setup_date: datetime.datetime,
                  metadata_file_name: str,
                  analysis_pipeline: AnalysisPipeline,
-                 default_param_set: dict,
+                 default_param_set: ParamSet,
                  const_params: ParamSet,
                  ensemble_params: list[EnsembleParameter],
                  observables: dict[str, PatchySimObservable],
                  analysis_file: str,
                  metadata_dict: dict,
-                 particle_set: Union[MGLParticleSet, PLParticleSet, PolycubesRule, None] = None,
                  server_settings: Union[PatchyServerConfig, None] = None):
         self.export_name = export_name
         self.sim_init_date = setup_date
@@ -455,10 +460,6 @@ class PatchySimulationEnsemble:
 
         # construct analysis data dict in case we need it
         self.analysis_data = dict()
-
-        if particle_set is not None:
-            self.set_particles(self.particle_set)
-
 
     # --------------- Accessors and Mutators -------------------------- #
     def get_simulation(self, *args: Union[tuple[str, Any], ParameterValue], **kwargs) -> Union[
@@ -613,23 +614,6 @@ class PatchySimulationEnsemble:
                     sims_that_need_attn.append(sim)
         return sims_that_need_attn
 
-    def num_particle_types(self) -> int:
-        """
-        num_particle_types should be constant across all simulations. some particle
-        types may have 0 instances but hopefully oxDNA should tolerate this
-        """
-        return len(self.particle_set)
-
-    def set_particles(self, particle_set: Union[PLParticleSet, MGLParticleSet, PolycubesRule]):
-        if isinstance(particle_set, PLParticleSet):
-            self.particle_set = particle_set
-        elif isinstance(particle_set, PolycubesRule):
-            self.particle_set = to_PL(particle_set)
-        elif isinstance(particle_set, MGLParticleSet):
-            self.particle_set = mgl_particles_to_pl(particle_set)
-        else:
-            raise Exception(f"Invalid particle set type {type(particle_set)}")
-
     def sim_get_param(self,
                       sim: PatchySimulation,
                       paramname: str) -> Any:
@@ -639,22 +623,24 @@ class PatchySimulationEnsemble:
         has a specific value for this simulation, then in the ensemble const params,
         then the default parameter set
         """
-        if paramname == "particle_types":
-            return self.particle_set
         if paramname in sim:
             return sim[paramname]
         try:
-            return self.get_param(paramname)
+            paramval = self.get_param(paramname)
+            assert not isinstance(paramval, ParameterValue)
+            return paramval
         except NoSuchParamError as e:
             e.set_sim(sim)
             raise e
 
     def sim_get_particles_set(self, sim: PatchySimulation) -> PLParticleSet:
-        if self.sim_get_param(sim, NUM_TEETH_KEY) > 1:
-            return self.particle_set.to_multidentate(self.sim_get_param(sim, NUM_TEETH_KEY),
-                                                     self.sim_get_param(sim, DENTAL_RADIUS_KEY))
-        else:
-            return self.particle_set
+        particles: PLParticleSet = self.sim_get_param(sim, PARTICLE_TYPES_KEY)
+        try:
+            mdt_convert: MultidentateConvertSettings = self.sim_get_param(sim, MDT_CONVERT_KEY)
+            return particles.to_multidentate(mdt_convert)
+        except NoSuchParamError as e:
+            # if no multidentate convert, return particle set as-is
+            return particles
 
     def get_param(self, paramname: str) -> Any:
         # use const_params
@@ -663,10 +649,7 @@ class PatchySimulationEnsemble:
         # if paramname is surface level in default param set
         if paramname in self.default_param_set:
             return self.default_param_set[paramname]
-        # go deep
-        if paramname in self.default_param_set["input"]:
-            return self.default_param_set["input"][paramname]
-        # deeper
+        # # go deep
         if paramname in self.server_settings.input_file_params:
             return self.server_settings.input_file_params[paramname]
         # TODO: custom exception here
@@ -747,7 +730,7 @@ class PatchySimulationEnsemble:
             # default: 1 stage, density = starting density, add method=random
             particles = list(itertools.chain.from_iterable([
                 [p.type_id()] * self.sim_get_param(sim, p.name()) * num_assemblies
-                for p in self.particle_set.particles()
+                for p in self.sim_get_particles_set(sim).particles()
             ]))
 
             stages = [Stage(
@@ -898,12 +881,6 @@ class PatchySimulationEnsemble:
             # return timepoint of last conf in traj
             return file_info([str(traj)])["t_end"][0] == stage.end_time()
 
-    def num_patch_types(self, sim: PatchySimulation) -> int:
-        """
-        Returns: the total number of patches in the simulation
-        """
-        return self.particle_set.num_patches() * self.sim_get_param(sim, NUM_TEETH_KEY)
-
     def ensemble(self) -> list[PatchySimulation]:
         """
         Returns a list of all simulations in this ensemble
@@ -1026,7 +1003,7 @@ class PatchySimulationEnsemble:
                     for name in param.group_params_names():
                         print(f"\t\t{name}: {param.param_value[name]}")
             else:
-                print(f"\t{param.param_name}: {param.value_name}")
+                print(f"\t{param.param_name}: {param.value_name()}")
 
         if len(self.analysis_pipeline) > 0:
             print(
@@ -1167,7 +1144,7 @@ class PatchySimulationEnsemble:
         at each step on the analysis pipeline
         """
         return pd.DataFrame.from_dict({
-            tuple(v.value_name for v in sim.param_vals):
+            tuple(v.value_name() for v in sim.param_vals):
                 {
                     step_name: self.has_data_file(self.analysis_pipeline[step_name], sim)
                     for step_name in self.analysis_pipeline.name_map
@@ -1367,9 +1344,7 @@ class PatchySimulationEnsemble:
 
             # generate conf
             scene = PLPSimulation()
-            particle_set = to_PL(self.particle_set,
-                                 self.sim_get_param(sim, NUM_TEETH_KEY),
-                                 self.sim_get_param(sim, DENTAL_RADIUS_KEY))
+            particle_set = self.sim_get_particles_set(sim)
             # patches will be added automatically
             scene.set_particle_types(particle_set)
 
@@ -1508,7 +1483,7 @@ class PatchySimulationEnsemble:
         # input_file = self.input_file(sim, stage, replacer_dict, extras, analysis)
         with open(self.folder_path(sim) / "input", 'w+') as inputfile:
             # write server config spec
-            for key in self.server_settings.input_file_params:
+            for key in self.server_settings.input_file_params.var_names():
                 if key in replacer_dict:
                     val = replacer_dict[key]
                 else:
@@ -1519,13 +1494,13 @@ class PatchySimulationEnsemble:
             inputfile.write("\n")
 
             # loop parameters in group
-            for paramname in self.default_param_set["input"]:
+            for paramname in self.default_param_set.var_names():
                 # if we've specified this param in a replacer dict
                 if paramname in replacer_dict:
                     val = replacer_dict[paramname]
                 # if no override
                 elif paramname not in sim and paramname not in self.const_params:
-                    val = self.default_param_set["input"][paramname]
+                    val = self.default_param_set[paramname]
                 else:
                     val = self.sim_get_param(sim, paramname)
                 # check paths are absolute if applicable
@@ -1922,7 +1897,7 @@ class PatchySimulationEnsemble:
                 # iter simulation data
                 for s, sim_data in zip(simulations_list, data):  # I'm GREAT at naming variables!
                     for p in s.param_vals:
-                        sim_data.get()[p.param_name] = p.value_name
+                        sim_data.get()[p.param_name] = p.value_name()
                 df = pd.concat([d.get() for d in data], axis=0)
                 df = df.loc[np.isin(df[TIMEPOINT_KEY], timerange)]
                 return PDPipelineData(df, timerange)
@@ -2169,10 +2144,10 @@ def shared_ensemble(es: list[PatchySimulationEnsemble], ignores: set = set()) ->
         names.update([p.param_key for p in e.ensemble_params])
         for p in e.ensemble_params:
             if p.param_key not in name_vals:
-                name_vals[p.param_key] = {pv.value_name for pv in p.param_value_set}
+                name_vals[p.param_key] = {pv.value_name() for pv in p.param_value_set}
             else:
                 name_vals[p.param_key] = name_vals[p.param_key].intersection(
-                    [pv.value_name for pv in p.param_value_set])
+                    [pv.value_name() for pv in p.param_value_set])
 
     # if any simulation is missing a parameter
     if not all([len(name_vals[name]) > 0 for name in names]):
@@ -2184,7 +2159,7 @@ def shared_ensemble(es: list[PatchySimulationEnsemble], ignores: set = set()) ->
         # make sure to order ensemble parameters correctly
         for p in e.ensemble_params:
             union_vals = name_vals[p.param_key]
-            vals = [pv for pv in p if pv.value_name in union_vals]
+            vals = [pv for pv in p if pv.value_name() in union_vals]
             valset.append(vals)
 
         ensembles.append([PatchySimulation(sim) for sim in itertools.product(*valset)])

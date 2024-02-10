@@ -1,13 +1,9 @@
 from __future__ import annotations
 
-import itertools
 import json
 import os
-from dataclasses import dataclass, field
-from datetime import timedelta
-from typing import Union, Iterable, Any, IO
+from typing import Iterable
 
-from dateutil.relativedelta import relativedelta
 from scipy.spatial.transform import Rotation as R
 from itertools import groupby, combinations, chain
 from pathlib import Path
@@ -53,86 +49,8 @@ assert (get_local_dir() / "settings.cfg").exists(), "Missing settings.cfg file!"
 cfg.read(get_local_dir() / 'settings.cfg')
 
 
-def load_server_settings(settings_name: str) -> PatchyServerConfig:
-    return PatchyServerConfig(
-        **get_spec_json(settings_name, "server_configs")
-    )
-
-
-@dataclass
-class PatchyServerConfig:
-    oxdna_path: str
-    patchy_format: str
-    slurm_bash_flags: dict[str, Any] = field(default_factory=dict)
-    slurm_includes: list[str] = field(default_factory=list)
-    input_file_params: dict[str, str] = field(default_factory=dict)
-    absolute_paths: bool = False
-    is_slurm: bool = False
-    cuda_mps: bool = False
-
-    def write_sbatch_params(self, job_name: str, slurm_file: IO):
-        slurm_file.write("#!/bin/bash\n") # TODO: other shells?
-
-        # slurm flags
-        for flag_key in self.slurm_bash_flags:
-            if len(flag_key) > 1:
-                slurm_file.write(f"#SBATCH --{flag_key}=\"{self.slurm_bash_flags[flag_key]}\"\n")
-            else:
-                slurm_file.write(f"#SBATCH -{flag_key} {self.slurm_bash_flags[flag_key]}\n")
-        run_oxdna_counter = 1
-        slurm_file.write(f"#SBATCH --job-name=\"{job_name}\"\n")
-        slurm_file.write(f"#SBATCH -o run%j.out\n")
-        # slurm_file.write(f"#SBATCH -e run{run_oxdna_counter}_%j.err\n")
-
-        # slurm includes ("module load xyz" and the like)
-        for line in self.slurm_includes:
-            slurm_file.write(line + "\n")
-
-    def is_batched(self) -> bool:
-        batch = self.cuda_mps
-        assert not batch or self.absolute_paths, "Cannot run using MPS without absolute paths!!!"
-        return batch
-
-    def is_server_slurm(self) -> bool:
-        """
-        Returns whether the server is a slurm server. Defaults to true for legacy reasons.
-        """
-        return len(self.slurm_bash_flags) > 0
-
-    # TODO: slurm library? this project is experiancing mission creep
-    def get_slurm_bash_flags(self) -> dict[str, Any]:
-        assert self.is_server_slurm(), "Trying to get slurm bash flags for a non-slurm setup!"
-        return self.slurm_bash_flags
-
-    def get_slurm_n_tasks(self) -> int:
-        bashflags = self.get_slurm_bash_flags()
-        if "n" in bashflags:
-            return bashflags["n"]
-        if "ntasks" in bashflags:
-            return bashflags["ntasks"]
-        return 1  # default value
-
-
 def simulation_run_dir() -> Path:
     return Path(cfg['ANALYSIS']['simulation_data_dir'])
-
-
-def get_server_config() -> PatchyServerConfig:
-    return load_server_settings(cfg["SETUP"]["server_config"])
-
-
-def get_param_set(filename: str) -> dict:
-    param_set = get_spec_json(filename, "input_files")
-    # backwards compatibility
-    # hardcode these stupid headers, was such a mistake
-    if "PROGRAM_PARAMETERS" in param_set["input"]:
-        param_set["input"] = {
-            key: val for key, val
-            in itertools.chain.from_iterable([
-                subgroup.items() for subgroup
-                in param_set["input"].values()])
-        }
-    return param_set
 
 
 def get_spec_json(name: str, folder: str) -> dict:

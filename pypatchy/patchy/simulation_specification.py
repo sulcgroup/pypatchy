@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import itertools
 import os
 from pathlib import Path
 from typing import Union, Any, Iterable
 
-from .ensemble_parameter import ParameterValue
+from .ensemble_parameter import ParameterValue, ParamValueGroup, parameter_value
 from ..slurm_log_entry import LogEntryObject
+from ..util import get_spec_json
 
 
 class ParamSet(LogEntryObject):
@@ -20,22 +22,23 @@ class ParamSet(LogEntryObject):
     # ordered list of parameter values that specify this simulation
     param_vals: list[ParameterValue]
 
-    parameter_dict: dict[str, Any]
+    parameter_dict: dict[str, Any] # for easy access
 
     def __init__(self, parameter_values: Iterable[ParameterValue]):
         self.param_vals = list(parameter_values)
         self.parameter_dict = {}
         for val in self.param_vals:
-            if val.is_grouped_params():
+            if isinstance(val, ParamValueGroup):
                 for param_name in val.group_params_names():
                     self.parameter_dict[param_name] = val[param_name]
             else:
                 self.parameter_dict[val.param_name] = val.param_value
+            # assert not isinstance(self.parameter_dict[val.param_name], ParameterValue)
 
     def __contains__(self, parameter_name: str) -> bool:
         return parameter_name in self.parameter_dict
 
-    def __getitem__(self, parameter_name: str):
+    def __getitem__(self, parameter_name: str) -> Any:
         return self.parameter_dict[parameter_name]
 
     def var_names(self) -> list[str]:
@@ -51,14 +54,14 @@ class ParamSet(LogEntryObject):
         return iter(self.param_vals)
 
     def get_folder_path(self) -> Path:
-        return Path(os.sep.join([f"{param.param_name}_{str(param.value_name)}" for param in self.param_vals]))
+        return Path(os.sep.join([f"{param.param_name}_{str(param.value_name())}" for param in self.param_vals]))
 
     def __repr__(self) -> str:
-        return ", ".join([f"{pv.param_name}={pv.value_name}" for pv in self.param_vals])
+        return ", ".join([f"{pv.param_name}={pv.value_name()}" for pv in self.param_vals])
 
     def to_dict(self) -> dict[str, Union[str, int, float]]:
         return {
-            p.param_name: p.value_name
+            p.param_name: p.value_name()
             for p in self.param_vals
         }
 
@@ -74,7 +77,7 @@ class ParamSet(LogEntryObject):
             found_param = False
             for p2 in self.param_vals:
                 if p1.param_name == p2.param_name:
-                    if p1.value_name != p2.value_name:
+                    if p1.value_name() != p2.value_name():
                         return False
                     else:
                         found_param = True
@@ -110,3 +113,18 @@ class NoSuchParamError(Exception):
             errstr += f"simulation {repr(self._sim)} in "
         errstr += f"ensemble {self._ensemble.long_name()}"
         return errstr
+
+
+def get_param_set(filename: str) -> ParamSet:
+    param_set = get_spec_json(filename, "input_files")
+    # backwards compatibility
+    # hardcode these stupid headers, was such a mistake
+    if "PROGRAM_PARAMETERS" in param_set["input"]:
+        param_set.update({
+            key: val for key, val
+            in itertools.chain.from_iterable([
+                subgroup.items() for subgroup
+                in param_set["input"].values()])
+        })
+    del param_set["input"]
+    return ParamSet([parameter_value(key, val) for key, val in param_set.items()])
