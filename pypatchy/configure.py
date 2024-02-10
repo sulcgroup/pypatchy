@@ -60,3 +60,4 @@ def create_default_config():
 
 if __name__ == '__main__':
     create_default_config()
+    # TODO: tests

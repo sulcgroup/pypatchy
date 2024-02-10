@@ -4,7 +4,7 @@ import shutil
 from pathlib import Path
 from typing import Union
 
-from .pl.plparticle import PLParticleSet
+from .pl.plparticle import PLParticleSet, MultidentateConvertSettings
 from ..patchyio import get_writer, FWriter, LWriter
 from ..util import get_input_dir
 
@@ -17,7 +17,7 @@ def convert_multidentate(particles: PLParticleSet,
     """
     DEPRECATED. use object-oriented method instead
     """
-    return particles.to_multidentate(dental_radius, num_teeth, torsion, followSurf)
+    return particles.to_multidentate(MultidentateConvertSettings(dental_radius, num_teeth, torsion, followSurf))
 
 
 def convert_udt_files_to_mdt(patches_file: Union[str, Path],

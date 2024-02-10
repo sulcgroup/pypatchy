@@ -9,19 +9,18 @@ from pathlib import Path
 
 import numpy as np
 import oxDNA_analysis_tools.UTILS.RyeReader as rr
-from ipy_oxdna.oxdna_simulation import Input
 
 from .patchy.pl.plpatch import PLPatch
 from .patchy.pl.plparticle import PLPatchyParticle, PLParticleSet
-from .patchy.pl.plpatchylib import to_PL
 from .patchy.pl.plscene import PLPSimulation
 from .patchy.stage import Stage
 from .patchy_base_particle import PatchyBaseParticleType, PatchyBaseParticle
 from .scene import Scene
 from .patchy_base_particle import BaseParticleSet
 from .polycubeutil.polycubesRule import PolycubeRuleCubeType
-from .util import get_server_config, PATCHY_FILE_FORMAT_KEY, normalize, NUM_TEETH_KEY, DENTAL_RADIUS_KEY, \
-    PatchyServerConfig
+from .util import normalize, DENTAL_RADIUS_KEY, \
+    NUM_TEETH_KEY
+from .server_config import PatchyServerConfig, get_server_config
 
 
 # this approach was suggested by chatGPT.
@@ -255,7 +254,7 @@ class FWriter(BasePatchyWriter):
                 particles_file.write(self.particle_type_string(particle_patchy))
 
     def write(self,
-              scene: Scene,
+              scene: PLPSimulation,
               stage: Union[Stage, None] = None,
               **kwargs) -> dict[str, str]:
 
@@ -272,8 +271,6 @@ class FWriter(BasePatchyWriter):
 
         particles = scene.particle_types()
         particle_type_counts = scene.particle_type_counts()
-
-        plparticles = to_PL(particles, 1, 0)
 
         total_num_particles = sum(particle_type_counts.values())
         self.write_particles_patches(scene.particle_types(), particle_fn, patchy_fn)
@@ -488,7 +485,7 @@ class JWriter(BasePatchyWriter, ABC):
         pass
 
     def write(self,
-              scene: Scene,
+              scene: PLPSimulation,
               stage: Union[Stage, None] = None,
               **kwargs
               ) -> dict[str, str]:
@@ -506,9 +503,8 @@ class JWriter(BasePatchyWriter, ABC):
 
         # write top and particles/patches spec files
         # first convert particle json into PLPatchy objects (cf plpatchylib.py)
-        particles = scene.particle_types()
 
-        pl_set = to_PL(particles)
+        pl_set = scene.particle_types()
         # kwargs[NUM_TEETH_KEY],
         # kwargs[DENTAL_RADIUS_KEY])
 
@@ -517,6 +513,7 @@ class JWriter(BasePatchyWriter, ABC):
         with self.file(particle_fn) as particles_file, \
                 self.file(patchy_fn) as patches_file:
 
+            # todo: allosteric hell world
             # write particles and patches file
             for particle_patchy, particle_type in zip(pl_set, particles_type_list.particles()):
                 # handle writing particles file
@@ -724,15 +721,14 @@ class LWriter(BasePatchyWriter):
         return [NUM_TEETH_KEY, DENTAL_RADIUS_KEY, "topology", "conf_file", "DPS_interaction_matrix_file"]
 
     def write(self,
-              scene: Scene,
+              scene: PLPSimulation,
               stage: Union[Stage, None] = None,
               **kwargs
               ) -> dict[str, str]:
         assert self.directory() is not None, "No writing directory specified!"
         assert self.directory().exists(), f"Specified writing directory {str(self.directory())} does not exist!"
-        particles_base = scene.particle_types()
 
-        particles: PLParticleSet = to_PL(particles_base)
+        particles: PLParticleSet = scene.particle_types()
 
         init_top = kwargs["topology"]
         init_conf = kwargs["conf_file"]
@@ -1013,3 +1009,6 @@ def get_writer(writer_key: Union[str, None] = None) -> BasePatchyWriter:
 
 def register_writer(writer_name: str, writer_obj: BasePatchyWriter):
     __writers[writer_name] = writer_obj
+
+def writer_options() -> list[str]:
+    return [*__writers.values()]

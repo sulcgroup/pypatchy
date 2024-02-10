@@ -166,7 +166,7 @@ def plot_compare_ensembles(es: list[PatchySimulationEnsemble],
         for sim, sim_data in zip(sims, data_source):
             data = sim_data.get()
             for param in sim:
-                data.insert(0, param.param_name, param.value_name)
+                data.insert(0, param.param_name, param.value_name())
             some_data.append(data)
         data = pd.concat(some_data, ignore_index=True)
         if norm:
@@ -261,19 +261,16 @@ def plot_total_graph(e: PatchySimulationEnsemble,
     assert isinstance(analysis_data_source, ClassifyClusters)
     # get data all at once to standardize timeframe
     raw_data = e.get_data(analysis_data_source, ()).get()
-    # if no_overreach:
-    #     raw_data = raw_data.loc[
-    #         raw_data[ClassifyClusters.CLUSTER_CATEGORY_KEY].isin([ClusterCategory.MATCH.value, ClusterCategory.SUBSET.value])]
 
     data = []
     for sim in e.ensemble():
         sim_data: pd.DataFrame = raw_data.loc[np.all([
-            raw_data[param.param_name] == param.value_name for param in sim
+            raw_data[param.param_name] == param.value_name() for param in sim
         ], axis=0)]
         sim_data = sim_data.groupby(TIMEPOINT_KEY)["sizeratio"].sum().reset_index()
         for param in sim:
             # sim_data.insert(len(sim_data.columns) - 1, param.param_name, param.value_name)
-            sim_data[param.param_name] = [param.value_name] * len(sim_data.index)
+            sim_data[param.param_name] = [param.value_name()] * len(sim_data.index)
         data.append(sim_data)
     data = pd.concat(data)
     data.rename(mapper={TIMEPOINT_KEY: "steps", "sizeratio": "size"}, axis="columns", inplace=True)

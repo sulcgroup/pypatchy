@@ -11,12 +11,11 @@ import numpy as np
 
 from ipy_oxdna.oxdna_simulation import BuildSimulation, Simulation, Input
 
-from .pl.plpatchylib import to_PL
 from .simulation_specification import NoSuchParamError
 from ..patchy.simulation_specification import PatchySimulation
 from .pl.plscene import PLPSimulation
 from ..polycubeutil.polycube_structure import PolycubeStructure
-from ..util import get_input_dir, get_server_config, EXTERNAL_OBSERVABLES, NUM_TEETH_KEY, DENTAL_RADIUS_KEY
+from ..util import get_input_dir, EXTERNAL_OBSERVABLES
 
 
 class Stage(BuildSimulation):
@@ -122,9 +121,7 @@ class Stage(BuildSimulation):
 
             # generate conf
             scene = PLPSimulation()
-            particle_set = to_PL(self.getctxt().particle_set,
-                                 self.getctxt().sim_get_param(self.spec(), NUM_TEETH_KEY),
-                                 self.getctxt().sim_get_param(self.spec(), DENTAL_RADIUS_KEY))
+            particle_set = self.getctxt().sim_get_particles_set(self.spec())
             # patches will be added automatically
             scene.set_particle_types(particle_set)
         else:
