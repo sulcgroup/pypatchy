@@ -9,7 +9,7 @@ import numpy as np
 from oxDNA_analysis_tools.UTILS.data_structures import Configuration
 
 
-from pypatchy.patchy.pl.plparticle import PLPatchyParticle, PLParticleSet
+from pypatchy.patchy.pl.plparticle import PLPatchyParticle, PLParticleSet, MultidentateConvertSettings
 from pypatchy.patchy.pl.plpatch import PLPatch
 from pypatchy.scene import Scene
 from pypatchy.util import dist
@@ -401,17 +401,21 @@ class PLPSimulation(Scene):
             return True
         return False
 
-    def to_multidentate(self,
-                        dental_radius: float,
-                        num_teeth: int,
-                        torsion: bool = True,
-                        follow_surf: bool = False
-                        ) -> PLPSimulation:
+    def to_multidentate(self, *args, **kwargs) -> PLPSimulation:
+                        # dental_radius: float,
+                        # num_teeth: int,
+                        # torsion: bool = True,
+                        # follow_surf: bool = False
+                        # ) -> PLPSimulation:
         """
         Returns a multidentate version of the scene
         """
+        if len(args) == 0:
+            mdt_convert = MultidentateConvertSettings(**kwargs)
+        else:
+            mdt_convert = args[0]
         # convert scene particle set to multidentate
-        mdt_particle_set = self.particle_types().to_multidentate(dental_radius, num_teeth, torsion, follow_surf)
+        mdt_particle_set = self.particle_types().to_multidentate(mdt_convert)
         assert all([np.abs(p.rotmatrix() - np.identity(3)).sum() < 1e-6 for p in mdt_particle_set.particles()])
         mdt_scene = PLPSimulation()
         # assign scene particle types
@@ -423,7 +427,39 @@ class PLPSimulation(Scene):
             # assign position
             mdt_particle.set_position(particle.position())
             # assign rotation
-            mdt_particle.rotate(particle.rotmatrix())
+            # this is a absolute mess because default rotation isn't identity matrix
+            # for some reason
+
+            # 3x3 rotation matrices
+            original_type_rot: np.ndarray = self.particle_types().particle(particle.get_type()).rotmatrix()
+            mdt_type_rot: np.ndarray = mdt_particle_set.particle(particle.get_type()).rotmatrix()
+            mdt_particle_rot: np.ndarray = mdt_particle.rotmatrix()
+            particle_rot: np.ndarray = particle.rotmatrix()
+
+            # now construct a rotation matrix to rotate mdt_type_rot such that the rotation from mdt_type_rot to new_rot
+            # is the same as the rotation from original_type_rot to particle_rot
+
+            # here's what chatGPT says:
+            # Calculate the inverse (or transpose, since it's a rotation matrix) of original_type_rot
+            inverse_original_type_rot = np.linalg.inv(original_type_rot)
+
+            # Calculate the relative rotation from original_type_rot to particle_rot
+            relative_rot = np.dot(inverse_original_type_rot, particle_rot)
+
+            # Apply the relative rotation to mdt_type_rot to get new_rot
+            new_rot = np.dot(mdt_type_rot, relative_rot)
+
+            # Pre-compute the target rotation for comparison
+            target_rot = np.dot(particle_rot, original_type_rot)
+
+            # Apply new_rot to mdt_type_rot to get the resulting rotation
+            resulting_rot = np.dot(mdt_type_rot, new_rot)
+
+            # Use np.allclose to compare the resulting_rot and target_rot matrices within a tolerance
+            assert np.allclose(resulting_rot, target_rot, atol=1e-6), "The new rotation does not align as expected."
+
+            mdt_particle.rotate(new_rot)
+
             # assign UID
             mdt_particle.set_uid(particle.get_id())
             # add particle to scene

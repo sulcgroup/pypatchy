@@ -54,9 +54,7 @@ class PatchyServerConfig:
             slurm_file.write(line + "\n")
 
     def is_batched(self) -> bool:
-        batch = self.cuda_mps
-        assert not batch or self.absolute_paths, "Cannot run using MPS without absolute paths!!!"
-        return batch
+        return self.cuda_mps
 
     def is_server_slurm(self) -> bool:
         """
