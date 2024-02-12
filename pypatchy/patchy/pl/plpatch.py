@@ -94,34 +94,26 @@ class PLPatch(BasePatchType):
         positions = [float(x) for x in line.strip().split()]
         self._key_points[0] = np.array(positions)
 
-    def init_from_string(self, lines: list[str]):
-        for line in lines:
-            line = line.strip()
-            if len(line) > 1 and line[0] != '#':
-                if "id" in line:
-                    val = line.split('=')[1]
-                    try:
-                        self._type = int(val)
-                    except ValueError:
-                        self._type = int(val.split('_')[1])
-                if "color" in line:
-                    vals = int(line.split('=')[1])
-                    self._color = vals
-                elif "a1" in line:
-                    vals = line.split('=')[1]
-                    x, y, z = [float(g) for g in vals.split(',')]
-                    self.set_a1(np.array([x, y, z]))
-                elif "a2" in line:
-                    vals = line.split('=')[1]
-                    x, y, z = [float(g) for g in vals.split(',')]
-                    self.set_a2(np.array([x, y, z]))
-                elif "position" in line:
-                    vals = line.split('=')[1]
-                    x, y, z = [float(g) for g in vals.split(',')]
-                    self.set_position(np.array([x, y, z]))
-                elif "strength" in line:
-                    val = line.split("=")[1]
-                    self.set_strength(float(val))
+    def init_from_string(self, patch_data: dict[str, str]):
+        for key, val in patch_data.items():
+            if key == "id":
+                try:
+                    self._type = int(val)
+                except ValueError:
+                    self._type = int(val.split('_')[1])
+            if key == "color":
+                self._color = int(val)
+            elif key == "a1":
+                x, y, z = [float(g) for g in val.split(',')]
+                self.set_a1(np.array([x, y, z]))
+            elif key == "a2":
+                x, y, z = [float(g) for g in val.split(',')]
+                self.set_a2(np.array([x, y, z]))
+            elif key == "position":
+                x, y, z = [float(g) for g in val.split(',')]
+                self.set_position(np.array([x, y, z]))
+            elif key == "strength":
+                self.set_strength(float(val))
 
     def can_bind(self, other: BasePatchType) -> bool:
         if abs(self.color()) > 20:

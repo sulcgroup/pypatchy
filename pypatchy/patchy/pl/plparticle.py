@@ -14,6 +14,8 @@ from .plpatch import PLPatch
 from ...patchy_base_particle import PatchyBaseParticleType, PatchyBaseParticle, BaseParticleSet
 from ...util import random_unit_vector, rotation_matrix
 
+PATCHY_NULL_A1: np.ndarray = np.array([0, 0, 1])
+PATCHY_NULL_A3: np.ndarray = np.array([1, 0, 0])
 
 class PLPatchyParticle(PatchyBaseParticleType, PatchyBaseParticle):
     # HATE making the particle type and the particle the same class but refactoring is objectively not the
@@ -42,8 +44,8 @@ class PLPatchyParticle(PatchyBaseParticleType, PatchyBaseParticle):
         self._radius = radius
         self.v = np.array([0., 0., 0.])
         self.L = np.array([0., 0., 0.])
-        self.a1 = np.array([0, 0, 1])
-        self.a3 = np.array([1, 0, 0])
+        self.a1 = PATCHY_NULL_A1
+        self.a3 = PATCHY_NULL_A3
 
         self._name = particle_name
 

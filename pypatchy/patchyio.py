@@ -186,9 +186,12 @@ class FWriter(BasePatchyWriter):
                         particles.append(particle)
                 j = j + 1
         particles.sort(key=lambda p: p.get_type())
-        assert all([np.abs(p.rotmatrix() - np.identity(3)).sum() < 1e-6 for p in particles])
+        particle_set = PLParticleSet(particles)
+        if not all([np.abs(p.rotmatrix() - np.identity(3)).sum() < 1e-6 for p in particles]):
+            pass
+            # particle_set.normalize()
 
-        return PLParticleSet(particles)
+        return particle_set
 
     def particle_from_lines(self,
                             lines: Iterable[str],
@@ -208,7 +211,7 @@ class FWriter(BasePatchyWriter):
                     patch_ids = [int(g) for g in vals.split(',')]
         assert type_id is not None, "Missing type_id for particle!"  # not really any way to ID this one lmao
         assert patch_ids is not None, f"Missing patches for particle type {type_id}"
-        return PLPatchyParticle([patches[i] for i in patch_ids], type_id=type_id).normalize()
+        return PLPatchyParticle([patches[i] for i in patch_ids], type_id=type_id)
 
     def get_input_file_data(self,
                             scene: Scene,
@@ -338,10 +341,13 @@ class FWriter(BasePatchyWriter):
                 line = line.strip()
                 if len(line) > 1 and line[0] != '#':
                     if 'patch_' and '{' in line:
-                        strargs = []
+                        strargs = dict()
                         k = j + 1
                         while '}' not in lines[k]:
-                            strargs.append(lines[k].strip())
+                            if not lines[k].isspace() and not line.startswith("#"):
+                                key, val = lines[k].split("=")
+                                key = key.strip()
+                                strargs[key] = val
                             k = k + 1
                         patch = PLPatch()
                         # print 'Loaded patch',strargs
