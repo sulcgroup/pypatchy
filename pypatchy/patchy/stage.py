@@ -151,21 +151,22 @@ class Stage(BuildSimulation):
         input_json_name = self.adjfn("input.json")
 
         # write server config spec
-        for key, val in self.getctxt().server_settings.input_file_params.items():
-            self.input_param_dict[key] = val
+        # for key, val in self.getctxt().server_settings.input_file_params:
+        #     self.input_param_dict[key] = val
 
         # write default input file stuff
 
         # loop parameters in group
-        for paramname in self.getctxt().default_param_set["input"]:
+        for param in self.getctxt().default_param_set:
+            paramname = param.param_name
             # if we've specified this param in a replacer dict
             # if no override
             if paramname not in self.spec() and paramname not in self.getctxt().const_params:
-                val = self.getctxt().default_param_set["input"][paramname]
+                val = self.getctxt().default_param_set[paramname]
             else:
                 val = self.getctxt().sim_get_param(self.spec(), paramname)
             # check paths are absolute if applicable
-            if self.getctxt().server_settings.input_file_params.absolute_paths:
+            if self.getctxt().server_settings.absolute_paths:
                 # approximation for "is this a file?"
                 if isinstance(val, str) and re.search(r'\.\w+$', val) is not None:
                     # if path isn't absolute
