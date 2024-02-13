@@ -100,7 +100,7 @@ class EnsembleParameter:
         if isinstance(item, int):
             return self.param_value_set[item]
         else:
-            assert isinstance(item, str)
+            # assert isinstance(item, str)
             return self.lookup(item)
 
     """

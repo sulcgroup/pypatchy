@@ -476,8 +476,7 @@ class PatchySimulationEnsemble:
         for i_counter, param_type in enumerate(self.ensemble_params):
             pname = param_type.param_key
             if pname in kwargs:
-                valname = str(kwargs[pname])
-                sim_params.append([param_type[valname]])
+                sim_params.append([param_type[kwargs[pname]]])
             else:
                 for a in args:
                     if isinstance(a, ParameterValue):
