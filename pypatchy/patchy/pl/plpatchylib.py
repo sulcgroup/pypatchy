@@ -7,7 +7,7 @@ import numpy as np
 
 from ..ensemble_parameter import PARTICLE_TYPES_KEY
 from ..mgl import MGLParticle, MGLScene, MGLParticleSet
-from .plparticle import PLParticleSet, PLPatchyParticle, PLSourceMap
+from .plparticle import PLParticleSet, PLPatchyParticle, PLSourceMap, MultidentateConvertSettings
 from .plpatch import PLPatch
 from .plscene import PLPSimulation
 from ...patchy_base_particle import BaseParticleSet
@@ -40,7 +40,8 @@ def to_PL(particle_set: BaseParticleSet,
 
     # do multidentate convert
     if num_teeth > 1:
-        particles = particles.to_multidentate(dental_radius, num_teeth)
+        particles = particles.to_multidentate(MultidentateConvertSettings(dental_radius=dental_radius,
+                                                                          n_teeth=num_teeth))
 
     assert particles.num_particle_types() == particle_set.num_particle_types(), \
         f"Bad conversion! Number of particle types produced {particles.num_particle_types()} not equal to number of particles" \
