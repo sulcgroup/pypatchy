@@ -305,7 +305,8 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
     # load ensemble params from cfg
     # there should always be ensemble params in the cfg
     ensemble_parameters = [
-        EnsembleParameter(*p) for p in cfg[ENSEMBLE_PARAMS_KEY]
+        EnsembleParameter(key, val)
+        for key, val in cfg[ENSEMBLE_PARAMS_KEY]
     ]
 
     # observables are optional
