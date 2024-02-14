@@ -14,9 +14,8 @@ from .patchy.pl.plpatch import PLPatch
 from .patchy.pl.plparticle import PLPatchyParticle, PLParticleSet
 from .patchy.pl.plscene import PLPSimulation
 from .patchy.stage import Stage
-from .patchy_base_particle import PatchyBaseParticleType, PatchyBaseParticle
+from .patchy_base_particle import PatchyBaseParticleType, PatchyBaseParticle, BaseParticleSet
 from .scene import Scene
-from .patchy_base_particle import BaseParticleSet
 from .polycubeutil.polycubesRule import PolycubeRuleCubeType
 from .util import normalize, DENTAL_RADIUS_KEY, NUM_TEETH_KEY
 from .server_config import PatchyServerConfig, get_server_config
