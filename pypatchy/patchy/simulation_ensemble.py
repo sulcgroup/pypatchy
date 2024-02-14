@@ -302,13 +302,6 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
             params.append(param_val)
     const_parameters = ParamSet(params)
 
-    # load ensemble params from cfg
-    # there should always be ensemble params in the cfg
-    ensemble_parameters = [
-        EnsembleParameter(key, val)
-        for key, val in cfg[ENSEMBLE_PARAMS_KEY]
-    ]
-
     # observables are optional
     # TODO: integrate oxpy
     observables: dict[str: PatchySimObservable] = {}
@@ -331,6 +324,20 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
             server_settings = PatchyServerConfig(**cfg["server_settings"])
     else:
         server_settings = get_server_config()
+    # in case we need this
+    get_writer(server_settings.patchy_format).set_directory(get_input_dir())
+
+    # load ensemble params from cfg
+    # there should always be ensemble params in the cfg
+    ensemble_parameters = [
+        EnsembleParameter(key, [
+            ParticleSetParam(get_writer(server_settings.patchy_format).read_particle_types(**val)) if key == PARTICLE_TYPES_KEY
+            else MDTConvertParams(MultidentateConvertSettings(**val)) if key == MDT_CONVERT_KEY
+            else ParamValueGroup(key, val) if isinstance(val, dict)
+            else ParameterValue(key, val) for val in paramData
+        ])
+        for key, paramData in cfg[ENSEMBLE_PARAMS_KEY]
+    ]
 
     ensemble = PatchySimulationEnsemble(export_name, setup_date, mdtfile, analysis_pipeline, default_param_set,
                                         const_parameters, ensemble_parameters, observables, analysis_file, mdt,

@@ -18,8 +18,7 @@ from .patchy_base_particle import PatchyBaseParticleType, PatchyBaseParticle
 from .scene import Scene
 from .patchy_base_particle import BaseParticleSet
 from .polycubeutil.polycubesRule import PolycubeRuleCubeType
-from .util import normalize, DENTAL_RADIUS_KEY, \
-    NUM_TEETH_KEY
+from .util import normalize, DENTAL_RADIUS_KEY, NUM_TEETH_KEY
 from .server_config import PatchyServerConfig, get_server_config
 
 

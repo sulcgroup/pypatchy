@@ -3,7 +3,6 @@ from dataclasses import dataclass, field
 from typing import Union
 
 from pypatchy.patchy.pl.plparticle import PLParticleSet, MultidentateConvertSettings
-from pypatchy.patchyio import get_writer
 
 PARTICLE_TYPES_KEY = "particle_types"
 MDT_CONVERT_KEY = "mdt_convert"
@@ -76,14 +75,9 @@ class EnsembleParameter:
     param_value_set: list[ParameterValue]  # sorry
     param_value_map: dict[str, ParameterValue]
 
-    def __init__(self, key: str, paramData):
+    def __init__(self, key: str, paramData: list[EnsembleParameter]):
         self.param_key = key
-        self.param_value_set = [
-            load_particle_types_params(**val) if key == PARTICLE_TYPES_KEY
-            else load_mdt_convert_params(**val) if key == MDT_CONVERT_KEY
-            else ParamValueGroup(key, val) if isinstance(val, dict)
-            else ParameterValue(key, val) for val in paramData
-        ]
+        self.param_value_set = paramData
         self.param_value_map = {
             p.value_name(): p for p in self.param_value_set
         }
@@ -93,7 +87,7 @@ class EnsembleParameter:
 
     def is_grouped_params(self) -> bool:
         """
-        Returns true if the parameter is grouped, false otherwise
+        Returns true if the parameter is grouped, false otherwises
         """
         assert any(isinstance(p, ParamValueGroup) for p in self.param_value_set) == all(
             isinstance(p, ParamValueGroup) for p in self.param_value_set)
@@ -138,16 +132,9 @@ class ParticleSetParam(ParameterValue, PLParticleSet):
         return self.set_name
 
 
-# WARNING: NO WORKKEY MAYBEY
-def load_particle_types_params(**kwargs) -> ParticleSetParam:
-    return ParticleSetParam(get_writer().read_particle_types(**kwargs))
-
 class MDTConvertParams(ParameterValue):
     convert_params_name: str
 
     def __init__(self, cvt_settings: MultidentateConvertSettings, convert_params_name: str = MDT_CONVERT_KEY):
         ParameterValue.__init__(self, MDT_CONVERT_KEY, cvt_settings)
         self.convert_params_name = convert_params_name
-
-def load_mdt_convert_params(**kwargs) -> MDTConvertParams:
-    return MDTConvertParams(MultidentateConvertSettings(**kwargs))
