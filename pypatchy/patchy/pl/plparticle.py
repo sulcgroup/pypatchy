@@ -553,7 +553,7 @@ class MultidentateConvertSettings:
         elif self.energy_scale_method == self.ENERGY_SCALE_LINEAR:
             return patch_energy / self.n_teeth
         elif self.energy_scale_method == self.ENERGY_SCALE_LOG:  # subhajit says this is wrong but I am leaving it as an option
-            return patch_energy / np.log(1 / self.n_teeth)  # ln 1 / n teeth
+            return patch_energy / np.log(self.n_teeth)  # ln n teeth, basically made up
         else:
             return self.energy_scale_method * patch_energy
 
@@ -754,7 +754,7 @@ class PLParticleSet(BaseParticleSet):
                                                position,
                                                a1,
                                                a2,
-                                               mdt_params.scale_energy(patch.strength))
+                                               mdt_params.scale_energy(patch.strength()))
                     # compativility for multidentate patches with 0 radius - may be useful for DNA origami convert
                     else:
                         # simply use unidentat patch position and skip a2
@@ -762,7 +762,7 @@ class PLParticleSet(BaseParticleSet):
                                                c,
                                                position,
                                                a1,
-                                               strength=mdt_params.scale_energy(patch.strength))
+                                               strength=mdt_params.scale_energy(patch.strength()))
 
                     id_map[patch.type_id()].add(patch_counter)
                     patch_counter += 1
