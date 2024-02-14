@@ -20,6 +20,11 @@ from oxDNA_analysis_tools.UTILS.data_structures import Configuration
 
 from ipy_oxdna.oxdna_simulation import SimulationManager, Simulation
 
+from .simulation_specification import get_param_set
+
+from .ensemble_parameter import MDTConvertParams, ParameterValue, ParticleSetParam, parameter_value
+from .pl.plparticle import MultidentateConvertSettings, PLParticleSet
+
 from ..patchy.patchy_scripts import lorenzian_to_flavian
 from ..analpipe.analysis_pipeline import AnalysisPipeline
 from .pl.plscene import PLPSimulation
@@ -33,7 +38,7 @@ from ..slurm_log_entry import SlurmLogEntry
 from ..slurmlog import SlurmLog
 from ..util import *
 from .ensemble_parameter import *
-from .simulation_specification import PatchySimulation, ParamSet, NoSuchParamError, get_param_set
+from .simulation_specification import PatchySimulation, ParamSet, NoSuchParamError
 from .pl.plpatchylib import to_PL, polycube_rule_to_PL, load_pl_particles
 from ..polycubeutil.polycubesRule import PolycubesRule
 
@@ -325,16 +330,12 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
     else:
         server_settings = get_server_config()
     # in case we need this
-    get_writer(server_settings.patchy_format).set_directory(get_input_dir())
 
     # load ensemble params from cfg
     # there should always be ensemble params in the cfg
     ensemble_parameters = [
         EnsembleParameter(key, [
-            ParticleSetParam(get_writer(server_settings.patchy_format).read_particle_types(**val)) if key == PARTICLE_TYPES_KEY
-            else MDTConvertParams(MultidentateConvertSettings(**val)) if key == MDT_CONVERT_KEY
-            else ParamValueGroup(key, val) if isinstance(val, dict)
-            else ParameterValue(key, val) for val in paramData
+            parameter_value(key, val) for val in paramData
         ])
         for key, paramData in cfg[ENSEMBLE_PARAMS_KEY]
     ]
@@ -346,6 +347,7 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
     if "slurm_log" in mdt:
         for entry in mdt["slurm_log"]:
             sim = ensemble.get_simulation(**entry["simulation"])
+            assert isinstance(sim, PatchySimulation), f"Selector {entry['simulation']} selects more than one simulation."
             assert sim is not None, f"Slurm log included a record for invalid simulation {str(entry['simulation'])}"
             entry["simulation"] = sim
         ensemble.slurm_log = SlurmLog(*[SlurmLogEntry(**e) for e in mdt["slurm_log"]])

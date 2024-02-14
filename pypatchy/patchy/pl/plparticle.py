@@ -547,6 +547,28 @@ class MultidentateConvertSettings:
     energy_scale_method: Union[int, float] = field(default=ENERGY_SCALE_NONE)  # TODO: flexable support for energy scaling
     alpha_scale_method: Union[int, float] = field(default=ALPHA_SCALE_NONE)
 
+    def __post_init__(self):
+        # handle strings
+        # TODO: custom exceptions for invalid params
+        if isinstance(self.energy_scale_method, str):
+            if self.energy_scale_method.lower() == "none":
+                self.energy_scale_method = MultidentateConvertSettings.ENERGY_SCALE_NONE
+            elif self.energy_scale_method.lower() == "linear":
+                self.energy_scale_method = MultidentateConvertSettings.ENERGY_SCALE_LINEAR
+            elif self.energy_scale_method.lower() == "log":
+                self.energy_scale_method = MultidentateConvertSettings.ENERGY_SCALE_LOG
+            else:
+                raise Exception(f"Invalid energy scale method {self.energy_scale_method}")
+        
+        if isinstance(self.alpha_scale_method, str):
+            if self.alpha_scale_method.lower() == "none":
+                self.alpha_scale_method = MultidentateConvertSettings.ALPHA_SCALE_NONE
+            elif self.alpha_scale_method.lower() in ["ls", "lipari-szabo"]:
+                raise Exception(f"lipari-szabo method not supported!")
+            else:
+                raise Exception(f"Invalid alpha scale method {self.alpha_scale_method}")
+
+
     def scale_energy(self, patch_energy: float) -> float:
         if self.energy_scale_method == self.ENERGY_SCALE_NONE:
             return patch_energy

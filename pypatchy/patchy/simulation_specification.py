@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 from typing import Union, Any, Iterable
 
+
 from .ensemble_parameter import ParameterValue, ParamValueGroup, parameter_value
 from ..slurm_log_entry import LogEntryObject
 from ..util import get_spec_json

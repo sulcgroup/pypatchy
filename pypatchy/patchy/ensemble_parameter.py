@@ -2,7 +2,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Union
 
-from pypatchy.patchy.pl.plparticle import PLParticleSet, MultidentateConvertSettings
+from .pl.plparticle import PLParticleSet, MultidentateConvertSettings
+# from ..patchyio import get_writer # TODO: sort out this spaghtii
+from ..util import get_input_dir
 
 PARTICLE_TYPES_KEY = "particle_types"
 MDT_CONVERT_KEY = "mdt_convert"
@@ -57,16 +59,6 @@ class ParamValueGroup(ParameterValue):
 
 
 # probably a shorter, worse way to write this
-def parameter_value(key: str, val: Union[dict, str, int, float, bool]) -> Union[ParameterValue, ParamValueGroup]:
-    if isinstance(val, dict):
-        return ParamValueGroup(key, {pkey: parameter_value(pkey, pval) for pkey, pval in val.items()})
-    elif isinstance(val, MultidentateConvertSettings):
-        return MDTConvertParams(val)
-    elif isinstance(val, PLParticleSet):
-        return ParticleSetParam(val)
-    else:
-        return ParameterValue(key, val)
-
 class EnsembleParameter:
     """
     Class for a varialbe parameter in a simulation ensemble
@@ -81,6 +73,7 @@ class EnsembleParameter:
         self.param_value_map = {
             p.value_name(): p for p in self.param_value_set
         }
+        assert len({p.value_name() for p in self.param_value_set}) == len(self.param_value_set), "Duplicate param value(s)!"
 
     def dir_names(self) -> list[str]:
         return [f"{key}_{str(val)}" for key, val in self]
@@ -138,3 +131,36 @@ class MDTConvertParams(ParameterValue):
     def __init__(self, cvt_settings: MultidentateConvertSettings, convert_params_name: str = MDT_CONVERT_KEY):
         ParameterValue.__init__(self, MDT_CONVERT_KEY, cvt_settings)
         self.convert_params_name = convert_params_name
+    
+
+
+    def value_name(self) -> str:
+        return self.convert_params_name
+
+
+def parameter_value(key: str, val: Union[dict, str, int, float, bool]) -> ParameterValue:
+    """
+    Constructs a ParameterValue object
+    """
+    if isinstance(val, dict):
+        # if type key is present, paramater is a particle set or mdt convert settings or something
+        if "type" in val:
+            param_name = val["name"]
+            if "value" in val: # *sirens* BACKWARDS COMPATIBILITY DANGER ZONE
+                data = val["value"]
+            else:
+                data = {k: val[k] for k in val if k not in ("type", "name")}
+            if val["type"] == MDT_CONVERT_KEY:
+                return MDTConvertParams(MultidentateConvertSettings(**data), param_name)
+            elif val["type"] == PARTICLE_TYPES_KEY:
+                raise Exception("Particle type parameters not currently supported!")
+                # get_writer().set_directory(get_input_dir())
+                # return ParticleSetParam(get_writer().read_particle_types(**data)) # TODO: TEST
+            else:
+                raise Exception(f"Invalid object-parameter type {val['type']}")
+        else:
+            # if no type is specified this is a parameter group
+            return ParamValueGroup(key, {pkey: parameter_value(pkey, pval)
+                                     for pkey, pval in val.items()})
+    else:
+        return ParameterValue(key, val)
