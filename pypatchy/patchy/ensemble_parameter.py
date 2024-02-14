@@ -3,6 +3,7 @@ from dataclasses import dataclass, field
 from typing import Union
 
 from pypatchy.patchy.pl.plparticle import PLParticleSet, MultidentateConvertSettings
+from pypatchy.patchyio import get_writer
 
 PARTICLE_TYPES_KEY = "particle_types"
 MDT_CONVERT_KEY = "mdt_convert"
@@ -17,8 +18,8 @@ class ParameterValue:
     others are also included
     A more complex ParameterValue consists of a named group of multiple parameters
     """
-    param_name: str
-    param_value: Union[str, bool, float, int]  # only basic types allowed here
+    param_name: str = field()
+    param_value: Union[str, bool, float, int] = field() # only basic types allowed here
 
     def __post_init__(self):
         assert not isinstance(self.param_value, ParameterValue)
@@ -77,7 +78,12 @@ class EnsembleParameter:
 
     def __init__(self, key: str, paramData):
         self.param_key = key
-        self.param_value_set = [ParameterValue(key, val) for val in paramData]
+        self.param_value_set = [
+            load_particle_types_params(**val) if key == PARTICLE_TYPES_KEY
+            else load_mdt_convert_params(**val) if key == MDT_CONVERT_KEY
+            else ParamValueGroup(key, val) if isinstance(val, dict)
+            else ParameterValue(key, val) for val in paramData
+        ]
         self.param_value_map = {
             p.value_name(): p for p in self.param_value_set
         }
@@ -132,9 +138,16 @@ class ParticleSetParam(ParameterValue, PLParticleSet):
         return self.set_name
 
 
+# WARNING: NO WORKKEY MAYBEY
+def load_particle_types_params(**kwargs) -> ParticleSetParam:
+    return ParticleSetParam(get_writer().read_particle_types(**kwargs))
+
 class MDTConvertParams(ParameterValue):
     convert_params_name: str
 
     def __init__(self, cvt_settings: MultidentateConvertSettings, convert_params_name: str = MDT_CONVERT_KEY):
         ParameterValue.__init__(self, MDT_CONVERT_KEY, cvt_settings)
         self.convert_params_name = convert_params_name
+
+def load_mdt_convert_params(**kwargs) -> MDTConvertParams:
+    return MDTConvertParams(MultidentateConvertSettings(**kwargs))
