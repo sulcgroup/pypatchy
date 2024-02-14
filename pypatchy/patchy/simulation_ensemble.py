@@ -1566,8 +1566,16 @@ class PatchySimulationEnsemble:
         else:
             pass
 
+    def sim_get_next_stage(self, sim: PatchySimulation) -> Stage:
+        try:
+            return self.sim_most_recent_stage(sim).get_next()
+        except NoStageTrajError:
+            # if no stages have been run
+            return self.sim_get_stages(sim)[0]  # first stage
+
     def ipy(self, sim: PatchySimulation, stage: Union[Stage, None] = None) -> Simulation:
-        #
+        if stage is None:
+            stage = self.sim_get_next_stage(sim)
         if self.sim_num_stages(sim) == 1 or stage.idx() == 0:
             sim_obj = Simulation(str(self.folder_path(sim, stage)))
         else:
@@ -1600,11 +1608,7 @@ class PatchySimulationEnsemble:
             mgr = SimulationManager()
             for sim in e:
                 if stage is None:
-                    try:
-                        sim_stage = self.sim_most_recent_stage(sim).get_next()
-                    except NoStageTrajError:
-                        # if no stages have been run
-                        sim_stage = self.sim_get_stages(sim)[0]  # first stage
+                    sim_stage = self.sim_get_next_stage(sim)
                 else:
                     sim_stage = self.sim_get_stage(sim, stage)
                 assert sim_stage is not None

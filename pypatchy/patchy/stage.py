@@ -36,6 +36,7 @@ class Stage(BuildSimulation):
     _ctxt: Any  # PatchySimulationEnsemble
     _sim_spec: PatchySimulation
 
+    # why
     input_param_dict: dict
     _prev_stage: Union[Stage, None]
 
@@ -145,8 +146,12 @@ class Stage(BuildSimulation):
         self.input_param_dict["steps"] = self.end_time()
         self.input_param_dict["trajectory_file"] = self.adjfn(
             self.getctxt().sim_get_param(self.spec(), "trajectory_file"))
+        # include input file stuff required by writer
         self.input_param_dict.update(self.getctxt().writer.get_input_file_data(scene, **reqd_extra_args))
-
+        for param in self.getctxt().server_settings.input_file_params:
+            if param.param_name not in self.input_param_dict:
+                # todo: assert to avoid complex params here
+                self.input_param_dict[param.param_name] = param.param_value
     def build_input(self, production=False):
         input_json_name = self.adjfn("input.json")
 
