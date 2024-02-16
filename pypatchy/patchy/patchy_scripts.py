@@ -4,8 +4,8 @@ import shutil
 from pathlib import Path
 from typing import Union
 
-from .pl.plparticle import PLParticleSet, MultidentateConvertSettings
-from ..patchyio import get_writer, FWriter, LWriter
+from .pl.plparticleset import PLParticleSet, MultidentateConvertSettings
+from pypatchy.patchy.pl.patchyio import get_writer, FWriter, LWriter
 from ..util import get_input_dir
 
 

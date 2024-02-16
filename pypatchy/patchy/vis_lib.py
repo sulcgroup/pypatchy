@@ -15,8 +15,7 @@ from pypatchy.patchy.simulation_specification import PatchySimulation
 
 from ..analpipe.analysis_data import TIMEPOINT_KEY
 from .ensemble_parameter import EnsembleParameter, ParameterValue
-from .simulation_ensemble import PatchySimulationEnsemble, PipelineStepDescriptor, shared_ensemble
-
+from .simulation_ensemble import PatchySimulationEnsemble, PipelineStepDescriptor, shared_ensemble, PatchySimDescriptor
 
 import seaborn as sb
 
@@ -342,6 +341,65 @@ def plot_compare_analysis_outputs(e: PatchySimulationEnsemble,
         fig.set(ylim=(0.0, 1.0))
     fig.fig.suptitle(f"{e.export_name} Data", y=1.0)
     return fig
+
+def plot_energy(e: PatchySimulationEnsemble,
+                data_identifier: PatchySimDescriptor = tuple(),
+                curve_color_param: str = "T",
+                curve_stroke_w_param: Union[str, None] = None,
+                load_energy_step_name: str = "load_energies",
+                e_type: str= "te"
+                ):
+    """
+    quick function to plot energies
+    """
+
+    data = e.get_data(load_energy_step_name, data_identifier)
+    df = data.get()
+
+    # Assuming df is your DataFrame with the necessary columns
+    if curve_stroke_w_param is not None:
+        sortby = [curve_color_param, curve_stroke_w_param, 'timepoint']
+    else:
+        sortby = [curve_color_param, 'timepoint']
+    df = df.sort_values(by=sortby)
+
+    if curve_stroke_w_param is not None:
+        line_widths = np.linspace(1, 3, len(np.unique(df[curve_stroke_w_param])))
+
+    # Prepare color map for temperature differentiation
+    colors = plt.cm.viridis(np.linspace(0, 1, len(np.unique(df[curve_color_param]))))
+
+    plt.figure(figsize=(10, 6))
+
+    for i, param1 in enumerate(np.unique(df[curve_color_param])):
+        subset_param1 = df[df[curve_color_param] == param1]
+        if curve_stroke_w_param is not None:
+            for j, param2 in enumerate(np.unique(df[curve_stroke_w_param])):
+                subset = subset_param1[subset_param1[curve_stroke_w_param] == param2]
+
+                # Select line width based on PATCHY_alpha index
+                line_width = line_widths[j]
+
+                plt.plot(subset['timepoint'], subset[e_type], label=f'{curve_color_param}={param1}, {curve_stroke_w_param}={param2}',
+                         color=colors[i], linewidth=line_width)
+        else:
+            plt.plot(subset_param1['timepoint'], subset_param1[e_type], label=f'{curve_color_param}={param1}',
+                     color=colors[i])
+
+    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0.)
+    plt.title('Energy vs Timepoint')
+    plt.xlabel('Timepoint')
+    if e_type == "te":
+        plt.ylabel('Total Energy')
+    elif e_type == "pe":
+        plt.ylabel('Potential Energy')
+    elif e_type == "ke":
+        plt.ylabel("Kinetic Energy")
+    else:
+        raise Exception(f"Unregognized energy idenitfier {e_type}")
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
 
 class PolycubesFigure (ABC):
     """

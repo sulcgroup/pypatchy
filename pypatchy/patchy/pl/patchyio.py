@@ -10,15 +10,13 @@ from pathlib import Path
 import numpy as np
 import oxDNA_analysis_tools.UTILS.RyeReader as rr
 
-from .patchy.pl.plpatch import PLPatch
-from .patchy.pl.plparticle import PLPatchyParticle, PLParticleSet
-from .patchy.pl.plscene import PLPSimulation
-from .patchy.stage import Stage
-from .patchy_base_particle import PatchyBaseParticleType, PatchyBaseParticle, BaseParticleSet
-from .scene import Scene
-from .polycubeutil.polycubesRule import PolycubeRuleCubeType
-from .util import normalize, DENTAL_RADIUS_KEY, NUM_TEETH_KEY
-from .server_config import PatchyServerConfig, get_server_config
+from .plpatch import PLPatch
+from .plparticle import PLPatchyParticle
+from .plparticleset import PLParticleSet
+from .plscene import PLPSimulation
+from ...polycubeutil.polycubesRule import PolycubeRuleCubeType
+from ...util import normalize, DENTAL_RADIUS_KEY, NUM_TEETH_KEY
+from ...server_config import PatchyServerConfig, get_server_config
 
 
 # this approach was suggested by chatGPT.
@@ -31,8 +29,9 @@ def custom_formatter(x):
     else:
         return str(x)
 
+# TODO: new PatchyBaseWritier class which we can extend to PLBaseWriter, MGLWriter, etc.
 
-class BasePatchyWriter(ABC):
+class PLBaseWriter(ABC):
     """
     Abstract base class from which all other writer class inherits
     """
@@ -54,7 +53,7 @@ class BasePatchyWriter(ABC):
 
     @abstractmethod
     def get_input_file_data(self,
-                            scene: Scene,
+                            scene: PLPSimulation,
                             **kwargs) -> list[tuple[str, str]]:
         """
         Returns a set of tuples of str,str which should be added
@@ -82,8 +81,7 @@ class BasePatchyWriter(ABC):
 
     @abstractmethod
     def write(self,
-              scene: Scene,
-              stage: Union[Stage, None] = None,
+              scene: PLPSimulation,
               **kwargs
               ) -> dict[str, str]:
         """
@@ -101,7 +99,7 @@ class BasePatchyWriter(ABC):
     def read_top(self, top_file: str) -> SWriter.SPatchyTopology:
         pass
 
-    def write_conf(self, scene: Scene, p: Path):
+    def write_conf(self, scene: PLPSimulation, p: Path):
         assert scene.get_conf() is not None
         conf = scene.get_conf()
         rr.write_conf(str(self.directory() / p), conf)
@@ -119,7 +117,7 @@ class BasePatchyWriter(ABC):
     def read_scene(self,
                    top_file: Union[Path, str],
                    traj_file: Union[Path, str],
-                   particle_types: BaseParticleSet) -> Scene:
+                   particle_types: PLParticleSet) -> PLPSimulation:
         pass
 
     # @abstractmethod
@@ -127,7 +125,7 @@ class BasePatchyWriter(ABC):
     #     pass
 
     @abstractmethod
-    def get_scene_top(self, s: Scene) -> PatchyTopology:
+    def get_scene_top(self, s: PLPSimulation) -> PatchyTopology:
         pass
 
     class PatchyTopology(ABC):
@@ -149,7 +147,7 @@ class BasePatchyWriter(ABC):
             pass
 
 
-class FWriter(BasePatchyWriter):
+class FWriter(PLBaseWriter):
     """
     Class for writing files in the Flavian style, which uses particles.txt, patches.txt, and the Coliseum
     """
@@ -160,7 +158,7 @@ class FWriter(BasePatchyWriter):
             particle_ids = [int(p) for p in particles.split()]
         return FWriter.FPatchyTopology(particle_ids)
 
-    def get_scene_top(self, s: Scene) -> FPatchyTopology:
+    def get_scene_top(self, s: PLPSimulation) -> FPatchyTopology:
         return FWriter.FPatchyTopology(s.particles())
 
     def read_particle_types(self, patchy_file: str, particle_file: str) -> PLParticleSet:
@@ -212,7 +210,7 @@ class FWriter(BasePatchyWriter):
         return PLPatchyParticle([patches[i] for i in patch_ids], type_id=type_id)
 
     def get_input_file_data(self,
-                            scene: Scene,
+                            scene: PLPSimulation,
                             **kwargs) -> list[tuple[str, str]]:
 
         return [
@@ -256,17 +254,12 @@ class FWriter(BasePatchyWriter):
 
     def write(self,
               scene: PLPSimulation,
-              stage: Union[Stage, None] = None,
               **kwargs) -> dict[str, str]:
 
         particle_fn = kwargs["particle_file"]
         patchy_fn = kwargs["patchy_file"]
-        if stage is not None:
-            init_top = stage.adjfn(kwargs["topology"])
-            init_conf = stage.adjfn(kwargs["conf_file"])
-        else:
-            init_top = kwargs["topology"]
-            init_conf = kwargs["conf_file"]
+        init_top = kwargs["topology"]
+        init_conf = kwargs["conf_file"]
         # write top and particles/patches spec files
         # first convert particle json into PLPatchy objects (cf plpatchylib.py)
 
@@ -366,7 +359,7 @@ class FWriter(BasePatchyWriter):
     def read_scene(self,
                    top_file: Path,
                    traj_file: Path,
-                   particle_types: BaseParticleSet) -> PLPSimulation:
+                   particle_types: PLParticleSet) -> PLPSimulation:
         """
         Reads a patchy particle scene from files
         """
@@ -383,7 +376,7 @@ class FWriter(BasePatchyWriter):
             f.readline()
             ptypelist = [int(i) for i in f.readline().split()]
             for i, ptype_idx in enumerate(ptypelist):
-                ptype: PatchyBaseParticleType = particle_types.particle(ptype_idx)
+                ptype: PLPatchyParticle = particle_types.particle(ptype_idx)
                 pp = PLPatchyParticle(
                     patches=ptype.patches(),
                     particle_name=f"{ptype.name()}_{i}",
@@ -419,18 +412,18 @@ class FWriter(BasePatchyWriter):
     #         conf_file = Path(conf_file).suffix
     #     if s
 
-    class FPatchyTopology(BasePatchyWriter.PatchyTopology):
+    class FPatchyTopology(PLBaseWriter.PatchyTopology):
 
         nParticleTypes: int  # number of particle types
         topology_particles: list[int]  # list of particles, where each value is a type ID
         type_counts: dict[int, int]  # particle type ID -> count
 
-        def __init__(self, top_particles: list[Union[PatchyBaseParticle, int]]):
+        def __init__(self, top_particles: list[Union[PLPatchyParticle, int]]):
             self.topology_particles = []
             for p in top_particles:
                 if isinstance(p, int):
                     self.topology_particles.append(p)
-                elif isinstance(p, PatchyBaseParticleType):
+                elif isinstance(p, PLPatchyParticle):
                     self.topology_particles.append(p.type_id())
                 else:
                     raise Exception()
@@ -455,7 +448,7 @@ class FWriter(BasePatchyWriter):
             return self.type_counts[p]
 
 
-class JWriter(BasePatchyWriter, ABC):
+class JWriter(PLBaseWriter, ABC):
     """
     Writer class for Josh's file formats (aka ones with allostery)
     This is a modifiecation of Lorenzo's or Flavio/Petr's formats, so this
@@ -473,7 +466,7 @@ class JWriter(BasePatchyWriter, ABC):
                 ]
 
     def get_input_file_data(self,
-                            scene: Scene,
+                            scene: PLPSimulation,
                             **kwargs) -> list[tuple[str, str]]:
         return [
             ("particle_types_N", str(scene.num_particle_types())),
@@ -481,29 +474,24 @@ class JWriter(BasePatchyWriter, ABC):
         ]
 
     @abstractmethod
-    def get_patch_extras(self, particle_type: PatchyBaseParticleType, patch_idx: int) -> dict:
+    def get_patch_extras(self, particle_type: PLPatchyParticle, patch_idx: int) -> dict:
         pass
 
     @abstractmethod
-    def get_particle_extras(self, plparticle: PLPatchyParticle, particle_type: PatchyBaseParticleType) -> str:
+    def get_particle_extras(self, plparticle: PLPatchyParticle, particle_type: PLPatchyParticle) -> str:
         pass
 
     def write(self,
               scene: PLPSimulation,
-              stage: Union[Stage, None] = None,
               **kwargs
               ) -> dict[str, str]:
 
         # file info
         particle_fn = kwargs["particle_file"]
         patchy_fn = kwargs["patchy_file"]
-        if stage is not None:
-            init_top = stage.adjfn(kwargs["topology"])
-            init_conf = stage.adjfn(kwargs["conf_file"])
-        else:
-            init_top = kwargs["topology"]
-            init_conf = kwargs["conf_file"]
-        particles_type_list: BaseParticleSet = kwargs["particle_types"]
+        init_top = kwargs["topology"]
+        init_conf = kwargs["conf_file"]
+        particles_type_list: PLParticleSet = kwargs["particle_types"]
 
         # write top and particles/patches spec files
         # first convert particle json into PLPatchy objects (cf plpatchylib.py)
@@ -565,7 +553,7 @@ class JFWriter(JWriter, FWriter):
     def save_patch_to_str(self, patch_obj: PLPatch, extradict: dict) -> str:
         return FWriter.save_patch_to_str(self, patch_obj, extradict)
 
-    def get_particle_extras(self, plpartcle: PLPatchyParticle, particle_type: PatchyBaseParticleType) -> str:
+    def get_particle_extras(self, plpartcle: PLPatchyParticle, particle_type: PLPatchyParticle) -> str:
         return self.particle_type_string(plpartcle)
 
     def get_patch_extras(self, particle_type: PolycubeRuleCubeType, patch_idx: int) -> dict:
@@ -586,11 +574,11 @@ class JLWriter(JWriter):
     def read_particle_types(self, *args):
         pass
 
-    def write_top(self, topology: Scene, top_path: Union[str, Path]):
+    def write_top(self, topology: LWriter.PatchyTopology, top_path: Union[str, Path]):
         pass
 
     def read_scene(self, top_file: Union[Path, str], traj_file: Union[Path, str],
-                   particle_types: BaseParticleSet) -> Scene:
+                   particle_types: PLParticleSet) -> PLPSimulation:
         pass
 
     def particle_type_string(self, particle: PLPatchyParticle, extras: dict[str, str] = {}) -> str:
@@ -604,10 +592,10 @@ class JLWriter(JWriter):
         outs = outs + ' \n } \n'
         return outs
 
-    def get_particle_extras(self, plparticle: PLPatchyParticle, particle_type: PatchyBaseParticleType) -> str:
+    def get_particle_extras(self, plparticle: PLPatchyParticle, particle_type: PLPatchyParticle) -> str:
         return self.particle_type_string(plparticle, {"state_size": particle_type.state_size()})
 
-    def get_patch_extras(self, particle_type: PatchyBaseParticleType, patch_idx: int) -> dict:
+    def get_patch_extras(self, particle_type: PLPatchyParticle, patch_idx: int) -> dict:
         # adjust for patch multiplier from multiparticale_patchesdentate
         state_var = particle_type.patch(patch_idx).state_var()
         activation_var = particle_type.patch(patch_idx).activation_var()
@@ -617,7 +605,7 @@ class JLWriter(JWriter):
         }
 
 
-class LWriter(BasePatchyWriter):
+class LWriter(PLBaseWriter):
     """
     Class for writing data in Lorenzo's patch particle format
     """
@@ -652,7 +640,7 @@ class LWriter(BasePatchyWriter):
                 particle_type_counts[pid] = nInstances
         return LWriter.LPatchyTopology(PLParticleSet(particle_types), particle_type_counts)
 
-    def get_scene_top(self, s: Scene) -> LPatchyTopology:
+    def get_scene_top(self, s: PLPSimulation) -> LPatchyTopology:
         return LWriter.LPatchyTopology(s.particle_types(), s.particle_type_counts())
 
     def read_particle_types(self, topology: str, DPS_interaction_matrix_file: str) -> PLParticleSet:
@@ -715,10 +703,13 @@ class LWriter(BasePatchyWriter):
                                                topology.particle_type_count(ptype.type_id())) + "\n")
 
     def read_scene(self, top_file: Union[Path, str], traj_file: Union[Path, str],
-                   particle_types: BaseParticleSet) -> Scene:
+                   particle_types: PLParticleSet) -> PLPSimulation:
         top: LWriter.PatchyTopology = self.read_top(top_file)
+        scene = PLPSimulation()
+        scene.set_particle_types()
+        return
 
-    def get_input_file_data(self, scene: Scene, **kwargs) -> list[tuple[str, str]]:
+    def get_input_file_data(self, scene: PLPSimulation, **kwargs) -> list[tuple[str, str]]:
         return [("DPS_interaction_matrix_file", "interactions.txt")]
 
     def reqd_args(self) -> list[str]:
@@ -726,7 +717,6 @@ class LWriter(BasePatchyWriter):
 
     def write(self,
               scene: PLPSimulation,
-              stage: Union[Stage, None] = None,
               **kwargs
               ) -> dict[str, str]:
         assert self.directory() is not None, "No writing directory specified!"
@@ -764,7 +754,7 @@ class LWriter(BasePatchyWriter):
                 ]
             )
 
-    class LPatchyTopology(BasePatchyWriter.PatchyTopology):
+    class LPatchyTopology(PLBaseWriter.PatchyTopology):
         """
         Lorenzian topology includes particle type info
         """
@@ -826,18 +816,18 @@ class LWriter(BasePatchyWriter):
         return particle_str
 
 
-class SWriter(BasePatchyWriter):
+class SWriter(PLBaseWriter):
     """
     Subhian patchy file writer
     """
 
-    def get_input_file_data(self, scene: Scene, **kwargs) -> list[tuple[str, str]]:
+    def get_input_file_data(self, scene: PLPSimulation, **kwargs) -> list[tuple[str, str]]:
         return []  # none
 
     def reqd_args(self) -> list[str]:
         return ["conf_file", "topology"]  # note
 
-    def write(self, scene: Scene, stage: Union[Stage, None] = None, **kwargs) -> dict[str, str]:
+    def write(self, scene: PLPSimulation, **kwargs) -> dict[str, str]:
         """
         writes scene at specified stage to a file, returns a set of parameters to write to input file
         """
@@ -956,7 +946,7 @@ class SWriter(BasePatchyWriter):
     def read_scene(self,
                    top_file: Union[Path, str],
                    traj_file: Union[Path, str],
-                   particle_types: BaseParticleSet) -> Scene:
+                   particle_types: PLParticleSet) -> PLPSimulation:
         top = self.read_top(top_file)
         traj_file = self.directory() / traj_file
         # terrified of this line of code, i do not think the ryereader method will play nice with subhajit's format
@@ -971,7 +961,7 @@ class SWriter(BasePatchyWriter):
     def get_scene_top(self, s: PLPSimulation) -> SPatchyTopology:
         return SWriter.SPatchyTopology(s.particle_types(), s.particle_type_counts())
 
-    class SPatchyTopology(BasePatchyWriter.PatchyTopology):
+    class SPatchyTopology(PLBaseWriter.PatchyTopology):
         _particle_set: PLParticleSet
         _particle_type_counts: dict[int, int]
 
@@ -1005,13 +995,13 @@ __writers = {
 }
 
 
-def get_writer(writer_key: Union[str, None] = None) -> BasePatchyWriter:
+def get_writer(writer_key: Union[str, None] = None) -> PLBaseWriter:
     if writer_key is None:
         writer_key = get_server_config().patchy_format
     return __writers[writer_key]
 
 
-def register_writer(writer_name: str, writer_obj: BasePatchyWriter):
+def register_writer(writer_name: str, writer_obj: PLBaseWriter):
     __writers[writer_name] = writer_obj
 
 def writer_options() -> list[str]:

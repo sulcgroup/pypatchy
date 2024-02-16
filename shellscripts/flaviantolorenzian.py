@@ -2,7 +2,7 @@ import os
 import sys
 
 from pypatchy.patchy.patchy_scripts import convert_flavian_to_lorenzian
-from pypatchy.patchyio import get_writer
+from pypatchy.patchy.pl.patchyio import get_writer
 
 # usage: flaviantolorenzian.py [patch file] [particle file] [top file]
 

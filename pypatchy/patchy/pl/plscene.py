@@ -2,30 +2,61 @@ from __future__ import annotations
 
 import copy
 import itertools
+import math
 import random
-from typing import Union, Iterable
+from typing import Union, Iterable, Generator
 
 import numpy as np
+from oxDNA_analysis_tools.UTILS.RyeReader import inbox
 from oxDNA_analysis_tools.UTILS.data_structures import Configuration
 
-
-from pypatchy.patchy.pl.plparticle import PLPatchyParticle, PLParticleSet, MultidentateConvertSettings
+from pypatchy.patchy.pl.plparticle import PLPatchyParticle
+from pypatchy.patchy.pl.plparticleset import PLParticleSet, MultidentateConvertSettings
 from pypatchy.patchy.pl.plpatch import PLPatch
+from pypatchy.patchy.pl.plpotential import PLPotential
 from pypatchy.scene import Scene
 from pypatchy.util import dist
 
 PATCHY_CUTOFF = 0.18
 
 
-class PLPSimulation(Scene):
+class PLPCell:
+    idxs: np.ndarray
+    startcoords: np.ndarray
+    endcoords: np.ndarray
+    particles: list[PLPatchyParticle]
 
+    def __init__(self, idxs: np.ndarray, startcoords: np.ndarray, endcoords: np.ndarray):
+        self.startcoords = startcoords
+        self.endcoords = endcoords
+        self.idxs = idxs
+        self.particles = []
+
+
+class PLPSimulation(Scene):
+    """
+    Class for a patchy particle simulation.
+    Note: in case the fact that this is written in Python doesn't make this abundantly clear,
+    this class is NOT INTENDED FOR RUNNING MOLECULAR DYNAMICS SIMULATIONS!!!!
+    Hence why as of this time I have not written methods for forces - only energies
+    """
+    # TODO: togglable periodic boundry conditions
     _box_size: np.ndarray
     _particle_types: PLParticleSet
+    _temperature: float
     _E_tot: float
     _E_pot: float
     _E_kin: float
 
     _time: int
+
+    # todo: more with this
+    potentials: list[PLPotential]
+    cells_shape: tuple[int, int, int]  # n x cells, n y cells, n z cells
+    cells: dict[tuple[int, int, int], PLPCell]
+    particle_cells: dict[int, PLPCell]  # maps each particle idx to its cell
+    cell_size: float  # cells should be cubic
+    cells_matrix_dimensions: np.ndarray  # num x, num y, num z
 
     def __init__(self, seed=69):
         super().__init__()
@@ -34,14 +65,76 @@ class PLPSimulation(Scene):
         self._E_pot = 0.
         self._E_kin = 0.
         self._time = 0
+        self._temperature = 0
 
         random.seed(seed)
 
         self._colorbank = []
+        # TODO: more specificity
+        self.potentials = []
+        self.cell_size = 0
+        self.cells = None
+        self.particle_cells = None
 
-    def set_radius(self, radius):
-        for p in self._particles:
-            p.set_radius(radius)
+    def get_cell(self, coords: np.ndarray) -> PLPCell:
+        cell = np.floor(coords / self.cell_size)
+        return self.cells[tuple(cell.astype(int))]
+
+    def apportion_cells(self, cell_size: float = None, n_cells: int = None):
+        """
+        Apportions particles to cells
+        """
+
+        # TODO: incl. warnings if cells are too small
+        if n_cells is None and cell_size is None:
+            if self.cell_size == 0:
+                n_cells = math.ceil((self.num_particles() / 2) ** (1 / 3))
+        if self.cell_size == 0 and n_cells is not None:
+            cell_size = self.box_size().max() / n_cells
+        self.cell_size = cell_size
+        assert self.cell_size is not None and self.cell_size > 0
+
+        xs = np.arange(stop=self._box_size[0], step=cell_size)
+        ys = np.arange(stop=self._box_size[1], step=cell_size)
+        zs = np.arange(stop=self._box_size[2], step=cell_size)
+        self.cells_matrix_dimensions = np.array([xs.size, ys.size, zs.size])
+        if self.cells is None:
+            self.cells = dict()
+            self.particle_cells = dict()
+            for xidx, x in enumerate(xs):
+                for yidx, y in enumerate(ys):
+                    for zidx, z in enumerate(zs):
+                        cell = PLPCell(
+                            np.array([xidx, yidx, zidx]),
+                            np.array([x, y, z]),
+                            np.array([xs[xidx + 1] if xidx + 1 < xs.size else self.box_size()[0],
+                                      ys[yidx + 1] if yidx + 1 < ys.size else self.box_size()[1],
+                                      zs[zidx + 1] if zidx + 1 < zs.size else self.box_size()[2]
+                                      ])
+                        )
+                        self.cells[(xidx, yidx, zidx)] = cell
+        for particle in self.particles():
+            assert (particle.position() >= 0).all(), "Conf is not inboxed!!"
+            cell = self.get_cell(particle.position())
+            # if cell.startcoords <= particle.position() < cell.endcoords:
+            cell.particles.append(particle)
+            self.particle_cells[particle.get_id()] = cell
+
+        # assert all([cell is not None for cell in self.particle_cells]), "Failed to place all particles in cells!"
+
+
+    def inbox(self):
+        """
+        moves all particles to inside the box
+        """
+        assert (self._box_size > 0).all()
+        self.set_conf(inbox(self.get_conf()))
+
+    def set_temperature(self, t: float):
+        self._temperature = t
+
+    def T(self) -> float:
+        return self._temperature
 
     def generate_random_color(self, particle_id=-1) -> str:
         # random.seed(seed)
@@ -56,27 +149,67 @@ class PLPSimulation(Scene):
     def translate(self, translation_vector: np.ndarray):
         for p in self._particles:
             p.translate(translation_vector)
+        if self.particle_cells is not None:
+            self.apportion_cells()
 
     def box_size(self) -> np.ndarray:
         return self._box_size
 
     def set_box_size(self, box: Union[np.ndarray, list]):
         self._box_size = np.array(box)
+        # clear cells
+        if self.particle_cells is not None:
+            self.particle_cells = None
+            self.cells = None
+            self.apportion_cells()
 
-    def check_for_particle_overlap(self, particle: PLPatchyParticle, dist_cutoff=1.0) -> bool:
+    def interaction_cells(self, cell: PLPCell) -> Generator[PLPCell]:
+        """
+        iterates cells that can interact with particles in the cell passed as an arg, in no particular order
+        incl. cell
+        """
+        # TODO: better efficiency
+        for x in range(-1, 1):
+            for y in range(-1, 1):
+                for z in range(-1, 1):
+                    idxs = (np.array([x, y, z]) + cell.idxs) % self.cells_matrix_dimensions
+                    yield self.cells[tuple(idxs)]
+
+    def interaction_particles(self, p: Union[np.ndarray, PLPatchyParticle]) -> Generator[PLPatchyParticle]:
+        """
+        iterates particles that can interact with this particle, in no particlar order
+        """
+        for cell in (self.interaction_cells(self.particle_cells[p.get_id()]
+                            if isinstance(p, PLPatchyParticle) else self.get_cell(p))):
+            for particle in cell.particles:
+                if isinstance(p, np.ndarray) or particle.get_id() != p.get_id():
+                    yield particle
+
+    def check_for_particle_overlap(self, particle: PLPatchyParticle, boltzmann: bool = True) -> bool:
         """
         Checks if a particle overlaps any other particles in the simulation.
         Returns:
             true if the particle overlaps another particle, false otherwise
         """
         # print 'Adding ', particle.cm_pos
-        for p in self._particles:
-            dist = self.dist_2particles(particle, p)
-            # print ' Looking at distance from ', p.cm_pos,dist
-            if dist <= dist_cutoff:
-                # print 'Unfortunately overlaps with ',p.cm_pos,dist
+        # please god let this be inboxed
+        for p2 in self.interaction_particles(particle.position()):
+            e = self.interaction_energy(particle, p2)
+            if boltzmann:  # enable stochastic checking
+                # boltzmann factor = e^(-energy / kT)
+                boltzmann_factor = math.exp(-e / self.T())
+                # if boltzmann factor is less than rng 0:1.0
+                if boltzmann_factor < random.random():
+                    return True
+            elif e > 0:  # TODO: better energy cutoff?
                 return True
-                # print 'Check is fine!'
+
+            # dist = self.dist_2particles(particle, p)
+            # # print ' Looking at distance from ', p.cm_pos,dist
+            # if dist <= dist_cutoff:
+            #     # print 'Unfortunately overlaps with ',p.cm_pos,dist
+            #     return True
+            #     # print 'Check is fine!'
         return False
 
     def add_particles(self, particles: list[PLPatchyParticle], strict_check=True):
@@ -89,6 +222,12 @@ class PLPSimulation(Scene):
         for p in self.particles():
             if p.get_type() not in saved_types.keys():
                 saved_types[p.get_type()] = copy.deepcopy(p)
+
+    def add_particle(self, p: PLPatchyParticle):
+        super().add_particle(p)
+        cell = self.get_cell(p.position())
+        cell.particles.append(p)
+        self.particle_cells[p.get_id()] = cell
 
     def insert_particle(self,
                         particle: PLPatchyParticle,
@@ -121,7 +260,7 @@ class PLPSimulation(Scene):
 
     def add_particle_rand_positions(self, particles: Iterable[PLPatchyParticle],
                                     nTries=1e3,
-                                    overlap_min_dist: float=1.0):
+                                    overlap_min_dist: float = 1.0):
         # loop particles
         for p in particles:
             t = 0
@@ -348,26 +487,39 @@ class PLPSimulation(Scene):
             a3s
         )
 
+    def set_conf(self, conf: Configuration, auto_inbox: bool = True):
+        """
+        sets particle positions from conf
+        """
+        if auto_inbox:
+            conf = inbox(conf)
+        # set scene time
+        self.set_time(conf.time)
+        # set scene energy
+        self._E_pot, self._E_kin, self._E_tot = conf.energy
+        # set box size
+        self._box_size = conf.box
+        # check conf size
+        assert conf.positions.shape[1] == self.num_particles(), f"Mismatch between num particles in scene" \
+                                                                f" ({self.num_particles()}) and conf" \
+                                                                f" ({conf.positions.shape[1]})"
+        # set particle positions, a1s, a3s
+        for i, p in enumerate(self.particles()):
+            p.set_position(conf.positions[i, :])
+            p.a1 = conf.a1s[i, :]
+            p.a3 = conf.a3s[i, :]
+
     def set_time(self, t):
         self._time = t
 
-    def patchy_interaction_strength(self, p1: PLPatchyParticle, p2: PLPatchyParticle) -> float:
+    def interaction_energy(self, p1: PLPatchyParticle, p2: PLPatchyParticle) -> float:
         """
-        Computes the energy of the patch-patch iteraction strength between two particles.
-        does not consider hard-sphere repulsiob potential
-        # TODO: FINISH WRITING
+        computes the interaction potential between two particles
         """
-        energy = 0
-        for p1patch, p2patch in zip(p1.patches(), p2.patches()):
-            # check if patches are complimentary
-            if p1patch.can_bind(p2patch):
-                # check binding geometry
-                # (warning: sus)
-                patch1_pos = p1.patch_position(p1patch)
-                patch2_pos = p2.patch_position(p2patch)
-                # todo: verify that this behavior is correct!
-                d = dist(patch1_pos, patch2_pos)
-                # 4 * patch.width = 2 x patch radius x 2 patches
+        e = 0.
+        for potential_function in self.potentials:
+            e += potential_function.energy(p1, p2)
+        return e
 
     def particles_bound(self,
                         p1: Union[PLPatchyParticle, int],
@@ -402,11 +554,11 @@ class PLPSimulation(Scene):
         return False
 
     def to_multidentate(self, *args, **kwargs) -> PLPSimulation:
-                        # dental_radius: float,
-                        # num_teeth: int,
-                        # torsion: bool = True,
-                        # follow_surf: bool = False
-                        # ) -> PLPSimulation:
+        # dental_radius: float,
+        # num_teeth: int,
+        # torsion: bool = True,
+        # follow_surf: bool = False
+        # ) -> PLPSimulation:
         """
         Returns a multidentate version of the scene
         """
@@ -466,4 +618,3 @@ class PLPSimulation(Scene):
             mdt_scene.add_particle(mdt_particle)
         mdt_scene.set_box_size(self.box_size())
         return mdt_scene
-

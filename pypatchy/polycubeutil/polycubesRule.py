@@ -14,7 +14,8 @@ from .effect import Effect, StringConditionalEffect, DynamicEffect, Environmenta
 from ..util import rotAroundAxis, selectColor, powerset
 import re
 
-from pypatchy.util import rotation_matrix, from_xyz, to_xyz, getSignedAngle
+from ipy_oxdna.util import rotation_matrix
+from ..util import from_xyz, to_xyz, getSignedAngle
 from pypatchy.patchy_base_particle import PatchyBaseParticleType, BasePatchType, BaseParticleSet
 
 import drawsvg as draw

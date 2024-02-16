@@ -2,20 +2,16 @@ from __future__ import annotations
 
 import itertools
 import math
-from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Union
 
 import numpy as np
-from Bio.SVDSuperimposer import SVDSuperimposer
 
 from .pl.plparticle import PLPatchyParticle
 from .pl.plpatch import PLPatch
-from ..patchy_base_particle import PatchyBaseParticle, BasePatchType
+from ..patchy_base_particle import PatchyBaseParticle
 
-from ..dna_structure import DNAStructure, DNABase, DNAStructureStrand
-from .mgl import MGLParticle
-from ..util import is_sorted
+from ipy_oxdna.dna_structure import DNAStructure, DNABase, DNAStructureStrand
 
 
 class DNAParticle (DNAStructure):

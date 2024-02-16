@@ -2,9 +2,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Union
 
-from .pl.plparticle import PLParticleSet, MultidentateConvertSettings
+from .pl.plparticleset import PLParticleSet, MultidentateConvertSettings
 # from ..patchyio import get_writer # TODO: sort out this spaghtii
-from ..util import get_input_dir
 
 PARTICLE_TYPES_KEY = "particle_types"
 MDT_CONVERT_KEY = "mdt_convert"

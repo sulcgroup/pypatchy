@@ -22,9 +22,6 @@ from ipy_oxdna.oxdna_simulation import SimulationManager, Simulation
 
 from .simulation_specification import get_param_set
 
-from .ensemble_parameter import MDTConvertParams, ParameterValue, ParticleSetParam, parameter_value
-from .pl.plparticle import MultidentateConvertSettings, PLParticleSet
-
 from ..patchy.patchy_scripts import lorenzian_to_flavian
 from ..analpipe.analysis_pipeline import AnalysisPipeline
 from .pl.plscene import PLPSimulation
@@ -32,14 +29,14 @@ from .stage import Stage, NoStageTrajError, IncompleteStageError, StageTrajFileE
 from ..analpipe.analysis_data import PDPipelineData, TIMEPOINT_KEY
 from ..analpipe.analysis_pipeline_step import *
 from .patchy_sim_observable import PatchySimObservable, observable_from_file
-from ..patchyio import get_writer, BasePatchyWriter, FWriter
+from pypatchy.patchy.pl.patchyio import get_writer, PLBaseWriter, FWriter
 from ..server_config import load_server_settings, PatchyServerConfig, get_server_config
 from ..slurm_log_entry import SlurmLogEntry
 from ..slurmlog import SlurmLog
 from ..util import *
 from .ensemble_parameter import *
 from .simulation_specification import PatchySimulation, ParamSet, NoSuchParamError
-from .pl.plpatchylib import to_PL, polycube_rule_to_PL, load_pl_particles
+from .pl.plpatchylib import polycube_rule_to_PL, load_pl_particles
 from ..polycubeutil.polycubesRule import PolycubesRule
 
 
@@ -63,6 +60,7 @@ def describe_param_vals(*args) -> str:
     return "_".join([str(v) for v in args])
 
 
+# i'm well beyond the point where i understand this type
 PatchySimDescriptor = Union[tuple[Union[ParameterValue, tuple[str, Any]], ...],
                             PatchySimulation,
                             list[Union[tuple[ParameterValue, ...], PatchySimulation],
@@ -404,7 +402,7 @@ class PatchySimulationEnsemble:
     server_settings = PatchyServerConfig
 
     # output writer
-    writer: BasePatchyWriter
+    writer: PLBaseWriter
 
     def __init__(self,
                  export_name: str,
@@ -1353,6 +1351,7 @@ class PatchySimulationEnsemble:
 
             # generate conf
             scene = PLPSimulation()
+            scene.set_temperature(self.sim_get_param(sim, "T"))
             particle_set = self.sim_get_particles_set(sim)
             # patches will be added automatically
             scene.set_particle_types(particle_set)
@@ -1377,7 +1376,6 @@ class PatchySimulationEnsemble:
 
         # write top, conf, and others
         files = self.writer.write(scene,
-                                  stage,
                                   **reqd_extra_args)
 
         # update top and dat files in replacer dict
@@ -1408,7 +1406,9 @@ class PatchySimulationEnsemble:
             for stage in self.sim_get_stages(sim):
                 if (self.folder_path(sim, stage) / "last_conf.dat").exists():
                     # read data
-                    sim_folder_path = write_path / (self.long_name() + "_flav") / sim.get_folder_path() / stage.name()
+                    sim_folder_path = write_path / (self.long_name() + "_flav") / sim.get_folder_path()
+                    if stage.idx() > 0:
+                        sim_folder_path = sim_folder_path / stage.name()
                     sim_folder_path.mkdir(parents=True)
                     lorenzian_to_flavian(self.folder_path(sim, stage), sim_folder_path)
                 else:
@@ -1851,7 +1851,9 @@ class PatchySimulationEnsemble:
         if isinstance(selector, PatchySimulation):
             return False
         try:
-            assert all([self.param_value_valid(pv) for pv in selector]), f"Invalid selector {selector}"
+            assert all([
+                ParameterValue(param_name=pv[0], param_value=pv[1]) if isinstance(pv, tuple)
+                           else self.param_value_valid(pv) for pv in selector]), f"Invalid selector {selector}"
             # if all provided items in selector are either in the ensemble parameters or are used in aggregation
             if len(selector) + len(exceptions) == self.num_ensemble_parameters():
                 return False
@@ -1896,8 +1898,11 @@ class PatchySimulationEnsemble:
         # DATA AGGREGATION!!!
         # second thing: check if the provided simulation selector is incomplete, a
         # nd that this isn't an aggregate step (which expects incomplete selectors)
-        if (isinstance(step, AggregateAnalysisPipelineStep) and self.is_multiselect(sim, step.params_aggregate_over)) \
-                or (not isinstance(step, AggregateAnalysisPipelineStep) and self.is_multiselect(sim)):
+
+        # if you try to actually use an aggregate step the sun will expand and swallow the earth
+        is_aggregate_params: bool = isinstance(step, AggregateAnalysisPipelineStep) and self.is_multiselect(sim, step.params_aggregate_over)
+        is_multiparam: bool = not isinstance(step, AggregateAnalysisPipelineStep) and self.is_multiselect(sim)
+        if is_aggregate_params or is_multiparam:
             # if the simulation selector provided doesn't line up with the aggregation params
             # (or the step isn't an aggregation step), this method will return a grouping of results. somehow.
             simulations_list: list[PatchySimulation] = self.get_simulation(*sim)
