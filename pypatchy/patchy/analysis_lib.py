@@ -4,7 +4,6 @@ import re
 from pathlib import Path
 from typing import Union
 
-import matplotlib
 import networkx as nx
 import numpy as np
 import pandas as pd
@@ -28,7 +27,7 @@ from ..analpipe.analysis_data import PDPipelineData, ObjectPipelineData, TIMEPOI
 
 import drawsvg as draw
 
-from ..patchyio import get_writer
+from pypatchy.patchy.pl.patchyio import get_writer
 from ..polycubeutil.polycubesRule import PolycubesRule
 from ..polycubeutil.polycube_structure import PolycubeStructure
 from ..util import get_input_dir

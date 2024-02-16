@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 import json
+import math
 import os
 import re
 from pathlib import Path
@@ -11,6 +12,8 @@ import numpy as np
 
 from ipy_oxdna.oxdna_simulation import BuildSimulation, Simulation, Input
 
+from .ensemble_parameter import MDT_CONVERT_KEY
+from .pl.plpatchylib import polycube_to_pl
 from .simulation_specification import NoSuchParamError
 from ..patchy.simulation_specification import PatchySimulation
 from .pl.plscene import PLPSimulation
@@ -208,6 +211,8 @@ class Stage(BuildSimulation):
 
     def apply(self, scene: PLPSimulation):
         scene.set_box_size(self.box_size())
+        # TODO: compute cell sizes using something other than "pull from rectum"
+        scene.apportion_cells(n_cells=math.ceil((self.num_particles_to_add() / 2) ** (1/3)))
         assert all(self.box_size()), "Box size hasn't been set!!!"
         if self._add_method == "RANDOM":
             particles = [copy.deepcopy(scene.particle_types().particle(i)) for i in self._particles_to_add]
@@ -219,6 +224,8 @@ class Stage(BuildSimulation):
             elif mode == "from_polycubes":
                 with open(get_input_dir() / src, "r") as f:
                     pc = PolycubeStructure(json.load(f))
+                    pl = polycube_to_pl(pc, self.getctxt().sim_get_param(self.spec(), MDT_CONVERT_KEY))
+                    pl.apportion_cells()
                     # TODO: the rest of this
 
     def adjfn(self, file_name: str) -> str:

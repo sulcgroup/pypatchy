@@ -7,17 +7,19 @@ import numpy as np
 
 from ..ensemble_parameter import PARTICLE_TYPES_KEY
 from ..mgl import MGLParticle, MGLScene, MGLParticleSet
-from .plparticle import PLParticleSet, PLPatchyParticle, PLSourceMap, MultidentateConvertSettings
+from .plparticle import PLPatchyParticle
+from .plparticleset import PLParticleSet, PLSourceMap, MultidentateConvertSettings
 from .plpatch import PLPatch
 from .plscene import PLPSimulation
 from ...patchy_base_particle import BaseParticleSet
-from ...patchyio import writer_options, get_writer
+from pypatchy.patchy.pl.patchyio import writer_options, get_writer
 from ...polycubeutil.polycube_structure import PolycubeStructure
 from ...polycubeutil.polycubesRule import PolycubesRule
 from ...util import to_xyz, halfway_vector, normalize, get_input_dir
 
 
 def to_PL(particle_set: BaseParticleSet,
+          mdt_convert: Union[MultidentateConvertSettings, None] = None,
           num_teeth: int = 1,
           dental_radius: float = 0.) -> PLParticleSet:
     """
@@ -39,9 +41,11 @@ def to_PL(particle_set: BaseParticleSet,
         raise Exception("Unrecognized particle types!!")
 
     # do multidentate convert
-    if num_teeth > 1:
-        particles = particles.to_multidentate(MultidentateConvertSettings(dental_radius=dental_radius,
-                                                                          n_teeth=num_teeth))
+    if mdt_convert is None:
+        mdt_convert = MultidentateConvertSettings(n_teeth=num_teeth, dental_radius=dental_radius)
+
+    if mdt_convert.n_teeth > 1:
+        particles = particles.to_multidentate(mdt_convert)
 
     assert particles.num_particle_types() == particle_set.num_particle_types(), \
         f"Bad conversion! Number of particle types produced {particles.num_particle_types()} not equal to number of particles" \
@@ -111,6 +115,7 @@ def PL_to_rule(particles: list[PLPatchyParticle], ) -> Union[None, PolycubesRule
 
 
 def polycube_to_pl(polycube: PolycubeStructure,
+                   mdt_convert: Union[MultidentateConvertSettings, None] = None,
                    nteeth=1,
                    dental_radius=0,
                    pad_frac: float = 0.1) -> PLPSimulation:

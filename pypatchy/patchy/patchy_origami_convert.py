@@ -16,14 +16,14 @@ from .pl.plpatchylib import mgl_to_pl
 from .pl.plparticle import PLPatchyParticle
 from .pl.plpatch import PLPatch
 from .pl.plscene import PLPSimulation
-from ..dna_structure import construct_strands, BASE_BASE, rc, POS_BASE, DNAStructure, DNAStructureStrand
+from ipy_oxdna.dna_structure import construct_strands, BASE_BASE, rc, POS_BASE, DNAStructure, DNAStructureStrand
 
 from random import choice
 import itertools
 
 from ..patchy.mgl import MGLPatch, MGLScene
 from ..patchy_base_particle import PatchyBaseParticle
-from ..util import dist, normalize, get_output_dir, getSignedAngle
+from ..util import dist, normalize, get_output_dir
 
 
 # todo: MORE PARAMETERS
