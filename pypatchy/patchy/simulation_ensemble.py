@@ -1313,7 +1313,6 @@ class PatchySimulationEnsemble:
         """
         Writes any/all nessecary files
         """
-
         if stage is None:
             try:
                 # get most recent stage
