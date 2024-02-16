@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="pypatchy",
-    version="0.2.1",
+    version="0.2.2",
     packages=find_packages(),
     install_require=[
         'ipy_oxdna @ git+https://github.com/mlsample/ipy_oxDNA.git'
