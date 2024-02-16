@@ -9,6 +9,7 @@ from typing import Union, Iterable, Generator
 import numpy as np
 from oxDNA_analysis_tools.UTILS.RyeReader import inbox
 from oxDNA_analysis_tools.UTILS.data_structures import Configuration
+from pypatchy.patchy.pl.plpotential import PLPCell
 
 from .plparticle import PLPatchyParticle
 from .plparticleset import PLParticleSet, MultidentateConvertSettings
@@ -18,19 +19,6 @@ from ...scene import Scene
 from ...util import dist
 
 PATCHY_CUTOFF = 0.18
-
-
-class PLPCell:
-    idxs: np.ndarray
-    startcoords: np.ndarray
-    endcoords: np.ndarray
-    particles: list[PLPatchyParticle]
-
-    def __init__(self, idxs: np.ndarray, startcoords: np.ndarray, endcoords: np.ndarray):
-        self.startcoords = startcoords
-        self.endcoords = endcoords
-        self.idxs = idxs
-        self.particles = []
 
 
 class PLPSimulation(Scene):
@@ -519,7 +507,8 @@ class PLPSimulation(Scene):
         """
         e = 0.
         for potential_function in self.potentials:
-            e += potential_function.energy(p1, p2)
+            # TODO: non-periodic or semi-periodic dimensions
+            e += potential_function.energy(self.box_size(), p1, p2)
         return e
 
     def particles_bound(self,
