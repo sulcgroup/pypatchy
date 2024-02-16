@@ -231,7 +231,8 @@ class Stage(BuildSimulation):
             b=677.505671539  # from flavio's code
         ))
         # TODO: compute cell sizes using something other than "pull from rectum"
-        scene.apportion_cells(n_cells=math.ceil((self.num_particles_to_add() / 2) ** (1/3)))
+        ncells = math.ceil((self.num_particles_to_add() / 2) ** (1/3) / 2)
+        scene.apportion_cells(n_cells=ncells)
         assert all(self.box_size()), "Box size hasn't been set!!!"
         if self._add_method == "RANDOM":
             particles = [copy.deepcopy(scene.particle_types().particle(i)) for i in self._particles_to_add]
