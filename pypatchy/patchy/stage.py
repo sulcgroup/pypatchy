@@ -11,6 +11,7 @@ from typing import Union, Iterable, Any
 import numpy as np
 
 from ipy_oxdna.oxdna_simulation import BuildSimulation, Simulation, Input
+from pypatchy.patchy.pl.plpotential import PLPatchyPotential, PLExclVolPotential
 
 from .ensemble_parameter import MDT_CONVERT_KEY
 from .pl.plpatchylib import polycube_to_pl
@@ -211,12 +212,30 @@ class Stage(BuildSimulation):
 
     def apply(self, scene: PLPSimulation):
         scene.set_box_size(self.box_size())
+        # add excluded volume potential
+
+        # # add patchy interaction
+        # # TODO: i'm like 99% sure we can ignore patchy interaction for this purpose
+        # if self.getctxt().sim_get_param(self.spec(), "use_torsion"):
+        #     raise Exception("Torsional patches not yet supported in this confgen! Get on it Josh!")
+        # else:
+        #     patchy_potential = PLPatchyPotential(
+        #         alpha=self.getctxt().sim_get_param(self.spec(), "PATCHY_alpha"),
+        #         rmax=0.4 * 1.5  # lorenzo's code, =0.6
+        #     )
+        #
+        # scene.add_potential(patchy_potential)
+        scene.add_potential(PLExclVolPotential(
+            rmax=0.4 * 1.5,  # from lorenzo's code, =0.6. particle radius added at runtiume
+            rstar=2 ** (1/6),  # this is the rcut used in lorenzo's code, = 1.122
+            b=677.505671539  # from flavio's code
+        ))
         # TODO: compute cell sizes using something other than "pull from rectum"
         scene.apportion_cells(n_cells=math.ceil((self.num_particles_to_add() / 2) ** (1/3)))
         assert all(self.box_size()), "Box size hasn't been set!!!"
         if self._add_method == "RANDOM":
             particles = [copy.deepcopy(scene.particle_types().particle(i)) for i in self._particles_to_add]
-            scene.add_particle_rand_positions(particles, overlap_min_dist=1)
+            scene.add_particle_rand_positions(particles)
         elif "=" in self._add_method:
             mode, src = self._add_method.split("=")
             if mode == "from_conf":

@@ -10,12 +10,12 @@ import numpy as np
 from oxDNA_analysis_tools.UTILS.RyeReader import inbox
 from oxDNA_analysis_tools.UTILS.data_structures import Configuration
 
-from pypatchy.patchy.pl.plparticle import PLPatchyParticle
-from pypatchy.patchy.pl.plparticleset import PLParticleSet, MultidentateConvertSettings
-from pypatchy.patchy.pl.plpatch import PLPatch
-from pypatchy.patchy.pl.plpotential import PLPotential
-from pypatchy.scene import Scene
-from pypatchy.util import dist
+from .plparticle import PLPatchyParticle
+from .plparticleset import PLParticleSet, MultidentateConvertSettings
+from .plpatch import PLPatch
+from .plpotential import PLPotential
+from ...scene import Scene
+from ...util import dist
 
 PATCHY_CUTOFF = 0.18
 
@@ -80,6 +80,9 @@ class PLPSimulation(Scene):
         cell = np.floor(coords / self.cell_size)
         return self.cells[tuple(cell.astype(int))]
 
+    def add_potential(self, potential: PLPotential):
+        self.potentials.append(potential)
+
     def apportion_cells(self, cell_size: float = None, n_cells: int = None):
         """
         Apportions particles to cells
@@ -121,7 +124,6 @@ class PLPSimulation(Scene):
             self.particle_cells[particle.get_id()] = cell
 
         # assert all([cell is not None for cell in self.particle_cells]), "Failed to place all particles in cells!"
-
 
     def inbox(self):
         """
@@ -259,17 +261,16 @@ class PLPSimulation(Scene):
         return np.linalg.norm(delta)
 
     def add_particle_rand_positions(self, particles: Iterable[PLPatchyParticle],
-                                    nTries=1e3,
-                                    overlap_min_dist: float = 1.0):
+                                    nTries=1e3):
         # loop particles
         for p in particles:
             t = 0
             # set max tries so it doesn't go forever
             while t < nTries:
                 # random position
-                new_pos = np.random.rand(3) * (self._box_size - overlap_min_dist) + (overlap_min_dist / 2)
+                new_pos = np.random.rand(3) * self._box_size
                 p.set_position(new_pos)
-                if not self.check_for_particle_overlap(p, overlap_min_dist):
+                if not self.check_for_particle_overlap(p):
                     break
                 t += 1
             if t == nTries:

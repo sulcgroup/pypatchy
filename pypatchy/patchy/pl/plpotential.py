@@ -5,7 +5,6 @@ import numpy as np
 
 from .plparticle import PLPatchyParticle
 from .plpatch import PLPatch
-from ...util import dist
 
 
 # TODO: forces
@@ -62,12 +61,13 @@ class PLExclVolPotential(PLPotential):
         Should usually if not always return a positive value, since excl. vol. is energetically
         unfavored (duh)
         """
+        tot_radius = p1.radius() + p2.radius()
         # if r > rmax, no interaction
         e = 0.
         r_squared = (p1.position() - p2.position()).dot(p1.position() - p2.position())
         # if r is greater than max interaction distance, no energy
         # typically this is the sum of the radii
-        if r_squared > self.rmax_sqr():
+        if r_squared > (self.rmax() + tot_radius) ** 2:
             return e
         # if r is less than the quadratic smoothing cutoff
         sigma = p1.radius() + p2.radius()
@@ -76,7 +76,8 @@ class PLExclVolPotential(PLPotential):
         if r_squared < self.rstar() ** 2:
             # no idea what "rrc" means
             rrc = math.sqrt(r_squared) - self.rstar()
-            e = self.epsilon() * self.b() * rrc ** 2
+            # amalgam of code
+            e = self.epsilon() * self.b() / (sigma ** 2) * rrc ** 2
         # normal lj, which basically means IT'S OVER 9000!!!!!
         else:
             # compute distance between surfaces
@@ -103,6 +104,9 @@ class PLPatchyPotential(PLPotential):
 
     def energy(self, p1: PLPatchyParticle, p2: PLPatchyParticle) -> float:
         e = 0.
+        distsqr = (p1.position() - p2.position()).dot(p1.position() - p2.position())
+        if distsqr > (self.rmax() + p1.radius() + p2.radius()) ** 2:
+            return e
         # TODO: could optimize more if i cared to
         for p1patch, p2patch in zip(p1.patches(), p2.patches()):
             e += self.energy_2_patch(p1, p1patch, p2, p2patch)
@@ -111,7 +115,7 @@ class PLPatchyPotential(PLPotential):
 
     def energy_2_patch(self,
                        particle1: PLPatchyParticle, patch1: PLPatch,
-                       particle2: PLPatchyParticle, patch2: PLPatch)->float:
+                       particle2: PLPatchyParticle, patch2: PLPatch) -> float:
         patch1_pos: np.ndarray = particle1.patch_position(patch1)
         patch2_pos: np.ndarray = particle2.patch_position(patch2)
         rsqr = (patch1_pos - patch2_pos).dot(patch1_pos - patch2_pos)
