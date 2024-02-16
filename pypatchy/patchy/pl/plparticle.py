@@ -462,3 +462,8 @@ class PLPatchyParticle(PatchyBaseParticleType, PatchyBaseParticle):
         if isinstance(p, int):
             return self.patch_position(self.patch(p))
         return p.position() @ self.rotmatrix() + self.position()
+
+    def instantiate(self, uid: int) -> PLPatchyParticle:
+        p = copy.deepcopy(self)
+        p.set_uid(uid)
+        return p

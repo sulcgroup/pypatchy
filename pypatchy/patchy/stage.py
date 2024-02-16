@@ -235,7 +235,8 @@ class Stage(BuildSimulation):
         scene.apportion_cells(n_cells=ncells)
         assert all(self.box_size()), "Box size hasn't been set!!!"
         if self._add_method == "RANDOM":
-            particles = [copy.deepcopy(scene.particle_types().particle(i)) for i in self._particles_to_add]
+            particles = [scene.particle_types().particle(i_type).instantiate(i)
+                         for i, i_type in enumerate(self._particles_to_add)]
             scene.add_particle_rand_positions(particles)
         elif "=" in self._add_method:
             mode, src = self._add_method.split("=")

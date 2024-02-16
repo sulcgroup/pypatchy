@@ -20,6 +20,7 @@ from ...util import dist
 
 PATCHY_CUTOFF = 0.18
 
+from pypatchy.patchy.pl.plpotential import periodic_dist_sqrd
 
 class PLPSimulation(Scene):
     """
@@ -65,8 +66,10 @@ class PLPSimulation(Scene):
         self.particle_cells = None
 
     def get_cell(self, coords: np.ndarray) -> PLPCell:
-        cell = np.floor(coords / self.cell_size)
-        return self.cells[tuple(cell.astype(int))]
+        cell_idxs = np.floor(coords / self.cell_size)
+        cell = self.cells[tuple(cell_idxs.astype(int))]
+        assert np.all((cell.startcoords < coords) & (coords < cell.endcoords))
+        return cell
 
     def add_potential(self, potential: PLPotential):
         self.potentials.append(potential)
@@ -109,7 +112,7 @@ class PLPSimulation(Scene):
             cell = self.get_cell(particle.position())
             # if cell.startcoords <= particle.position() < cell.endcoords:
             cell.particles.append(particle)
-            self.particle_cells[particle.get_id()] = cell
+            self.particle_cells[particle.get_uid()] = cell
 
         # assert all([cell is not None for cell in self.particle_cells]), "Failed to place all particles in cells!"
 
@@ -136,6 +139,16 @@ class PLPSimulation(Scene):
         else:
             return self._colorbank[particle_id]
 
+    def get_potential_energy(self) -> float:
+        """
+        computes total potential energy of the simulation from scratch
+        """
+        e = 0.
+        for i, j in itertools.combinations(range(self.num_particles()), 2):
+            e_int = self.interaction_energy(self._particles[i], self._particles[j])
+            e += e_int
+        return e
+
     def translate(self, translation_vector: np.ndarray):
         for p in self._particles:
             p.translate(translation_vector)
@@ -159,9 +172,9 @@ class PLPSimulation(Scene):
         incl. cell
         """
         # TODO: better efficiency
-        for x in range(-1, 1):
-            for y in range(-1, 1):
-                for z in range(-1, 1):
+        for x in range(-1, 2):
+            for y in range(-1, 2):
+                for z in range(-1, 2):
                     idxs = (np.array([x, y, z]) + cell.idxs) % self.cells_matrix_dimensions
                     yield self.cells[tuple(idxs)]
 
@@ -169,11 +182,14 @@ class PLPSimulation(Scene):
         """
         iterates particles that can interact with this particle, in no particlar order
         """
+        i = 0
         for cell in (self.interaction_cells(self.particle_cells[p.get_id()]
                             if isinstance(p, PLPatchyParticle) else self.get_cell(p))):
             for particle in cell.particles:
                 if isinstance(p, np.ndarray) or particle.get_id() != p.get_id():
                     yield particle
+            i += 1
+        assert i == 27
 
     def check_for_particle_overlap(self, particle: PLPatchyParticle, boltzmann: bool = True) -> bool:
         """
@@ -205,8 +221,8 @@ class PLPSimulation(Scene):
     def add_particles(self, particles: list[PLPatchyParticle], strict_check=True):
         # adds particles to the field, also initializes paricle types and patchy types based on these data
         # it overwrites any previosuly stored particle!!
-        self._particles = copy.deepcopy(particles)
-        self.N = len(particles)
+        for p in copy.deepcopy(particles):
+            self.add_particle(p)
         # now treat types:
         saved_types = {}
         for p in self.particles():
@@ -217,7 +233,7 @@ class PLPSimulation(Scene):
         super().add_particle(p)
         cell = self.get_cell(p.position())
         cell.particles.append(p)
-        self.particle_cells[p.get_id()] = cell
+        self.particle_cells[p.get_uid()] = cell
 
     def insert_particle(self,
                         particle: PLPatchyParticle,
@@ -225,7 +241,7 @@ class PLPSimulation(Scene):
         if check_overlap:
             if self.check_for_particle_overlap(particle):
                 return False
-        self._particles.append(particle)
+        self.add_particle(particle)
         if particle.type_id() not in [x.type_id() for x in self._particle_types.particles()]:
             self._particle_types.add_particle(particle)
         return True
@@ -266,6 +282,7 @@ class PLPSimulation(Scene):
             # randomize orientation
             p.set_random_orientation()
             self.add_particle(p)
+        assert self.get_potential_energy() < 0
 
     def num_particle_types(self) -> int:
         return self.particle_types().num_particle_types()
