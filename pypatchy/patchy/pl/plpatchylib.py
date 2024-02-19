@@ -119,7 +119,8 @@ def polycube_to_pl(polycube: PolycubeStructure,
                    mdt_convert: Union[MultidentateConvertSettings, None] = None,
                    nteeth=1,
                    dental_radius=0,
-                   pad_frac: float = 0.1) -> PLPSimulation:
+                   pad_cubes: float = 0.05,
+                   pad_edges: float = 0.1) -> PLPSimulation:
     pl = PLPSimulation()
     # convert polycubes rule to multidentate patchy particles
     if mdt_convert is None:
@@ -140,13 +141,14 @@ def polycube_to_pl(polycube: PolycubeStructure,
         # particle.a1 = POLYCUBE_NULL_A1
         # particle.a3 = POLYCUBE_NULL_A3
         particle.rotate(cube.rotation().as_matrix())
+        particle.set_position(particle.position() * (1+pad_cubes))
         assert pl_type.matches(particle)
         cube_particles.append(particle)
         maxs = np.max([maxs, particle.position()], axis=0)
         mins = np.min([mins, particle.position()], axis=0)
     # compute box
 
-    pad = (maxs - mins) * pad_frac + np.full(fill_value=1, shape=(3,))
+    pad = (maxs - mins) * pad_edges + np.full(fill_value=1, shape=(3,))
     pl.set_box_size(maxs - mins + 2 * pad)
 
     pl.compute_cell_size(n_particles=len(cube_particles))

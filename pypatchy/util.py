@@ -283,11 +283,13 @@ def powerset(iterable):
     s = list(iterable)
     return chain.from_iterable(combinations(s, r) for r in range(len(s) + 1))
 
+
 def pairwise(iterable: Iterable) -> Iterable[tuple]:
     # pairwise('ABCDEFG') --> AB BC CD DE EF FG
     a, b = tee(iterable)
     next(b, None)
     return zip(a, b)
+
 
 PATCHY_FILE_FORMAT_KEY = "patchy_format"
 

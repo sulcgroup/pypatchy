@@ -46,7 +46,7 @@ class CellLists:
         elif isinstance(item, int):
             return self.particle_cells[item]
         elif isinstance(item, PatchyBaseParticle):
-            return self.particle_cells[item.get_id()]
+            return self.particle_cells[item.get_uid()]
         else:
             assert isinstance(item, tuple)
             return self.cells[item]
@@ -74,7 +74,7 @@ class CellLists:
         i = 0
         for cell in self.interaction_cells(self.get_cell(p)):
             for particle in cell.particles:
-                if isinstance(p, np.ndarray) or particle.get_id() != p.get_id():
+                if isinstance(p, np.ndarray) or particle.get_uid() != p.get_uid():
                     yield particle
             i += 1
         assert i == 27

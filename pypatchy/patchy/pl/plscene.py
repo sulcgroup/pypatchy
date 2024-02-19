@@ -81,14 +81,18 @@ class PLPSimulation(Scene, CellLists):
 
     def get_potential_energy(self) -> float:
         """
-        computes total potential energy of the simulation from scratch
-        NO CELLS! if we're using a large potential this will be TIME CONSUMING
+        computes average potential energy of the simulation from scratch
         """
         e = 0.
-        for i, j in itertools.combinations(range(self.num_particles()), 2):
-            e_int = self.interaction_energy(self._particles[i], self._particles[j])
-            e += e_int
-        return e
+        checked_interactions: set[tuple] = set()
+        for p1 in self.particles():
+            for p2 in self.interaction_particles(p1):
+                pair = (p1.get_uid(), p2.get_uid()) if p1.get_uid() < p2.get_uid() else (p2.get_uid(), p2.get_uid())
+                if pair not in checked_interactions:
+                    e_int = self.interaction_energy(p1, p2)
+                    e += e_int
+                    checked_interactions.add(pair)
+        return e / self.num_particles()
 
     def translate(self, translation_vector: np.ndarray):
         for p in self._particles:
