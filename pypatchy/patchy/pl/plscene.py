@@ -189,7 +189,8 @@ class PLPSimulation(Scene, CellLists):
 
         return np.linalg.norm(delta)
 
-    def add_particle_rand_positions(self, particles: Iterable[PLPatchyParticle],
+    def add_particle_rand_positions(self,
+                                    particles: Iterable[PLPatchyParticle],
                                     nTries=1e3):
         # loop particles
         for p in particles:

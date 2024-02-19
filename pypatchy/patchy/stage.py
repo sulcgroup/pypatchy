@@ -251,7 +251,7 @@ class Stage(BuildSimulation):
                                 "THAT hard really")
             elif mode == "from_polycubes":
                 pc = load_polycube(get_input_dir() / src)
-                pl = polycube_to_pl(pc, self.getctxt().sim_get_param(self.spec(), MDT_CONVERT_KEY), pad_cubes=0.12)
+                pl = polycube_to_pl(pc, self.getctxt().sim_get_param(self.spec(), MDT_CONVERT_KEY), pad_cubes=0.13)
                 scene.add(pl, cubize_box=True)
                 # TODO: the rest of this
         else:
