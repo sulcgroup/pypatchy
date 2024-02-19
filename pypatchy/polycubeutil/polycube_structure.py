@@ -12,6 +12,7 @@ import networkx as nx
 import numpy as np
 
 from oxDNA_analysis_tools.UTILS.data_structures import Configuration
+from pypatchy.cell_lists import CellLists
 from scipy.spatial.transform import Rotation
 
 from pypatchy.vis_util import get_particle_color
@@ -24,13 +25,16 @@ from pypatchy.structure import TypedStructure, Structure
 from pypatchy.util import from_xyz, getRotations, get_input_dir
 
 
+# todo: add cell lists? probably overkill
 class PolycubeStructure(TypedStructure, Scene):
     # mypy type specs
     rule: PolycubesRule
     cubeMap: dict[bytes, PolycubesStructureCube]
 
     def __init__(self, **kwargs):
+        # TODO: refactor this constructor to be normal constructor, have make_polycube() method external
         super(PolycubeStructure, self).__init__()
+        CellLists.__init__(self)
 
         # load rule
         if "rule" in kwargs:
@@ -89,28 +93,34 @@ class PolycubeStructure(TypedStructure, Scene):
             # empty structure
             pass
 
-        # loop cube pairs (brute-forcing topology)
-        for cube1, cube2 in itertools.combinations(self._particles, 2):
-            # if cubes are adjacent
-            if np.linalg.norm(cube1.position() - cube2.position()) == 1:
-                d1 = cube2.position() - cube1.position()
-                d2 = d1 * -1
-                # if both cubes have patches on connecting faces and the patch colors match
-                if cube1.has_patch(d1) and cube2.has_patch(d2):
-                    p1 = cube1.patch(d1)
-                    p2 = cube2.patch(d2)
-                    if p1.color() == -p2.color():
-                        align1 = cube1.rotation().apply(p1.alignDir()).round()
-                        align2 = cube2.rotation().apply(p2.alignDir()).round()
-                        if (align1 == align2).all():
-                            if cube1.state(p1.state_var()) and cube2.state(p2.state_var()):
-                                # add edge in graph
-                                self.graph.add_edge(cube1.get_id(), cube2.get_id(), dirIdx=diridx(d1))
-                                self.graph.add_edge(cube2.get_id(), cube1.get_id(), dirIdx=diridx(d2))
-                                self.bindings_list.add((
-                                    cube1.get_id(), diridx(d1),
-                                    cube2.get_id(), diridx(d2)
-                                ))
+        # find topology (method courtesy of chatGPT)
+        # construct a spacial hash of cubes
+        spatial_hash = create_spatial_hash(self._particles)
+        for cell, cubes in spatial_hash.items():
+            # iter cubes
+            for cube1 in cubes:
+                # iter cells neighboring cube
+                for neighbor_cell in get_neighboring_cells(cell):
+                    for cube2 in spatial_hash.get(neighbor_cell, []):
+                        if cube1 == cube2:
+                            continue  # Skip self-comparison
+                        if np.linalg.norm(cube1.position() - cube2.position()) == 1:
+                            d1 = cube2.position() - cube1.position()
+                            d2 = d1 * -1
+                            if cube1.has_patch(d1) and cube2.has_patch(d2):
+                                p1 = cube1.patch(d1)
+                                p2 = cube2.patch(d2)
+                                if p1.color() == -p2.color():
+                                    align1 = cube1.rotation().apply(p1.alignDir()).round()
+                                    align2 = cube2.rotation().apply(p2.alignDir()).round()
+                                    if (align1 == align2).all():
+                                        if cube1.state(p1.state_var()) and cube2.state(p2.state_var()):
+                                            self.graph.add_edge(cube1.get_uid(), cube2.get_uid(), dirIdx=diridx(d1))
+                                            self.graph.add_edge(cube2.get_uid(), cube1.get_uid(), dirIdx=diridx(d2))
+                                            self.bindings_list.add((
+                                                cube1.get_uid(), diridx(d1),
+                                                cube2.get_uid(), diridx(d2)
+                                            ))
 
     def num_cubes_of_type(self, ctidx: int) -> int:
         return sum([1 for cube in self._particles if cube.get_cube_type().type_id() == ctidx])
@@ -435,3 +445,21 @@ def load_polycube(file_path: Union[Path, str]) -> PolycubeStructure:
         data = json.load(f)
         rule = PolycubesRule(rule_json=data["cube_types"])
         return PolycubeStructure(rule=rule, structure=data["cubes"])
+
+
+# these next two methods were written by chatGPT to help make topologies faster
+def create_spatial_hash(particles):
+    hash_map = defaultdict(list)
+    for cube in particles:
+        # Directly use position as the key since positions are integers
+        key = tuple(cube.position())
+        hash_map[key].append(cube)
+    return hash_map
+
+
+def get_neighboring_cells(cell: tuple) -> tuple:
+    """Generate keys for neighboring cells (including the cell itself)."""
+    for dx in [-1, 0, 1]:
+        for dy in [-1, 0, 1]:
+            for dz in [-1, 0, 1]:
+                yield cell[0] + dx, cell[1] + dy, cell[2] + dz

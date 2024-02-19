@@ -4,7 +4,6 @@ import math
 from abc import ABC, abstractmethod
 
 import numpy as np
-from pypatchy.patchy.pl.plparticle import PLPatchyParticle
 
 from .plparticle import PLPatchyParticle
 from .plpatch import PLPatch
@@ -31,7 +30,7 @@ class PLPotential(ABC):
 
     @abstractmethod
     def energy(self,
-               box: np.ndarray, # for periodic boundry conditions
+               box: np.ndarray,  # for periodic boundry conditions
                p1: PLPatchyParticle,
                p2: PLPatchyParticle,
                ) -> float:
@@ -166,6 +165,7 @@ def periodic_dist_sqrd(box: np.ndarray, p1: np.ndarray, p2: np.ndarray) -> float
     dist_sqrd = np.dot(delta, delta)
     return dist_sqrd
 
+
 class PLPTorsionalPatchyPotential(PLPatchyPotential):
     # torsional potential from https://pubs.acs.org/doi/10.1021/acsnano.2c09677
     def energy_2_patch(self,
@@ -176,15 +176,3 @@ class PLPTorsionalPatchyPotential(PLPatchyPotential):
         e = super().energy_2_patch(box, particle1, patch1, particle2, patch2)
         # TODO
 
-
-class PLPCell:
-    idxs: np.ndarray
-    startcoords: np.ndarray
-    endcoords: np.ndarray
-    particles: list[PLPatchyParticle]
-
-    def __init__(self, idxs: np.ndarray, startcoords: np.ndarray, endcoords: np.ndarray):
-        self.startcoords = startcoords
-        self.endcoords = endcoords
-        self.idxs = idxs
-        self.particles = []

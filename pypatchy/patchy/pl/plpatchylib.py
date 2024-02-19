@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import math
 from typing import Union
 
 import numpy as np
@@ -121,37 +122,47 @@ def polycube_to_pl(polycube: PolycubeStructure,
                    pad_frac: float = 0.1) -> PLPSimulation:
     pl = PLPSimulation()
     # convert polycubes rule to multidentate patchy particles
-    pl_types = to_PL(polycube.rule, nteeth, dental_radius)
+    if mdt_convert is None:
+        mdt_convert = MultidentateConvertSettings(nteeth=nteeth, dental_radius=dental_radius)
+    pl_types = to_PL(polycube.rule, mdt_convert)
     pl_types = pl_types.normalize()
     pl.set_particle_types(pl_types)
     mins = np.full(fill_value=np.inf, shape=3)
     maxs = np.full(fill_value=-np.inf, shape=3)
     # iter cubes in polycube
+    cube_particles = []
     for cube in polycube.particles():
         pl_type: PLPatchyParticle = pl_types.particle(cube.get_type())
         particle = PLPatchyParticle(copy.deepcopy(pl_type.patches()),
                                     type_id=pl_type.type_id(),
-                                    index_=cube.get_id(),
+                                    index_=cube.get_uid(),
                                     position=cube.position())
         # particle.a1 = POLYCUBE_NULL_A1
-        # particle.a3 = POLYCUBE_NULL_A3\
+        # particle.a3 = POLYCUBE_NULL_A3
         particle.rotate(cube.rotation().as_matrix())
         assert pl_type.matches(particle)
-        pl.add_particle(particle)
+        cube_particles.append(particle)
         maxs = np.max([maxs, particle.position()], axis=0)
         mins = np.min([mins, particle.position()], axis=0)
     # compute box
+
     pad = (maxs - mins) * pad_frac + np.full(fill_value=1, shape=(3,))
-    pl.translate(-mins + pad)
     pl.set_box_size(maxs - mins + 2 * pad)
 
-    # verify
-    for cube1, cube2 in polycube.iter_bound_particles():
-        assert pl.particles_bound(cube1.get_id(), cube2.get_id())
-        cube_bindngs_count = len(list(polycube.iter_binding_patches(cube1, cube2)))
-        pl_bindings_count = len(
-            list(pl.iter_binding_patches(pl.get_particle(cube1.get_id()), pl.get_particle(cube2.get_id()))))
-        # assert nteeth * cube_bindngs_count == pl_bindings_count
+    pl.compute_cell_size(n_particles=len(cube_particles))
+    pl.apportion_cells()
+    for particle in cube_particles:
+        particle.set_position(particle.position() - mins)
+    pl.add_particles(cube_particles)
+
+
+    # verify (actually please don't, this blows up the comptuer for large structures)
+    # for cube1, cube2 in polycube.iter_bound_particles():
+    #     assert pl.particles_bound(cube1.get_id(), cube2.get_id())
+    #     cube_bindngs_count = len(list(polycube.iter_binding_patches(cube1, cube2)))
+    #     pl_bindings_count = len(
+    #         list(pl.iter_binding_patches(pl.get_particle(cube1.get_id()), pl.get_particle(cube2.get_id()))))
+    #     # assert nteeth * cube_bindngs_count == pl_bindings_count
 
     return pl
 

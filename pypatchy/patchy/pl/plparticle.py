@@ -18,7 +18,6 @@ class PLPatchyParticle(PatchyBaseParticleType, PatchyBaseParticle):
     # HATE making the particle type and the particle the same class but refactoring is objectively not the
     # best use of my time
     cm_pos: np.ndarray
-    unique_id: int
     _radius: float
     v: np.ndarray
     L: np.ndarray
@@ -37,7 +36,6 @@ class PLPatchyParticle(PatchyBaseParticleType, PatchyBaseParticle):
         PatchyBaseParticleType.__init__(self, type_id, patches)
         PatchyBaseParticle.__init__(self, index_, type_id, position)
 
-        self.unique_id = index_
         self._radius = radius
         self.v = np.array([0., 0., 0.])
         self.L = np.array([0., 0., 0.])
@@ -48,18 +46,12 @@ class PLPatchyParticle(PatchyBaseParticleType, PatchyBaseParticle):
 
     def name(self) -> str:
         if self._name is None:
-            if self.unique_id:
+            if self.get_id():
                 return f"particle_{self.get_uid()}"
             else:
                 return f"particletype_{self.type_id()}"
         else:
             return self._name
-
-    def set_uid(self, new_uid: int):
-        self.unique_id = new_uid
-
-    def get_uid(self) -> int:
-        return self.unique_id
 
     def radius(self, normal: np.ndarray = np.zeros(shape=(3,))) -> float:
         """

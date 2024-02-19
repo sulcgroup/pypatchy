@@ -19,7 +19,7 @@ class ParameterValue:
     A more complex ParameterValue consists of a named group of multiple parameters
     """
     param_name: str = field()
-    param_value: Union[str, bool, float, int] = field() # only basic types allowed here
+    param_value: Union[str, bool, float, int] = field()  # only basic types allowed here
 
     def __post_init__(self):
         assert not isinstance(self.param_value, ParameterValue)
@@ -30,12 +30,16 @@ class ParameterValue:
     def __eq__(self, other: ParameterValue) -> bool:
         return self.param_name == other.param_name and self.value_name() == other.value_name()
 
-
+@dataclass
 class ParamValueGroup(ParameterValue):
     """
     grouped params
     """
     param_value: dict[str, ParameterValue]
+    valname: str
+
+    def value_name(self):
+        return self.valname
 
     def group_params_names(self) -> list[str]:
         return list(self.param_value.keys())
@@ -142,9 +146,9 @@ def parameter_value(key: str, val: Union[dict, str, int, float, bool]) -> Parame
     Constructs a ParameterValue object
     """
     if isinstance(val, dict):
+        param_name = val["name"]
         # if type key is present, paramater is a particle set or mdt convert settings or something
         if "type" in val:
-            param_name = val["name"]
             if "value" in val: # *sirens* BACKWARDS COMPATIBILITY DANGER ZONE
                 data = val["value"]
             else:
@@ -159,7 +163,7 @@ def parameter_value(key: str, val: Union[dict, str, int, float, bool]) -> Parame
                 raise Exception(f"Invalid object-parameter type {val['type']}")
         else:
             # if no type is specified this is a parameter group
-            return ParamValueGroup(key, {pkey: parameter_value(pkey, pval)
-                                     for pkey, pval in val.items()})
+            return ParamValueGroup(param_name=key, param_value={pkey: parameter_value(pkey, pval)
+                                     for pkey, pval in val.items()}, valname=val["name"])
     else:
         return ParameterValue(key, val)
