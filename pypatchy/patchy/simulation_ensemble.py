@@ -640,6 +640,12 @@ class PatchySimulationEnsemble:
             e.set_sim(sim)
             raise e
 
+    def sim_stage_get_param(self, sim: PatchySimulation, stage: Stage, param_name: str) -> Any:
+        if stage.has_var(param_name):
+            return stage.get_var(param_name)
+        else:
+            return self.sim_get_param(sim, param_name)
+
     def sim_get_particles_set(self, sim: PatchySimulation) -> PLParticleSet:
         particles: PLParticleSet = self.sim_get_param(sim, PARTICLE_TYPES_KEY)
         try:
@@ -671,7 +677,8 @@ class PatchySimulationEnsemble:
     def paramstagefile(self, sim: PatchySimulation, stage: Stage, paramname: str):
         return self.folder_path(sim) / stage.adjfn(self.sim_get_param(sim, paramname))
 
-    def get_sim_particle_count(self, sim: PatchySimulation,
+    def get_sim_particle_count(self,
+                               sim: PatchySimulation,
                                particle_idx: int) -> int:
         """
         Args:
@@ -681,31 +688,60 @@ class PatchySimulationEnsemble:
             the int
         """
         # grab particle name
-        particle_name = self.particle_set.particle(particle_idx).name()
+        particle_name = self.sim_get_particles_set(sim).particle(particle_idx).name()
         return self.sim_get_param(sim, particle_name) * self.sim_get_param(sim, NUM_ASSEMBLIES_KEY)
 
     def sim_get_stages(self, sim: PatchySimulation) -> list[Stage]:
         """
         Computes stages
         Stage objects require other ensemble parameters so must be constructed as needed and not on init
-
+        # TODO: make this dynamic, use a generator
         """
         assert isinstance(sim, PatchySimulation), "Cannot invoke this method with a parameter list!"
-        num_assemblies = self.sim_get_param(sim, "num_assemblies")
         try:
             stages_info = self.sim_get_param(sim, "stages")
             # incredibly cursed line of code incoming
-            stages_info = [{"idx": i, "name": k, **v} for i, (k, v) in
-                           enumerate(sorted(stages_info.items(), key=lambda x: x[1]["t"]))]
+            stages_info = [{"idx": i, **stage_info} for i, stage_info in
+                           enumerate(sorted(stages_info, key=lambda x: x["t"]))]
             stages = []
             # loop stages in stage list from spec
             for stage_info in stages_info:
                 # get stage idx
                 i = stage_info["idx"]
+
+                # find num assemblies
+                if "num_assemblies" in stage_info:
+                    num_assemblies = stage_info["num_assemblies"]
+                else:
+                    num_assemblies = self.sim_get_param(sim, "num_assemblies")
+
                 # get list of names of particles to add
-                stage_particles = list(itertools.chain.from_iterable([
-                    [pname] * (stage_info["particles"][pname] * num_assemblies)
-                    for pname in stage_info["particles"]]))
+                # if add_method is specified as RANDOM or is unspecified (default to RANDOM)
+                if "add_method" not in stage_info or stage_info["add_method"] == "RANDOM":
+                    if "particles" in stage_info:
+                        particle_id_lists = [
+                            [pname] * (stage_info["particles"][pname] * num_assemblies)
+                            for pname in stage_info["particles"]]
+
+                    else:
+                        particle_id_lists = [
+                            [pidx] * self.get_sim_particle_count(sim, pidx) * num_assemblies
+                            for pidx in range(self.sim_get_particles_set(sim).num_particle_types())
+                        ]
+                    stage_particles = list(itertools.chain.from_iterable(particle_id_lists))
+                else:
+                    mode, src = stage_info["add_method"].split("=")
+                    if mode == "from_conf":
+                        raise Exception(
+                            "If you're seeing this, this feature hasn't been implemented yet although it can't be"
+                            "THAT hard really")
+                    elif mode == "from_polycubes":
+                        with open(get_input_dir() / src, "r") as f:
+                            pcinfo = json.load(f)
+                            stage_particles = [
+                                # for now only cube types are important
+                                cube_info["type"] for cube_info in pcinfo["cubes"]
+                            ]
                 stage_init_args = {
                     "t": stage_info["t"],
                     "particles": stage_particles,
@@ -729,10 +765,13 @@ class PatchySimulationEnsemble:
                                     stages[i - 1] if i else None,
                                     self,
                                     stage_name,
+                                    add_method=stage_info["add_method"] if "add_method" in stage_info else "RANDOM",
                                     **stage_init_args
                                     ))
 
         except NoSuchParamError as e:
+            if e.param_name() != "stages":
+                raise e
             # if stages not found
             # default: 1 stage, density = starting density, add method=random
             particles = list(itertools.chain.from_iterable([

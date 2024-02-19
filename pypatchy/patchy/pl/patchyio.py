@@ -723,6 +723,7 @@ class LWriter(PLBaseWriter):
         assert self.directory().exists(), f"Specified writing directory {str(self.directory())} does not exist!"
 
         particles: PLParticleSet = scene.particle_types()
+        scene.sort_particles_by_type()
 
         init_top = kwargs["topology"]
         init_conf = kwargs["conf_file"]

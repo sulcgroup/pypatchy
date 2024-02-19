@@ -18,7 +18,7 @@ from .pl.plpatchylib import polycube_to_pl
 from .simulation_specification import NoSuchParamError
 from ..patchy.simulation_specification import PatchySimulation
 from .pl.plscene import PLPSimulation
-from ..polycubeutil.polycube_structure import PolycubeStructure
+from ..polycubeutil.polycube_structure import PolycubeStructure, load_polycube
 from ..util import get_input_dir, EXTERNAL_OBSERVABLES
 
 
@@ -120,6 +120,12 @@ class Stage(BuildSimulation):
     def end_time(self) -> int:
         return self.start_time() + self.time_length()
 
+    def has_var(self, key: str) -> bool:
+        return key in self._stage_vars
+
+    def get_var(self, key: str) -> Any:
+        return self._stage_vars[key]
+
     def build_dat_top(self):
         if self.is_first():
             assert self.start_time() == 0, f"Stage {self} has idx 0 but nonzero start time!"
@@ -212,6 +218,8 @@ class Stage(BuildSimulation):
 
     def apply(self, scene: PLPSimulation):
         scene.set_box_size(self.box_size())
+        scene.compute_cell_size(n_particles=self.num_particles_to_add())
+        scene.apportion_cells()
         # add excluded volume potential
 
         # # add patchy interaction
@@ -231,8 +239,6 @@ class Stage(BuildSimulation):
             b=677.505671539  # from flavio's code
         ))
         # TODO: compute cell sizes using something other than "pull from rectum"
-        ncells = math.ceil((self.num_particles_to_add() / 2) ** (1/3) / 2)
-        scene.apportion_cells(n_cells=ncells)
         assert all(self.box_size()), "Box size hasn't been set!!!"
         if self._add_method == "RANDOM":
             particles = [scene.particle_types().particle(i_type).instantiate(i)
@@ -241,13 +247,15 @@ class Stage(BuildSimulation):
         elif "=" in self._add_method:
             mode, src = self._add_method.split("=")
             if mode == "from_conf":
-                raise Exception("If you're seeing this, this feature hasn't been implemented yet")
+                raise Exception("If you're seeing this, this feature hasn't been implemented yet although it can't be"
+                                "THAT hard really")
             elif mode == "from_polycubes":
-                with open(get_input_dir() / src, "r") as f:
-                    pc = PolycubeStructure(json.load(f))
-                    pl = polycube_to_pl(pc, self.getctxt().sim_get_param(self.spec(), MDT_CONVERT_KEY))
-                    pl.apportion_cells()
-                    # TODO: the rest of this
+                pc = load_polycube(get_input_dir() / src)
+                pl = polycube_to_pl(pc, self.getctxt().sim_get_param(self.spec(), MDT_CONVERT_KEY))
+                scene.add(pl, cubize_box=True)
+                # TODO: the rest of this
+        else:
+            raise Exception(f"Invalid add method {self._add_method}")
 
     def adjfn(self, file_name: str) -> str:
         if self.idx() > 0:

@@ -34,7 +34,6 @@ class PatchyServerConfig:
                                    else self.input_file_params)
             ])
 
-
     def write_sbatch_params(self, job_name: str, slurm_file: IO):
         slurm_file.write("#!/bin/bash\n") # TODO: other shells?
 

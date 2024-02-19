@@ -115,6 +115,9 @@ class NoSuchParamError(Exception):
         errstr += f"ensemble {self._ensemble.long_name()}"
         return errstr
 
+    def param_name(self) -> str:
+        return self._param_name
+
 
 def get_param_set(filename: str) -> ParamSet:
     param_set = get_spec_json(filename, "input_files")

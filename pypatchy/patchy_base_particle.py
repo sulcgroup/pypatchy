@@ -244,8 +244,11 @@ class PatchyBaseParticle(ABC):
     def set_type(self, new_typeid: int):
         self._type_id = new_typeid
 
-    def get_id(self) -> int:
+    def get_uid(self) -> int:
         return self._uid
+
+    def set_uid(self, new_uid: int):
+        self._uid = new_uid
 
     @abstractmethod
     def rotation(self) -> Any:
