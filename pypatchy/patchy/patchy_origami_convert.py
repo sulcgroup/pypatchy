@@ -374,7 +374,7 @@ class PatchyOrigamiConverter:
         relation.rms = svd.get_rms()
         self.check_rms(relation.rms, dna)
 
-        print(f"Superimposed DNA origami on patchy particle {p.get_id()} with RMS={relation.rms}")
+        print(f"Superimposed DNA origami on patchy particle type {p.type_id()} with RMS={relation.rms}")
         print(f"RMS / circumfrance: {relation.rms / (2 * math.pi * dna.center2patch_conf())}")
         assert p.num_patches() == len(dna.patch_strand_map)
         return PatchyOriRelation(p, dna, relation.rot, relation.perm, relation.rms)
