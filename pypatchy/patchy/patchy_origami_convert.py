@@ -651,7 +651,7 @@ class PatchyOrigamiConverter:
             origami.transform(tran=particle.position() * scale_factor)
 
             # we finished the positioning
-            self.dna_particles[particle.get_id()] = origami
+            self.dna_particles[particle.get_uid()] = origami
         print()
 
     def bind_particles3p(self):
@@ -735,7 +735,7 @@ class PatchyOrigamiConverter:
         # position particles if missing
         self.get_particles()
         if isinstance(pl, PLPatchyParticle):
-            return self.get_dna_particle(pl.get_id())
+            return self.get_dna_particle(pl.get_uid())
         else:
             assert isinstance(pl, int)
             assert pl in self.dna_particles
