@@ -1,0 +1,3 @@
+"""
+Tests all "server configs"
+"""

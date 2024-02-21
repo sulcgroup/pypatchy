@@ -94,6 +94,17 @@ class PLPSimulation(Scene, CellLists):
                     checked_interactions.add(pair)
         return e / self.num_particles()
 
+    def get_energy_full(self) -> float:
+        """
+        computes average potential energy by looping energy of every particle pair
+        O(n^2), so v. computationally intensive at high particle counts
+        """
+        e = 0.
+        for p1, p2 in itertools.combinations(self.particles(), 2):
+            e_int = self.interaction_energy(p1, p2)
+            e += e_int
+        return e / self.num_particles()
+
     def translate(self, translation_vector: np.ndarray):
         for p in self._particles:
             p.translate(translation_vector)

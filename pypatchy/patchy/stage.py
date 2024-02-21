@@ -253,11 +253,11 @@ class Stage(BuildSimulation):
                 pc = load_polycube(get_input_dir() / src)
                 pl = polycube_to_pl(pc, self.getctxt().sim_get_param(self.spec(), MDT_CONVERT_KEY), pad_cubes=0.13)
                 scene.add(pl, cubize_box=True)
-                # TODO: the rest of this
         else:
             raise Exception(f"Invalid add method {self._add_method}")
         e = scene.get_potential_energy()
         assert e < 1e-4, "Scene energy too high!!"
+
     def adjfn(self, file_name: str) -> str:
         if self.idx() > 0:
             return self.name() + os.sep + file_name

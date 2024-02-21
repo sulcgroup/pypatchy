@@ -121,7 +121,7 @@ class PLPatchyPotential(PLPotential):
                p1: PLPatchyParticle,
                p2: PLPatchyParticle) -> float:
         e = 0.
-        distsqr = periodic_dist_sqrd(box, p1, p2)
+        distsqr = periodic_dist_sqrd(box, p1.position(), p2.position())
         if distsqr > (self.rmax() + p1.radius() + p2.radius()) ** 2:
             return e
         # TODO: could optimize more if i cared to
