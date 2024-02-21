@@ -3,6 +3,7 @@ from __future__ import annotations
 import datetime
 import itertools
 import multiprocessing
+import shutil
 import tempfile
 import time
 from json import JSONDecodeError
@@ -20,6 +21,7 @@ from oxDNA_analysis_tools.UTILS.data_structures import Configuration
 
 from ipy_oxdna.oxdna_simulation import SimulationManager, Simulation
 
+from .pl.plpotential import PLPatchyPotential, PLExclVolPotential
 from .simulation_specification import get_param_set
 
 from ..patchy.patchy_scripts import lorenzian_to_flavian
@@ -774,6 +776,7 @@ class PatchySimulationEnsemble:
                 raise e
             # if stages not found
             # default: 1 stage, density = starting density, add method=random
+            num_assemblies = self.sim_get_param(sim, "num_assemblies")
             particles = list(itertools.chain.from_iterable([
                 [p.type_id()] * self.sim_get_param(sim, p.name()) * num_assemblies
                 for p in self.sim_get_particles_set(sim).particles()
@@ -1425,6 +1428,7 @@ class PatchySimulationEnsemble:
         # create input file
         self.write_input_file(sim, stage, replacer_dict, extras, analysis)
 
+
     def lorenzian_to_flavian(self,
                              write_path: Union[Path, str],
                              sims: Union[None, list[PatchySimulation]] = None):
@@ -1442,16 +1446,19 @@ class PatchySimulationEnsemble:
 
         for sim in sims:
             for stage in self.sim_get_stages(sim):
-                if (self.folder_path(sim, stage) / "last_conf.dat").exists():
-                    # read data
-                    sim_folder_path = write_path / (self.long_name() + "_flav") / sim.get_folder_path()
-                    if stage.idx() > 0:
-                        sim_folder_path = sim_folder_path / stage.name()
+                # read data
+                sim_folder_path = write_path / (self.long_name() + "_flav") / sim.get_folder_path()
+                if stage.idx() > 0:
+                    sim_folder_path = sim_folder_path / stage.name()
+                try:
                     sim_folder_path.mkdir(parents=True)
-                    lorenzian_to_flavian(self.folder_path(sim, stage), sim_folder_path)
-                else:
-                    print(f"No last_conf.dat file for simulation {str(sim)} stage {stage.name()}")
-
+                    lorenzian_to_flavian(self.folder_path(sim, stage), sim_folder_path, conf_name=self.sim_get_param(sim, "conf_file"))
+                    if (self.paramstagefile(sim, stage, "lastconf_file")).exists():
+                        shutil.copy(self.paramstagefile(sim, stage, "lastconf_file"), sim_folder_path / self.sim_get_param(sim, "lastconf_file"))
+                    else:
+                        print(f"No last_conf.dat file for simulation {str(sim)} stage {stage.name()}")
+                except FileExistsError:
+                    print("Warning: Simulation directory already exists!")
     # def rw(self,
     #        write_writer: Union[BasePatchyWriter, str],
     #        write_path: Union[Path, str],

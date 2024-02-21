@@ -124,7 +124,7 @@ def polycube_to_pl(polycube: PolycubeStructure,
     pl = PLPSimulation()
     # convert polycubes rule to multidentate patchy particles
     if mdt_convert is None:
-        mdt_convert = MultidentateConvertSettings(nteeth=nteeth, dental_radius=dental_radius)
+        mdt_convert = MultidentateConvertSettings(n_teeth=nteeth, dental_radius=dental_radius)
     pl_types = to_PL(polycube.rule, mdt_convert)
     pl_types = pl_types.normalize()
     pl.set_particle_types(pl_types)

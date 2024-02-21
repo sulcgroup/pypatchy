@@ -706,8 +706,29 @@ class LWriter(PLBaseWriter):
                    particle_types: PLParticleSet) -> PLPSimulation:
         top: LWriter.PatchyTopology = self.read_top(top_file)
         scene = PLPSimulation()
-        scene.set_particle_types()
-        return
+        scene.set_particle_types(particle_types)
+        top_info, traj_info = rr.describe(str(self.directory() / top_file),
+                                          str(self.directory() / traj_file))
+
+        conf = rr.get_confs(top_info, traj_info, traj_info.nconfs - 1, 1)[0]
+        scene = PLPSimulation()
+        scene.set_time(conf.time)
+        scene.set_particle_types(particle_types)
+        scene.set_box_size(conf.box)
+        scene.compute_cell_size(n_particles=top.num_particles())
+        scene.apportion_cells()
+        for i, ptype_idx in enumerate(top.particle_ids):
+            ptype: PLPatchyParticle = particle_types.particle(ptype_idx)
+            pp = PLPatchyParticle(
+                patches=ptype.patches(),
+                particle_name=f"{ptype.name()}_{i}",
+                type_id=ptype_idx,
+                index_=i,
+                position=conf.positions[i, :],
+            )
+            pp.set_orientation(conf.a1s[i, :], conf.a3s[i, :])
+            scene.add_particle(pp)
+        return scene
 
     def get_input_file_data(self, scene: PLPSimulation, **kwargs) -> list[tuple[str, str]]:
         return [("DPS_interaction_matrix_file", "interactions.txt")]
@@ -986,6 +1007,9 @@ class SWriter(PLBaseWriter):
             return itertools.chain.from_iterable([[itype for i in range(n)]
                                                   for itype, n in self._particle_type_counts.items()])
 
+
+class MalformedSimulationException(BaseException):
+    pass
 
 __writers = {
     "flavio": FWriter(),

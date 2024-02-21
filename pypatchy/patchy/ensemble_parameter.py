@@ -146,7 +146,10 @@ def parameter_value(key: str, val: Union[dict, str, int, float, bool]) -> Parame
     Constructs a ParameterValue object
     """
     if isinstance(val, dict):
-        param_name = val["name"]
+        if "name" in val:
+            param_name = val["name"]
+        else:
+            param_name = key # acceptable for const params, catastrophic for ensemble params
         # if type key is present, paramater is a particle set or mdt convert settings or something
         if "type" in val:
             if "value" in val: # *sirens* BACKWARDS COMPATIBILITY DANGER ZONE
@@ -164,6 +167,6 @@ def parameter_value(key: str, val: Union[dict, str, int, float, bool]) -> Parame
         else:
             # if no type is specified this is a parameter group
             return ParamValueGroup(param_name=key, param_value={pkey: parameter_value(pkey, pval)
-                                     for pkey, pval in val.items()}, valname=val["name"])
+                                     for pkey, pval in val.items()}, valname=param_name)
     else:
         return ParameterValue(key, val)

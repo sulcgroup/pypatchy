@@ -10,7 +10,6 @@ from pathlib import Path
 import configparser
 from colorsys import hsv_to_rgb
 import numpy as np
-import math
 
 # global slurm job info cache
 SLURM_JOB_CACHE: dict[int, dict[str, str]] = {}
@@ -45,7 +44,8 @@ def get_log_dir() -> Path:
 
 
 cfg = configparser.ConfigParser()
-assert (get_local_dir() / "settings.cfg").exists(), "Missing settings.cfg file!"
+if not (get_local_dir() / "settings.cfg").exists():
+    raise ImportError("Missing settings.cfg file! expected to find file in {get_local_dir() / ]settings.cfg'}")
 cfg.read(get_local_dir() / 'settings.cfg')
 
 
