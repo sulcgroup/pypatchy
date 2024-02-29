@@ -62,6 +62,7 @@ class PipelineData(ABC):
     def compare_tranges(self, tr: range) -> np.array:
         pass
 
+    # TODO: make abstract and force more efficient impl
     def matches_trange(self, tr: range) -> bool:
         return self.compare_tranges(tr).all()
 
@@ -102,12 +103,27 @@ class PDPipelineData(PipelineData):
 
     def compare_tranges(self, tr: Union[range, list, np.ndarray]) -> np.array:
         """
+        Improved impl written by chatGPT
         Compares the range of the data stored in this object with the provided
-        range object
-        Return
+        range object, optimized for large self._trange and tr.
+
+        Return:
             a numpy array of booleans with length len(tr)
         """
-        return np.array([t in self._trange for t in tr])
+        # Convert self._trange to a set for O(1) lookup if not already a set
+        # This is beneficial if self._trange is used repeatedly for comparison
+        if not isinstance(self._trange, set):
+            _trange_set = set(self._trange)
+        else:
+            _trange_set = self._trange
+
+        # Use vectorized operation for numpy arrays, else use a list comprehension
+        if isinstance(tr, np.ndarray):
+            # For numpy arrays, we can use np.isin for efficient element-wise comparison
+            return np.isin(tr, _trange_set)
+        else:
+            # For lists or ranges, use a list comprehension with the set for fast lookup
+            return np.array([t in _trange_set for t in tr])
 
     def missing_timepoints(self, tr: Union[range, list[Union[int, float]], np.ndarray]):
         """

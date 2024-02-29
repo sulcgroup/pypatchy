@@ -37,7 +37,7 @@ class Scene(ABC):
         self._particles.extend(particles)
 
     def get_particle(self, pidx: int) -> PatchyBaseParticle:
-        assert self._particles[pidx].get_id() == pidx
+        assert self._particles[pidx].get_uid() == pidx
         return self._particles[pidx]
 
     @abstractmethod

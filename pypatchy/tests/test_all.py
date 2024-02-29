@@ -1,1 +1,1 @@
-import test_preprequisites
+import test_prerequisites
