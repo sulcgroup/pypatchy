@@ -1,0 +1,699 @@
+{
+    "cube_types": [
+        {
+            "typeName": "CT0",
+            "patches": [
+                {
+                    "color": 1,
+                    "alignDir": {
+                        "x": 0,
+                        "y": 0,
+                        "z": 1
+                    },
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": 0,
+                    "alignDir": {
+                        "x": 0,
+                        "y": 1,
+                        "z": 0
+                    },
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": 4,
+                    "alignDir": {
+                        "x": 0,
+                        "y": 0,
+                        "z": 1
+                    },
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": 0,
+                    "alignDir": {
+                        "x": 0,
+                        "y": 0,
+                        "z": 1
+                    },
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": 0,
+                    "alignDir": {
+                        "x": -1,
+                        "y": 0,
+                        "z": 0
+                    },
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": 0,
+                    "alignDir": {
+                        "x": 1,
+                        "y": 0,
+                        "z": 0
+                    },
+                    "state_var": 0,
+                    "activation_var": 0
+                }
+            ],
+            "state": [
+                true,
+                false
+            ],
+            "effects": []
+        },
+        {
+            "typeName": "CT1",
+            "patches": [
+                {
+                    "color": -1,
+                    "alignDir": {
+                        "x": 0,
+                        "y": 0,
+                        "z": 1
+                    },
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": -4,
+                    "alignDir": {
+                        "x": 0,
+                        "y": 0,
+                        "z": 1
+                    },
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": 6,
+                    "alignDir": {
+                        "x": -1,
+                        "y": 0,
+                        "z": 0
+                    },
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": 0,
+                    "alignDir": {
+                        "x": 0,
+                        "y": 0,
+                        "z": 1
+                    },
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": 0,
+                    "alignDir": {
+                        "x": -1,
+                        "y": 0,
+                        "z": 0
+                    },
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": 2,
+                    "alignDir": {
+                        "x": -1,
+                        "y": 0,
+                        "z": 0
+                    },
+                    "state_var": 0,
+                    "activation_var": 0
+                }
+            ],
+            "state": [
+                true,
+                false
+            ],
+            "effects": []
+        },
+        {
+            "typeName": "CT2",
+            "patches": [
+                {
+                    "color": -2,
+                    "alignDir": {
+                        "x": 0,
+                        "y": 0,
+                        "z": -1
+                    },
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": 0,
+                    "alignDir": {
+                        "x": 0,
+                        "y": 1,
+                        "z": 0
+                    },
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": 3,
+                    "alignDir": {
+                        "x": 0,
+                        "y": 0,
+                        "z": -1
+                    },
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": 0,
+                    "alignDir": {
+                        "x": 0,
+                        "y": 0,
+                        "z": 1
+                    },
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": 0,
+                    "alignDir": {
+                        "x": -1,
+                        "y": 0,
+                        "z": 0
+                    },
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": 0,
+                    "alignDir": {
+                        "x": 1,
+                        "y": 0,
+                        "z": 0
+                    },
+                    "state_var": 0,
+                    "activation_var": 0
+                }
+            ],
+            "state": [
+                true,
+                false
+            ],
+            "effects": []
+        },
+        {
+            "typeName": "CT3",
+            "patches": [
+                {
+                    "color": -3,
+                    "alignDir": {
+                        "x": 0,
+                        "y": 1,
+                        "z": 0
+                    },
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": -3,
+                    "alignDir": {
+                        "x": 0,
+                        "y": -1,
+                        "z": 0
+                    },
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": -3,
+                    "alignDir": {
+                        "x": -1,
+                        "y": 0,
+                        "z": 0
+                    },
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": -3,
+                    "alignDir": {
+                        "x": 1,
+                        "y": 0,
+                        "z": 0
+                    },
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": 0,
+                    "alignDir": {
+                        "x": -1,
+                        "y": 0,
+                        "z": 0
+                    },
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": 6,
+                    "alignDir": {
+                        "x": 1,
+                        "y": 0,
+                        "z": 0
+                    },
+                    "state_var": 0,
+                    "activation_var": 0
+                }
+            ],
+            "state": [
+                true,
+                false
+            ],
+            "effects": []
+        },
+        {
+            "typeName": "CT4",
+            "patches": [
+                {
+                    "color": -6,
+                    "alignDir": {
+                        "x": 0,
+                        "y": -1,
+                        "z": 0
+                    },
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": 0,
+                    "alignDir": {
+                        "x": 0,
+                        "y": 1,
+                        "z": 0
+                    },
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": 0,
+                    "alignDir": {
+                        "x": 0,
+                        "y": 0,
+                        "z": -1
+                    },
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": 0,
+                    "alignDir": {
+                        "x": 0,
+                        "y": 0,
+                        "z": 1
+                    },
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": 0,
+                    "alignDir": {
+                        "x": -1,
+                        "y": 0,
+                        "z": 0
+                    },
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": 0,
+                    "alignDir": {
+                        "x": 1,
+                        "y": 0,
+                        "z": 0
+                    },
+                    "state_var": 0,
+                    "activation_var": 0
+                }
+            ],
+            "state": [
+                true,
+                false
+            ],
+            "effects": []
+        }
+    ],
+    "cubes": [
+        {
+            "position": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "rotation": {
+                "w": 1,
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "type": 0,
+            "personal_name": "j5rff",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -1,
+                "y": 0,
+                "z": 0
+            },
+            "rotation": {
+                "w": 0,
+                "x": 0,
+                "y": -6.123233995736766e-17,
+                "z": -1
+            },
+            "type": 1,
+            "personal_name": "5jtm",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -1,
+                "y": 0,
+                "z": 1
+            },
+            "rotation": {
+                "w": 0.7071067811865475,
+                "x": 0,
+                "y": -0.7071067811865475,
+                "z": 0
+            },
+            "type": 2,
+            "personal_name": "vy8s",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -1,
+                "y": -1,
+                "z": 1
+            },
+            "rotation": {
+                "w": 1,
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "type": 3,
+            "personal_name": "dagb",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -1,
+                "y": 1,
+                "z": 0
+            },
+            "rotation": {
+                "w": 0.7071067811865475,
+                "x": 0,
+                "y": 0,
+                "z": 0.7071067811865475
+            },
+            "type": 4,
+            "personal_name": "639li",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -2,
+                "y": 0,
+                "z": 0
+            },
+            "rotation": {
+                "w": 0.7071067811865475,
+                "x": 0,
+                "y": 0,
+                "z": 0.7071067811865475
+            },
+            "type": 0,
+            "personal_name": "47qb",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": 0,
+                "y": -1,
+                "z": 1
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": -0.4999999999999999,
+                "y": -0.4999999999999999,
+                "z": -0.5
+            },
+            "type": 2,
+            "personal_name": "qi0i",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -1,
+                "y": -1,
+                "z": 2
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": 0.4999999999999999,
+                "y": -0.5,
+                "z": 0.4999999999999999
+            },
+            "type": 4,
+            "personal_name": "4y3o",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": 0,
+                "y": -1,
+                "z": 0
+            },
+            "rotation": {
+                "w": 0.7071067811865475,
+                "x": 0,
+                "y": 0,
+                "z": 0.7071067811865475
+            },
+            "type": 1,
+            "personal_name": "t4oj",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -2,
+                "y": -1,
+                "z": 0
+            },
+            "rotation": {
+                "w": 0.7071067811865475,
+                "x": 0,
+                "y": 0,
+                "z": -0.7071067811865475
+            },
+            "type": 1,
+            "personal_name": "7tdy",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": 1,
+                "y": -1,
+                "z": 0
+            },
+            "rotation": {
+                "w": 1,
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "type": 4,
+            "personal_name": "4pjc",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": 0,
+                "y": -2,
+                "z": 0
+            },
+            "rotation": {
+                "w": 0.7071067811865475,
+                "x": 0,
+                "y": 0,
+                "z": -0.7071067811865475
+            },
+            "type": 0,
+            "personal_name": "b0h9",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -2,
+                "y": -2,
+                "z": 0
+            },
+            "rotation": {
+                "w": 0,
+                "x": 0,
+                "y": 0,
+                "z": -1
+            },
+            "type": 0,
+            "personal_name": "mdwp",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -1,
+                "y": -2,
+                "z": 0
+            },
+            "rotation": {
+                "w": 1,
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "type": 1,
+            "personal_name": "d6xr",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -1,
+                "y": -3,
+                "z": 0
+            },
+            "rotation": {
+                "w": 0.7071067811865475,
+                "x": 0,
+                "y": 0,
+                "z": -0.7071067811865475
+            },
+            "type": 4,
+            "personal_name": "3im6",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -2,
+                "y": -1,
+                "z": 1
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": 0.4999999999999999,
+                "y": -0.4999999999999999,
+                "z": 0.5
+            },
+            "type": 2,
+            "personal_name": "hzzuj",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -3,
+                "y": -1,
+                "z": 0
+            },
+            "rotation": {
+                "w": 0,
+                "x": 0,
+                "y": -6.123233995736766e-17,
+                "z": -1
+            },
+            "type": 4,
+            "personal_name": "u5yw",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -1,
+                "y": -2,
+                "z": 1
+            },
+            "rotation": {
+                "w": 0,
+                "x": -0.7071067811865475,
+                "y": 0,
+                "z": -0.7071067811865476
+            },
+            "type": 2,
+            "personal_name": "e3r9",
+            "state": [
+                true,
+                false
+            ]
+        }
+    ],
+    "tstep": 18
+}

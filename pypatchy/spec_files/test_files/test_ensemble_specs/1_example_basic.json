@@ -1,8 +1,8 @@
 {
-	"export_name": "example1",
+	"export_name": "example_3dX",
 	"rule": "1|1|1|1|1|1_-1|||||",
     "const_params": {
-        "num_steps": 1e8,
+        "num_steps": 5e7,
         "num_assemblies": 4,
         "cube_type_levels": {
             "CT0": 1,
