@@ -27,7 +27,8 @@
 			}
 		},
 		"T": 0.02,
-		"use_torsion": false
+		"use_torsion": false,
+		"print_energy_every": 1e6
 },
 	"ensemble_params": [
 		[

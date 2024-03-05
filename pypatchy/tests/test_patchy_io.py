@@ -2,7 +2,7 @@
 This file contains code for testing the read/write capabilities of pypatchy
 specifically with regard to
 """
-from ..patchy.pl.patchyio import get_writer
+from pypatchy.patchy.pl.patchyio import get_writer
 
 
 def test_fwriter():

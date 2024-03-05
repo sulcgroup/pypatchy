@@ -10,7 +10,10 @@
             "n_teeth": 4,
             "dental_radius": 0.5,
             "energy_scale_method": "linear"
-        }
+        },
+
+		"print_conf_every": 5e6,
+		"print_energy_every": 5e6
 	},
 	"ensemble_params": [
 		[

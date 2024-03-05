@@ -606,7 +606,7 @@ class PolycubeRuleCubeType(PatchyBaseParticleType):
                 to_explore = [ctlstate]
 
                 while to_explore:
-                    current_node = to_explore.pop()
+                    current_node = to_explore.pname()
                     downstream.add(current_node)
 
                     neighbors = list(g.successors(current_node))

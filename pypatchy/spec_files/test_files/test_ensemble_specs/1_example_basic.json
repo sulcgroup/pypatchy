@@ -7,7 +7,9 @@
         "cube_type_levels": {
             "CT0": 1,
             "CT1": 6
-        }
+        },
+		"print_conf_every": 5e6,
+		"print_energy_every": 5e6
     },
 	"ensemble_params": [
 		[

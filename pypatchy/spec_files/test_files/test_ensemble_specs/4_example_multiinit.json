@@ -2,7 +2,7 @@
 	"export_name": "example_multiinit",
 	"rule": "#1:0:0:0##-4:0:0:0##3:1:0:0_####-3:3:0:0#-3:2:0:0_5:0:0:0##4:1:0:0#-1:2:0:0##_6:2:0:0##6:2:0:0##6:2:0:0#_-6:1:0:0#-6:0:0:0##-5:1:0:0##-5:2:0:0",
 	"const_params":{
-		"steps": 2.5e9,
+		"steps": 1e8,
 	    "mdt_convert": {
             "type": "mdt_convert",
             "name": "simple",
@@ -12,7 +12,9 @@
         },
 		"use_torsion": false,
 		"PATCHY_alpha": 0.138,
-		"T": 0.07
+		"T": 0.07,
+		"print_conf_every": 5e6,
+		"print_energy_every": 5e6
 	},
 	"ensemble_params": [
 		[

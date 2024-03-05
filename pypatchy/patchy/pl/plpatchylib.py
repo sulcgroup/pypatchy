@@ -83,7 +83,8 @@ def polycube_rule_to_PL(particle_set: PolycubesRule) -> PLParticleSet:
 
         # convert to pl particle
         # reuse type ids here, unfortunately
-        particle = PLPatchyParticle(type_id=particle.type_id(), particle_name=particle.name(),
+        particle = PLPatchyParticle(type_id=particle.type_id(),
+                                    particle_name=particle.name(),
                                     index_=particle.type_id())
         particle.set_patches(particle_patches)
 
