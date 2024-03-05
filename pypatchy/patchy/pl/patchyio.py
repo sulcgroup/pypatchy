@@ -1011,6 +1011,7 @@ class SWriter(PLBaseWriter):
 class MalformedSimulationException(BaseException):
     pass
 
+
 __writers = {
     "flavio": FWriter(),
     "josh_flavio": JFWriter(),
@@ -1028,6 +1029,7 @@ def get_writer(writer_key: Union[str, None] = None) -> PLBaseWriter:
 
 def register_writer(writer_name: str, writer_obj: PLBaseWriter):
     __writers[writer_name] = writer_obj
+
 
 def writer_options() -> list[str]:
     return [*__writers.values()]

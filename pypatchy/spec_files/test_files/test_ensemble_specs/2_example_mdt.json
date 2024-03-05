@@ -8,7 +8,9 @@
             "CT0": 1,
             "CT1": 6
         },
-		"T":0.02
+		"T":0.02,
+		"print_conf_every": 5e6,
+		"print_energy_every": 5e6
     },
 	"ensemble_params": [
 		[

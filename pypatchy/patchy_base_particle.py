@@ -175,7 +175,7 @@ class BaseParticleSet:
             return self._particle_types[idx]
         else:
             for particle in self.particles():
-                if particle.name() == idx:
+                if particle.type_id() == idx:
                     return particle
             raise Exception(f"No such particle {idx}")
 
