@@ -336,7 +336,7 @@ class PolycubeStructure(TypedStructure, Scene):
         self.rule = ptypes
 
     def particles_bound(self, p1: PatchyBaseParticle, p2: PatchyBaseParticle) -> bool:
-        return self.graph.has_edge(p1.get_id(), p2.get_id())
+        return self.graph.has_edge(p1.get_uid(), p2.get_uid())
 
     def patches_bound(self,
                       particle1: PolycubesStructureCube,

@@ -134,18 +134,25 @@ class LoadParticlesTraj(AnalysisPipelineHead):
 
 
 class LoadEnergies(AnalysisPipelineHead):
+    """
+    Important to note that the timepoints logged in the energy file are in TIME UNITS while the
+    `print_energy_every` param in the input file is in STEPS, no, I do not know why
+    """
     POTENTIAL_ENERGY_KEY = "pe"
     KINETIC_ENERGY_KEY = "ke"
     TOTAL_ENERGY_KEY = "te"
     # bad things happen if we try to recompute. i could try to solve or i could Not
-    force_recompute = True
 
     def __init__(self, step_name: str, **kwargs):
         kwargs["step_name"] = step_name
 
         if "input_tstep" not in kwargs:
             kwargs["input_tstep"] = 1
+        else:
+            raise Exception("Input tsteps for energy are hardcoded and cannot be set manually")
         super(LoadEnergies, self).__init__(**kwargs)
+        self.force_recompute = True
+
 
     def get_data_in_filenames(self) -> list[str]:
         return ["energy_file"]
@@ -156,6 +163,7 @@ class LoadEnergies(AnalysisPipelineHead):
         stages_data = [pd.read_csv(stage_energy_file, sep="\s+", header=None) for stage_energy_file in energy_files]
         df = pd.concat(stages_data)
         df.columns = [TIMEPOINT_KEY, self.POTENTIAL_ENERGY_KEY, self.KINETIC_ENERGY_KEY, self.TOTAL_ENERGY_KEY]
+        df = df[np.mod(df[TIMEPOINT_KEY].astype(int), int(self.output_tstep)) == 0]
         return PDPipelineData(df, df[TIMEPOINT_KEY].values)
 
     def get_output_data_type(self) -> PipelineDataType:

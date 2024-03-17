@@ -21,8 +21,8 @@ from oxDNA_analysis_tools.UTILS.data_structures import Configuration
 
 from ipy_oxdna.oxdna_simulation import SimulationManager, Simulation
 
-from .pl.plpotential import PLPatchyPotential, PLExclVolPotential
 from .simulation_specification import get_param_set
+from ..analpipe.analyzable import Analyzable
 
 from ..patchy.patchy_scripts import lorenzian_to_flavian
 from ..analpipe.analysis_pipeline import AnalysisPipeline
@@ -31,7 +31,7 @@ from .stage import Stage, NoStageTrajError, IncompleteStageError, StageTrajFileE
 from ..analpipe.analysis_data import PDPipelineData, TIMEPOINT_KEY
 from ..analpipe.analysis_pipeline_step import *
 from .patchy_sim_observable import PatchySimObservable, observable_from_file
-from pypatchy.patchy.pl.patchyio import get_writer, PLBaseWriter, FWriter
+from .pl.patchyio import get_writer, PLBaseWriter, FWriter
 from ..server_config import load_server_settings, PatchyServerConfig, get_server_config
 from ..slurm_log_entry import SlurmLogEntry
 from ..slurmlog import SlurmLog
@@ -40,7 +40,6 @@ from .ensemble_parameter import *
 from .simulation_specification import PatchySimulation, ParamSet, NoSuchParamError
 from .pl.plpatchylib import polycube_rule_to_PL, load_pl_particles
 from ..polycubeutil.polycubesRule import PolycubesRule
-
 
 EXPORT_NAME_KEY = "export_name"
 PARTICLES_KEY = "particles"
@@ -288,7 +287,6 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
     else:
         print("Warning: No particle info specified!")
 
-
     # handle multidentate params
     if NUM_TEETH_KEY in cfg[CONST_PARAMS_KEY]:
         assert DENTAL_RADIUS_KEY in cfg[CONST_PARAMS_KEY]
@@ -325,7 +323,8 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
         if isinstance(cfg["server_settings"], str):
             server_settings = load_server_settings(cfg["server_settings"])
         else:
-            assert isinstance(cfg["server_settings"], dict), f"Invalid type for key 'server_settings': {type(cfg['server_settings'])}"
+            assert isinstance(cfg["server_settings"],
+                              dict), f"Invalid type for key 'server_settings': {type(cfg['server_settings'])}"
             server_settings = PatchyServerConfig(**cfg["server_settings"])
     else:
         server_settings = get_server_config()
@@ -347,7 +346,8 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
     if "slurm_log" in mdt:
         for entry in mdt["slurm_log"]:
             sim = ensemble.get_simulation(**entry["simulation"])
-            assert isinstance(sim, PatchySimulation), f"Selector {entry['simulation']} selects more than one simulation."
+            assert isinstance(sim,
+                              PatchySimulation), f"Selector {entry['simulation']} selects more than one simulation."
             assert sim is not None, f"Slurm log included a record for invalid simulation {str(entry['simulation'])}"
             entry["simulation"] = sim
         ensemble.slurm_log = SlurmLog(*[SlurmLogEntry(**e) for e in mdt["slurm_log"]])
@@ -355,8 +355,7 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
     return ensemble
 
 
-
-class PatchySimulationEnsemble:
+class PatchySimulationEnsemble(Analyzable):
     """
     Stores data for a group of related simulations
     """
@@ -388,15 +387,6 @@ class PatchySimulationEnsemble:
     # load from `spec_files/input_files/[name].json`
     default_param_set: ParamSet
 
-    # -------------- STUFF SPECIFIC TO ANALYSIS ------------- #
-
-    # each "node" of the analysis pipeline graph is a step in the analysis pipeline
-    analysis_pipeline: AnalysisPipeline
-
-    # dict to store loaded analysis data
-    analysis_data: dict[tuple[AnalysisPipelineStep, ParamSet], PipelineData]
-    analysis_file: str
-
     # log of slurm jobs
     slurm_log: SlurmLog
 
@@ -418,6 +408,7 @@ class PatchySimulationEnsemble:
                  analysis_file: str,
                  metadata_dict: dict,
                  server_settings: Union[PatchyServerConfig, None] = None):
+        super().__init__(analysis_file, analysis_pipeline)
         self.export_name = export_name
         self.sim_init_date = setup_date
 
@@ -456,8 +447,6 @@ class PatchySimulationEnsemble:
 
         self.metadata = metadata_dict
         self.slurm_log = SlurmLog()
-        self.analysis_pipeline = analysis_pipeline
-        self.analysis_file = analysis_file
 
         self.metadata_file = metadata_file_name
 
@@ -468,12 +457,10 @@ class PatchySimulationEnsemble:
         self.ensemble_param_name_map = {p.param_key: p for p in self.ensemble_params}
         self.observables = observables
 
-        # construct analysis data dict in case we need it
-        self.analysis_data = dict()
-
     # --------------- Accessors and Mutators -------------------------- #
     def get_simulation(self, *args: Union[tuple[str, Any], ParameterValue], **kwargs) -> Union[
-        PatchySimulation, list[PatchySimulation]]:
+                                                                                               PatchySimulation,
+                                                                                               list[PatchySimulation]]:
         """
         This is a very flexable method for returning PatchySimulation objects
         but is also very complex, due to the range of inputs accepted
@@ -536,33 +523,6 @@ class PatchySimulationEnsemble:
         """
         return "parallel" in self.metadata and self.metadata["parallel"]
 
-    def set_analysis_pipeline(self,
-                              src: Union[str, Path],
-                              clear_old_pipeline=True,
-                              link_file=True):
-        """
-        Sets the ensemble's analysis pipeline from an existing analysis pipeline file
-        Args:
-            src: a string or path object indicating the file to set from
-            clear_old_pipeline: if set to True, the existing analysis pipleine will be replaced with the pipeline from the file. otherwise, the new pipeline will be appended
-            link_file: if set to True, the provided source file will be linked to this ensemble, so changes made to this analysis pipeline will apply to all ensembles that source from that file
-        """
-        if isinstance(src, str):
-            if src.endswith(".pickle"):
-                src = get_input_dir() / src
-            else:
-                src = get_input_dir() / (src + ".pickle")
-        if clear_old_pipeline:
-            self.analysis_pipeline = AnalysisPipeline()
-        try:
-            with open(src, "rb") as f:
-                self.analysis_pipeline = self.analysis_pipeline + pickle.load(f)
-            if link_file:
-                self.analysis_file = src
-        except FileNotFoundError:
-            logging.error(f"No analysis pipeline found at {str(src)}.")
-        self.dump_metadata()
-
     def n_processes(self) -> int:
         return self.metadata["parallel"]
 
@@ -597,11 +557,11 @@ class PatchySimulationEnsemble:
         if val != oldVal:
             self.dump_metadata()
 
-    def get_step_counts(self) -> list[tuple[PatchySimulation, int]]:
-        return [
-            (sim, self.time_length(sim))
-            for sim in self.ensemble()
-        ]
+    # def get_step_counts(self) -> list[tuple[PatchySimulation, int]]:
+    #     return [
+    #         (sim, self.time_length(sim))
+    #         for sim in self.ensemble()
+    #     ]
 
     def get_stopped_sims(self) -> list[PatchySimulation]:
         """
@@ -964,28 +924,7 @@ class PatchySimulationEnsemble:
         else:
             return self.tld() / sim.get_folder_path() / stage.name()
 
-    def get_analysis_step(self, step: Union[str, AnalysisPipelineStep]) -> AnalysisPipelineStep:
-        """
-        Alias for PatchySimulationEnsemble.get_pipeline_step
-        """
-        return self.get_pipeline_step(step)
-
-    def get_pipeline_step(self, step: Union[str, AnalysisPipelineStep]) -> AnalysisPipelineStep:
-        """
-        Returns a step in the analysis pipeline
-        """
-        return self.analysis_pipeline.get_pipeline_step(step)
-
-    def link_analysis_pipeline(self, other: PatchySimulationEnsemble):
-        """
-        links this ensembles's analysis pipeline to another ensemble
-        """
-        if len(self.analysis_pipeline) != 0:
-            self.get_logger().warning("Error: should not link from existing analysis pipeline! "
-                                      "Use `clear_analysis_pipeline() to clear pipeline and try again.")
-            return
-        self.analysis_pipeline = other.analysis_pipeline
-        self.analysis_file = other.analysis_file
+    def save_pipeline_data(self):
         self.dump_metadata()
 
     def time_length(self,
@@ -1001,7 +940,7 @@ class PatchySimulationEnsemble:
             return self.time_length(self.ensemble())
         elif isinstance(sim, list):
             return min([self.time_length(s) for s in sim])
-        elif isinstance(sim, tuple): # todo: check single descriptor
+        elif isinstance(sim, tuple):  # todo: check single descriptor
             if len(sim) > 0 and isinstance(sim[0], tuple):
                 return self.time_length(self.get_simulation(*sim))
             else:
@@ -1082,12 +1021,6 @@ class PatchySimulationEnsemble:
         # print("Function `folder_path`")
         # print("Function `tld`")
         # print("Function `list_folder_files`")
-
-    def has_pipeline(self) -> bool:
-        return len(self.analysis_pipeline) != 0
-
-    def show_analysis_pipeline(self):
-        return self.analysis_pipeline.draw_pipeline()
 
     # def babysit(self):
     #     """
@@ -1251,12 +1184,6 @@ class PatchySimulationEnsemble:
     #                               job_type="dna_analysis")
     #         self.dump_metadata()
 
-    def missing_analysis_data(self, step: Union[AnalysisPipelineStep, str]) -> pd.DataFrame:
-        if isinstance(step, str):
-            return self.missing_analysis_data(self.analysis_pipeline.name_map[step])
-        else:
-            return ~self.analysis_status().loc[~self.analysis_status()[step.name]]
-
     # def merge_topologies(self,
     #                      sim_selector: Union[None, PatchySimulation, list[PatchySimulation]] = None,
     #                      topologies: Union[list[int], None] = None,
@@ -1324,15 +1251,7 @@ class PatchySimulationEnsemble:
 
     def write_run_script(self, sim: PatchySimulation, input_file="input"):
         # if no stage name provided use first stage
-        try:
-            stage = self.sim_most_recent_stage(sim)
-            if stage.idx() + 1 < self.sim_num_stages(sim):
-                stage = self.sim_get_stage(sim, stage.idx() + 1)
-            else:
-                self.get_logger().info(f"Simulation {sim} has no more stages to execute!")
-                return -1
-        except NoStageTrajError:
-            stage = self.sim_get_stage(sim, 0)
+        stage = self.check_stage(sim)
 
         slurm_script_name = "slurm_script.sh"
         slurm_script_name = stage.adjfn(slurm_script_name)
@@ -1412,12 +1331,7 @@ class PatchySimulationEnsemble:
         reqd_extra_args = {
             a: self.sim_get_param(sim, a) for a in self.writer.reqd_args()
         }
-        assert "conf_file" in reqd_extra_args
-        # update file names
-        # if applciable, particles.txt and patches.txt should not change!
-        # if stage.idx() > 0:
-        #     reqd_extra_args["conf_file"] = append_to_file_name(reqd_extra_args["conf_file"], stage.name())
-        #     reqd_extra_args["topology"] = append_to_file_name(reqd_extra_args["topology"], stage.name())
+        assert "conf_file" in reqd_extra_args, "Missing conf file info!"
 
         # write top, conf, and others
         files = self.writer.write(scene,
@@ -1431,7 +1345,6 @@ class PatchySimulationEnsemble:
 
         # create input file
         self.write_input_file(sim, stage, replacer_dict, extras, analysis)
-
 
     def lorenzian_to_flavian(self,
                              write_path: Union[Path, str],
@@ -1456,13 +1369,18 @@ class PatchySimulationEnsemble:
                     sim_folder_path = sim_folder_path / stage.name()
                 try:
                     sim_folder_path.mkdir(parents=True)
-                    lorenzian_to_flavian(self.folder_path(sim, stage), sim_folder_path, conf_name=self.sim_get_param(sim, "conf_file"))
+                    if not (self.folder_path(sim, stage).exists()):
+                        continue
+                    lorenzian_to_flavian(self.folder_path(sim, stage), sim_folder_path,
+                                         conf_name=self.sim_get_param(sim, "conf_file"))
                     if (self.paramstagefile(sim, stage, "lastconf_file")).exists():
-                        shutil.copy(self.paramstagefile(sim, stage, "lastconf_file"), sim_folder_path / self.sim_get_param(sim, "lastconf_file"))
+                        shutil.copy(self.paramstagefile(sim, stage, "lastconf_file"),
+                                    sim_folder_path / self.sim_get_param(sim, "lastconf_file"))
                     else:
                         print(f"No last_conf.dat file for simulation {str(sim)} stage {stage.name()}")
                 except FileExistsError:
                     print("Warning: Simulation directory already exists!")
+
     # def rw(self,
     #        write_writer: Union[BasePatchyWriter, str],
     #        write_path: Union[Path, str],
@@ -1588,7 +1506,7 @@ class PatchySimulationEnsemble:
             # write external observables file path
             if len(self.observables) > 0:
                 assert not self.server_settings.absolute_paths, "Absolute file paths aren't currently compatible with observiables!" \
-                                                 " Get on it Josh!!!"
+                                                                " Get on it Josh!!!"
                 if EXTERNAL_OBSERVABLES:
                     inputfile.write(f"observables_file = observables.json" + "\n")
                 else:
@@ -1741,6 +1659,20 @@ class PatchySimulationEnsemble:
                 pass  # if no stage has a traj error everything is probably fine, just needs to run 1st stage
         return True
 
+    def check_stage(self, sim: PatchySimulation):
+        # if no stage name provided use first stage
+        try:
+            stage = self.sim_most_recent_stage(sim)
+            if stage.idx() + 1 < self.sim_num_stages(sim):
+                stage = self.sim_get_stage(sim, stage.idx() + 1)
+            else:
+                self.get_logger().info(f"Simulation {sim} has no more stages to execute!")
+                return -1
+        except NoStageTrajError:
+            # default to stage 0 if no previous stages found
+            stage = self.sim_get_stage(sim, 0)
+        return stage
+
     def start_simulation(self,
                          sim: PatchySimulation,
                          script_name: str = "slurm_script.sh",
@@ -1760,17 +1692,7 @@ class PatchySimulationEnsemble:
         if stage_name is not None:
             stage = self.sim_get_stage(sim, stage_name)
         else:
-            # if no stage name provided use first stage
-            try:
-                stage = self.sim_most_recent_stage(sim)
-                if stage.idx() + 1 < self.sim_num_stages(sim):
-                    stage = self.sim_get_stage(sim, stage.idx() + 1)
-                else:
-                    self.get_logger().info(f"Simulation {sim} has no more stages to execute!")
-                    return -1
-            except NoStageTrajError:
-                # default to stage 0 if no previous stages found
-                stage = self.sim_get_stage(sim, 0)
+            stage = self.check_stage(sim)
 
         if not force_ignore_ok_check and not self.ok_to_run(sim, stage):
             self.get_logger().warning(f"Stage {stage.name()} not ok to run for sim {repr(sim)}")
@@ -1802,7 +1724,8 @@ class PatchySimulationEnsemble:
         if not self.server_settings.is_server_slurm():
             retries = 1
         for i in range(retries):
-            submit_txt = self.bash_exec(command, is_async=not self.server_settings.is_server_slurm(), cwd=self.folder_path(sim))
+            submit_txt = self.bash_exec(command, is_async=not self.server_settings.is_server_slurm(),
+                                        cwd=self.folder_path(sim))
             if submit_txt:
                 break
             time.sleep(backoff_factor ** i)
@@ -1859,33 +1782,6 @@ class PatchySimulationEnsemble:
     #     return self.folder_path(sim) / self.sim_get_param(sim, "conf_file")
 
     # ------------- ANALYSIS FUNCTIONS --------------------- #
-    def clear_pipeline(self):
-        """
-        deletes all steps from the analysis pipeline
-        """
-        self.analysis_pipeline = AnalysisPipeline()
-
-    def add_analysis_steps(self, *args):
-        """
-        Adds steps to the analysis pipeline
-        """
-        if isinstance(args[0], AnalysisPipeline):
-            new_steps = args[0]
-        else:
-            new_steps = AnalysisPipeline(args[0], *args[1:])
-            # if the above line didn't work
-        newPipes = [a for a in args if isinstance(a, tuple)]
-        newSteps = [a for a in args if issubclass(type(a), AnalysisPipelineStep)]
-        if new_steps.num_pipes() != len(newPipes) or new_steps.num_pipeline_steps() != len(newSteps):
-            self.analysis_pipeline = self.analysis_pipeline.extend(newSteps, newPipes)
-            self.dump_metadata()
-        elif new_steps not in self.analysis_pipeline:
-            self.get_logger().info(f"Adding {len(new_steps)} steps "
-                                   f"and {len(new_steps.pipeline_graph.edges)} pipes to the analysis pipeline")
-            self.analysis_pipeline = self.analysis_pipeline + new_steps
-            self.dump_metadata()
-        else:
-            self.get_logger().info("The analysis pipeline you passed is already present")
 
     def has_data_file(self, step: PipelineStepDescriptor, sim: PatchySimDescriptor) -> bool:
         return self.get_cache_file(step, sim).exists()
@@ -1902,7 +1798,7 @@ class PatchySimulationEnsemble:
         try:
             assert all([
                 ParameterValue(param_name=pv[0], param_value=pv[1]) if isinstance(pv, tuple)
-                           else self.param_value_valid(pv) for pv in selector]), f"Invalid selector {selector}"
+                else self.param_value_valid(pv) for pv in selector]), f"Invalid selector {selector}"
             # if all provided items in selector are either in the ensemble parameters or are used in aggregation
             if len(selector) + len(exceptions) == self.num_ensemble_parameters():
                 return False
@@ -1949,29 +1845,11 @@ class PatchySimulationEnsemble:
         # nd that this isn't an aggregate step (which expects incomplete selectors)
 
         # if you try to actually use an aggregate step the sun will expand and swallow the earth
-        is_aggregate_params: bool = isinstance(step, AggregateAnalysisPipelineStep) and self.is_multiselect(sim, step.params_aggregate_over)
+        is_aggregate_params: bool = isinstance(step, AggregateAnalysisPipelineStep) and self.is_multiselect(sim,
+                                                                                                            step.params_aggregate_over)
         is_multiparam: bool = not isinstance(step, AggregateAnalysisPipelineStep) and self.is_multiselect(sim)
         if is_aggregate_params or is_multiparam:
-            # if the simulation selector provided doesn't line up with the aggregation params
-            # (or the step isn't an aggregation step), this method will return a grouping of results. somehow.
-            simulations_list: list[PatchySimulation] = self.get_simulation(*sim)
-            # get data for each simulation
-            data: list[PipelineData] = self.get_data(step, simulations_list, time_steps)
-            # ugh wish python had switch/case
-            if step.get_output_data_type() == PipelineDataType.PIPELINE_DATATYPE_DATAFRAME:
-                self.get_logger().info(f"Merging data from simulations: {sim}")
-                timerange = np.array(list(set.intersection(*[set(s.trange()) for s in data])))
-                # iter simulation data
-                for s, sim_data in zip(simulations_list, data):  # I'm GREAT at naming variables!
-                    for p in s.param_vals:
-                        sim_data.get()[p.param_name] = p.value_name()
-                df = pd.concat([d.get() for d in data], axis=0)
-                df = df.loc[np.isin(df[TIMEPOINT_KEY], timerange)]
-                return PDPipelineData(df, timerange)
-            elif step.get_output_data_type() == PipelineDataType.PIPELINE_DATATYPE_GRAPH:
-                raise Exception("I haven't bothered trying to join graph data yet")
-            else:
-                raise Exception("Attempting to merge non-mergable data type")
+            return self.get_data_multiselector(sim, step, time_steps)
 
         # check if this is a slurm job (should always be true I guess? even if it's a jupyter notebook)
         if is_slurm_job():
@@ -2007,10 +1885,8 @@ class PatchySimulationEnsemble:
             f"Retrieving data for analysis step {step.name} and simulation(s) {str(sim)} over timeframe {time_steps}")
         # DATA CACHING
         # check if data is already loaded
-        if not self.is_nocache() and (step, sim,) in self.analysis_data and self.analysis_data[
-            (step, sim)].matches_trange(time_steps):
-            self.get_logger().info("Data already loaded!")
-            return self.analysis_data[(step, sim)]  # i don't care enough to load partial data
+        if self.is_data_loaded(sim, step, time_steps):
+            return self.get_cached_analysis_data(sim, step)
 
         # check if we have cached data for this step already
         if not self.analysis_pipeline.is_force_recompute(step) and self.has_data_file(step, sim):
@@ -2054,6 +1930,31 @@ class PatchySimulationEnsemble:
             self.analysis_data[step, sim] = data
         return data
 
+    def get_data_multiselector(self,
+                               sim: PatchySimDescriptor,
+                               step: AnalysisPipelineStep,
+                               time_steps) -> PDPipelineData:
+        # if the simulation selector provided doesn't line up with the aggregation params
+        # (or the step isn't an aggregation step), this method will return a grouping of results. somehow.
+        simulations_list: list[PatchySimulation] = self.get_simulation(*sim)
+        # get data for each simulation
+        data: list[PipelineData] = self.get_data(step, simulations_list, time_steps)
+        # ugh wish python had switch/case
+        if step.get_output_data_type() == PipelineDataType.PIPELINE_DATATYPE_DATAFRAME:
+            self.get_logger().info(f"Merging data from simulations: {sim}")
+            timerange = np.array(list(set.intersection(*[set(s.trange()) for s in data])))
+            # iter simulation data
+            for s, sim_data in zip(simulations_list, data):  # I'm GREAT at naming variables!
+                for p in s.param_vals:
+                    sim_data.get()[p.param_name] = p.value_name()
+            df = pd.concat([d.get() for d in data], axis=0)
+            df = df.loc[np.isin(df[TIMEPOINT_KEY], timerange)]
+            return PDPipelineData(df, timerange)
+        elif step.get_output_data_type() == PipelineDataType.PIPELINE_DATATYPE_GRAPH:
+            raise Exception("I haven't bothered trying to join graph data yet")
+        else:
+            raise Exception("Attempting to merge non-mergable data type")
+
     def get_step_input_data(self,
                             step: PipelineStepDescriptor,
                             sim: PatchySimDescriptor,
@@ -2076,7 +1977,8 @@ class PatchySimulationEnsemble:
         # if this is a head node, it will take ensemble info, sim info, and
         # file paths instead of previous step data
         elif isinstance(step, AnalysisPipelineHead):
-            assert isinstance(sim, PatchySimulation) or not self.is_multiselect(sim), "Analysis pipeline head nodes should only take single simulations"
+            assert isinstance(sim, PatchySimulation) or not self.is_multiselect(
+                sim), "Analysis pipeline head nodes should only take single simulations"
             if not isinstance(sim, PatchySimulation):
                 sim = self.get_simulation(*sim)
             stages: list[Stage] = self.sim_get_stages_between(sim, time_steps.start, time_steps.stop)
@@ -2186,8 +2088,8 @@ def process_simulation_data(args: tuple[PatchySimulationEnsemble, AnalysisPipeli
     return ensemble.get_data(step, s, time_steps)
 
 
-def shared_ensemble(es: list[PatchySimulationEnsemble], ignores: set = set()) -> Union[
-    list[list[PatchySimulation]], None]:
+def shared_ensemble(es: list[PatchySimulationEnsemble],
+                    ignores: set = set()) -> Union[list[list[PatchySimulation]], None]:
     """
     Computes the simulation specs that are shared between the provided ensembles
     Args:

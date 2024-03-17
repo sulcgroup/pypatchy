@@ -1,23 +1,36 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, IO, Union
+from typing import Any, IO, Union, Generator
 
 from .patchy.ensemble_parameter import parameter_value
 from .patchy.simulation_specification import ParamSet
-from .util import get_spec_json, cfg
+from .util import get_spec_json, cfg, get_local_dir
+
+
+def list_server_configs() -> Generator[PatchyServerConfig]:
+    """
+    iterates files in the server config directory
+    """
+    server_config_path = get_local_dir() / "spec_files" / "server_configs"
+    assert server_config_path.exists()
+    # iter files in directory
+    for f in server_config_path.rglob("*.json"):
+        yield load_server_settings(f.stem)
 
 
 def load_server_settings(settings_name: str) -> PatchyServerConfig:
     return PatchyServerConfig(
+        name=settings_name,
         **get_spec_json(settings_name, "server_configs")
     )
 
 
 @dataclass
 class PatchyServerConfig:
-    oxdna_path: str
-    patchy_format: str
+    name: str = field()
+    oxdna_path: str = field()
+    patchy_format: str = field()
     slurm_bash_flags: dict[str, Any] = field(default_factory=dict)
     slurm_includes: list[str] = field(default_factory=list)
     input_file_params: ParamSet = field(default_factory=ParamSet)

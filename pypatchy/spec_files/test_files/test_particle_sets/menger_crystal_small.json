@@ -1,0 +1,4211 @@
+{
+    "cube_types": [
+        {
+            "typeName": "CT0",
+            "type_id": 0,
+            "state": [
+                true,
+                false
+            ],
+            "patches": [
+                {
+                    "color": 0,
+                    "alignDir": {
+                        "x": 0,
+                        "y": -1,
+                        "z": 0
+                    },
+                    "direction": 0,
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": 1,
+                    "alignDir": {
+                        "x": 0,
+                        "y": 1,
+                        "z": 0
+                    },
+                    "direction": 1,
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": 0,
+                    "alignDir": {
+                        "x": 0,
+                        "y": 0,
+                        "z": -1
+                    },
+                    "direction": 2,
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": -4,
+                    "alignDir": {
+                        "x": 0,
+                        "y": 0,
+                        "z": 1
+                    },
+                    "direction": 3,
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": 0,
+                    "alignDir": {
+                        "x": -1,
+                        "y": 0,
+                        "z": 0
+                    },
+                    "direction": 4,
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": 3,
+                    "alignDir": {
+                        "x": 0,
+                        "y": 1,
+                        "z": 0
+                    },
+                    "direction": 5,
+                    "state_var": 0,
+                    "activation_var": 0
+                }
+            ],
+            "effects": []
+        },
+        {
+            "typeName": "CT1",
+            "type_id": 1,
+            "state": [
+                true,
+                false
+            ],
+            "patches": [
+                {
+                    "color": 0,
+                    "alignDir": {
+                        "x": 0,
+                        "y": -1,
+                        "z": 0
+                    },
+                    "direction": 0,
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": 0,
+                    "alignDir": {
+                        "x": 0,
+                        "y": 1,
+                        "z": 0
+                    },
+                    "direction": 1,
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": 0,
+                    "alignDir": {
+                        "x": 0,
+                        "y": 0,
+                        "z": -1
+                    },
+                    "direction": 2,
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": 0,
+                    "alignDir": {
+                        "x": 0,
+                        "y": 0,
+                        "z": 1
+                    },
+                    "direction": 3,
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": -3,
+                    "alignDir": {
+                        "x": 0,
+                        "y": -1,
+                        "z": 0
+                    },
+                    "direction": 4,
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": -3,
+                    "alignDir": {
+                        "x": -1,
+                        "y": 0,
+                        "z": 0
+                    },
+                    "direction": 5,
+                    "state_var": 0,
+                    "activation_var": 0
+                }
+            ],
+            "effects": []
+        },
+        {
+            "typeName": "CT2",
+            "type_id": 2,
+            "state": [
+                true,
+                false
+            ],
+            "patches": [
+                {
+                    "color": 5,
+                    "alignDir": {
+                        "x": 0,
+                        "y": -1,
+                        "z": 0
+                    },
+                    "direction": 0,
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": 0,
+                    "alignDir": {
+                        "x": 0,
+                        "y": 1,
+                        "z": 0
+                    },
+                    "direction": 1,
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": 4,
+                    "alignDir": {
+                        "x": 1,
+                        "y": 0,
+                        "z": 0
+                    },
+                    "direction": 2,
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": -1,
+                    "alignDir": {
+                        "x": 0,
+                        "y": 0,
+                        "z": -1
+                    },
+                    "direction": 3,
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": 0,
+                    "alignDir": {
+                        "x": -1,
+                        "y": 0,
+                        "z": 0
+                    },
+                    "direction": 4,
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": 0,
+                    "alignDir": {
+                        "x": 1,
+                        "y": 0,
+                        "z": 0
+                    },
+                    "direction": 5,
+                    "state_var": 0,
+                    "activation_var": 0
+                }
+            ],
+            "effects": []
+        },
+        {
+            "typeName": "CT3",
+            "type_id": 3,
+            "state": [
+                true,
+                false
+            ],
+            "patches": [
+                {
+                    "color": 6,
+                    "alignDir": {
+                        "x": 0,
+                        "y": 1,
+                        "z": 0
+                    },
+                    "direction": 0,
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": 0,
+                    "alignDir": {
+                        "x": 0,
+                        "y": 1,
+                        "z": 0
+                    },
+                    "direction": 1,
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": 6,
+                    "alignDir": {
+                        "x": 0,
+                        "y": 0,
+                        "z": 1
+                    },
+                    "direction": 2,
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": 0,
+                    "alignDir": {
+                        "x": 0,
+                        "y": 0,
+                        "z": 1
+                    },
+                    "direction": 3,
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": 6,
+                    "alignDir": {
+                        "x": 1,
+                        "y": 0,
+                        "z": 0
+                    },
+                    "direction": 4,
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": 0,
+                    "alignDir": {
+                        "x": 1,
+                        "y": 0,
+                        "z": 0
+                    },
+                    "direction": 5,
+                    "state_var": 0,
+                    "activation_var": 0
+                }
+            ],
+            "effects": []
+        },
+        {
+            "typeName": "CT4",
+            "type_id": 4,
+            "state": [
+                true,
+                false
+            ],
+            "patches": [
+                {
+                    "color": -6,
+                    "alignDir": {
+                        "x": 0,
+                        "y": 0,
+                        "z": 1
+                    },
+                    "direction": 0,
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": -6,
+                    "alignDir": {
+                        "x": 0,
+                        "y": 1,
+                        "z": 0
+                    },
+                    "direction": 1,
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": 0,
+                    "alignDir": {
+                        "x": 0,
+                        "y": 0,
+                        "z": -1
+                    },
+                    "direction": 2,
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": -5,
+                    "alignDir": {
+                        "x": 1,
+                        "y": 0,
+                        "z": 0
+                    },
+                    "direction": 3,
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": 0,
+                    "alignDir": {
+                        "x": -1,
+                        "y": 0,
+                        "z": 0
+                    },
+                    "direction": 4,
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": -5,
+                    "alignDir": {
+                        "x": -1,
+                        "y": 0,
+                        "z": 0
+                    },
+                    "direction": 5,
+                    "state_var": 0,
+                    "activation_var": 0
+                }
+            ],
+            "effects": []
+        }
+    ],
+    "cubes": [
+        {
+            "position": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "rotation": {
+                "w": 1,
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "type": 2,
+            "personal_name": "CT5",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": 0,
+                "y": 1,
+                "z": 0
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": -0.4999999999999999,
+                "y": 0.4999999999999999,
+                "z": -0.5
+            },
+            "type": 0,
+            "personal_name": "faev",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -1,
+                "y": 0,
+                "z": 0
+            },
+            "rotation": {
+                "w": 0.7071067811865475,
+                "x": 0,
+                "y": 0,
+                "z": -0.7071067811865475
+            },
+            "type": 4,
+            "personal_name": "fvge",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": 0,
+                "y": 1,
+                "z": -1
+            },
+            "rotation": {
+                "w": 0.7071067811865475,
+                "x": -0.7071067811865475,
+                "y": 0,
+                "z": 0
+            },
+            "type": 2,
+            "personal_name": "qyre",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -1,
+                "y": 1,
+                "z": 0
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": -0.5,
+                "y": -0.4999999999999999,
+                "z": -0.4999999999999999
+            },
+            "type": 3,
+            "personal_name": "hxfs",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -1,
+                "y": 0,
+                "z": 1
+            },
+            "rotation": {
+                "w": 4.329780281177466e-17,
+                "x": -0.7071067811865475,
+                "y": -4.329780281177466e-17,
+                "z": -0.7071067811865475
+            },
+            "type": 2,
+            "personal_name": "vjna",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -1,
+                "y": -1,
+                "z": 1
+            },
+            "rotation": {
+                "w": 0.7071067811865475,
+                "x": 0,
+                "y": 0,
+                "z": 0.7071067811865475
+            },
+            "type": 0,
+            "personal_name": "nqzh",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -1,
+                "y": -1,
+                "z": 2
+            },
+            "rotation": {
+                "w": 0.7071067811865476,
+                "x": 0,
+                "y": 0,
+                "z": -0.7071067811865475
+            },
+            "type": 1,
+            "personal_name": "zmfn",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -2,
+                "y": -1,
+                "z": 1
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": 0.4999999999999999,
+                "y": -0.4999999999999999,
+                "z": 0.5
+            },
+            "type": 2,
+            "personal_name": "yfii",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -1,
+                "y": 1,
+                "z": 1
+            },
+            "rotation": {
+                "w": 0,
+                "x": 0,
+                "y": 0,
+                "z": 1
+            },
+            "type": 0,
+            "personal_name": "acfl",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": 0,
+                "y": -1,
+                "z": 0
+            },
+            "rotation": {
+                "w": 0.7071067811865476,
+                "x": 0,
+                "y": 0.7071067811865475,
+                "z": 0
+            },
+            "type": 0,
+            "personal_name": "emrd",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -2,
+                "y": -1,
+                "z": 0
+            },
+            "rotation": {
+                "w": 6.123233995736766e-17,
+                "x": 0,
+                "y": 0,
+                "z": 1
+            },
+            "type": 4,
+            "personal_name": "amoq",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -3,
+                "y": -1,
+                "z": 1
+            },
+            "rotation": {
+                "w": 1,
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "type": 0,
+            "personal_name": "gbah",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -3,
+                "y": 0,
+                "z": 1
+            },
+            "rotation": {
+                "w": 0.7071067811865476,
+                "x": 0,
+                "y": -0.7071067811865475,
+                "z": 0
+            },
+            "type": 2,
+            "personal_name": "dsfc",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -1,
+                "y": -1,
+                "z": 0
+            },
+            "rotation": {
+                "w": 0.7071067811865475,
+                "x": 0,
+                "y": 0,
+                "z": -0.7071067811865475
+            },
+            "type": 3,
+            "personal_name": "vcdo",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -3,
+                "y": -1,
+                "z": 2
+            },
+            "rotation": {
+                "w": 6.123233995736766e-17,
+                "x": 0,
+                "y": 0,
+                "z": -1
+            },
+            "type": 1,
+            "personal_name": "yhmx",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -1,
+                "y": -1,
+                "z": -1
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": 0.4999999999999999,
+                "y": 0.5,
+                "z": -0.4999999999999999
+            },
+            "type": 4,
+            "personal_name": "hmck",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -1,
+                "y": -2,
+                "z": -1
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": -0.4999999999999999,
+                "y": 0.4999999999999999,
+                "z": -0.5
+            },
+            "type": 2,
+            "personal_name": "ocpc",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -1,
+                "y": -1,
+                "z": -2
+            },
+            "rotation": {
+                "w": 0,
+                "x": -1,
+                "y": 6.123233995736766e-17,
+                "z": 0
+            },
+            "type": 3,
+            "personal_name": "qybs",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -2,
+                "y": 1,
+                "z": 0
+            },
+            "rotation": {
+                "w": 0,
+                "x": 0,
+                "y": -0.7071067811865476,
+                "z": -0.7071067811865475
+            },
+            "type": 4,
+            "personal_name": "auou",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": 1,
+                "y": -1,
+                "z": 0
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": 0.4999999999999999,
+                "y": -0.5,
+                "z": -0.4999999999999999
+            },
+            "type": 1,
+            "personal_name": "eyes",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -3,
+                "y": 1,
+                "z": 0
+            },
+            "rotation": {
+                "w": 0.7071067811865475,
+                "x": 0,
+                "y": 0,
+                "z": 0.7071067811865475
+            },
+            "type": 3,
+            "personal_name": "gmpc",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -1,
+                "y": 1,
+                "z": -1
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": -0.4999999999999999,
+                "y": -0.5,
+                "z": -0.4999999999999999
+            },
+            "type": 4,
+            "personal_name": "nvyd",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -1,
+                "y": 2,
+                "z": -1
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": 0.4999999999999999,
+                "y": 0.4999999999999999,
+                "z": 0.5
+            },
+            "type": 2,
+            "personal_name": "ifbx",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -1,
+                "y": 2,
+                "z": -2
+            },
+            "rotation": {
+                "w": 4.329780281177466e-17,
+                "x": 4.329780281177466e-17,
+                "y": 0.7071067811865475,
+                "z": 0.7071067811865475
+            },
+            "type": 0,
+            "personal_name": "qxcq",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -1,
+                "y": 2,
+                "z": 0
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": -0.4999999999999999,
+                "y": 0.5,
+                "z": 0.4999999999999999
+            },
+            "type": 0,
+            "personal_name": "avjr",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -1,
+                "y": 3,
+                "z": -2
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": 0.5,
+                "y": 0.4999999999999999,
+                "z": -0.4999999999999999
+            },
+            "type": 1,
+            "personal_name": "kmos",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": 2,
+                "y": -1,
+                "z": 0
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": -0.4999999999999999,
+                "y": -0.5,
+                "z": 0.4999999999999999
+            },
+            "type": 0,
+            "personal_name": "wcqo",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -2,
+                "y": 1,
+                "z": 1
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": -0.4999999999999999,
+                "y": -0.5,
+                "z": -0.4999999999999999
+            },
+            "type": 2,
+            "personal_name": "qcpb",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -3,
+                "y": 0,
+                "z": 0
+            },
+            "rotation": {
+                "w": 0.7071067811865476,
+                "x": 0,
+                "y": 0,
+                "z": 0.7071067811865475
+            },
+            "type": 4,
+            "personal_name": "jyot",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -1,
+                "y": 4,
+                "z": -2
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": 0.5,
+                "y": -0.4999999999999999,
+                "z": 0.4999999999999999
+            },
+            "type": 0,
+            "personal_name": "lfmi",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -1,
+                "y": 4,
+                "z": -1
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": -0.5,
+                "y": 0.4999999999999999,
+                "z": -0.4999999999999999
+            },
+            "type": 2,
+            "personal_name": "uyhb",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -3,
+                "y": -1,
+                "z": 0
+            },
+            "rotation": {
+                "w": 0,
+                "x": 0,
+                "y": 0,
+                "z": -1
+            },
+            "type": 3,
+            "personal_name": "eils",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -3,
+                "y": 1,
+                "z": 1
+            },
+            "rotation": {
+                "w": 0.7071067811865475,
+                "x": 0,
+                "y": 0,
+                "z": -0.7071067811865475
+            },
+            "type": 0,
+            "personal_name": "qobu",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -1,
+                "y": 3,
+                "z": 0
+            },
+            "rotation": {
+                "w": 0.7071067811865475,
+                "x": 0.7071067811865475,
+                "y": 0,
+                "z": 0
+            },
+            "type": 1,
+            "personal_name": "repb",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -2,
+                "y": 4,
+                "z": -2
+            },
+            "rotation": {
+                "w": 4.329780281177466e-17,
+                "x": 0.7071067811865475,
+                "y": -0.7071067811865475,
+                "z": 4.329780281177466e-17
+            },
+            "type": 2,
+            "personal_name": "jmfq",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": 0,
+                "y": 1,
+                "z": -2
+            },
+            "rotation": {
+                "w": 4.329780281177466e-17,
+                "x": 0.7071067811865475,
+                "y": -4.329780281177466e-17,
+                "z": 0.7071067811865475
+            },
+            "type": 0,
+            "personal_name": "gbxc",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -3,
+                "y": -1,
+                "z": -1
+            },
+            "rotation": {
+                "w": 4.329780281177466e-17,
+                "x": -0.7071067811865475,
+                "y": 4.329780281177466e-17,
+                "z": 0.7071067811865475
+            },
+            "type": 4,
+            "personal_name": "tdkw",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -1,
+                "y": 1,
+                "z": 2
+            },
+            "rotation": {
+                "w": 0,
+                "x": -0.7071067811865475,
+                "y": -0.7071067811865476,
+                "z": 0
+            },
+            "type": 1,
+            "personal_name": "gjos",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -1,
+                "y": 4,
+                "z": 0
+            },
+            "rotation": {
+                "w": 4.329780281177466e-17,
+                "x": 4.329780281177466e-17,
+                "y": -0.7071067811865475,
+                "z": 0.7071067811865475
+            },
+            "type": 0,
+            "personal_name": "tpwd",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": 0,
+                "y": -1,
+                "z": -1
+            },
+            "rotation": {
+                "w": 0.7071067811865475,
+                "x": 0.7071067811865475,
+                "y": 0,
+                "z": 0
+            },
+            "type": 2,
+            "personal_name": "dzvd",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -3,
+                "y": -1,
+                "z": 3
+            },
+            "rotation": {
+                "w": 0,
+                "x": -0.7071067811865475,
+                "y": -0.7071067811865476,
+                "z": 0
+            },
+            "type": 0,
+            "personal_name": "rvkk",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -2,
+                "y": -1,
+                "z": 3
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": 0.4999999999999999,
+                "y": 0.4999999999999999,
+                "z": -0.5
+            },
+            "type": 2,
+            "personal_name": "irmg",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": 1,
+                "y": 1,
+                "z": -2
+            },
+            "rotation": {
+                "w": 0.7071067811865475,
+                "x": 0,
+                "y": 0.7071067811865475,
+                "z": 0
+            },
+            "type": 1,
+            "personal_name": "hrsz",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -2,
+                "y": 2,
+                "z": 0
+            },
+            "rotation": {
+                "w": 0.7071067811865475,
+                "x": 0,
+                "y": 0,
+                "z": 0.7071067811865475
+            },
+            "type": 2,
+            "personal_name": "dtoi",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -2,
+                "y": -1,
+                "z": 4
+            },
+            "rotation": {
+                "w": 4.329780281177466e-17,
+                "x": -4.329780281177466e-17,
+                "y": 0.7071067811865475,
+                "z": -0.7071067811865475
+            },
+            "type": 4,
+            "personal_name": "fusb",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -4,
+                "y": -1,
+                "z": -1
+            },
+            "rotation": {
+                "w": 0,
+                "x": 0,
+                "y": -0.7071067811865476,
+                "z": 0.7071067811865475
+            },
+            "type": 2,
+            "personal_name": "cpls",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -2,
+                "y": -2,
+                "z": 0
+            },
+            "rotation": {
+                "w": 0.7071067811865475,
+                "x": 0,
+                "y": 0,
+                "z": -0.7071067811865475
+            },
+            "type": 2,
+            "personal_name": "hvfi",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -1,
+                "y": 1,
+                "z": 3
+            },
+            "rotation": {
+                "w": 0,
+                "x": 0.7071067811865475,
+                "y": -0.7071067811865476,
+                "z": 0
+            },
+            "type": 0,
+            "personal_name": "iybu",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -3,
+                "y": -2,
+                "z": 0
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": 0.4999999999999999,
+                "y": 0.4999999999999999,
+                "z": -0.5
+            },
+            "type": 0,
+            "personal_name": "tngg",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": 2,
+                "y": 0,
+                "z": 0
+            },
+            "rotation": {
+                "w": 0,
+                "x": 0,
+                "y": 0,
+                "z": 1
+            },
+            "type": 2,
+            "personal_name": "kpml",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -4,
+                "y": -1,
+                "z": 0
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": -0.5,
+                "y": -0.4999999999999999,
+                "z": 0.4999999999999999
+            },
+            "type": 0,
+            "personal_name": "ogwt",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -4,
+                "y": 0,
+                "z": 0
+            },
+            "rotation": {
+                "w": 0,
+                "x": 0,
+                "y": 0,
+                "z": 1
+            },
+            "type": 2,
+            "personal_name": "zxjb",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -2,
+                "y": -2,
+                "z": 4
+            },
+            "rotation": {
+                "w": 4.329780281177466e-17,
+                "x": -0.7071067811865475,
+                "y": 0.7071067811865475,
+                "z": -4.329780281177466e-17
+            },
+            "type": 2,
+            "personal_name": "oltj",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -5,
+                "y": -1,
+                "z": 0
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": 0.4999999999999999,
+                "y": -0.5,
+                "z": -0.4999999999999999
+            },
+            "type": 1,
+            "personal_name": "pyxj",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -4,
+                "y": -1,
+                "z": -2
+            },
+            "rotation": {
+                "w": 0.7071067811865475,
+                "x": 0,
+                "y": -0.7071067811865475,
+                "z": 0
+            },
+            "type": 0,
+            "personal_name": "quzv",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -1,
+                "y": 5,
+                "z": -1
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": 0.5,
+                "y": 0.4999999999999999,
+                "z": -0.4999999999999999
+            },
+            "type": 4,
+            "personal_name": "roum",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -3,
+                "y": 2,
+                "z": 0
+            },
+            "rotation": {
+                "w": 0.7071067811865476,
+                "x": -0.7071067811865475,
+                "y": 0,
+                "z": 0
+            },
+            "type": 0,
+            "personal_name": "mxxu",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -1,
+                "y": 1,
+                "z": -2
+            },
+            "rotation": {
+                "w": 0.7071067811865475,
+                "x": -0.7071067811865475,
+                "y": 0,
+                "z": 0
+            },
+            "type": 3,
+            "personal_name": "dabs",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -4,
+                "y": 0,
+                "z": -2
+            },
+            "rotation": {
+                "w": 6.123233995736766e-17,
+                "x": 0,
+                "y": -1,
+                "z": 0
+            },
+            "type": 2,
+            "personal_name": "hszp",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -1,
+                "y": 5,
+                "z": 0
+            },
+            "rotation": {
+                "w": 0.7071067811865475,
+                "x": 0.7071067811865475,
+                "y": 0,
+                "z": 0
+            },
+            "type": 3,
+            "personal_name": "ywqw",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -1,
+                "y": 6,
+                "z": 0
+            },
+            "rotation": {
+                "w": 0.7071067811865475,
+                "x": 0,
+                "y": 0,
+                "z": -0.7071067811865475
+            },
+            "type": 4,
+            "personal_name": "ldhf",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -3,
+                "y": -2,
+                "z": 4
+            },
+            "rotation": {
+                "w": 0.7071067811865476,
+                "x": 0.7071067811865475,
+                "y": 0,
+                "z": 0
+            },
+            "type": 0,
+            "personal_name": "ibnq",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -2,
+                "y": 1,
+                "z": -2
+            },
+            "rotation": {
+                "w": 0.7071067811865476,
+                "x": -0.7071067811865475,
+                "y": 0,
+                "z": 0
+            },
+            "type": 4,
+            "personal_name": "qfyj",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -1,
+                "y": -1,
+                "z": 3
+            },
+            "rotation": {
+                "w": 0,
+                "x": 0,
+                "y": 1,
+                "z": 0
+            },
+            "type": 0,
+            "personal_name": "ptdx",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -1,
+                "y": 7,
+                "z": 0
+            },
+            "rotation": {
+                "w": 1,
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "type": 3,
+            "personal_name": "sxfm",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -2,
+                "y": 1,
+                "z": 3
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": -0.4999999999999999,
+                "y": 0.4999999999999999,
+                "z": 0.5
+            },
+            "type": 2,
+            "personal_name": "tvyo",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -3,
+                "y": -1,
+                "z": -2
+            },
+            "rotation": {
+                "w": 0,
+                "x": -0.7071067811865475,
+                "y": 0.7071067811865476,
+                "z": 0
+            },
+            "type": 3,
+            "personal_name": "slbz",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -1,
+                "y": -1,
+                "z": 4
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": 0.4999999999999999,
+                "y": 0.4999999999999999,
+                "z": -0.5
+            },
+            "type": 3,
+            "personal_name": "axce",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -2,
+                "y": 2,
+                "z": -2
+            },
+            "rotation": {
+                "w": 4.329780281177466e-17,
+                "x": -0.7071067811865475,
+                "y": -0.7071067811865475,
+                "z": 4.329780281177466e-17
+            },
+            "type": 2,
+            "personal_name": "nynp",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -1,
+                "y": -2,
+                "z": -2
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": 0.4999999999999999,
+                "y": -0.5,
+                "z": 0.4999999999999999
+            },
+            "type": 0,
+            "personal_name": "twtr",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -3,
+                "y": 0,
+                "z": -2
+            },
+            "rotation": {
+                "w": 4.329780281177466e-17,
+                "x": -0.7071067811865475,
+                "y": 0.7071067811865475,
+                "z": 4.329780281177466e-17
+            },
+            "type": 4,
+            "personal_name": "ribf",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -1,
+                "y": -2,
+                "z": 0
+            },
+            "rotation": {
+                "w": 4.329780281177466e-17,
+                "x": -4.329780281177466e-17,
+                "y": 0.7071067811865475,
+                "z": -0.7071067811865475
+            },
+            "type": 0,
+            "personal_name": "vdji",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -1,
+                "y": -2,
+                "z": 4
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": 0.4999999999999999,
+                "y": -0.4999999999999999,
+                "z": 0.5
+            },
+            "type": 0,
+            "personal_name": "ruum",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -3,
+                "y": 1,
+                "z": -1
+            },
+            "rotation": {
+                "w": 0.7071067811865475,
+                "x": 0,
+                "y": -0.7071067811865475,
+                "z": 0
+            },
+            "type": 4,
+            "personal_name": "vcnl",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": 2,
+                "y": 1,
+                "z": 0
+            },
+            "rotation": {
+                "w": 0,
+                "x": -0.7071067811865475,
+                "y": 0,
+                "z": 0.7071067811865476
+            },
+            "type": 0,
+            "personal_name": "rpms",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -6,
+                "y": -1,
+                "z": 0
+            },
+            "rotation": {
+                "w": 0.7071067811865475,
+                "x": 0,
+                "y": 0.7071067811865475,
+                "z": 0
+            },
+            "type": 0,
+            "personal_name": "bzai",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -3,
+                "y": 1,
+                "z": 3
+            },
+            "rotation": {
+                "w": 6.123233995736766e-17,
+                "x": 1,
+                "y": 0,
+                "z": 0
+            },
+            "type": 0,
+            "personal_name": "npkk",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -1,
+                "y": 0,
+                "z": 3
+            },
+            "rotation": {
+                "w": 0.7071067811865476,
+                "x": 0,
+                "y": 0.7071067811865475,
+                "z": 0
+            },
+            "type": 2,
+            "personal_name": "dkzs",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": 1,
+                "y": 1,
+                "z": 0
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": 0.4999999999999999,
+                "y": 0.5,
+                "z": 0.4999999999999999
+            },
+            "type": 1,
+            "personal_name": "gvxc",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -2,
+                "y": 1,
+                "z": -3
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": -0.4999999999999999,
+                "y": 0.5,
+                "z": 0.4999999999999999
+            },
+            "type": 2,
+            "personal_name": "lwyi",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -2,
+                "y": -2,
+                "z": -2
+            },
+            "rotation": {
+                "w": 4.329780281177466e-17,
+                "x": 0.7071067811865475,
+                "y": -0.7071067811865475,
+                "z": 4.329780281177466e-17
+            },
+            "type": 2,
+            "personal_name": "uakw",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -1,
+                "y": 5,
+                "z": -2
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": -0.5,
+                "y": 0.4999999999999999,
+                "z": -0.4999999999999999
+            },
+            "type": 3,
+            "personal_name": "cyui",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -3,
+                "y": 2,
+                "z": -1
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": -0.4999999999999999,
+                "y": -0.4999999999999999,
+                "z": 0.5
+            },
+            "type": 2,
+            "personal_name": "drgz",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -1,
+                "y": 1,
+                "z": -3
+            },
+            "rotation": {
+                "w": 4.329780281177466e-17,
+                "x": -0.7071067811865475,
+                "y": 0.7071067811865475,
+                "z": 4.329780281177466e-17
+            },
+            "type": 0,
+            "personal_name": "nbuj",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -3,
+                "y": 0,
+                "z": 3
+            },
+            "rotation": {
+                "w": 0,
+                "x": -0.7071067811865475,
+                "y": 0,
+                "z": 0.7071067811865476
+            },
+            "type": 2,
+            "personal_name": "jksp",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -1,
+                "y": 0,
+                "z": -3
+            },
+            "rotation": {
+                "w": 0.7071067811865476,
+                "x": 0,
+                "y": 0.7071067811865475,
+                "z": 0
+            },
+            "type": 2,
+            "personal_name": "qosg",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -4,
+                "y": 1,
+                "z": 0
+            },
+            "rotation": {
+                "w": 0,
+                "x": -0.7071067811865475,
+                "y": 0,
+                "z": 0.7071067811865476
+            },
+            "type": 0,
+            "personal_name": "wftl",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -3,
+                "y": -3,
+                "z": 4
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": -0.5,
+                "y": 0.4999999999999999,
+                "z": 0.4999999999999999
+            },
+            "type": 1,
+            "personal_name": "racw",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -3,
+                "y": 1,
+                "z": 2
+            },
+            "rotation": {
+                "w": 0,
+                "x": 0,
+                "y": -1,
+                "z": 0
+            },
+            "type": 1,
+            "personal_name": "vypm",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -3,
+                "y": 1,
+                "z": -2
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": -0.4999999999999999,
+                "y": 0.5,
+                "z": 0.4999999999999999
+            },
+            "type": 3,
+            "personal_name": "hque",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -3,
+                "y": -1,
+                "z": 4
+            },
+            "rotation": {
+                "w": 4.329780281177466e-17,
+                "x": 0.7071067811865475,
+                "y": -0.7071067811865475,
+                "z": 4.329780281177466e-17
+            },
+            "type": 3,
+            "personal_name": "rkkv",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -1,
+                "y": 0,
+                "z": -2
+            },
+            "rotation": {
+                "w": 4.329780281177466e-17,
+                "x": 0.7071067811865475,
+                "y": 0.7071067811865475,
+                "z": 4.329780281177466e-17
+            },
+            "type": 4,
+            "personal_name": "ehpf",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -2,
+                "y": 5,
+                "z": -2
+            },
+            "rotation": {
+                "w": 4.329780281177466e-17,
+                "x": 4.329780281177466e-17,
+                "y": -0.7071067811865475,
+                "z": 0.7071067811865475
+            },
+            "type": 4,
+            "personal_name": "chqe",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -1,
+                "y": 1,
+                "z": -4
+            },
+            "rotation": {
+                "w": 0,
+                "x": 0.7071067811865475,
+                "y": 0.7071067811865476,
+                "z": 0
+            },
+            "type": 1,
+            "personal_name": "bjpl",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -3,
+                "y": 4,
+                "z": -2
+            },
+            "rotation": {
+                "w": 0.7071067811865476,
+                "x": 0.7071067811865475,
+                "y": 0,
+                "z": 0
+            },
+            "type": 0,
+            "personal_name": "kdti",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -3,
+                "y": -2,
+                "z": -1
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": 0.4999999999999999,
+                "y": -0.4999999999999999,
+                "z": -0.5
+            },
+            "type": 2,
+            "personal_name": "qzcs",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -6,
+                "y": -1,
+                "z": -1
+            },
+            "rotation": {
+                "w": 0.7071067811865475,
+                "x": 0.7071067811865475,
+                "y": 0,
+                "z": 0
+            },
+            "type": 2,
+            "personal_name": "tsml",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -1,
+                "y": 6,
+                "z": -2
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": -0.4999999999999999,
+                "y": 0.4999999999999999,
+                "z": -0.5
+            },
+            "type": 4,
+            "personal_name": "vkjv",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": 0,
+                "y": 0,
+                "z": -2
+            },
+            "rotation": {
+                "w": 6.123233995736766e-17,
+                "x": -1,
+                "y": 0,
+                "z": 0
+            },
+            "type": 2,
+            "personal_name": "fhxm",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -3,
+                "y": 4,
+                "z": -1
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": 0.5,
+                "y": -0.4999999999999999,
+                "z": -0.4999999999999999
+            },
+            "type": 2,
+            "personal_name": "bgit",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -7,
+                "y": -1,
+                "z": -1
+            },
+            "rotation": {
+                "w": 4.329780281177466e-17,
+                "x": 0.7071067811865475,
+                "y": 4.329780281177466e-17,
+                "z": 0.7071067811865475
+            },
+            "type": 4,
+            "personal_name": "lgpo",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -3,
+                "y": 3,
+                "z": 0
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": 0.5,
+                "y": -0.4999999999999999,
+                "z": 0.4999999999999999
+            },
+            "type": 1,
+            "personal_name": "xdyt",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -5,
+                "y": -1,
+                "z": -2
+            },
+            "rotation": {
+                "w": 4.329780281177466e-17,
+                "x": 0.7071067811865475,
+                "y": -4.329780281177466e-17,
+                "z": -0.7071067811865475
+            },
+            "type": 1,
+            "personal_name": "lzlp",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -2,
+                "y": 5,
+                "z": 0
+            },
+            "rotation": {
+                "w": 0.7071067811865476,
+                "x": 0.7071067811865475,
+                "y": 0,
+                "z": 0
+            },
+            "type": 4,
+            "personal_name": "nppf",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": 0,
+                "y": 6,
+                "z": 0
+            },
+            "rotation": {
+                "w": 1,
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "type": 2,
+            "personal_name": "kpzf",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -1,
+                "y": -3,
+                "z": 0
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": -0.5,
+                "y": -0.4999999999999999,
+                "z": -0.4999999999999999
+            },
+            "type": 1,
+            "personal_name": "wgcl",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -1,
+                "y": -2,
+                "z": 5
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": -0.5,
+                "y": 0.4999999999999999,
+                "z": -0.4999999999999999
+            },
+            "type": 2,
+            "personal_name": "ddbf",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -3,
+                "y": 1,
+                "z": -3
+            },
+            "rotation": {
+                "w": 6.123233995736766e-17,
+                "x": 1,
+                "y": 0,
+                "z": 0
+            },
+            "type": 0,
+            "personal_name": "ocgu",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": 2,
+                "y": -1,
+                "z": -1
+            },
+            "rotation": {
+                "w": 4.329780281177466e-17,
+                "x": -4.329780281177466e-17,
+                "y": -0.7071067811865475,
+                "z": 0.7071067811865475
+            },
+            "type": 2,
+            "personal_name": "obog",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -3,
+                "y": -4,
+                "z": 4
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": -0.5,
+                "y": -0.4999999999999999,
+                "z": -0.4999999999999999
+            },
+            "type": 0,
+            "personal_name": "xbzn",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -2,
+                "y": 7,
+                "z": 0
+            },
+            "rotation": {
+                "w": 1,
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "type": 4,
+            "personal_name": "jmkl",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": 0,
+                "y": 5,
+                "z": 0
+            },
+            "rotation": {
+                "w": 0.7071067811865476,
+                "x": 0,
+                "y": 0.7071067811865475,
+                "z": 0
+            },
+            "type": 0,
+            "personal_name": "ktvn",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -3,
+                "y": 2,
+                "z": -2
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": -0.4999999999999999,
+                "y": -0.4999999999999999,
+                "z": -0.5
+            },
+            "type": 0,
+            "personal_name": "evyo",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": 2,
+                "y": 1,
+                "z": -1
+            },
+            "rotation": {
+                "w": 4.329780281177466e-17,
+                "x": 4.329780281177466e-17,
+                "y": 0.7071067811865475,
+                "z": 0.7071067811865475
+            },
+            "type": 2,
+            "personal_name": "tyfc",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -2,
+                "y": 5,
+                "z": 1
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": 0.4999999999999999,
+                "y": -0.5,
+                "z": 0.4999999999999999
+            },
+            "type": 2,
+            "personal_name": "odpn",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -3,
+                "y": -4,
+                "z": 5
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": -0.5,
+                "y": -0.4999999999999999,
+                "z": 0.4999999999999999
+            },
+            "type": 2,
+            "personal_name": "ebrr",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": 2,
+                "y": 1,
+                "z": -2
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": 0.5,
+                "y": -0.4999999999999999,
+                "z": -0.4999999999999999
+            },
+            "type": 0,
+            "personal_name": "vfhi",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -1,
+                "y": -4,
+                "z": 0
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": -0.5,
+                "y": 0.4999999999999999,
+                "z": 0.4999999999999999
+            },
+            "type": 0,
+            "personal_name": "gcpq",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -2,
+                "y": -1,
+                "z": -2
+            },
+            "rotation": {
+                "w": 0,
+                "x": 0,
+                "y": 0.7071067811865476,
+                "z": -0.7071067811865475
+            },
+            "type": 4,
+            "personal_name": "dtof",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": 2,
+                "y": -1,
+                "z": -2
+            },
+            "rotation": {
+                "w": 0.7071067811865475,
+                "x": 0,
+                "y": -0.7071067811865475,
+                "z": 0
+            },
+            "type": 0,
+            "personal_name": "cqyr",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": 1,
+                "y": 5,
+                "z": 0
+            },
+            "rotation": {
+                "w": 4.329780281177466e-17,
+                "x": -0.7071067811865475,
+                "y": 4.329780281177466e-17,
+                "z": -0.7071067811865475
+            },
+            "type": 1,
+            "personal_name": "jirx",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -3,
+                "y": 7,
+                "z": 0
+            },
+            "rotation": {
+                "w": 0.7071067811865475,
+                "x": 0,
+                "y": -0.7071067811865475,
+                "z": 0
+            },
+            "type": 3,
+            "personal_name": "xcfo",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -3,
+                "y": -1,
+                "z": 5
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": 0.4999999999999999,
+                "y": -0.5,
+                "z": 0.4999999999999999
+            },
+            "type": 4,
+            "personal_name": "nnoh",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": 2,
+                "y": 5,
+                "z": 0
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": -0.4999999999999999,
+                "y": -0.5,
+                "z": 0.4999999999999999
+            },
+            "type": 0,
+            "personal_name": "aznu",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -4,
+                "y": -1,
+                "z": 5
+            },
+            "rotation": {
+                "w": 0,
+                "x": 0,
+                "y": -0.7071067811865476,
+                "z": 0.7071067811865475
+            },
+            "type": 2,
+            "personal_name": "zvac",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -1,
+                "y": -2,
+                "z": 6
+            },
+            "rotation": {
+                "w": 4.329780281177466e-17,
+                "x": -4.329780281177466e-17,
+                "y": 0.7071067811865475,
+                "z": -0.7071067811865475
+            },
+            "type": 0,
+            "personal_name": "pyun",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": 3,
+                "y": -1,
+                "z": -1
+            },
+            "rotation": {
+                "w": 4.329780281177466e-17,
+                "x": -0.7071067811865475,
+                "y": -4.329780281177466e-17,
+                "z": 0.7071067811865475
+            },
+            "type": 4,
+            "personal_name": "usay",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -1,
+                "y": 1,
+                "z": -5
+            },
+            "rotation": {
+                "w": 6.123233995736766e-17,
+                "x": 0,
+                "y": 0,
+                "z": 1
+            },
+            "type": 0,
+            "personal_name": "wdub",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": 0,
+                "y": -1,
+                "z": -2
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": 0.5,
+                "y": 0.4999999999999999,
+                "z": 0.4999999999999999
+            },
+            "type": 0,
+            "personal_name": "zdxd",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -3,
+                "y": 0,
+                "z": -3
+            },
+            "rotation": {
+                "w": 0,
+                "x": 0.7071067811865475,
+                "y": 0,
+                "z": -0.7071067811865476
+            },
+            "type": 2,
+            "personal_name": "pskn",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -3,
+                "y": -2,
+                "z": 5
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": 0.4999999999999999,
+                "y": -0.4999999999999999,
+                "z": -0.5
+            },
+            "type": 2,
+            "personal_name": "rddn",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -2,
+                "y": -2,
+                "z": 6
+            },
+            "rotation": {
+                "w": 0.7071067811865475,
+                "x": 0,
+                "y": 0,
+                "z": -0.7071067811865475
+            },
+            "type": 2,
+            "personal_name": "qgmk",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -3,
+                "y": 5,
+                "z": 1
+            },
+            "rotation": {
+                "w": 1,
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "type": 0,
+            "personal_name": "pqze",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -3,
+                "y": -5,
+                "z": 5
+            },
+            "rotation": {
+                "w": 0.7071067811865476,
+                "x": 0,
+                "y": -0.7071067811865475,
+                "z": 0
+            },
+            "type": 4,
+            "personal_name": "cvhi",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -3,
+                "y": 5,
+                "z": 0
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": 0.4999999999999999,
+                "y": -0.5,
+                "z": -0.4999999999999999
+            },
+            "type": 3,
+            "personal_name": "zien",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": 2,
+                "y": 6,
+                "z": 0
+            },
+            "rotation": {
+                "w": 0,
+                "x": 0,
+                "y": 0,
+                "z": 1
+            },
+            "type": 2,
+            "personal_name": "dpjk",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -3,
+                "y": -2,
+                "z": -2
+            },
+            "rotation": {
+                "w": 0.7071067811865476,
+                "x": 0.7071067811865475,
+                "y": 0,
+                "z": 0
+            },
+            "type": 0,
+            "personal_name": "vtfg",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -3,
+                "y": 6,
+                "z": 0
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": 0.4999999999999999,
+                "y": -0.4999999999999999,
+                "z": -0.5
+            },
+            "type": 4,
+            "personal_name": "hmwa",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": 2,
+                "y": 7,
+                "z": 0
+            },
+            "rotation": {
+                "w": 0,
+                "x": -0.7071067811865475,
+                "y": 0,
+                "z": 0.7071067811865476
+            },
+            "type": 0,
+            "personal_name": "zgax",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -3,
+                "y": 6,
+                "z": 1
+            },
+            "rotation": {
+                "w": 0.7071067811865475,
+                "x": 0,
+                "y": -0.7071067811865475,
+                "z": 0
+            },
+            "type": 2,
+            "personal_name": "dmuy",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -1,
+                "y": -3,
+                "z": 4
+            },
+            "rotation": {
+                "w": 0.7071067811865475,
+                "x": -0.7071067811865475,
+                "y": 0,
+                "z": 0
+            },
+            "type": 1,
+            "personal_name": "pdha",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -3,
+                "y": 5,
+                "z": 2
+            },
+            "rotation": {
+                "w": 6.123233995736766e-17,
+                "x": 0,
+                "y": 0,
+                "z": -1
+            },
+            "type": 1,
+            "personal_name": "yguv",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -3,
+                "y": -5,
+                "z": 6
+            },
+            "rotation": {
+                "w": 0.7071067811865475,
+                "x": 0,
+                "y": -0.7071067811865475,
+                "z": 0
+            },
+            "type": 3,
+            "personal_name": "cqme",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -3,
+                "y": -2,
+                "z": 6
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": 0.4999999999999999,
+                "y": 0.4999999999999999,
+                "z": -0.5
+            },
+            "type": 0,
+            "personal_name": "ncgx",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -4,
+                "y": 1,
+                "z": -2
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": 0.4999999999999999,
+                "y": -0.4999999999999999,
+                "z": -0.5
+            },
+            "type": 0,
+            "personal_name": "ajge",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -2,
+                "y": -4,
+                "z": 4
+            },
+            "rotation": {
+                "w": 4.329780281177466e-17,
+                "x": -0.7071067811865475,
+                "y": -0.7071067811865475,
+                "z": -4.329780281177466e-17
+            },
+            "type": 2,
+            "personal_name": "ymox",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -3,
+                "y": 3,
+                "z": -2
+            },
+            "rotation": {
+                "w": 4.329780281177466e-17,
+                "x": 4.329780281177466e-17,
+                "y": -0.7071067811865475,
+                "z": 0.7071067811865475
+            },
+            "type": 1,
+            "personal_name": "doml",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": 2,
+                "y": 7,
+                "z": -1
+            },
+            "rotation": {
+                "w": 4.329780281177466e-17,
+                "x": 4.329780281177466e-17,
+                "y": 0.7071067811865475,
+                "z": 0.7071067811865475
+            },
+            "type": 2,
+            "personal_name": "gwos",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -2,
+                "y": -1,
+                "z": -3
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": 0.4999999999999999,
+                "y": 0.5,
+                "z": -0.4999999999999999
+            },
+            "type": 2,
+            "personal_name": "ioip",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -3,
+                "y": -3,
+                "z": -2
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": -0.5,
+                "y": 0.4999999999999999,
+                "z": 0.4999999999999999
+            },
+            "type": 1,
+            "personal_name": "vwid",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -3,
+                "y": 1,
+                "z": -4
+            },
+            "rotation": {
+                "w": 0,
+                "x": 0,
+                "y": 1,
+                "z": 0
+            },
+            "type": 1,
+            "personal_name": "dtqu",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -1,
+                "y": 5,
+                "z": 1
+            },
+            "rotation": {
+                "w": 0.7071067811865475,
+                "x": 0,
+                "y": 0,
+                "z": 0.7071067811865475
+            },
+            "type": 0,
+            "personal_name": "mbws",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -1,
+                "y": -4,
+                "z": 4
+            },
+            "rotation": {
+                "w": 4.329780281177466e-17,
+                "x": -4.329780281177466e-17,
+                "y": 0.7071067811865475,
+                "z": 0.7071067811865475
+            },
+            "type": 0,
+            "personal_name": "dpsn",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -3,
+                "y": -1,
+                "z": 6
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": 0.4999999999999999,
+                "y": -0.5,
+                "z": 0.4999999999999999
+            },
+            "type": 3,
+            "personal_name": "lbgg",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -3,
+                "y": 5,
+                "z": 3
+            },
+            "rotation": {
+                "w": 0,
+                "x": -0.7071067811865475,
+                "y": -0.7071067811865476,
+                "z": 0
+            },
+            "type": 0,
+            "personal_name": "ocdm",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": 3,
+                "y": -1,
+                "z": -2
+            },
+            "rotation": {
+                "w": 0,
+                "x": -0.7071067811865475,
+                "y": 0.7071067811865476,
+                "z": 0
+            },
+            "type": 3,
+            "personal_name": "dser",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": 2,
+                "y": 0,
+                "z": -2
+            },
+            "rotation": {
+                "w": 6.123233995736766e-17,
+                "x": 0,
+                "y": -1,
+                "z": 0
+            },
+            "type": 2,
+            "personal_name": "cdrq",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": 3,
+                "y": 7,
+                "z": -1
+            },
+            "rotation": {
+                "w": 0.7071067811865475,
+                "x": 0,
+                "y": -0.7071067811865475,
+                "z": 0
+            },
+            "type": 4,
+            "personal_name": "dyjo",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -1,
+                "y": 6,
+                "z": 1
+            },
+            "rotation": {
+                "w": 0,
+                "x": 0.7071067811865475,
+                "y": 0,
+                "z": 0.7071067811865476
+            },
+            "type": 2,
+            "personal_name": "xnvx",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -3,
+                "y": 5,
+                "z": -2
+            },
+            "rotation": {
+                "w": 0,
+                "x": 0,
+                "y": -0.7071067811865476,
+                "z": 0.7071067811865475
+            },
+            "type": 3,
+            "personal_name": "gukx",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": 1,
+                "y": -1,
+                "z": -2
+            },
+            "rotation": {
+                "w": 4.329780281177466e-17,
+                "x": 0.7071067811865475,
+                "y": -4.329780281177466e-17,
+                "z": -0.7071067811865475
+            },
+            "type": 1,
+            "personal_name": "uybf",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": 3,
+                "y": 0,
+                "z": -2
+            },
+            "rotation": {
+                "w": 4.329780281177466e-17,
+                "x": -0.7071067811865475,
+                "y": 0.7071067811865475,
+                "z": 4.329780281177466e-17
+            },
+            "type": 4,
+            "personal_name": "trux",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -3,
+                "y": -3,
+                "z": 0
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": 0.5,
+                "y": -0.4999999999999999,
+                "z": 0.4999999999999999
+            },
+            "type": 1,
+            "personal_name": "xexr",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -1,
+                "y": -4,
+                "z": 5
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": 0.5,
+                "y": 0.4999999999999999,
+                "z": 0.4999999999999999
+            },
+            "type": 2,
+            "personal_name": "vvvc",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": 3,
+                "y": 1,
+                "z": -2
+            },
+            "rotation": {
+                "w": 6.123233995736766e-17,
+                "x": 0,
+                "y": -1,
+                "z": 0
+            },
+            "type": 3,
+            "personal_name": "kuvx",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -1,
+                "y": 0,
+                "z": -5
+            },
+            "rotation": {
+                "w": 0,
+                "x": -0.7071067811865475,
+                "y": 0,
+                "z": -0.7071067811865476
+            },
+            "type": 2,
+            "personal_name": "eaur",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -2,
+                "y": 4,
+                "z": 0
+            },
+            "rotation": {
+                "w": 0.7071067811865475,
+                "x": 0,
+                "y": 0,
+                "z": -0.7071067811865475
+            },
+            "type": 2,
+            "personal_name": "luhh",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": 3,
+                "y": 1,
+                "z": -1
+            },
+            "rotation": {
+                "w": 0.7071067811865475,
+                "x": 0,
+                "y": -0.7071067811865475,
+                "z": 0
+            },
+            "type": 4,
+            "personal_name": "gwfd",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -1,
+                "y": -4,
+                "z": -1
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": 0.5,
+                "y": 0.4999999999999999,
+                "z": 0.4999999999999999
+            },
+            "type": 2,
+            "personal_name": "xfpx",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -3,
+                "y": 7,
+                "z": 1
+            },
+            "rotation": {
+                "w": 0.7071067811865475,
+                "x": 0,
+                "y": 0,
+                "z": -0.7071067811865475
+            },
+            "type": 0,
+            "personal_name": "vqbe",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -7,
+                "y": -1,
+                "z": -2
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": 0.4999999999999999,
+                "y": 0.5,
+                "z": -0.4999999999999999
+            },
+            "type": 3,
+            "personal_name": "prwk",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -4,
+                "y": -5,
+                "z": 5
+            },
+            "rotation": {
+                "w": 0,
+                "x": 0,
+                "y": -0.7071067811865476,
+                "z": -0.7071067811865475
+            },
+            "type": 2,
+            "personal_name": "hmhw",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -1,
+                "y": -1,
+                "z": -5
+            },
+            "rotation": {
+                "w": 0.7071067811865475,
+                "x": 0,
+                "y": 0,
+                "z": 0.7071067811865475
+            },
+            "type": 0,
+            "personal_name": "khhs",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -1,
+                "y": -1,
+                "z": -3
+            },
+            "rotation": {
+                "w": 0,
+                "x": 0,
+                "y": 1,
+                "z": 0
+            },
+            "type": 0,
+            "personal_name": "meus",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -3,
+                "y": 1,
+                "z": -5
+            },
+            "rotation": {
+                "w": 0.7071067811865476,
+                "x": 0,
+                "y": 0,
+                "z": -0.7071067811865475
+            },
+            "type": 0,
+            "personal_name": "lvli",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -3,
+                "y": 0,
+                "z": 4
+            },
+            "rotation": {
+                "w": 4.329780281177466e-17,
+                "x": 0.7071067811865475,
+                "y": -0.7071067811865475,
+                "z": -4.329780281177466e-17
+            },
+            "type": 4,
+            "personal_name": "ygej",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -3,
+                "y": -3,
+                "z": 6
+            },
+            "rotation": {
+                "w": 4.329780281177466e-17,
+                "x": -4.329780281177466e-17,
+                "y": 0.7071067811865475,
+                "z": 0.7071067811865475
+            },
+            "type": 1,
+            "personal_name": "zrqj",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": 0,
+                "y": 5,
+                "z": -1
+            },
+            "rotation": {
+                "w": 0.7071067811865476,
+                "x": 0.7071067811865475,
+                "y": 0,
+                "z": 0
+            },
+            "type": 2,
+            "personal_name": "zqfi",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -3,
+                "y": 0,
+                "z": 6
+            },
+            "rotation": {
+                "w": 0.7071067811865475,
+                "x": 0,
+                "y": 0,
+                "z": 0.7071067811865475
+            },
+            "type": 4,
+            "personal_name": "esax",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": 0,
+                "y": 7,
+                "z": 0
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": -0.4999999999999999,
+                "y": 0.4999999999999999,
+                "z": -0.5
+            },
+            "type": 0,
+            "personal_name": "wvkz",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -4,
+                "y": 1,
+                "z": -1
+            },
+            "rotation": {
+                "w": 4.329780281177466e-17,
+                "x": 4.329780281177466e-17,
+                "y": -0.7071067811865475,
+                "z": -0.7071067811865475
+            },
+            "type": 2,
+            "personal_name": "jern",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -8,
+                "y": -1,
+                "z": -2
+            },
+            "rotation": {
+                "w": 0,
+                "x": 0,
+                "y": -0.7071067811865476,
+                "z": 0.7071067811865475
+            },
+            "type": 4,
+            "personal_name": "sqhn",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -3,
+                "y": -5,
+                "z": 4
+            },
+            "rotation": {
+                "w": 0,
+                "x": 0,
+                "y": 1,
+                "z": 0
+            },
+            "type": 3,
+            "personal_name": "jptt",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -4,
+                "y": 0,
+                "z": 4
+            },
+            "rotation": {
+                "w": 0,
+                "x": 0,
+                "y": -1,
+                "z": 0
+            },
+            "type": 2,
+            "personal_name": "whfm",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -2,
+                "y": 1,
+                "z": -5
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": -0.4999999999999999,
+                "y": -0.4999999999999999,
+                "z": -0.5
+            },
+            "type": 2,
+            "personal_name": "ihno",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -1,
+                "y": -1,
+                "z": 5
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": 0.5,
+                "y": 0.4999999999999999,
+                "z": -0.4999999999999999
+            },
+            "type": 4,
+            "personal_name": "yjhp",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -3,
+                "y": 0,
+                "z": -5
+            },
+            "rotation": {
+                "w": 0.7071067811865476,
+                "x": 0,
+                "y": -0.7071067811865475,
+                "z": 0
+            },
+            "type": 2,
+            "personal_name": "cows",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -2,
+                "y": 1,
+                "z": 4
+            },
+            "rotation": {
+                "w": 0.7071067811865475,
+                "x": -0.7071067811865475,
+                "y": 0,
+                "z": 0
+            },
+            "type": 4,
+            "personal_name": "dykk",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -3,
+                "y": -4,
+                "z": 0
+            },
+            "rotation": {
+                "w": 0.7071067811865475,
+                "x": -0.7071067811865475,
+                "y": 0,
+                "z": 0
+            },
+            "type": 0,
+            "personal_name": "djmf",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -7,
+                "y": -1,
+                "z": 0
+            },
+            "rotation": {
+                "w": 0.7071067811865475,
+                "x": 0.7071067811865475,
+                "y": 0,
+                "z": 0
+            },
+            "type": 3,
+            "personal_name": "qtwm",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -1,
+                "y": -1,
+                "z": -4
+            },
+            "rotation": {
+                "w": 0.7071067811865476,
+                "x": 0,
+                "y": 0,
+                "z": -0.7071067811865475
+            },
+            "type": 1,
+            "personal_name": "yfaw",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -4,
+                "y": -5,
+                "z": 6
+            },
+            "rotation": {
+                "w": 4.329780281177466e-17,
+                "x": 0.7071067811865475,
+                "y": 4.329780281177466e-17,
+                "z": -0.7071067811865475
+            },
+            "type": 0,
+            "personal_name": "hzbj",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -4,
+                "y": -6,
+                "z": 6
+            },
+            "rotation": {
+                "w": 0,
+                "x": 0,
+                "y": 0,
+                "z": -1
+            },
+            "type": 2,
+            "personal_name": "clnq",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -3,
+                "y": 7,
+                "z": 2
+            },
+            "rotation": {
+                "w": 0.7071067811865476,
+                "x": 0,
+                "y": 0,
+                "z": 0.7071067811865475
+            },
+            "type": 1,
+            "personal_name": "ccvn",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -3,
+                "y": -6,
+                "z": 6
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": 0.4999999999999999,
+                "y": -0.5,
+                "z": -0.4999999999999999
+            },
+            "type": 4,
+            "personal_name": "nnom",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -1,
+                "y": -3,
+                "z": -2
+            },
+            "rotation": {
+                "w": 0.7071067811865475,
+                "x": -0.7071067811865475,
+                "y": 0,
+                "z": 0
+            },
+            "type": 1,
+            "personal_name": "nvsl",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -3,
+                "y": 7,
+                "z": 3
+            },
+            "rotation": {
+                "w": 0,
+                "x": -1,
+                "y": -6.123233995736766e-17,
+                "z": 0
+            },
+            "type": 0,
+            "personal_name": "fikm",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -3,
+                "y": -6,
+                "z": 4
+            },
+            "rotation": {
+                "w": 4.329780281177466e-17,
+                "x": -0.7071067811865475,
+                "y": 0.7071067811865475,
+                "z": -4.329780281177466e-17
+            },
+            "type": 4,
+            "personal_name": "sdib",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": -1,
+                "y": 7,
+                "z": -1
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": -0.4999999999999999,
+                "y": -0.5,
+                "z": -0.4999999999999999
+            },
+            "type": 4,
+            "personal_name": "rimf",
+            "state": [
+                true,
+                false
+            ]
+        },
+        {
+            "position": {
+                "x": 0,
+                "y": -1,
+                "z": 5
+            },
+            "rotation": {
+                "w": 0.7071067811865476,
+                "x": 0.7071067811865475,
+                "y": 0,
+                "z": 0
+            },
+            "type": 2,
+            "personal_name": "pjag",
+            "state": [
+                true,
+                false
+            ]
+        }
+    ],
+    "tstep": 201
+}

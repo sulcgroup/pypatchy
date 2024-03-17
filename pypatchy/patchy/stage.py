@@ -139,7 +139,7 @@ class Stage(BuildSimulation):
             # patches will be added automatically
             scene.set_particle_types(particle_set)
         else:
-            self.get_last_conf_top()
+            self.get_last_conf_tname()
             scene: PLPSimulation = self.getctxt().get_scene(self.spec(), self)
         self.apply(scene)
         # grab args required by writer

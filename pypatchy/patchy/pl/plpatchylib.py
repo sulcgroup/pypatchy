@@ -83,7 +83,8 @@ def polycube_rule_to_PL(particle_set: PolycubesRule) -> PLParticleSet:
 
         # convert to pl particle
         # reuse type ids here, unfortunately
-        particle = PLPatchyParticle(type_id=particle.type_id(), particle_name=particle.name(),
+        particle = PLPatchyParticle(type_id=particle.type_id(),
+                                    particle_name=particle.name(),
                                     index_=particle.type_id())
         particle.set_patches(particle_patches)
 
@@ -323,13 +324,13 @@ def mgl_to_pl(mgl: MGLScene,
         #                             index_=mgl_particle.get_id(),
         #                             position=mgl_particle.position())
         particle: PLPatchyParticle = copy.deepcopy(pl_type)
-        particle.set_uid(mgl_particle.get_id())
+        particle.set_uid(mgl_particle.get_uid())
         particle.set_position(mgl_particle.position())
         # things get messy here, because we can't assume the mgl rotations are correct
         # in fact they're almost certainly not
         rot = pl_type.rotation_from_to(mgl_particle,
                                        pset.get_src_map().colormap())
-        assert rot is not False, f"Cannot rotate particle {particle.get_id()} to match particle type {pl_type.type_id()}"
+        assert rot is not False, f"Cannot rotate particle {particle.get_uid()} to match particle type {pl_type.type_id()}"
         particle.rotate(rot)
         pl.add_particle(particle)
         maxs = np.max([maxs, particle.position()], axis=0)

@@ -46,7 +46,7 @@ class PLPatchyParticle(PatchyBaseParticleType, PatchyBaseParticle):
 
     def name(self) -> str:
         if self._name is None:
-            if self.get_id():
+            if self.get_uid():
                 return f"particle_{self.get_uid()}"
             else:
                 return f"particletype_{self.type_id()}"
