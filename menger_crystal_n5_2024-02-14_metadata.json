@@ -1,0 +1,367 @@
+{
+    "setup_date": "2024-02-13",
+    "ensemble_config": {
+        "export_name": "menger_crystal_n5",
+        "rule": "#1:0:0:0##-4:0:0:0##3:1:0:0_####-3:3:0:0#-3:2:0:0_5:0:0:0##4:1:0:0#-1:2:0:0##_6:2:0:0##6:2:0:0##6:2:0:0#_-6:1:0:0#-6:0:0:0##-5:1:0:0##-5:2:0:0",
+        "default_param_set": "default",
+        "const_params": {
+            "num_assemblies": 20,
+            "density": 0.1,
+            "steps": 2500000000.0,
+            "particle_type_levels": {
+                "CT3": 8,
+                "CT4": 12,
+                "CT2": 8,
+                "CT1": 4,
+                "CT0": 8
+            },
+            "use_torsion": false,
+            "PATCHY_alpha": 0.138
+        },
+        "ensemble_params": [
+            [
+                "T",
+                [
+                    0.01,
+                    0.015,
+                    0.02,
+                    0.04
+                ]
+            ],
+            [
+                "mdt_convert",
+                [
+                    {
+                        "type": "mdt_convert",
+                        "name": "simple",
+                        "n_teeth": 4,
+                        "dental_radius": 0.5,
+                        "energy_scale_method": "linear"
+                    },
+                    {
+                        "type": "mdt_convert",
+                        "name": "high_energy",
+                        "n_teeth": 4,
+                        "dental_radius": 0.5,
+                        "energy_scale_method": 0.75
+                    }
+                ]
+            ]
+        ]
+    },
+    "analysis_file": "menger_crystal_n5_analysis_pipeline.pickle",
+    "slurm_log": [
+        {
+            "job_type": "oxdna",
+            "pid": 24660108,
+            "simulation": {
+                "T": 0.01,
+                "mdt_convert": "simple"
+            },
+            "script_path": "/scratch/jrevan21/patchysimulations/menger_crystal_n5_2024-02-13/T_0.01/mdt_convert_simple/slurm_script.sh",
+            "log_path": "/scratch/jrevan21/patchysimulations/menger_crystal_n5_2024-02-13/T_0.01/mdt_convert_simple/run24660108.out",
+            "notes": "",
+            "additional_metadata": {},
+            "start_date": "2024-02-13"
+        },
+        {
+            "job_type": "oxdna",
+            "pid": 24660109,
+            "simulation": {
+                "T": 0.01,
+                "mdt_convert": "high_energy"
+            },
+            "script_path": "/scratch/jrevan21/patchysimulations/menger_crystal_n5_2024-02-13/T_0.01/mdt_convert_high_energy/slurm_script.sh",
+            "log_path": "/scratch/jrevan21/patchysimulations/menger_crystal_n5_2024-02-13/T_0.01/mdt_convert_high_energy/run24660109.out",
+            "notes": "",
+            "additional_metadata": {},
+            "start_date": "2024-02-13"
+        },
+        {
+            "job_type": "oxdna",
+            "pid": 24660110,
+            "simulation": {
+                "T": 0.015,
+                "mdt_convert": "simple"
+            },
+            "script_path": "/scratch/jrevan21/patchysimulations/menger_crystal_n5_2024-02-13/T_0.015/mdt_convert_simple/slurm_script.sh",
+            "log_path": "/scratch/jrevan21/patchysimulations/menger_crystal_n5_2024-02-13/T_0.015/mdt_convert_simple/run24660110.out",
+            "notes": "",
+            "additional_metadata": {},
+            "start_date": "2024-02-13"
+        },
+        {
+            "job_type": "oxdna",
+            "pid": 24660111,
+            "simulation": {
+                "T": 0.015,
+                "mdt_convert": "high_energy"
+            },
+            "script_path": "/scratch/jrevan21/patchysimulations/menger_crystal_n5_2024-02-13/T_0.015/mdt_convert_high_energy/slurm_script.sh",
+            "log_path": "/scratch/jrevan21/patchysimulations/menger_crystal_n5_2024-02-13/T_0.015/mdt_convert_high_energy/run24660111.out",
+            "notes": "",
+            "additional_metadata": {},
+            "start_date": "2024-02-13"
+        },
+        {
+            "job_type": "oxdna",
+            "pid": 24660112,
+            "simulation": {
+                "T": 0.02,
+                "mdt_convert": "simple"
+            },
+            "script_path": "/scratch/jrevan21/patchysimulations/menger_crystal_n5_2024-02-13/T_0.02/mdt_convert_simple/slurm_script.sh",
+            "log_path": "/scratch/jrevan21/patchysimulations/menger_crystal_n5_2024-02-13/T_0.02/mdt_convert_simple/run24660112.out",
+            "notes": "",
+            "additional_metadata": {},
+            "start_date": "2024-02-13"
+        },
+        {
+            "job_type": "oxdna",
+            "pid": 24660113,
+            "simulation": {
+                "T": 0.02,
+                "mdt_convert": "high_energy"
+            },
+            "script_path": "/scratch/jrevan21/patchysimulations/menger_crystal_n5_2024-02-13/T_0.02/mdt_convert_high_energy/slurm_script.sh",
+            "log_path": "/scratch/jrevan21/patchysimulations/menger_crystal_n5_2024-02-13/T_0.02/mdt_convert_high_energy/run24660113.out",
+            "notes": "",
+            "additional_metadata": {},
+            "start_date": "2024-02-13"
+        },
+        {
+            "job_type": "oxdna",
+            "pid": 24660114,
+            "simulation": {
+                "T": 0.04,
+                "mdt_convert": "simple"
+            },
+            "script_path": "/scratch/jrevan21/patchysimulations/menger_crystal_n5_2024-02-13/T_0.04/mdt_convert_simple/slurm_script.sh",
+            "log_path": "/scratch/jrevan21/patchysimulations/menger_crystal_n5_2024-02-13/T_0.04/mdt_convert_simple/run24660114.out",
+            "notes": "",
+            "additional_metadata": {},
+            "start_date": "2024-02-13"
+        },
+        {
+            "job_type": "oxdna",
+            "pid": 24660115,
+            "simulation": {
+                "T": 0.04,
+                "mdt_convert": "high_energy"
+            },
+            "script_path": "/scratch/jrevan21/patchysimulations/menger_crystal_n5_2024-02-13/T_0.04/mdt_convert_high_energy/slurm_script.sh",
+            "log_path": "/scratch/jrevan21/patchysimulations/menger_crystal_n5_2024-02-13/T_0.04/mdt_convert_high_energy/run24660115.out",
+            "notes": "",
+            "additional_metadata": {},
+            "start_date": "2024-02-13"
+        },
+        {
+            "job_type": "oxdna",
+            "pid": 24660144,
+            "simulation": {
+                "T": 0.01,
+                "mdt_convert": "simple"
+            },
+            "script_path": "/scratch/jrevan21/patchysimulations/menger_crystal_n5_2024-02-13/T_0.01/mdt_convert_simple/slurm_script.sh",
+            "log_path": "/scratch/jrevan21/patchysimulations/menger_crystal_n5_2024-02-13/T_0.01/mdt_convert_simple/run24660144.out",
+            "notes": "",
+            "additional_metadata": {},
+            "start_date": "2024-02-13"
+        },
+        {
+            "job_type": "oxdna",
+            "pid": 24660145,
+            "simulation": {
+                "T": 0.01,
+                "mdt_convert": "high_energy"
+            },
+            "script_path": "/scratch/jrevan21/patchysimulations/menger_crystal_n5_2024-02-13/T_0.01/mdt_convert_high_energy/slurm_script.sh",
+            "log_path": "/scratch/jrevan21/patchysimulations/menger_crystal_n5_2024-02-13/T_0.01/mdt_convert_high_energy/run24660145.out",
+            "notes": "",
+            "additional_metadata": {},
+            "start_date": "2024-02-13"
+        },
+        {
+            "job_type": "oxdna",
+            "pid": 24660146,
+            "simulation": {
+                "T": 0.015,
+                "mdt_convert": "simple"
+            },
+            "script_path": "/scratch/jrevan21/patchysimulations/menger_crystal_n5_2024-02-13/T_0.015/mdt_convert_simple/slurm_script.sh",
+            "log_path": "/scratch/jrevan21/patchysimulations/menger_crystal_n5_2024-02-13/T_0.015/mdt_convert_simple/run24660146.out",
+            "notes": "",
+            "additional_metadata": {},
+            "start_date": "2024-02-13"
+        },
+        {
+            "job_type": "oxdna",
+            "pid": 24660147,
+            "simulation": {
+                "T": 0.015,
+                "mdt_convert": "high_energy"
+            },
+            "script_path": "/scratch/jrevan21/patchysimulations/menger_crystal_n5_2024-02-13/T_0.015/mdt_convert_high_energy/slurm_script.sh",
+            "log_path": "/scratch/jrevan21/patchysimulations/menger_crystal_n5_2024-02-13/T_0.015/mdt_convert_high_energy/run24660147.out",
+            "notes": "",
+            "additional_metadata": {},
+            "start_date": "2024-02-13"
+        },
+        {
+            "job_type": "oxdna",
+            "pid": 24660148,
+            "simulation": {
+                "T": 0.02,
+                "mdt_convert": "simple"
+            },
+            "script_path": "/scratch/jrevan21/patchysimulations/menger_crystal_n5_2024-02-13/T_0.02/mdt_convert_simple/slurm_script.sh",
+            "log_path": "/scratch/jrevan21/patchysimulations/menger_crystal_n5_2024-02-13/T_0.02/mdt_convert_simple/run24660148.out",
+            "notes": "",
+            "additional_metadata": {},
+            "start_date": "2024-02-13"
+        },
+        {
+            "job_type": "oxdna",
+            "pid": 24660149,
+            "simulation": {
+                "T": 0.02,
+                "mdt_convert": "high_energy"
+            },
+            "script_path": "/scratch/jrevan21/patchysimulations/menger_crystal_n5_2024-02-13/T_0.02/mdt_convert_high_energy/slurm_script.sh",
+            "log_path": "/scratch/jrevan21/patchysimulations/menger_crystal_n5_2024-02-13/T_0.02/mdt_convert_high_energy/run24660149.out",
+            "notes": "",
+            "additional_metadata": {},
+            "start_date": "2024-02-13"
+        },
+        {
+            "job_type": "oxdna",
+            "pid": 24660150,
+            "simulation": {
+                "T": 0.04,
+                "mdt_convert": "simple"
+            },
+            "script_path": "/scratch/jrevan21/patchysimulations/menger_crystal_n5_2024-02-13/T_0.04/mdt_convert_simple/slurm_script.sh",
+            "log_path": "/scratch/jrevan21/patchysimulations/menger_crystal_n5_2024-02-13/T_0.04/mdt_convert_simple/run24660150.out",
+            "notes": "",
+            "additional_metadata": {},
+            "start_date": "2024-02-13"
+        },
+        {
+            "job_type": "oxdna",
+            "pid": 24660151,
+            "simulation": {
+                "T": 0.04,
+                "mdt_convert": "high_energy"
+            },
+            "script_path": "/scratch/jrevan21/patchysimulations/menger_crystal_n5_2024-02-13/T_0.04/mdt_convert_high_energy/slurm_script.sh",
+            "log_path": "/scratch/jrevan21/patchysimulations/menger_crystal_n5_2024-02-13/T_0.04/mdt_convert_high_energy/run24660151.out",
+            "notes": "",
+            "additional_metadata": {},
+            "start_date": "2024-02-13"
+        },
+        {
+            "job_type": "oxdna",
+            "pid": 24660157,
+            "simulation": {
+                "T": 0.01,
+                "mdt_convert": "simple"
+            },
+            "script_path": "/scratch/jrevan21/patchysimulations/menger_crystal_n5_2024-02-13/T_0.01/mdt_convert_simple/slurm_script.sh",
+            "log_path": "/scratch/jrevan21/patchysimulations/menger_crystal_n5_2024-02-13/T_0.01/mdt_convert_simple/run24660157.out",
+            "notes": "",
+            "additional_metadata": {},
+            "start_date": "2024-02-13"
+        },
+        {
+            "job_type": "oxdna",
+            "pid": 24660158,
+            "simulation": {
+                "T": 0.01,
+                "mdt_convert": "high_energy"
+            },
+            "script_path": "/scratch/jrevan21/patchysimulations/menger_crystal_n5_2024-02-13/T_0.01/mdt_convert_high_energy/slurm_script.sh",
+            "log_path": "/scratch/jrevan21/patchysimulations/menger_crystal_n5_2024-02-13/T_0.01/mdt_convert_high_energy/run24660158.out",
+            "notes": "",
+            "additional_metadata": {},
+            "start_date": "2024-02-13"
+        },
+        {
+            "job_type": "oxdna",
+            "pid": 24660159,
+            "simulation": {
+                "T": 0.015,
+                "mdt_convert": "simple"
+            },
+            "script_path": "/scratch/jrevan21/patchysimulations/menger_crystal_n5_2024-02-13/T_0.015/mdt_convert_simple/slurm_script.sh",
+            "log_path": "/scratch/jrevan21/patchysimulations/menger_crystal_n5_2024-02-13/T_0.015/mdt_convert_simple/run24660159.out",
+            "notes": "",
+            "additional_metadata": {},
+            "start_date": "2024-02-13"
+        },
+        {
+            "job_type": "oxdna",
+            "pid": 24660160,
+            "simulation": {
+                "T": 0.015,
+                "mdt_convert": "high_energy"
+            },
+            "script_path": "/scratch/jrevan21/patchysimulations/menger_crystal_n5_2024-02-13/T_0.015/mdt_convert_high_energy/slurm_script.sh",
+            "log_path": "/scratch/jrevan21/patchysimulations/menger_crystal_n5_2024-02-13/T_0.015/mdt_convert_high_energy/run24660160.out",
+            "notes": "",
+            "additional_metadata": {},
+            "start_date": "2024-02-13"
+        },
+        {
+            "job_type": "oxdna",
+            "pid": 24660161,
+            "simulation": {
+                "T": 0.02,
+                "mdt_convert": "simple"
+            },
+            "script_path": "/scratch/jrevan21/patchysimulations/menger_crystal_n5_2024-02-13/T_0.02/mdt_convert_simple/slurm_script.sh",
+            "log_path": "/scratch/jrevan21/patchysimulations/menger_crystal_n5_2024-02-13/T_0.02/mdt_convert_simple/run24660161.out",
+            "notes": "",
+            "additional_metadata": {},
+            "start_date": "2024-02-13"
+        },
+        {
+            "job_type": "oxdna",
+            "pid": 24660162,
+            "simulation": {
+                "T": 0.02,
+                "mdt_convert": "high_energy"
+            },
+            "script_path": "/scratch/jrevan21/patchysimulations/menger_crystal_n5_2024-02-13/T_0.02/mdt_convert_high_energy/slurm_script.sh",
+            "log_path": "/scratch/jrevan21/patchysimulations/menger_crystal_n5_2024-02-13/T_0.02/mdt_convert_high_energy/run24660162.out",
+            "notes": "",
+            "additional_metadata": {},
+            "start_date": "2024-02-13"
+        },
+        {
+            "job_type": "oxdna",
+            "pid": 24660163,
+            "simulation": {
+                "T": 0.04,
+                "mdt_convert": "simple"
+            },
+            "script_path": "/scratch/jrevan21/patchysimulations/menger_crystal_n5_2024-02-13/T_0.04/mdt_convert_simple/slurm_script.sh",
+            "log_path": "/scratch/jrevan21/patchysimulations/menger_crystal_n5_2024-02-13/T_0.04/mdt_convert_simple/run24660163.out",
+            "notes": "",
+            "additional_metadata": {},
+            "start_date": "2024-02-13"
+        },
+        {
+            "job_type": "oxdna",
+            "pid": 24660164,
+            "simulation": {
+                "T": 0.04,
+                "mdt_convert": "high_energy"
+            },
+            "script_path": "/scratch/jrevan21/patchysimulations/menger_crystal_n5_2024-02-13/T_0.04/mdt_convert_high_energy/slurm_script.sh",
+            "log_path": "/scratch/jrevan21/patchysimulations/menger_crystal_n5_2024-02-13/T_0.04/mdt_convert_high_energy/run24660164.out",
+            "notes": "",
+            "additional_metadata": {},
+            "start_date": "2024-02-13"
+        }
+    ]
+}

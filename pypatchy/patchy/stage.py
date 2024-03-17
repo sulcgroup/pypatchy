@@ -70,7 +70,10 @@ class Stage(BuildSimulation):
         self._stage_start_time = t
         self._particles_to_add = particles
         self._box_size = box_size
-        self._add_method = add_method
+        if add_method.upper() == "RANDOM":
+            self._add_method = "RANDOM"
+        else:
+            self._add_method = add_method
         self._stage_vars = stage_vars
         self.input_param_dict = {}
         if tlen:
