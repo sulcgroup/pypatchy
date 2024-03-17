@@ -7,6 +7,7 @@ from .pl.plparticleset import PLParticleSet, MultidentateConvertSettings
 
 PARTICLE_TYPES_KEY = "particle_types"
 MDT_CONVERT_KEY = "mdt_convert"
+STAGES_KEY = "staging"
 
 
 @dataclass
@@ -139,7 +140,27 @@ class MDTConvertParams(ParameterValue):
 
     def value_name(self) -> str:
         return self.convert_params_name
+    
+# class StageInfo?
 
+class StagedAssemblyParam(ParameterValue):
+    """
+    mostly just a grouped parameter system
+    """
+    staging_type_name: str
+    def __init__(self, staging_info: list[StageInfo], staging_params_name: STAGES_KEY):
+        ParameterValue.__init__(self, STAGES_KEY, staging_info)
+        self.staging_type_name = staging_params_name
+
+    def value_name(self) -> str:
+        return self.staging_type_name
+
+    def get_stages(self) -> list[dict]:
+        return self.param_value
+    
+    def stage(self, i: int) -> dict:
+        return self.param_value[i]
+    
 
 def parameter_value(key: str, val: Union[dict, str, int, float, bool]) -> ParameterValue:
     """
@@ -162,6 +183,8 @@ def parameter_value(key: str, val: Union[dict, str, int, float, bool]) -> Parame
                 raise Exception("Particle type parameters not currently supported!")
                 # get_writer().set_directory(get_input_dir())
                 # return ParticleSetParam(get_writer().read_particle_types(**data)) # TODO: TEST
+            elif val["type"] == STAGES_KEY:
+                return StagedAssemblyParam(data["stages"], param_name)
             else:
                 raise Exception(f"Invalid object-parameter type {val['type']}")
         else:

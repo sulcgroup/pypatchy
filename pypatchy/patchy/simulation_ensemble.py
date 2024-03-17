@@ -701,10 +701,10 @@ class PatchySimulationEnsemble:
         """
         assert isinstance(sim, PatchySimulation), "Cannot invoke this method with a parameter list!"
         try:
-            stages_info = self.sim_get_param(sim, "stages")
+            stages_info: dict = self.sim_get_param(sim, STAGES_KEY)
             # incredibly cursed line of code incoming
-            stages_info = [{"idx": i, **stage_info} for i, stage_info in
-                           enumerate(sorted(stages_info, key=lambda x: x["t"]))]
+            stages_info = [{"idx": i, **stage_info} for i, (stage_name, stage_info) in
+                           enumerate(sorted(stages_info.items(), key=lambda x: x[1]["t"]))]
             stages = []
             # loop stages in stage list from spec
             for stage_info in stages_info:
@@ -719,7 +719,7 @@ class PatchySimulationEnsemble:
 
                 # get list of names of particles to add
                 # if add_method is specified as RANDOM or is unspecified (default to RANDOM)
-                if "add_method" not in stage_info or stage_info["add_method"] == "RANDOM":
+                if "add_method" not in stage_info or stage_info["add_method"].upper() == "RANDOM":
                     if "particles" in stage_info:
                         particle_id_lists = [
                             [pname] * (stage_info["particles"][pname] * num_assemblies)
@@ -761,7 +761,11 @@ class PatchySimulationEnsemble:
                     stage_init_args["tlen"] = stage_info["length"]
                 else:
                     stage_init_args["tlen"] = stage_info["tlen"]
-                stage_name: str = stage_info["name"]
+
+                if "name" in stage_info:
+                    stage_name: str = stage_info["name"]
+                else:
+                    stage_name = f"stage{i}"
                 # construct stage objects
                 stages.append(Stage(sim,
                                     stages[i - 1] if i else None,
@@ -772,7 +776,7 @@ class PatchySimulationEnsemble:
                                     ))
 
         except NoSuchParamError as e:
-            if e.param_name() != "stages":
+            if e.param_name() != STAGES_KEY:
                 raise e
             # if stages not found
             # default: 1 stage, density = starting density, add method=random
