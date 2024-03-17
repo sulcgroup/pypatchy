@@ -1,0 +1,40 @@
+{
+	"export_name": "example_mdt",
+	"rule": "1|1|1|1|1|1_-1|||||",
+    "const_params": {
+        "num_steps": 1e8,
+        "num_assemblies": 4,
+        "cube_type_levels": {
+            "CT0": 1,
+            "CT1": 6
+        },
+		"T":0.02,
+		"print_conf_every": 5e6,
+		"print_energy_every": 5e6
+    },
+	"ensemble_params": [
+		[
+			"mdt_convert",
+			[
+				{
+					"type": "mdt_convert",
+					"name": "3teeth",
+					"n_teeth": 4,
+					"dental_radius": 0.5,
+					"energy_scale_method": "linear"
+				},
+				{
+					"type": "mdt_convert",
+					"name": "4teeth",
+					"n_teeth": 4,
+					"dental_radius": 0.5,
+					"energy_scale_method": "linear"
+				}
+			]
+		],
+        [
+            "duplicate",
+            [0, 1, 2, 3]
+        ]
+	]
+}

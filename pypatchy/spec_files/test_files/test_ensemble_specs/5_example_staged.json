@@ -1,0 +1,39 @@
+{
+	"export_name": "example_staged",
+	"rule": "1:0:##1:0:##1:0:#_-1:0:#-1:1:####",
+	"default_param_set": "default",
+	"const_params":{
+		"narrow_type": 0,
+		"num_assemblies": 12,
+		"density": 0.1,
+		"steps": 5e7,
+		"print_conf_interval": 1e5,
+		"stages": {
+			"stages": {
+				"stage0": {
+					"t": 0,
+					"add_method": "random",
+					"particles": {
+						"CT0": 1
+					}
+				},
+				"stage1": {
+					"t": 1e6,
+					"add_method": "random",
+					"particles": {
+						"CT1": 6
+					}
+				}
+			}
+		},
+		"T": 0.02,
+		"use_torsion": false,
+		"print_energy_every": 1e6
+},
+	"ensemble_params": [
+		[
+			"duplicate",
+			[0,1,2,3]
+		]
+	]
+}

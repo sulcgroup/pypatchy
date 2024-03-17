@@ -26,6 +26,7 @@ DEFAULT_SB_ARGS = {
     "errorbar": "sd"  # standard deviation
 }
 
+
 def plot_analysis_data(e: PatchySimulationEnsemble,
                        analysis_data_source: PipelineStepDescriptor,
                        data_source_key: str = YIELD_KEY,
@@ -78,9 +79,11 @@ def plot_analysis_data(e: PatchySimulationEnsemble,
         data = data[data[TIMEPOINT_KEY] >= start]
         data = data[data[TIMEPOINT_KEY] <= end]
     if len(data_source.trange()) == 1:
-        raise Exception("Error: only one timepoint included in data range! Check your analysis pipeline tsteps and/or data completeness.")
+        raise Exception(
+            "Error: only one timepoint included in data range! Check your analysis pipeline tsteps and/or data completeness.")
     elif len(data_source.trange()) < 10:
-        print(f"Warning: only {len(data_source.trange())} timepoints in data range! You can continue I guess but it's not GREAT.")
+        print(
+            f"Warning: only {len(data_source.trange())} timepoints in data range! You can continue I guess but it's not GREAT.")
     for col in data.columns:
         if col not in ["duplicate", TIMEPOINT_KEY, data_source_key] and col not in plt_args.values():
             if len(data[col].unique()) != 1:
@@ -198,7 +201,7 @@ def plot_compare_ensembles(es: list[PatchySimulationEnsemble],
 
 def show_clusters(e: PatchySimulationEnsemble,
                   sim: PatchySimulation,
-                  analysis_step: Union[GraphsFromClusterTxt,str],
+                  analysis_step: Union[GraphsFromClusterTxt, str],
                   timepoint: int = -1,
                   step: int = -1,
                   figsize=4
@@ -224,7 +227,7 @@ def show_clusters(e: PatchySimulationEnsemble,
     graphs: list[nx.Graph] = e.get_data(analysis_step, sim, tr).get()[timepoint]
     nclusters = len(graphs)
     if nclusters == 0:
-        print(f"No clusters at step {timepoint*analysis_step.output_tstep}")
+        print(f"No clusters at step {timepoint * analysis_step.output_tstep}")
         return None
     r = math.ceil(math.sqrt(nclusters))
     fig, axs = plt.subplots(nrows=r, ncols=r, figsize=(r * figsize, r * figsize))
@@ -342,49 +345,64 @@ def plot_compare_analysis_outputs(e: PatchySimulationEnsemble,
     fig.fig.suptitle(f"{e.export_name} Data", y=1.0)
     return fig
 
+
 def plot_energy(e: PatchySimulationEnsemble,
                 data_identifier: PatchySimDescriptor = tuple(),
                 curve_color_param: str = "T",
                 curve_stroke_w_param: Union[str, None] = None,
                 load_energy_step_name: str = "load_energies",
-                e_type: str= "te"
+                e_type: str = "te",
+                t_range: Union[tuple[int, int], None] = None
                 ):
     """
     quick function to plot energies
     """
 
-    data = e.get_data(load_energy_step_name, data_identifier)
+    if t_range is not None:
+        # todo: make work
+        data = e.get_data(load_energy_step_name, data_identifier, time_steps=range(*t_range))
+    else:
+        data = e.get_data(load_energy_step_name, data_identifier)
     df = data.get()
+
+    if t_range is not None:
+        df = df[(t_range[0] <= df["timepoint"]) & (df["timepoint"] <= t_range[1])]
 
     # Assuming df is your DataFrame with the necessary columns
     if curve_stroke_w_param is not None:
         sortby = [curve_color_param, curve_stroke_w_param, 'timepoint']
-    else:
+    elif e.is_multiselect(data_identifier):
         sortby = [curve_color_param, 'timepoint']
+    else:
+        sortby = ['timepoint']
     df = df.sort_values(by=sortby)
 
     if curve_stroke_w_param is not None:
         line_widths = np.linspace(1, 3, len(np.unique(df[curve_stroke_w_param])))
 
     # Prepare color map for temperature differentiation
-    colors = plt.cm.viridis(np.linspace(0, 1, len(np.unique(df[curve_color_param]))))
-
     plt.figure(figsize=(10, 6))
 
-    for i, param1 in enumerate(np.unique(df[curve_color_param])):
-        subset_param1 = df[df[curve_color_param] == param1]
-        if curve_stroke_w_param is not None:
-            for j, param2 in enumerate(np.unique(df[curve_stroke_w_param])):
-                subset = subset_param1[subset_param1[curve_stroke_w_param] == param2]
+    if curve_color_param in df:
+        colors = plt.cm.viridis(np.linspace(0, 1, len(np.unique(df[curve_color_param]))))
 
-                # Select line width based on PATCHY_alpha index
-                line_width = line_widths[j]
+        for i, param1 in enumerate(np.unique(df[curve_color_param])):
+            subset_param1 = df[df[curve_color_param] == param1]
+            if curve_stroke_w_param is not None:
+                for j, param2 in enumerate(np.unique(df[curve_stroke_w_param])):
+                    subset = subset_param1[subset_param1[curve_stroke_w_param] == param2]
 
-                plt.plot(subset['timepoint'], subset[e_type], label=f'{curve_color_param}={param1}, {curve_stroke_w_param}={param2}',
-                         color=colors[i], linewidth=line_width)
-        else:
-            plt.plot(subset_param1['timepoint'], subset_param1[e_type], label=f'{curve_color_param}={param1}',
-                     color=colors[i])
+                    # Select line width based on PATCHY_alpha index
+                    line_width = line_widths[j]
+
+                    plt.plot(subset['timepoint'], subset[e_type],
+                             label=f'{curve_color_param}={param1}, {curve_stroke_w_param}={param2}',
+                             color=colors[i], linewidth=line_width)
+            else:
+                plt.plot(subset_param1['timepoint'], subset_param1[e_type], label=f'{curve_color_param}={param1}',
+                         color=colors[i])
+    else:
+        plt.plot(df["timepoint"], df[e_type])
 
     plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0.)
     plt.title('Energy vs Timepoint')
@@ -401,11 +419,27 @@ def plot_energy(e: PatchySimulationEnsemble,
     plt.tight_layout()
     plt.show()
 
-class PolycubesFigure (ABC):
+
+def plot_energies(e: PatchySimulationEnsemble, sim: PatchySimulation,
+                  load_energy_step_name: str = "load_energies"):
+    data = e.get_data(load_energy_step_name, sim)
+    df = data.get()
+    plt.figure(figsize=(10, 6))
+    colors = {'pe': 'red', 'ke': 'blue', 'te': 'green'}
+
+    for e_type in ("pe", "ke", "te"):
+        plt.plot(df["timepoint"], df[e_type], label=e_type, color=colors[e_type])
+    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0.)
+    plt.title(f"Energy vs Timepoint for {str(sim)} of {e.long_name()}")
+    plt.show()
+
+
+class PolycubesFigure(ABC):
     """
     Wrapper class to facilitate creating and showing figures. Extend to make specific figures
     """
     fig: sb.FacetGrid
+
     def __init__(self,
                  e: Union[PatchySimulationEnsemble, list[PatchySimulationEnsemble]],
                  **kwargs):
@@ -414,14 +448,16 @@ class PolycubesFigure (ABC):
     def __repr__(self):
         return self.fig.fig
 
+
 class BaseYieldCurveFigure(PolycubesFigure, ABC):
     """
     Abstract base class. Wrapper class for figures that measure yield (or some other quantity) over a time period
     """
     plt_args: dict[str, Any]
+
     def __init__(self,
                  e: Union[PatchySimulationEnsemble,
-                                list[PatchySimulationEnsemble]],
+                          list[PatchySimulationEnsemble]],
                  analysis_data_source: PipelineStepDescriptor,
                  data_source_key: str = YIELD_KEY,
                  **kwargs):
@@ -478,7 +514,8 @@ class YieldCurveFigure(BaseYieldCurveFigure):
             raise Exception(
                 "Error: only one timepoint included in data range! Check your analysis pipeline tsteps and/or data completeness.")
         elif len(data_source.trange()) < 10:
-            print(f"Warning: only {len(data_source.trange())} timepoints in data range! You can continue I guess but it's not GREAT.")
+            print(
+                f"Warning: only {len(data_source.trange())} timepoints in data range! You can continue I guess but it's not GREAT.")
 
         if norm:
             def normalize_row(row):
@@ -493,9 +530,9 @@ class YieldCurveFigure(BaseYieldCurveFigure):
         data.rename(mapper={TIMEPOINT_KEY: "steps"}, axis="columns", inplace=True)
 
         self.fig = sb.relplot(data,
-                         x="steps",
-                         y=data_source_key,
-                         **self.plt_args)
+                              x="steps",
+                              y=data_source_key,
+                              **self.plt_args)
         if norm:
             self.fig.set(ylim=(0.0, 1.0))
         self.fig.fig.suptitle(f"{e.export_name} - {analysis_data_source}", y=1)

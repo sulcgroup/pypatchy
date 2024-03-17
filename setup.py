@@ -11,6 +11,9 @@ setup(
     author_email="jrevan21@asu.edu",
     package_data={
         "pypatchy": ["spec_files/*/*.json"]
+    },
+    entrypoints={
+        # TODO
     }
     # TODO: more
 )

@@ -20,7 +20,7 @@ except ImportError as e:
 
 # test directory structure
 try:
-    from ..util import *
+    from pypatchy.util import *
     # input directory
     if not get_input_dir().exists():
         raise Exception("No directory for input spec files! Expected to find directory at "
