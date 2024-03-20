@@ -148,9 +148,9 @@ class StagedAssemblyParam(ParameterValue):
     mostly just a grouped parameter system
     """
     staging_type_name: str
-    def __init__(self, staging_info: list[StageInfo], staging_params_name: STAGES_KEY):
-        ParameterValue.__init__(self, STAGES_KEY, staging_info)
-        self.staging_type_name = staging_params_name
+    def __init__(self, staging_info: list[dict], staging_val_name: str, staging_params_name: str = STAGES_KEY):
+        ParameterValue.__init__(self, staging_params_name, staging_info)
+        self.staging_type_name = staging_val_name
 
     def value_name(self) -> str:
         return self.staging_type_name
@@ -170,10 +170,10 @@ def parameter_value(key: str, val: Union[dict, str, int, float, bool]) -> Parame
         if "name" in val:
             param_name = val["name"]
         else:
-            param_name = key # acceptable for const params, catastrophic for ensemble params
+            param_name = key  # acceptable for const params, catastrophic for ensemble params
         # if type key is present, paramater is a particle set or mdt convert settings or something
         if "type" in val:
-            if "value" in val: # *sirens* BACKWARDS COMPATIBILITY DANGER ZONE
+            if "value" in val:  # *sirens* BACKWARDS COMPATIBILITY DANGER ZONE
                 data = val["value"]
             else:
                 data = {k: val[k] for k in val if k not in ("type", "name")}
@@ -184,7 +184,7 @@ def parameter_value(key: str, val: Union[dict, str, int, float, bool]) -> Parame
                 # get_writer().set_directory(get_input_dir())
                 # return ParticleSetParam(get_writer().read_particle_types(**data)) # TODO: TEST
             elif val["type"] == STAGES_KEY:
-                return StagedAssemblyParam(data["stages"], param_name)
+                return StagedAssemblyParam(data["stages"], param_name, key)
             else:
                 raise Exception(f"Invalid object-parameter type {val['type']}")
         else:
