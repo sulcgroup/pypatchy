@@ -484,11 +484,12 @@ class PatchySimulationEnsemble(Analyzable):
                         assert isinstance(a, tuple) and len(a) == 2, f"Invalid parameter {str(a)}!"
                         k, v = a
                         if k == pname:
-                            pv = ParameterValue(k, v)
+                            pv = self.ensemble_param_name_map[k].lookup(v)
+                            # pv = ParameterValue(k, v)
                             assert pv in param_type
                             sim_params.append([pv])
                             break  # terminate loop of args
-            if len(sim_params) == i_counter:  # if we've found value for param, len(sim_params) should be one greater than counter
+            if len(sim_params) == i_counter:
                 sim_params.append(param_type.param_value_set)
                 multiselect = True
         if multiselect:

@@ -130,5 +130,7 @@ def get_param_set(filename: str) -> ParamSet:
                 subgroup.items() for subgroup
                 in param_set["input"].values()])
         })
+    else:
+        param_set.update(param_set["input"])
     del param_set["input"]
     return ParamSet([parameter_value(key, val) for key, val in param_set.items()])
