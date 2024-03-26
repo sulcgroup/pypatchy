@@ -248,7 +248,8 @@ class DNAParticle (DNAStructure):
         return True
 
     def get_strand_group_norms(self):
-        a = np.stack([self.strand_group_norm(idx) for idx in range(len(self.patch_strand_ids))])
+        a = np.stack([self.strand_group_norm(idx)
+                      for idx in range(len(self.patch_strand_ids))])
         assert a.shape == (len(self.patch_strand_ids), 3)
         return a
 
@@ -262,14 +263,17 @@ class DNAParticle (DNAStructure):
         # compute plane of strands
         patch = self.patch_strand_ids[strand_group_idx]
         # pos is a 3x1 vector not a 3x vector so concat not stack
-        strand_3p_pts = np.stack([self.strands[strand_id][0].pos for strand_id in patch])
+        strand_3p_pts = np.stack([self.strand_3p(strand_id).pos for strand_id in patch])
         centroid = self.dna_patch_positions(strand_group_idx).mean(axis=0)
         # subtract strand group center from strand positions
         strands_local = strand_3p_pts - centroid
+
+        normal_vector = np.cross(*strands_local[:2])
+
         # i do not understand linalg well enough to follow this
-        U, _, Vt = np.linalg.svd(strands_local - np.mean(strands_local, axis=1, keepdims=True))
+        # U, _, Vt = np.linalg.svd(strands_local - np.mean(strands_local, axis=1, keepdims=True))
         # normal vector produced by svd isn't nessicarily the correct one for the patch
-        normal_vector = Vt[-1, :]
+        # normal_vector = Vt[-1, :]
 
         dna_cms = self.cms()
 
@@ -280,11 +284,11 @@ class DNAParticle (DNAStructure):
         if signed_distance > 0:
             normal_vector *= -1
 
-        dna_radius = np.linalg.norm(centroid - dna_cms)
+        # dna_radius = np.linalg.norm(centroid - dna_cms)
 
-        normal_vector = normal_vector / np.linalg.norm(normal_vector) * dna_radius
+        # normal_vector = normal_vector / np.linalg.norm(normal_vector) * dna_radius
 
-        return normal_vector + centroid
+        return normal_vector / np.linalg.norm(normal_vector)
 
     def patch_for_strand(self, strand_id: int) -> Union[int, None]:
         # linear search
