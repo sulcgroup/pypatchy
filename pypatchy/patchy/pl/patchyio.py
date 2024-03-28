@@ -711,6 +711,8 @@ class LWriter(PLBaseWriter):
                                           str(self.directory() / traj_file))
 
         conf = rr.get_confs(top_info, traj_info, traj_info.nconfs - 1, 1)[0]
+        conf = rr.inbox(conf)
+        assert ((conf.positions < conf.box) & (conf.positions >= 0)).all(), "Conf inbox did not inbox!"
         scene = PLPSimulation()
         scene.set_time(conf.time)
         scene.set_particle_types(particle_types)

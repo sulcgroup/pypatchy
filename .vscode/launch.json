@@ -8,7 +8,7 @@
             "name": "Python Debugger: Current File",
             "type": "debugpy",
             "request": "launch",
-            "program": "~/test_patchy.py",
+            "program": "~/weredancer.py",
             "console": "integratedTerminal"
         }
     ]
