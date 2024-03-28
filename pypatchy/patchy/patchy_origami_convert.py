@@ -363,7 +363,7 @@ class PatchyOrigamiConverter:
                     strands = list(itertools.chain.from_iterable(strand_order))
                     strand_coords = [dna.strand_3p(strand_idx).pos for strand_idx in strands]
                     m1 = np.stack([*strand_coords, np.zeros(3)])
-                    svd.set(m1, m2)
+                    svd.set(m2, m1)
                     svd.run()
                     rms = svd.get_rms()
                     if rms < best_rms:
@@ -373,7 +373,7 @@ class PatchyOrigamiConverter:
                         best_rot, _ = svd.get_rotran()
                         best_rms = rms
             dna.assign_patches_strands(strand_map)
-            dna.transform(rot=best_rot.T)
+            dna.transform(rot=best_rot)
 
             relation = PatchyOriRelation(p, dna, best_rot, strand_map, best_rms)
         else:
