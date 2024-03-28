@@ -343,14 +343,14 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
                                         const_parameters, ensemble_parameters, observables, analysis_file, mdt,
                                         server_settings)
     # TODO: verify presence of required params
-    if "slurm_log" in mdt:
-        for entry in mdt["slurm_log"]:
-            sim = ensemble.get_simulation(**entry["simulation"])
-            assert isinstance(sim,
-                              PatchySimulation), f"Selector {entry['simulation']} selects more than one simulation."
-            assert sim is not None, f"Slurm log included a record for invalid simulation {str(entry['simulation'])}"
-            entry["simulation"] = sim
-        ensemble.slurm_log = SlurmLog(*[SlurmLogEntry(**e) for e in mdt["slurm_log"]])
+    # if "slurm_log" in mdt:
+    #     for entry in mdt["slurm_log"]:
+    #         sim = ensemble.get_simulation(**entry["simulation"])
+    #         assert isinstance(sim,
+    #                           PatchySimulation), f"Selector {entry['simulation']} selects more than one simulation."
+    #         assert sim is not None, f"Slurm log included a record for invalid simulation {str(entry['simulation'])}"
+    #         entry["simulation"] = sim
+    #     ensemble.slurm_log = SlurmLog(*[SlurmLogEntry(**e) for e in mdt["slurm_log"]])
     ensemble.dump_metadata()
     return ensemble
 
