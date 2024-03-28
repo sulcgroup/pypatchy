@@ -72,7 +72,7 @@ class PatchyServerConfig:
         """
         Returns whether the server is a slurm server. Defaults to true for legacy reasons.
         """
-        return len(self.slurm_bash_flags) > 0
+        return self.is_slurm
 
     # TODO: slurm library? this project is experiancing mission creep
     def get_slurm_bash_flags(self) -> dict[str, Any]:
