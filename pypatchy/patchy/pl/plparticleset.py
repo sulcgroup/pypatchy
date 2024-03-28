@@ -76,6 +76,9 @@ class PLMultidentateSourceMap(PLSourceMap):
                                        src_mapping=copy.deepcopy(self.patch_map()),
                                        cvt_params=cvt_params)
 
+    def get_converstion_params(self) -> MultidentateConvertSettings:
+        return copy.deepcopy(self.__conversion_params)
+
 
 @dataclass
 class MultidentateConvertSettings:
