@@ -822,11 +822,9 @@ class PatchySimulationEnsemble(Analyzable):
         Returns:
             the traj and top FILES for provided simulation and stage
         """
-        if not isinstance(stage, Stage):
-            stage = self.sim_get_stage(sim, stage)
         return (
-            self.folder_path(sim) / stage.adjfn(self.sim_get_param(sim, "topology")),
-            self.folder_path(sim) / stage.adjfn(self.sim_get_param(sim, "trajectory_file"))
+            self.folder_path(sim, stage) / self.sim_stage_get_param(sim, stage, "topology"),
+            self.folder_path(sim, stage) / self.sim_stage_get_param(sim, stage, "trajectory_file")
         )
 
     def sim_get_stage_last_step(self, sim: PatchySimulation, stage: Union[str, int, Stage]) -> int:
@@ -861,7 +859,7 @@ class PatchySimulationEnsemble(Analyzable):
             if (self.folder_path(sim) / stage.adjfn(self.sim_get_param(sim, "trajectory_file"))).exists():
                 try:
                     stage_last_step = self.sim_get_stage_last_step(sim, stage)
-                    if stage_last_step == stage.end_time():
+                    if stage_last_step >= stage.end_time():
                         return stage
                     # if stage is incomplete, raise an exception
                     raise IncompleteStageError(
@@ -1065,9 +1063,10 @@ class PatchySimulationEnsemble(Analyzable):
     def get_scene(self, sim: PatchySimulation, stage: Union[Stage, str]):
         if isinstance(stage, str):
             stage = self.sim_get_stage(sim, stage)
+        self.writer.set_directory(self.folder_path(sim, stage))
         top_file, traj_file = self.sim_get_stage_top_traj(sim, stage)
-        return self.writer.read_scene(top_file,
-                                      traj_file,
+        return self.writer.read_scene(top_file.name,
+                                      traj_file.name,
                                       self.sim_get_particles_set(sim))
         # scene: PLPSimulation()
 

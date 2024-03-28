@@ -58,7 +58,7 @@ class Stage(BuildSimulation):
                  tend: int = 0
                  ):
         super().__init__(Simulation(ctxt.folder_path(sim)) if previous_stage is None
-                         else Simulation(previous_stage.sim_dir, ctxt.folder_path(sim) / stagename))
+                         else Simulation(previous_stage.sim.sim_dir, ctxt.folder_path(sim) / stagename))
         self._ctxt = ctxt
         self._sim_spec = sim
         assert tlen or tend, "Specify stage length with "
