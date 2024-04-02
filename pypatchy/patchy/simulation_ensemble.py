@@ -1457,13 +1457,15 @@ class PatchySimulationEnsemble(Analyzable):
                          analysis: bool = False):
         # honestly think this is everything lmao
         # input_file = self.input_file(sim, stage, replacer_dict, extras, analysis)
+        # TODO: include checks for input file params
         with open(self.folder_path(sim) / "input", 'w+') as inputfile:
             # write server config spec
             for key in self.server_settings.input_file_params.var_names():
                 if key in replacer_dict:
                     val = replacer_dict[key]
                 else:
-                    val = self.server_settings.input_file_params[key]
+                    val = self.sim_stage_get_param(sim, stage, key)
+                    # val = self.server_settings.input_file_params[key]
                 inputfile.write(f"{key} = {val}\n")
 
             # newline
