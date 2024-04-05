@@ -3,6 +3,7 @@ from dataclasses import dataclass, field
 from typing import Union
 
 from .pl.plparticleset import PLParticleSet, MultidentateConvertSettings
+
 # from ..patchyio import get_writer # TODO: sort out this spaghtii
 
 PARTICLE_TYPES_KEY = "particle_types"
@@ -30,6 +31,7 @@ class ParameterValue:
 
     def __eq__(self, other: ParameterValue) -> bool:
         return self.param_name == other.param_name and self.value_name() == other.value_name()
+
 
 @dataclass
 class ParamValueGroup(ParameterValue):
@@ -77,7 +79,8 @@ class EnsembleParameter:
         self.param_value_map = {
             p.value_name(): p for p in self.param_value_set
         }
-        assert len({p.value_name() for p in self.param_value_set}) == len(self.param_value_set), "Duplicate param value(s)!"
+        assert len({p.value_name() for p in self.param_value_set}) == len(
+            self.param_value_set), "Duplicate param value(s)!"
 
     def dir_names(self) -> list[str]:
         return [f"{key}_{str(val)}" for key, val in self]
@@ -135,12 +138,11 @@ class MDTConvertParams(ParameterValue):
     def __init__(self, cvt_settings: MultidentateConvertSettings, convert_params_name: str = MDT_CONVERT_KEY):
         ParameterValue.__init__(self, MDT_CONVERT_KEY, cvt_settings)
         self.convert_params_name = convert_params_name
-    
-
 
     def value_name(self) -> str:
         return self.convert_params_name
-    
+
+
 # class StageInfo?
 
 class StagedAssemblyParam(ParameterValue):
@@ -148,6 +150,7 @@ class StagedAssemblyParam(ParameterValue):
     mostly just a grouped parameter system
     """
     staging_type_name: str
+
     def __init__(self, staging_info: list[dict], staging_val_name: str, staging_params_name: str = STAGES_KEY):
         ParameterValue.__init__(self, staging_params_name, staging_info)
         self.staging_type_name = staging_val_name
@@ -157,10 +160,10 @@ class StagedAssemblyParam(ParameterValue):
 
     def get_stages(self) -> list[dict]:
         return self.param_value
-    
+
     def stage(self, i: int) -> dict:
         return self.param_value[i]
-    
+
 
 def parameter_value(key: str, val: Union[dict, str, int, float, bool]) -> ParameterValue:
     """
@@ -190,6 +193,6 @@ def parameter_value(key: str, val: Union[dict, str, int, float, bool]) -> Parame
         else:
             # if no type is specified this is a parameter group
             return ParamValueGroup(param_name=key, param_value={pkey: parameter_value(pkey, pval)
-                                     for pkey, pval in val.items()}, valname=param_name)
+                                                                for pkey, pval in val.items()}, valname=param_name)
     else:
         return ParameterValue(key, val)

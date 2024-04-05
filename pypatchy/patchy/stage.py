@@ -44,6 +44,8 @@ class Stage(BuildSimulation):
     input_param_dict: dict
     _prev_stage: Union[Stage, None]
 
+    _allow_shortfall: bool
+
     def __init__(self,
                  sim: PatchySimulation,
                  previous_stage: Union[Stage, None],
@@ -80,6 +82,7 @@ class Stage(BuildSimulation):
             self._stage_time_length = tlen
         else:
             self._stage_time_length = tend - t
+        self._allow_shortfall = False
 
     def idx(self) -> int:
         return self._prev_stage.idx() + 1 if self._prev_stage is not None else 0
@@ -91,9 +94,15 @@ class Stage(BuildSimulation):
         return self._ctxt
 
     def spec(self) -> PatchySimulation:
+        """
+        Returns: the patchy simulation specification associated with this stage
+        """
         return self._sim_spec
 
     def is_first(self) -> bool:
+        """
+        Returns: true if this is the first stage, false otherwise
+        """
         return self.idx() == 0
 
     def get_prev(self) -> Union[None, Stage]:
@@ -138,6 +147,7 @@ class Stage(BuildSimulation):
             particle_set = self.getctxt().sim_get_particles_set(self.spec())
             # patches will be added automatically
             scene.set_particle_types(particle_set)
+            scene.set_temperature(self.getctxt().sim_stage_get_param(self.spec(), self, "T"))
         else:
             self.get_last_conf_tname()
             scene: PLPSimulation = self.getctxt().get_scene(self.spec(), self)
@@ -165,7 +175,11 @@ class Stage(BuildSimulation):
             if param.param_name not in self.input_param_dict:
                 # todo: assert to avoid complex params here
                 self.input_param_dict[param.param_name] = param.param_value
+
     def build_input(self, production=False):
+        """
+        Builds the stage input file
+        """
         input_json_name = self.adjfn("input.json")
 
         # write server config spec
@@ -238,7 +252,7 @@ class Stage(BuildSimulation):
         # scene.add_potential(patchy_potential)
         scene.add_potential(PLExclVolPotential(
             rmax=0.4 * 1.5,  # from lorenzo's code, =0.6. particle radius added at runtiume
-            rstar=2 ** (1/6),  # this is the rcut used in lorenzo's code, = 1.122
+            rstar=2 ** (1 / 6),  # this is the rcut used in lorenzo's code, = 1.122
             b=677.505671539  # from flavio's code
         ))
         # TODO: compute cell sizes using something other than "pull from rectum"
@@ -266,6 +280,12 @@ class Stage(BuildSimulation):
             return self.name() + os.sep + file_name
         else:
             return file_name
+
+    def allow_shortfall(self) -> bool:
+        return self._allow_shortfall
+
+    def set_allow_shortfall(self, bNewVal: bool):
+        self._allow_shortfall = bNewVal
 
 
 class StagedAssemblyError(Exception):
