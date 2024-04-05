@@ -856,10 +856,10 @@ class PatchySimulationEnsemble(Analyzable):
         # increment in  reverse order so we check later stages first
         for stage in reversed(self.sim_get_stages(sim)):
             # if traj file exists
-            if (self.folder_path(sim) / stage.adjfn(self.sim_get_param(sim, "trajectory_file"))).exists():
+            if (self.folder_path(sim) / self.sim_get_param(sim, "trajectory_file")).exists():
                 try:
                     stage_last_step = self.sim_get_stage_last_step(sim, stage)
-                    if stage_last_step >= stage.end_time():
+                    if stage_last_step == stage.end_time() or stage.allow_shortfall():
                         return stage
                     # if stage is incomplete, raise an exception
                     raise IncompleteStageError(
