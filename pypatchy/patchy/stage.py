@@ -226,8 +226,8 @@ class Stage(BuildSimulation):
 
     def apply(self, scene: PLPSimulation):
         scene.set_box_size(self.box_size())
-        # scene.compute_cell_size(n_particles=self.num_particles_to_add())
-        # scene.apportion_cells()
+        scene.compute_cell_size(n_particles=self.num_particles_to_add())
+        scene.apportion_cells()
         # add excluded volume potential
 
         # # add patchy interaction
