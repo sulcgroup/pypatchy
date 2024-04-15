@@ -98,7 +98,7 @@ class CellLists:
                           ) -> float:
         # TODO: incl. warnings if cells are too small
         if n_particles is not None:
-            n_cells = math.ceil((n_particles / 2) ** (1 / 3) / 2)
+            n_cells = math.ceil((float(n_particles) / 2) ** (1 / 3) / 2)
             self.compute_cell_size(n_cells=n_cells)
         elif n_cells is not None:
             self.compute_cell_size(cell_size=self.box_size().max() / n_cells)
@@ -106,6 +106,7 @@ class CellLists:
             self.cell_size = cell_size
         else:
             raise Exception("No parameter provided to use to compute cell size!")
+        assert self.cell_size > 0
         return self.cell_size
 
     def get_cell_size(self) -> float:

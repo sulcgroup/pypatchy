@@ -154,12 +154,11 @@ class PLPSimulation(Scene, CellLists):
             #     # print 'Check is fine!'
         return False
 
-    def set_box_size(self, box: Union[np.ndarray, list]):
+    def apportion_cells(self):
         """
-        sets box size
-        calls CellLists.set_box_size, then re-adds particles (which are removed by CellLists.set_box_size)
+        apportions cells
         """
-        CellLists.set_box_size(self, box)
+        CellLists.apportion_cells(self)
         self.apportion_cell_particles(self.particles())
 
     def add_particles(self, particles: list[PLPatchyParticle], strict_check=True):
