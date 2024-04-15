@@ -360,10 +360,15 @@ def load_pl_particles(**kwargs) -> PLParticleSet:
     loads a particle sets from a dict, format negociable
     """
     try:
-        if "format" in kwargs and kwargs["format"] in writer_options():
-            writer = get_writer(kwargs["format"])
-            writer.set_directory(get_input_dir())
-            return writer.read_particle_types(**kwargs)  # todo: error handling
+        if "format" in kwargs:
+            if kwargs["format"] in writer_options():
+                writer = get_writer(kwargs["format"])
+                writer.set_directory(get_input_dir())
+                return writer.read_particle_types(**{
+                    key: kwargs[key] for key in kwargs if key != "format"
+                })  # todo: error handling
+            else:
+                raise Exception(f"Invalid writer {kwargs['format']}")
         else:
             assert PARTICLE_TYPES_KEY in kwargs and "patches" in kwargs, "No writer or particle/patches info specified!"
             particles_list = kwargs[PARTICLE_TYPES_KEY]

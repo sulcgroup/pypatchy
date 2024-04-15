@@ -1,7 +1,8 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
-from typing import Union
+from typing import Union, Any, Mapping, Iterator
 
+from .particle_adders import StageParticleAdder, RandParticleAdder, FromPolycubeAdder
 from .pl.plparticleset import PLParticleSet, MultidentateConvertSettings
 
 # from ..patchyio import get_writer # TODO: sort out this spaghtii
@@ -27,10 +28,16 @@ class ParameterValue:
         assert not isinstance(self.param_value, ParameterValue)
 
     def value_name(self):
-        return self.param_value
+        return str(self.param_value)
 
     def __eq__(self, other: ParameterValue) -> bool:
         return self.param_name == other.param_name and self.value_name() == other.value_name()
+
+    def str_verbose(self) -> str:
+        """
+        Returns: a string describing the parameter value
+        """
+        return f"{self.param_name}: {self.value_name()}"
 
 
 @dataclass
@@ -62,6 +69,10 @@ class ParamValueGroup(ParameterValue):
     def __eq__(self, other: ParameterValue):
         return isinstance(other, ParamValueGroup) and all([key in self and self[key] == val
                                                            for key, val in other.param_value.items()])
+
+    def str_verbose(self) -> str:
+        return f"{self.param_name}: {self.value_name()}\n" + \
+               "\n".join([v.str_verbose().replace("\n", "\n\t") for v in self.param_value.values()])
 
 
 # probably a shorter, worse way to write this
@@ -131,16 +142,33 @@ class ParticleSetParam(ParameterValue, PLParticleSet):
     def value_name(self):
         return self.set_name
 
+    def str_verbose(self) -> str:
+        pset_str = f"Particle Set {self.set_name}"
+        pset_str += f"\n\tNum. Particle Types: {self.num_particle_types()}"
+        pset_str += f"\n\tNum. Colors: {len(self.patch_colors()) / 2}"
+
 
 class MDTConvertParams(ParameterValue):
     convert_params_name: str
 
     def __init__(self, cvt_settings: MultidentateConvertSettings, convert_params_name: str = MDT_CONVERT_KEY):
         ParameterValue.__init__(self, MDT_CONVERT_KEY, cvt_settings)
+        if not isinstance(cvt_settings, MultidentateConvertSettings):
+            raise TypeError(f"Invalid multidentate convert settings object type {type(cvt_settings)}")
         self.convert_params_name = convert_params_name
 
     def value_name(self) -> str:
         return self.convert_params_name
+
+    def str_verbose(self) -> str:
+        cvt_params = f"Multidentate Convert Settings {self.convert_params_name}:\n" \
+                     f"\tNum Teeth: {self.param_value.n_teeth}\n" \
+                     f"\tDental Radius: {self.param_value.dental_radius}\n" \
+                     f"\tTorsion: {self.param_value.torsion}\n" \
+                     f"\tFollow Surface: {self.param_value.follow_surf}\n" \
+                     f"\tEnergy Scale: {self.param_value.energy_scale_method}\n"
+        # f"\tAlpha Scale: {self.param_value.alpha_scale_method}\n" # alpha scale is not used
+        return cvt_params
 
 
 # class StageInfo?
@@ -149,20 +177,93 @@ class StagedAssemblyParam(ParameterValue):
     """
     mostly just a grouped parameter system
     """
+    param_value: dict[str, StageInfoParam]
     staging_type_name: str
 
-    def __init__(self, staging_info: list[dict], staging_val_name: str, staging_params_name: str = STAGES_KEY):
-        ParameterValue.__init__(self, staging_params_name, staging_info)
+    def __init__(self, staging_info: dict[str, dict], staging_val_name: str, staging_params_name: str = STAGES_KEY):
+        ParameterValue.__init__(self, staging_params_name, {
+            stage_name: StageInfoParam(stage_name, **stage_info) for stage_name, stage_info in staging_info.items()
+        })
+        # if isinstance(staging_info, dict):
+        # else:
+        #     if not isinstance(staging_info, list):
+        # # TODO: MORE TYPE CHECKING
+        # if not isinstance(staging_info, dict):
+        #     raise TypeError("Incorrect type for stages info")
+        # if not all(["t" in stage for stage in staging_info.values()]):
+        #     raise TypeError("Missing start-time info for some stages")
         self.staging_type_name = staging_val_name
 
     def value_name(self) -> str:
         return self.staging_type_name
 
-    def get_stages(self) -> list[dict]:
+    def get_stages(self) -> dict[str, dict]:
         return self.param_value
 
-    def stage(self, i: int) -> dict:
-        return self.param_value[i]
+    def stage(self, i: int) -> StageInfoParam:
+        return list(self.param_value.values())[i]
+
+    def str_verbose(self) -> str:
+        staging_desc = f"Staging {self.staging_type_name}"
+        for stage_name, stage_info in self.get_stages().items():
+            staging_desc += f"Stage: {stage_name}"
+
+        return staging_desc
+
+
+# todo: dataclass?
+class StageInfoParam(Mapping):
+    start_time: int
+    stage_name: str
+    add_method: Union[None, StageParticleAdder]
+    info: dict[str, Any]  # TODO: more detail?
+
+    def __init__(self, stage_name, **kwargs):
+        self.stage_name = stage_name
+        self.start_time = kwargs["t"] if "t" in kwargs else 0
+        # if this stage adds particles
+        if "add_method" in kwargs:
+            if "density" not in kwargs:
+                raise TypeError("particle adder specified without density!")
+            if kwargs["add_method"].upper() == "RANDOM":
+                self.add_method = RandParticleAdder(kwargs["density"])
+            # backwards-compatiility with string addition
+            elif "=" in kwargs["add_method"]:
+                self.add_method = FromPolycubeAdder(kwargs["add_method"].split("=")[1])
+            elif isinstance(kwargs["add_method"], dict):
+                if "type" not in kwargs["add_method"]:
+                    raise TypeError("No type specified for particle add method! Specify 'polycube', 'patchy', "
+                                    "'random', 'fix', or. idk.")
+                add_type = kwargs["add_method"]["type"]
+                if add_type == 'random':
+                    self.add_method = RandParticleAdder(kwargs["density"])
+                elif add_type == "polycube":
+                    self.add_method = FromPolycubeAdder(*kwargs["polycubes"], density=kwargs["density"])
+                elif add_type == "patchy":
+                    raise Exception("Not implemented yet")
+            else:
+                raise TypeError(f"Invalid 'add_method' provided: {kwargs['add_method']}")
+
+        else:
+            self.add_method = None
+
+        # add more params
+        self.info = {
+            key: value for key, value in kwargs.items() if key not in ("t", "add_method", "density")
+        }
+
+    def __getitem__(self, item: str):
+        if item == "t":
+            return self.start_time
+        else:
+            return self.info[item]
+
+    def __len__(self) -> int:
+        return len(self.info)
+
+    def __iter__(self) -> Iterator:
+        return iter(self.info)
+
 
 
 def parameter_value(key: str, val: Union[dict, str, int, float, bool]) -> ParameterValue:
@@ -187,6 +288,8 @@ def parameter_value(key: str, val: Union[dict, str, int, float, bool]) -> Parame
                 # get_writer().set_directory(get_input_dir())
                 # return ParticleSetParam(get_writer().read_particle_types(**data)) # TODO: TEST
             elif val["type"] == STAGES_KEY:
+                if not "stages" in data:
+                    raise TypeError(f"Missing key 'stages' in staging info param {data['name']}")
                 return StagedAssemblyParam(data["stages"], param_name, key)
             else:
                 raise Exception(f"Invalid object-parameter type {val['type']}")

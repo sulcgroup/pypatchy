@@ -23,7 +23,7 @@ class ParamSet(LogEntryObject):
     # ordered list of parameter values that specify this simulation
     param_vals: list[ParameterValue]
 
-    parameter_dict: dict[str, Any] # for easy access
+    parameter_dict: dict[str, Any]  # for easy access
 
     def __init__(self, parameter_values: Iterable[ParameterValue]):
         self.param_vals = list(parameter_values)
@@ -109,10 +109,10 @@ class NoSuchParamError(Exception):
         self._sim = sim
 
     def __str__(self):
-        errstr = f"No value specified for parameter \"{self._param_name}\""
+        errstr = f"No value specified for parameter \"{self._param_name}\". "
         if self._sim is not None:
-            errstr += f"simulation {repr(self._sim)} in "
-        errstr += f"ensemble {self._ensemble.long_name()}"
+            errstr += f"Simulation {repr(self._sim)} in "
+        errstr += f"Ensemble {self._ensemble.long_name()}"
         return errstr
 
     def param_name(self) -> str:

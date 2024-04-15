@@ -5,6 +5,7 @@ from typing import Union, Callable, Generator
 import numpy as np
 from .patchy_base_particle import PatchyBaseParticle
 
+
 @dataclass
 class Cell:
     idxs: np.ndarray = field()
@@ -37,7 +38,7 @@ class CellLists:
         self.cell_size = None
 
     def get_cell(self,
-                    item: Union[tuple, np.ndarray, int, PatchyBaseParticle]) -> Cell:
+                 item: Union[tuple, np.ndarray, int, PatchyBaseParticle]) -> Cell:
         if isinstance(item, np.ndarray):
             cell_idxs = np.floor(item / self.cell_size)
             cell = self.cells[tuple(cell_idxs.astype(int))]
@@ -66,8 +67,8 @@ class CellLists:
     def interaction_particles(self,
                               p: Union[np.ndarray,
                                        PatchyBaseParticle]) -> Generator[PatchyBaseParticle,
-                                                                                           None,
-                                                                                           None]:
+                                                                         None,
+                                                                         None]:
         """
         iterates particles that can interact with this particle, in no particlar order
         """
