@@ -13,7 +13,8 @@ import numpy as np
 from ipy_oxdna.oxdna_simulation import BuildSimulation, Simulation, Input
 from pypatchy.patchy.pl.plpotential import PLPatchyPotential, PLExclVolPotential
 
-from .ensemble_parameter import MDT_CONVERT_KEY
+from .ensemble_parameter import MDT_CONVERT_KEY, StageInfoParam
+from .particle_adders import RandParticleAdder, FromPolycubeAdder, FromConfAdder
 from .pl.plpatchylib import polycube_to_pl
 from .simulation_specification import NoSuchParamError
 from ..patchy.simulation_specification import PatchySimulation
@@ -30,15 +31,15 @@ class Stage(BuildSimulation):
     # the name of this stage
     _stage_name: str
     # the step (time) that this stage starts
-    _stage_start_time: int
     # a list of PARTICLE TYPE IDS of particles to add
     # the length of this list should be the number of particles to add in
     # this stage and each item is a TYPE ID of a particle type to add.
     _particles_to_add: list[int]
-    _add_method: str
-    _stage_vars: dict
     _ctxt: Any  # PatchySimulationEnsemble
     _sim_spec: PatchySimulation
+
+    # this is a class member because I do NOT want to deal with multiple inheritance rn
+    _param_info: StageInfoParam
 
     # why
     input_param_dict: dict
@@ -50,17 +51,14 @@ class Stage(BuildSimulation):
                  sim: PatchySimulation,
                  previous_stage: Union[Stage, None],
                  ctxt: Any,  # it's PatchySimulationEnsemble but if we tell it that we get a circular import
-                 stagename: str,
-                 t: int,
+                 paraminfo: StageInfoParam,
                  particles: list[Union[int, str]],
                  box_size: np.ndarray = np.array((0, 0, 0)),
-                 add_method: str = "RANDOM",
-                 stage_vars: dict = {},
                  tlen: int = 0,
                  tend: int = 0
                  ):
         super().__init__(Simulation(ctxt.folder_path(sim)) if previous_stage is None
-                         else Simulation(previous_stage.sim.sim_dir, ctxt.folder_path(sim) / stagename))
+                         else Simulation(previous_stage.sim.sim_dir, ctxt.folder_path(sim) / paraminfo.stage_name))
         self._ctxt = ctxt
         self._sim_spec = sim
         assert tlen or tend, "Specify stage length with "
@@ -68,27 +66,20 @@ class Stage(BuildSimulation):
         if previous_stage is not None:
             self._prev_stage._next_stage = self
         self._next_stage = None
-        self._stage_name = stagename
-        self._stage_start_time = t
         self._particles_to_add = particles
         self._box_size = box_size
-        if add_method.upper() == "RANDOM":
-            self._add_method = "RANDOM"
-        else:
-            self._add_method = add_method
-        self._stage_vars = stage_vars
-        self.input_param_dict = {}
+        self._param_info = paraminfo
         if tlen:
             self._stage_time_length = tlen
         else:
-            self._stage_time_length = tend - t
+            self._stage_time_length = tend - paraminfo.start_time
         self._allow_shortfall = False
 
     def idx(self) -> int:
         return self._prev_stage.idx() + 1 if self._prev_stage is not None else 0
 
     def name(self) -> str:
-        return self._stage_name
+        return self._param_info.stage_name
 
     def getctxt(self):
         return self._ctxt
@@ -124,7 +115,7 @@ class Stage(BuildSimulation):
         return len(self.particles_to_add())
 
     def start_time(self) -> int:
-        return self._stage_start_time
+        return self._param_info.start_time
 
     def time_length(self) -> int:
         return self._stage_time_length
@@ -133,10 +124,10 @@ class Stage(BuildSimulation):
         return self.start_time() + self.time_length()
 
     def has_var(self, key: str) -> bool:
-        return key in self._stage_vars
+        return key in self._param_info.info
 
     def get_var(self, key: str) -> Any:
-        return self._stage_vars[key]
+        return self._param_info.info[key]
 
     def build_dat_top(self):
         if self.is_first():
@@ -149,7 +140,7 @@ class Stage(BuildSimulation):
             scene.set_particle_types(particle_set)
             scene.set_temperature(self.getctxt().sim_stage_get_param(self.spec(), self, "T"))
         else:
-            self.get_last_conf_tname()
+            self.get_last_conf_name()
             scene: PLPSimulation = self.getctxt().get_scene(self.spec(), self)
         self.apply(scene)
         # grab args required by writer
@@ -235,8 +226,8 @@ class Stage(BuildSimulation):
 
     def apply(self, scene: PLPSimulation):
         scene.set_box_size(self.box_size())
-        scene.compute_cell_size(n_particles=self.num_particles_to_add())
-        scene.apportion_cells()
+        # scene.compute_cell_size(n_particles=self.num_particles_to_add())
+        # scene.apportion_cells()
         # add excluded volume potential
 
         # # add patchy interaction
@@ -257,21 +248,38 @@ class Stage(BuildSimulation):
         ))
         # TODO: compute cell sizes using something other than "pull from rectum"
         assert all(self.box_size()), "Box size hasn't been set!!!"
-        if self._add_method == "RANDOM":
-            particles = [scene.particle_types().particle(i_type).instantiate(i)
+
+        if self._param_info.add_method is None:
+            assert len(self._particles_to_add) == 0, "No add method specified but particles still " \
+                                                        "queued to add!"
+        elif isinstance(self._param_info.add_method, RandParticleAdder):
+            start_particle_count = scene.num_particles()
+            particles = [scene.particle_types().particle(i_type).instantiate(i + start_particle_count)
                          for i, i_type in enumerate(self._particles_to_add)]
             scene.add_particle_rand_positions(particles)
-        elif "=" in self._add_method:
-            mode, src = self._add_method.split("=")
-            if mode == "from_conf":
-                raise Exception("If you're seeing this, this feature hasn't been implemented yet although it can't be"
-                                "THAT hard really")
-            elif mode == "from_polycubes":
-                pc = load_polycube(get_input_dir() / src)
-                pl = polycube_to_pl(pc, self.getctxt().sim_get_param(self.spec(), MDT_CONVERT_KEY), pad_cubes=0.13)
+
+        elif isinstance(self._param_info.add_method, FromPolycubeAdder):
+            if len(self._param_info.add_method.polycubes) == 1:
+                pl = polycube_to_pl(self._param_info.add_method.polycubes[0],
+                                    self.getctxt().sim_get_param(self.spec(), MDT_CONVERT_KEY), pad_cubes=0.13)
                 scene.add(pl, cubize_box=True)
+            else:
+                print("WARNING: I HAVE NOT TESTED THIS YET")
+                scene.add_conf_clusters([
+                    polycube_to_pl(pc,
+                                   self.getctxt().sim_get_param(self.spec(), MDT_CONVERT_KEY),
+                                   pad_cubes=0.13)
+                    for pc in self._param_info.add_method.polycubes
+                ])
+
+        elif isinstance(self._param_info.add_method, FromConfAdder):
+            raise Exception("If you're seeing this, this feature hasn't been implemented yet although it can't be"
+                            "THAT hard really")
+            # TODO: write
+            # step 1: split the conf to add up by clusters
+            # step 2: add clusters using scene.add_conf_clusters
         else:
-            raise Exception(f"Invalid add method {self._add_method}")
+            raise Exception(f"Invalid add method {type(self._param_info.add_method)}")
         e = scene.get_potential_energy()
         assert e < 1e-4, "Scene energy too high!!"
 
@@ -286,6 +294,9 @@ class Stage(BuildSimulation):
 
     def set_allow_shortfall(self, bNewVal: bool):
         self._allow_shortfall = bNewVal
+
+    def __str__(self) -> str:
+        return f"Stage {self.name()} (#{self.idx()})"
 
 
 class StagedAssemblyError(Exception):

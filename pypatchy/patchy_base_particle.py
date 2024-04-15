@@ -171,7 +171,7 @@ class BaseParticleSet:
 
     def particle(self, idx: Union[int, str]):
         if isinstance(idx, int):
-            assert -1 < idx < self.num_particle_types()
+            assert -1 < idx < self.num_particle_types(), f"Invalid particle index {idx}"
             return self._particle_types[idx]
         else:
             for particle in self.particles():

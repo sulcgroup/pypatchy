@@ -628,7 +628,6 @@ class PatchySimulationEnsemble(Analyzable):
         # # go deep
         if paramname in self.server_settings.input_file_params:
             return self.server_settings.input_file_params[paramname]
-        # TODO: custom exception here
         raise NoSuchParamError(self, paramname)
 
     def paramfile(self, sim: PatchySimulation, paramname: str) -> Path:
@@ -654,6 +653,16 @@ class PatchySimulationEnsemble(Analyzable):
         particle_name = self.sim_get_particles_set(sim).particle(particle_idx).name()
         return self.sim_get_param(sim, particle_name) * self.sim_get_param(sim, NUM_ASSEMBLIES_KEY)
 
+    def get_stages_info(self, sim: Union[None, PatchySimulation] = None) -> dict[str, StageInfoParam]:
+        """
+        Returns staging information parameters
+        """
+        if sim is not None:
+            stages_info: dict[str, StageInfoParam] = self.sim_get_param(sim, STAGES_KEY)
+        else:
+            stages_info: dict[str, StageInfoParam] = self.get_param(STAGES_KEY)
+        return stages_info
+
     def sim_get_stages(self, sim: PatchySimulation) -> list[Stage]:
         """
         Computes stages
@@ -662,15 +671,16 @@ class PatchySimulationEnsemble(Analyzable):
         """
         assert isinstance(sim, PatchySimulation), "Cannot invoke this method with a parameter list!"
         try:
-            stages_info: dict = self.sim_get_param(sim, STAGES_KEY)
+            stages_info: list[StageInfoParam] = list(sorted(self.get_stages_info(sim).values(),
+                                                            key=lambda x: x.start_time))
+
             # incredibly cursed line of code incoming
-            stages_info = [{"idx": i, **stage_info} for i, (stage_name, stage_info) in
-                           enumerate(sorted(stages_info.items(), key=lambda x: x[1]["t"]))]
+            # stages_info = [{"idx": i, **stage_info} for i, (stage_name, stage_info) in
+            #                enumerate(sorted(stages_info.items(), key=lambda x: x[1]["t"]))]
             stages = []
             # loop stages in stage list from spec
-            for stage_info in stages_info:
+            for i, stage_info in enumerate(stages_info):
                 # get stage idx
-                i = stage_info["idx"]
 
                 # find num assemblies
                 if "num_assemblies" in stage_info:
@@ -705,10 +715,7 @@ class PatchySimulationEnsemble(Analyzable):
                                 # for now only cube types are important
                                 cube_info["type"] for cube_info in pcinfo["cubes"]
                             ]
-                stage_init_args = {
-                    "t": stage_info["t"],
-                    "particles": stage_particles,
-                }
+                stage_init_args = {}
                 if "length" not in stage_info and "tlen" not in stage_info and "tend" not in stage_info:
                     if i + 1 != len(stages_info):
                         # if stage is not final stage, last step of this stage will be first step of next stage
@@ -723,16 +730,12 @@ class PatchySimulationEnsemble(Analyzable):
                 else:
                     stage_init_args["tlen"] = stage_info["tlen"]
 
-                if "name" in stage_info:
-                    stage_name: str = stage_info["name"]
-                else:
-                    stage_name = f"stage{i}"
                 # construct stage objects
                 stages.append(Stage(sim,
                                     stages[i - 1] if i else None,
                                     self,
-                                    stage_name,
-                                    add_method=stage_info["add_method"] if "add_method" in stage_info else "RANDOM",
+                                    stage_info,
+                                    stage_particles,
                                     **stage_init_args
                                     ))
 
@@ -867,6 +870,9 @@ class PatchySimulationEnsemble(Analyzable):
                         sim,
                         stage_last_step
                     )
+                except NoStageTrajError as e:
+                    # if there's no traj for this stage it means the stage hasn't started yet
+                    pass
                 except StageTrajFileEmptyError as e:
                     # if the stage traj is empty just continue
                     pass
@@ -959,25 +965,28 @@ class PatchySimulationEnsemble(Analyzable):
         """
 
         # this is something useful that will help us later
-        def print_stages(stages_dict: dict, pad=0):
-            # stage dicts not stage objects!
-            stages = stages_dict["stages"]
-            for stage_name in stages:
-                stage = stages[stage_name]
-                print("\t" * pad + f"Stage {stage_name}:")
-                print("\t" * (pad + 1) + f"Starting Timestep: {stage['t']}")
-                if "tend" in stage:
-                    print("\t" * (pad + 1) + f"Ending Timestep: {stage['tend']}")
-                print("\t" * (pad + 1) + f"Add Method: {stage['add_method']}")
-                if len(stage["particles"]) > 0:
-                    print("\t" * (pad + 1) + "Particles to add per assembly unit:")
-                    for particle_type_name in stage["particles"]:
-                        print("\t" * (pad + 1) + f"  {particle_type_name}: {stage['particles'][particle_type_name]}")
-                else:
-                    print("No particles added")
+        # def print_stages(stages_dict: dict, pad=0):
+        #     # stage dicts not stage objects!
+        #     stages = stages_dict["stages"]
+        #     for stage_name in stages:
+        #         stage = stages[stage_name]
+        #         print("\t" * pad + f"Stage {stage_name}:")
+        #         print("\t" * (pad + 1) + f"Starting Timestep: {stage['t']}")
+        #         if "tend" in stage:
+        #             print("\t" * (pad + 1) + f"Ending Timestep: {stage['tend']}")
+        #         print("\t" * (pad + 1) + f"Add Method: {stage['add_method']}")
+        #         if len(stage["particles"]) > 0:
+        #             print("\t" * (pad + 1) + "Particles to add per assembly unit:")
+        #             for particle_type_name in stage["particles"]:
+        #                 print("\t" * (pad + 1) + f"  {particle_type_name}: {stage['particles'][particle_type_name]}")
+        #         else:
+        #             print("No particles added")
 
         print(f"Ensemble of simulations of {self.export_name} set up on {self.sim_init_date.strftime('%Y-%m-%d')}")
-        print(f"Particle info: {str(self.particle_set)}")
+        try:
+            print(f"Particle info: {str(self.get_param('particle_types'))}")
+        except NoSuchParamError as e:
+            print("Particle types are not constant")
         print(f"Metadata stored in file {self.metadata_file}")
         print(f"Simulation TLD: {self.tld()}")
         print("Ensemble Params")
@@ -985,16 +994,17 @@ class PatchySimulationEnsemble(Analyzable):
             print("\t" + str(param))
         print(f"Const Simulation Params")
         for param in self.const_params:
-            if param.is_grouped_params():
-                if param.param_name == "stages":
-                    print_stages(param.param_value, 2)
+            print(param.str_verbose())
+            # if isinstance(param, ParamValueGroup):
+                # if param.param_name == "stages":
+                #     print_stages(param.param_value, 2)
 
-                else:
-                    print(f"\t{param.param_name}:")
-                    for name in param.group_params_names():
-                        print(f"\t\t{name}: {param.param_value[name]}")
-            else:
-                print(f"\t{param.param_name}: {param.value_name()}")
+                # else:
+                # print(f"\t{param.param_name}:")
+                # for name in param.group_params_names():
+                #     print(f"\t\t{name}: {param.param_value[name].value_name()}")
+            # else:
+            #     print(f"\t{param.param_name}: {param.value_name()}")
 
         if len(self.analysis_pipeline) > 0:
             print(
@@ -1020,30 +1030,6 @@ class PatchySimulationEnsemble(Analyzable):
         # print("Function `folder_path`")
         # print("Function `tld`")
         # print("Function `list_folder_files`")
-
-    # def babysit(self):
-    #     """
-    #     intermittantly checks whether any simulations have been stopped by the slurm
-    #     controller before completion
-    #     if it finds any, it starts the simulation again
-    #     """
-    #     finished = False
-    #     # loop until all simulations are complete
-    #     while not finished:
-    #         # sleep until refresh
-    #         time.sleep(get_babysitter_refresh())
-    #         # find stopped simulations
-    #         to_reup = self.get_stopped_sims()
-    #         self.get_logger().info(f"Found {len(to_reup)} stopped simulations.")
-    #         if len(to_reup) == 0:
-    #             self.get_logger().info("All simulations complete. Babysitter exiting.")
-    #             finished = True
-    #         else:
-    #             for sim in to_reup:
-    #                 self.get_logger().info(f"Re-upping simulation {str(sim)}")
-    #                 self.write_continue_files(sim)
-    #                 self.exec_continue(sim)
-    #         self.dump_metadata()
 
     def show_last_conf(self, sim: Union[PatchySimulation, None] = None, **kwargs):
         """
@@ -1228,6 +1214,7 @@ class PatchySimulationEnsemble(Analyzable):
             sims = self.ensemble()
         self.get_logger().info("Setting up folder / file structure...")
         for sim in sims:
+            assert isinstance(sim, PatchySimulation), "Invalid type!"
             assert self.sim_get_param(sim, "print_conf_interval") < self.sim_get_param(sim, "steps")
             self.get_logger().info(f"Setting up folder / file structure for {repr(sim)}...")
             # create nessecary folders
@@ -1315,7 +1302,7 @@ class PatchySimulationEnsemble(Analyzable):
 
             # generate conf
             scene = PLPSimulation()
-            scene.set_temperature(self.sim_get_param(sim, "T"))
+            scene.set_temperature(self.sim_stage_get_param(sim, stage, "T"))
             particle_set = self.sim_get_particles_set(sim)
             # patches will be added automatically
             scene.set_particle_types(particle_set)
@@ -1324,12 +1311,12 @@ class PatchySimulationEnsemble(Analyzable):
             # don't catch exxeption here
             last_complete_stage = self.sim_most_recent_stage(sim)
             scene = self.get_scene(sim, last_complete_stage)
-
+        scene.set_temperature(self.sim_stage_get_param(sim, stage, "T"))
         stage.apply(scene)
 
         # grab args required by writer
         reqd_extra_args = {
-            a: self.sim_get_param(sim, a) for a in self.writer.reqd_args()
+            a: self.sim_stage_get_param(sim, stage, a) for a in self.writer.reqd_args()
         }
         assert "conf_file" in reqd_extra_args, "Missing conf file info!"
 
@@ -1499,7 +1486,7 @@ class PatchySimulationEnsemble(Analyzable):
 
             # write more parameters
 
-            inputfile.write(f"T = {self.sim_get_param(sim, 'T')}" + "\n")
+            inputfile.write(f"T = {self.sim_stage_get_param(sim, stage, 'T')}" + "\n")
             try:
                 inputfile.write(f"narrow_type = {self.sim_get_param(sim, 'narrow_type')}" + "\n")
             except NoSuchParamError as e:

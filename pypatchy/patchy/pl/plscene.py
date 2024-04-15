@@ -16,7 +16,7 @@ from .plparticleset import PLParticleSet, MultidentateConvertSettings
 from .plpatch import PLPatch
 from .plpotential import PLPotential
 from ...scene import Scene
-from ...util import dist, pairwise
+from ...util import dist, pairwise, random_unit_vector
 
 PATCHY_CUTOFF = 0.18
 
@@ -154,6 +154,14 @@ class PLPSimulation(Scene, CellLists):
             #     # print 'Check is fine!'
         return False
 
+    def set_box_size(self, box: Union[np.ndarray, list]):
+        """
+        sets box size
+        calls CellLists.set_box_size, then re-adds particles (which are removed by CellLists.set_box_size)
+        """
+        CellLists.set_box_size(self, box)
+        self.apportion_cell_particles(self.particles())
+
     def add_particles(self, particles: list[PLPatchyParticle], strict_check=True):
         # adds particles to the field, also initializes paricle types and patchy types based on these data
         # it overwrites any previosuly stored particle!!
@@ -222,6 +230,38 @@ class PLPSimulation(Scene, CellLists):
         # the following assertion is useful for catching energy issues at low particle counts
         # but it's VERY VERY SLOW
         # assert self.get_potential_energy() < 0
+
+    def add_conf_clusters(self,
+                          conf_clusters: Iterable[PLPSimulation], # are you insane
+                          nTries=1e3):
+        # loop clusters
+        for cluster in conf_clusters:
+            t = 0
+            # set max tries so it doesn't go forever
+            while t < nTries:
+                # random position
+                new_pos = np.random.rand(3) * self._box_size
+                cluster.translate(new_pos)
+                if not self.check_for_particle_overlap(cluster):
+                    break
+                t += 1
+            if t == nTries:
+                raise Exception(f"Could not find a position t(o place a particle! nTries={nTries}")
+            # randomize orientation
+            # compute random rotation matrix
+            a1 = random_unit_vector()
+            x = random_unit_vector()
+            # i had to replace this code Joakim or someone wrote because it's literally the "what not to do" solution
+            # self.a1 = np.array(np.random.random(3))
+            # self.a1 = self.a1 / np.sqrt(np.dot(self.a1, self.a1))
+            # x = np.random.random(3)
+            a3 = x - np.dot(a1, x) * a1
+            a3 = a3 / np.sqrt(np.dot(a3, a3))
+            rot = np.stack([a1, a2, a3])
+
+    # the following assertion is useful for catching energy issues at low particle counts
+    # but it's VERY VERY SLOW
+    # assert self.get_potential_energy() < 0
 
     def num_particle_types(self) -> int:
         return self.particle_types().num_particle_types()

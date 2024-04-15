@@ -82,7 +82,6 @@ class PLMultidentateSourceMap(PLSourceMap):
 
 @dataclass
 class MultidentateConvertSettings:
-
     ENERGY_SCALE_NONE = 0  # string key "none", no energy scaling
     ENERGY_SCALE_LINEAR = -1  # string key "linear" divide energy by num patches
     ENERGY_SCALE_LOG = -3  # string key "log", divide energy by ln n_teeth
@@ -92,10 +91,11 @@ class MultidentateConvertSettings:
 
     n_teeth: int = field()
     dental_radius: float = field()
-    torsion: bool = field(default=True) # this will have no effect on non-torsional patches
+    torsion: bool = field(default=True)  # this will have no effect on non-torsional patches
     follow_surf: bool = field(default=False)
     # energy scale > 0 means "multiply the energy by the scale
-    energy_scale_method: Union[int, float] = field(default=ENERGY_SCALE_NONE)  # TODO: flexable support for energy scaling
+    energy_scale_method: Union[int, float] = field(
+        default=ENERGY_SCALE_LINEAR)  # TODO: flexable support for energy scaling
     alpha_scale_method: Union[int, float] = field(default=ALPHA_SCALE_NONE)
 
     def __post_init__(self):
@@ -119,14 +119,13 @@ class MultidentateConvertSettings:
             else:
                 raise Exception(f"Invalid alpha scale method {self.alpha_scale_method}")
 
-
     def scale_energy(self, patch_energy: float) -> float:
         if self.energy_scale_method == self.ENERGY_SCALE_NONE:
             return patch_energy
         elif self.energy_scale_method == self.ENERGY_SCALE_LINEAR:
             return patch_energy / self.n_teeth
-        elif self.energy_scale_method == self.ENERGY_SCALE_LOG:  # subhajit says this is wrong but I am leaving it as an option
-            return patch_energy / np.log(self.n_teeth)  # ln n teeth, basically made up
+        elif self.energy_scale_method == self.ENERGY_SCALE_LOG: # subhajit says this is wrong but I am leaving it as an option
+            return patch_energy / (self.n_teeth * np.log(self.n_teeth))  # ln n teeth, basically made up
         else:
             return self.energy_scale_method * patch_energy
 
@@ -265,8 +264,8 @@ class PLParticleSet(BaseParticleSet):
                 is_color_neg = patch.color() < 0
                 # "normalize" color by making the lowest color 0
                 if abs(
-                    patch.color()) < 21:  assert not mdt_params.torsion, "Torsion cannot be on for same color binding " \
-                                                                         "b/c IDK how that works and IDC enough to figure it out"
+                        patch.color()) < 21:  assert not mdt_params.torsion, "Torsion cannot be on for same color binding " \
+                                                                             "b/c IDK how that works and IDC enough to figure it out"
                 # note that the converse is not true; we can have torsion w/o same color binding
                 colornorm = abs(patch.color()) - 21
                 id_map[patch.type_id()] = set()

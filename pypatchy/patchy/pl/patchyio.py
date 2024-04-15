@@ -62,9 +62,9 @@ class PLBaseWriter(ABC):
 
     def set_directory(self, directory: Union[Path, str]):
         if isinstance(directory, Path):
-            self._writing_directory = directory
+            self._writing_directory = directory.expanduser()
         else:
-            self._writing_directory = Path(directory)
+            self.set_directory(Path(directory))
 
     def directory(self) -> Path:
         return self._writing_directory
@@ -711,7 +711,7 @@ class LWriter(PLBaseWriter):
                                           str(self.directory() / traj_file))
 
         conf = rr.get_confs(top_info, traj_info, traj_info.nconfs - 1, 1)[0]
-        conf = rr.inbox(conf)
+        conf = rr.inbox(conf, center=False)
         assert ((conf.positions < conf.box) & (conf.positions >= 0)).all(), "Conf inbox did not inbox!"
         scene = PLPSimulation()
         scene.set_time(conf.time)
@@ -1034,4 +1034,4 @@ def register_writer(writer_name: str, writer_obj: PLBaseWriter):
 
 
 def writer_options() -> list[str]:
-    return [*__writers.values()]
+    return [*__writers.keys()]
