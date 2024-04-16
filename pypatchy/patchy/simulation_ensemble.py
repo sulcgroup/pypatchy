@@ -1288,9 +1288,6 @@ class PatchySimulationEnsemble(Analyzable):
 
         if extras is None:
             extras = {}
-        # set writer directory to simulation folder path
-        self.writer.set_directory(self.folder_path(sim, stage))
-        self.writer.set_abs_paths(self.server_settings.absolute_paths)
 
         # get server config
         if replacer_dict is None:
@@ -1321,6 +1318,10 @@ class PatchySimulationEnsemble(Analyzable):
         assert "conf_file" in reqd_extra_args, "Missing conf file info!"
 
         # write top, conf, and others
+        # set writer directory to simulation folder path
+        self.writer.set_directory(self.folder_path(sim, stage))
+        self.writer.set_abs_paths(self.server_settings.absolute_paths)
+        self.folder_path(sim, stage).mkdir(exist_ok=False)
         files = self.writer.write(scene,
                                   **reqd_extra_args)
 
