@@ -1321,7 +1321,7 @@ class PatchySimulationEnsemble(Analyzable):
         # set writer directory to simulation folder path
         self.writer.set_directory(self.folder_path(sim, stage))
         self.writer.set_abs_paths(self.server_settings.absolute_paths)
-        self.folder_path(sim, stage).mkdir(exist_ok=False)
+        self.folder_path(sim, stage).mkdir(exist_ok=True)
         files = self.writer.write(scene,
                                   **reqd_extra_args)
 
