@@ -754,8 +754,11 @@ class PatchySimulationEnsemble(Analyzable):
                 sim,
                 None,
                 self,
-                stagename="default",
-                t=0,
+                StageInfoParam(
+                    "default"
+                ),
+                # stagename="default",
+                # t=0,
                 tend=self.sim_get_param(sim, "steps"),
                 particles=particles
             )]
@@ -1046,7 +1049,7 @@ class PatchySimulationEnsemble(Analyzable):
             #           self.folder_path(sim) / "particles.txt",
             #           self.folder_path(sim) / "patches.txt")
 
-    def get_scene(self, sim: PatchySimulation, stage: Union[Stage, str]):
+    def get_scene(self, sim: PatchySimulation, stage: Union[Stage, str]) -> PLPSimulation:
         if isinstance(stage, str):
             stage = self.sim_get_stage(sim, stage)
         self.writer.set_directory(self.folder_path(sim, stage))

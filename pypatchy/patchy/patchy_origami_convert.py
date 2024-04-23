@@ -267,14 +267,15 @@ class PatchyOrigamiConverter:
 
         return self.color_sequences[colorstr]
 
-    def assign_color_sequence(self, color: int, seq: str):
+    def assign_color_sequence(self, color: int, seq: str, update_rc=True):
         """
         Assigns the color given by colorstr the specific sequence sequence specified
         Automatically assigns the corresponding color the reverse compliment
         """
         assert self.sticky_length is None or len(seq) == self.sticky_length, "Incompatible sequence length"
         self.color_sequences[color] = seq
-        self.color_sequences[-color] = rc(seq)
+        if update_rc:
+            self.color_sequences[-color] = rc(seq)
 
     def assign_particles(self,
                          dna: DNAParticle,

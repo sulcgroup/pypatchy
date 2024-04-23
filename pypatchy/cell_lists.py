@@ -101,7 +101,7 @@ class CellLists:
             n_cells = math.ceil((float(n_particles) / 2) ** (1 / 3) / 2)
             self.compute_cell_size(n_cells=n_cells)
         elif n_cells is not None:
-            self.compute_cell_size(cell_size=self.box_size().max() / n_cells)
+            self.compute_cell_size(cell_size=self.box_size().max() / float(n_cells))
         elif cell_size is not None:
             self.cell_size = cell_size
         else:

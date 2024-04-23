@@ -4,8 +4,9 @@ import copy
 import itertools
 import math
 import random
-from typing import Union, Iterable
+from typing import Union, Iterable, Generator
 
+import networkx as nx
 import numpy as np
 from oxDNA_analysis_tools.UTILS.RyeReader import inbox
 from oxDNA_analysis_tools.UTILS.data_structures import Configuration
@@ -68,6 +69,9 @@ class PLPSimulation(Scene, CellLists):
 
     def T(self) -> float:
         return self._temperature
+
+    def time(self) -> int:
+        return self._time
 
     def generate_random_color(self, particle_id=-1) -> str:
         # random.seed(seed)
@@ -230,33 +234,33 @@ class PLPSimulation(Scene, CellLists):
         # but it's VERY VERY SLOW
         # assert self.get_potential_energy() < 0
 
-    def add_conf_clusters(self,
-                          conf_clusters: Iterable[PLPSimulation], # are you insane
-                          nTries=1e3):
-        # loop clusters
-        for cluster in conf_clusters:
-            t = 0
-            # set max tries so it doesn't go forever
-            while t < nTries:
-                # random position
-                new_pos = np.random.rand(3) * self._box_size
-                cluster.translate(new_pos)
-                if not self.check_for_particle_overlap(cluster):
-                    break
-                t += 1
-            if t == nTries:
-                raise Exception(f"Could not find a position t(o place a particle! nTries={nTries}")
-            # randomize orientation
-            # compute random rotation matrix
-            a1 = random_unit_vector()
-            x = random_unit_vector()
-            # i had to replace this code Joakim or someone wrote because it's literally the "what not to do" solution
-            # self.a1 = np.array(np.random.random(3))
-            # self.a1 = self.a1 / np.sqrt(np.dot(self.a1, self.a1))
-            # x = np.random.random(3)
-            a3 = x - np.dot(a1, x) * a1
-            a3 = a3 / np.sqrt(np.dot(a3, a3))
-            rot = np.stack([a1, a2, a3])
+    # def add_conf_clusters(self,
+    #                       conf_clusters: Iterable[PLPSimulation], # are you insane
+    #                       nTries=1e3):
+    #     # loop clusters
+    #     for cluster in conf_clusters:
+    #         t = 0
+    #         # set max tries so it doesn't go forever
+    #         while t < nTries:
+    #             # random position
+    #             new_pos = np.random.rand(3) * self._box_size
+    #             cluster.translate(new_pos)
+    #             if not self.check_for_particle_overlap(cluster):
+    #                 break
+    #             t += 1
+    #         if t == nTries:
+    #             raise Exception(f"Could not find a position t(o place a particle! nTries={nTries}")
+    #         # randomize orientation
+    #         # compute random rotation matrix
+    #         a1 = random_unit_vector()
+    #         x = random_unit_vector()
+    #         # i had to replace this code Joakim or someone wrote because it's literally the "what not to do" solution
+    #         # self.a1 = np.array(np.random.random(3))
+    #         # self.a1 = self.a1 / np.sqrt(np.dot(self.a1, self.a1))
+    #         # x = np.random.random(3)
+    #         a3 = x - np.dot(a1, x) * a1
+    #         a3 = a3 / np.sqrt(np.dot(a3, a3))
+    #         rot = np.stack([a1, a2, a3])
 
     # the following assertion is useful for catching energy issues at low particle counts
     # but it's VERY VERY SLOW
@@ -484,9 +488,9 @@ class PLPSimulation(Scene, CellLists):
         # set box size
         self._box_size = conf.box
         # check conf size
-        assert conf.positions.shape[1] == self.num_particles(), f"Mismatch between num particles in scene" \
+        assert conf.positions.shape[0] == self.num_particles(), f"Mismatch between num particles in scene" \
                                                                 f" ({self.num_particles()}) and conf" \
-                                                                f" ({conf.positions.shape[1]})"
+                                                                f" ({conf.positions.shape[0]})"
         # set particle positions, a1s, a3s
         for i, p in enumerate(self.particles()):
             p.set_position(conf.positions[i, :])
@@ -616,3 +620,45 @@ class PLPSimulation(Scene, CellLists):
             mdt_scene.add_particle(mdt_particle)
         mdt_scene.set_box_size(self.box_size())
         return mdt_scene
+
+    def compute_scene_graph(self, bond_energy: float = 0) -> nx.Graph:
+        """
+        Constructs a nx graph containing all particles in the scene
+        """
+        # use graph not digraph
+        G = nx.Graph()
+        # iter particles
+        for p1 in self.particles():
+            for p2 in self.interaction_particles(p1):
+                e = self.interaction_energy(p1, p2)
+                if e < bond_energy:
+                    G.add_edge(p1.get_uid(), p2.get_uid(), e=e)
+        return G
+
+    def compute_scene_clusters(self, bond_energy: float=0, min_cluster_size: int = 1) -> Generator[nx.Graph]:
+        G = self.compute_scene_graph(bond_energy=bond_energy)
+        for g in nx.connected_components(G):
+            if len(g) >= min_cluster_size:
+                yield G.subgraph(g)
+
+    def split_scene_by_clusters(self,bond_energy: float=0,  min_cluster_size: int = 2) -> Generator[PLPSimulation]:
+        for cluster in self.compute_scene_clusters(bond_energy=bond_energy, min_cluster_size=min_cluster_size):
+            scene = PLPSimulation()
+            scene.set_time(self.time())
+            scene.set_temperature(self.T())
+            scene.set_particle_types(self.particle_types())
+            # list particles in cluster
+            scene_particles = [copy.deepcopy(self.get_particle(particle_id)) for particle_id in cluster]
+            # do box size computatioins
+            # set box size for cluster scene (add padding)
+            scene.set_box_size(np.stack([p.position() for p in scene_particles]).max(axis=0) + np.array([0.1, 0.1, 0.1]))
+            scene.compute_cell_size(n_particles=len(scene_particles))
+            scene.apportion_cells()
+            # add particles
+            for p in scene_particles:
+                scene.add_particle(p)
+            # inbox scene
+            scene.inbox()
+            scene.translate(-np.stack([p.position() for p in scene.particles()]).min(axis=0))
+            yield scene
+
