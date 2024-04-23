@@ -260,7 +260,8 @@ class PatchyOrigamiConverter:
             else:
                 # if neither our color nor its match is in the color seqs, generate a new sequence
                 # todo: smarter?
-                assert self.sticky_length is not None, f"Auto-generation of sequences is off but you didn't provide a color sequence for {colorstr}"
+                assert self.sticky_length is not None, f"Auto-generation of sequences is off but you didn't provide a " \
+                                                       f"color sequence for {colorstr}"
                 self.color_sequences[colorstr] = "".join(
                     choice(["A", "T", "C", "G"]) for _ in range(self.sticky_length))
                 print(f"Assigning color {colorstr} random sequence {self.color_sequences[colorstr]}")
@@ -701,7 +702,7 @@ class PatchyOrigamiConverter:
 
         print("Done!")
 
-    def dump_monomers(self, fp: Union[None, Path, str] = None):
+    def dump_monomers(self, fp: Union[None, Path, str] = None, only_present=False):
         """
         Saves all dna particle types in their own .top and .dat files
         """
@@ -716,7 +717,8 @@ class PatchyOrigamiConverter:
         if not fp.exists():
             os.makedirs(fp)
         for ptype in self.particle_type_map.values():
-            self.dump_monomer(ptype, fp)
+            if not only_present or self.patchy_scene.particle_type_counts()[ptype.linked_particle.get_type()] > 0:
+                self.dump_monomer(ptype, fp)
 
     def dump_monomer(self, ptype: DNAParticle, fp: Path):
         assert ptype.has_linked(), "Cannot dump monomer for unlinked DNA particle"
@@ -776,13 +778,15 @@ class PatchyOrigamiConverter:
 
     def iter_sticky_staples(self,
                             pl_type: Union[int, PLPatchyParticle, None] = None,
-                            incl_no_sticky: bool = True) -> Generator[tuple[DNAParticle, int,
+                            incl_no_sticky: bool = True,
+                            incl_absent: bool = True) -> Generator[tuple[DNAParticle, int,
                                                                             int, DNAStructureStrand],
                                                                       None,
                                                                       None]:
         if pl_type is None:
             for p in self.patchy_scene.particle_types():
-                yield from self.iter_sticky_staples(p.get_type())
+                if incl_absent or self.patchy_scene.particle_type_counts()[p.get_type()] > 0:
+                    yield from self.iter_sticky_staples(p.get_type())
         elif isinstance(pl_type, PLPatchyParticle):
             yield from self.iter_sticky_staples(pl_type.get_type())
         else:
@@ -812,15 +816,18 @@ class PatchyOrigamiConverter:
                     continue
                 yield ptype, strand_id, patch_id, strand
 
-    def print_sticky_staples(self, pl_type: Union[int, PLPatchyParticle, None] = None, incl_no_sticky: bool = True):
-        for dna, strand_id, patch_id, strand in self.iter_sticky_staples(pl_type, incl_no_sticky):
+    def print_sticky_staples(self,
+                             pl_type: Union[int, PLPatchyParticle, None] = None,
+                             incl_no_sticky: bool = True,
+                             incl_absent:bool = True):
+        for dna, strand_id, patch_id, strand in self.iter_sticky_staples(pl_type, incl_no_sticky, incl_absent):
             sz = f"Strand {strand_id} : 5' {strand.seq(True)} 3'"
             if patch_id is not None:
                 print(f"Patch {patch_id} : " + sz)
             else:
                 print(sz)
 
-    def export_stickys_staples(self, fp: Path, by_row=True, incl_no_sticky=True):
+    def export_stickys_staples(self, fp: Path, by_row=True, incl_no_sticky: bool=True, incl_absent:bool = True):
         """
         Exports sticky-end staples to an excel file for ordering
         """
@@ -833,7 +840,8 @@ class PatchyOrigamiConverter:
         ws[f"C{idx}"] = "Sequences"
         idx += 1
         prev_pid = None
-        for i, (dna, strand_id, patch_id, strand) in enumerate(self.iter_sticky_staples(incl_no_sticky=incl_no_sticky)):
+        for i, (dna, strand_id, patch_id, strand) in enumerate(self.iter_sticky_staples(incl_no_sticky=incl_no_sticky,
+                                                                                        incl_absent=incl_absent)):
             if patch_id is None and not incl_no_sticky:
                 continue
             if prev_pid is None:
