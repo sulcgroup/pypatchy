@@ -755,7 +755,9 @@ class PatchySimulationEnsemble(Analyzable):
                 None,
                 self,
                 StageInfoParam(
-                    "default"
+                    "default",
+                    add_method="RANDOM",
+                    density=self.sim_get_param(sim, "density")
                 ),
                 # stagename="default",
                 # t=0,
