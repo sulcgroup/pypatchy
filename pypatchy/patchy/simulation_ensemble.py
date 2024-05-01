@@ -1333,7 +1333,7 @@ class PatchySimulationEnsemble(Analyzable):
         # update top and dat files in replacer dict
         replacer_dict.update(files)
         replacer_dict["steps"] = stage.end_time()
-        replacer_dict["trajectory_file"] = stage.adjfn(self.sim_get_param(sim, "trajectory_file"))
+        replacer_dict["trajectory_file"] = self.sim_get_param(sim, "trajectory_file")
         extras.update(self.writer.get_input_file_data(scene, **reqd_extra_args))
 
         # create input file
@@ -1374,72 +1374,6 @@ class PatchySimulationEnsemble(Analyzable):
                 except FileExistsError:
                     print("Warning: Simulation directory already exists!")
 
-    # def rw(self,
-    #        write_writer: Union[BasePatchyWriter, str],
-    #        write_path: Union[Path, str],
-    #        read_writer: Union[BasePatchyWriter, str, None] = None,
-    #        sims: Union[None, list[PatchySimulation]] = None):
-    #     """
-    #     Reads the data from the ensemble and writes it in a different place using a different format
-    #     """
-    #     # standardize io args
-    #     if isinstance(write_writer, str):
-    #         write_writer = get_writer(write_writer)
-    #     if isinstance(read_writer, str):
-    #         read_writer = get_writer(read_writer)
-    #     elif read_writer is None:
-    #         read_writer = self.writer
-    #     assert type(write_writer) != type(read_writer), "Trying to read and write in the same format, which seems " \
-    #                                               "pretty pointless"
-    #     if isinstance(write_path, str):
-    #         write_path = Path(write_path)
-    #     assert write_path.exists(), f"Location to contain ensemble copy data {str(write_path)} does not exist!"
-    #     assert write_path != self.tld(), "Cannot format-translate to ensemble directory"
-    #     if sims is None:
-    #         sims = self.ensemble()
-    #
-    #     (write_path / (self.long_name() + "_copy")).mkdir(parents=True)
-    #
-    #     for sim in sims:
-    #         for stage in self.sim_get_stages(sim):
-    #             # read data
-    #             read_writer.set_directory(self.folder_path(sim, stage))
-    #             input_file = Input(str(read_writer.directory()))
-    #
-    #             # TODO: automate params
-    #             top_file = input_file.input["topology"]
-    #             if Path(top_file).is_absolute():
-    #                 top_file = Path(top_file).suffix
-    #
-    #             if isinstance(read_writer, FWriter) or isinstance(read_writer, JFWriter):
-    #                 # handle absolute vs relative file paths
-    #                 patchy_file_path = input_file.input["patchy_file"]
-    #                 if Path(patchy_file_path).is_absolute():
-    #                     patchy_file_path = Path(patchy_file_path).suffix
-    #                 assert (read_writer.directory() / patchy_file_path).exists(), "Missing patchy file!"
-    #                 particle_file_path = input_file.input["particle_file"]
-    #                 if Path(particle_file_path).is_absolute():
-    #                     particle_file_path = Path(particle_file_path).suffix
-    #
-    #                 ptypes = read_writer.read_particle_types(patchy_file_path, particle_file_path)
-    #                 # top = read_writer.read_top(top_file)
-    #             elif isinstance(read_writer, LWriter):
-    #                 # handle absolute vs relative file paths
-    #                 int_file = input_file.input["DPS_interaction_matrix_file"]
-    #                 if Path(int_file).is_absolute():
-    #                     int_file = Path(int_file).suffix
-    #                 ptypes = read_writer.read_particle_types(top_file,
-    #                                                          int_file)
-    #                 # top = read_writer.read_top(top_file)
-    #             else:
-    #                 raise Exception(f"Invalid or unsupported writer type {type(read_writer)}")
-    #             scene = read_writer.read_scene(top_file,
-    #                                            self.sim_get_param(sim, "conf_file"),
-    #                                            ptypes)
-    #             # write new files
-    #             sim_folder_path = write_path / (self.long_name() + "_copy") / sim.get_folder_path() / stage.name()
-    #             sim_folder_path.mkdir(parents=True)
-    #             write_writer.write(scene)
 
     # imminant deprecation
     def write_input_file(self,
@@ -1720,7 +1654,7 @@ class PatchySimulationEnsemble(Analyzable):
             retries = 1
         for i in range(retries):
             submit_txt = self.bash_exec(command, is_async=not self.server_settings.is_server_slurm(),
-                                        cwd=self.folder_path(sim))
+                                        cwd=self.folder_path(sim, stage))
             if submit_txt:
                 break
             time.sleep(backoff_factor ** i)
@@ -1734,8 +1668,8 @@ class PatchySimulationEnsemble(Analyzable):
                 job_type=job_type_name,
                 pid=jobid,
                 simulation=sim,
-                script_path=self.folder_path(sim) / script_name,
-                log_path=self.folder_path(sim) / f"run{jobid}.out"
+                script_path=self.folder_path(sim, stage) / script_name,
+                log_path=self.folder_path(sim, stage) / f"run{jobid}.out"
             ))
             return jobid
         else:
