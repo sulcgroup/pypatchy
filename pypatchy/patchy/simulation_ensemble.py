@@ -1248,7 +1248,7 @@ class PatchySimulationEnsemble(Analyzable):
         slurm_script_name = "slurm_script.sh"
         slurm_script_name = stage.adjfn(slurm_script_name)
 
-        input_file = stage.adjfn(input_file)
+        # input file is in same directory as slurm script so don't change the file name
 
         # write slurm script
         with open(self.folder_path(sim) / slurm_script_name, "w+") as slurm_file:
@@ -1451,7 +1451,7 @@ class PatchySimulationEnsemble(Analyzable):
         # honestly think this is everything lmao
         # input_file = self.input_file(sim, stage, replacer_dict, extras, analysis)
         # TODO: include checks for input file params
-        with open(self.folder_path(sim) / "input", 'w+') as inputfile:
+        with open(self.folder_path(sim, stage) / "input", 'w+') as inputfile:
             # write server config spec
             for key in self.server_settings.input_file_params.var_names():
                 if key in replacer_dict:
