@@ -1632,7 +1632,6 @@ class PatchySimulationEnsemble(Analyzable):
             job_type_name = "oxdna"
         else:
             job_type_name = "analysis"
-        script_name = stage.adjfn(script_name)
 
         if self.server_settings.is_server_slurm():
             command = f"sbatch --chdir={self.folder_path(sim)}"
