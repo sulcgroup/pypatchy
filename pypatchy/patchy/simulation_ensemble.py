@@ -604,7 +604,7 @@ class PatchySimulationEnsemble(Analyzable):
             raise e
 
     def sim_stage_get_param(self, sim: PatchySimulation, stage: Stage, param_name: str) -> Any:
-        if stage.has_var(param_name):
+        if stage is not None and stage.has_var(param_name):
             return stage.get_var(param_name)
         else:
             return self.sim_get_param(sim, param_name)

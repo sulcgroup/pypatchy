@@ -643,22 +643,24 @@ class PLPSimulation(Scene, CellLists):
 
     def split_scene_by_clusters(self,bond_energy: float=0,  min_cluster_size: int = 2) -> Generator[PLPSimulation]:
         for cluster in self.compute_scene_clusters(bond_energy=bond_energy, min_cluster_size=min_cluster_size):
-            scene = PLPSimulation()
-            scene.set_time(self.time())
-            scene.set_temperature(self.T())
-            scene.set_particle_types(self.particle_types())
-            # list particles in cluster
-            scene_particles = [copy.deepcopy(self.get_particle(particle_id)) for particle_id in cluster]
-            # do box size computatioins
-            # set box size for cluster scene (add padding)
-            scene.set_box_size(np.stack([p.position() for p in scene_particles]).max(axis=0) + np.array([0.1, 0.1, 0.1]))
-            scene.compute_cell_size(n_particles=len(scene_particles))
-            scene.apportion_cells()
-            # add particles
-            for p in scene_particles:
-                scene.add_particle(p)
-            # inbox scene
-            scene.inbox()
-            scene.translate(-np.stack([p.position() for p in scene.particles()]).min(axis=0))
-            yield scene
+            yield self.subscene(cluster)
 
+    def subscene(self, particle_ids: Iterable[int]) -> PLPSimulation:
+        scene = PLPSimulation()
+        scene.set_time(self.time())
+        scene.set_temperature(self.T())
+        scene.set_particle_types(self.particle_types())
+        # list particles in cluster
+        scene_particles = [copy.deepcopy(self.get_particle(particle_id)) for particle_id in particle_ids]
+        # do box size computatioins
+        # set box size for cluster scene (add padding)
+        scene.set_box_size(np.stack([p.position() for p in scene_particles]).max(axis=0) + np.array([0.1, 0.1, 0.1]))
+        scene.compute_cell_size(n_particles=len(scene_particles))
+        scene.apportion_cells()
+        # add particles
+        for p in scene_particles:
+            scene.add_particle(p)
+        # inbox scene
+        scene.inbox()
+        scene.translate(-np.stack([p.position() for p in scene.particles()]).min(axis=0))
+        return scene
