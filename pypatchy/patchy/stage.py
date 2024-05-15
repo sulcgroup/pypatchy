@@ -11,7 +11,7 @@ from typing import Union, Iterable, Any
 import numpy as np
 
 from ipy_oxdna.oxdna_simulation import BuildSimulation, Simulation, Input
-from pypatchy.patchy.pl.plpotential import PLPatchyPotential, PLExclVolPotential
+from .pl.plpotential import PLPatchyPotential, PLExclVolPotential
 
 from .ensemble_parameter import MDT_CONVERT_KEY, StageInfoParam
 from .particle_adders import RandParticleAdder, FromPolycubeAdder, FromConfAdder
@@ -19,7 +19,6 @@ from .pl.plpatchylib import polycube_to_pl
 from .simulation_specification import NoSuchParamError
 from ..patchy.simulation_specification import PatchySimulation
 from .pl.plscene import PLPSimulation
-from ..polycubeutil.polycube_structure import PolycubeStructure, load_polycube
 from ..util import get_input_dir, EXTERNAL_OBSERVABLES
 
 
@@ -42,7 +41,7 @@ class Stage(BuildSimulation):
     _param_info: StageInfoParam
 
     # why
-    input_param_dict: dict
+    # input_param_dict: dict
     _prev_stage: Union[Stage, None]
 
     _allow_shortfall: bool
@@ -74,6 +73,7 @@ class Stage(BuildSimulation):
         else:
             self._stage_time_length = tend - paraminfo.start_time
         self._allow_shortfall = False
+        # self.input_param_dict = {}
 
     def idx(self) -> int:
         return self._prev_stage.idx() + 1 if self._prev_stage is not None else 0
@@ -171,11 +171,10 @@ class Stage(BuildSimulation):
         """
         Builds the stage input file
         """
-        input_json_name = self.adjfn("input.json")
 
         # write server config spec
-        # for key, val in self.getctxt().server_settings.input_file_params:
-        #     self.input_param_dict[key] = val
+        for pv in self.getctxt().server_settings.input_file_params:
+            self.sim.input[pv.param_name] = pv.param_value
 
         # write default input file stuff
 
@@ -196,33 +195,36 @@ class Stage(BuildSimulation):
                     if not Path(val).is_absolute():
                         # prepend folder path
                         val = str(self.getctxt().folder_path(self.spec(), self) / val)
-            self.input_param_dict[paramname] = val
+            self.sim.input[paramname] = val
 
         # write more parameters
-        self.input_param_dict["T"] = self.getctxt().sim_get_param(self.spec(), 'T')
+        self.sim.input["T"] = self.getctxt().sim_get_param(self.spec(), 'T')
         try:
-            self.input_param_dict["narrow_type"] = self.getctxt().sim_get_param(self.spec(), 'narrow_type')
+            self.sim.input["narrow_type"] = self.getctxt().sim_get_param(self.spec(), 'narrow_type')
         except NoSuchParamError as e:
             self.getctxt().get_logger().info(f"No narrow type specified for simulation {self.spec()}.")
+
+        self.sim.input["steps"] = self.end_time()
 
         # write external observables file path
         if len(self.getctxt().observables) > 0:
             assert not self.getctxt().server_settings.absolute_paths, "Absolute file paths aren't currently compatible" \
                                                                       " with observiables! Get on it Josh!!!"
-            if EXTERNAL_OBSERVABLES:
-                self.input_param_dict["observables_file"] = self.adjfn("observables.json")
-            else:
-                for i, obsrv in enumerate(self.getctxt().observables.values()):
-                    obsrv.write_input_dict(self.input_param_dict, i)
+            for obs in self.getctxt().observables.values():
+                self.sim.add_observable(obs)
+            # if EXTERNAL_OBSERVABLES:
+            #     self.sim.input["observables_file"] = self.adjfn("observables.json")
+            # else:
+            #     for i, obsrv in enumerate(self.getctxt().observables.values()):
+            #         obsrv.write_input_dict(self.input_param_dict, i)
 
         # already ran adjfn on input_json_name, ignore stage info
-        with open(self.getctxt().folder_path(self.spec()) / input_json_name, "w+") as f:
-            json.dump(self.input_param_dict, f)
+        # with open(self.getctxt().folder_path(self.spec()) / input_json_name, "w+") as f:
+        #     json.dump(self.input_param_dict, f)
+        self.sim.input.write_input(production=production)
 
         assert (self.getctxt().folder_path(self.spec(),
                                            self) / "input.json").exists(), "Didn't correctly set up input file!"
-        self.sim.input = Input(str(self.getctxt().folder_path(self.spec(), self)))
-        self.sim.input.write_input(production=production)
 
     def apply(self, scene: PLPSimulation):
         scene.set_box_size(self.box_size())
