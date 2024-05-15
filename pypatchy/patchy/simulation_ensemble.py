@@ -698,7 +698,7 @@ class PatchySimulationEnsemble(Analyzable):
 
                     else:
                         particle_id_lists = [
-                            [pidx] * self.get_sim_particle_count(sim, pidx) * num_assemblies
+                            [pidx] * self.get_sim_particle_count(sim, pidx)  # get_sim_particle_count will take into acct. num assemblies
                             for pidx in range(self.sim_get_particles_set(sim).num_particle_types())
                         ]
                     stage_particles = list(itertools.chain.from_iterable(particle_id_lists))
