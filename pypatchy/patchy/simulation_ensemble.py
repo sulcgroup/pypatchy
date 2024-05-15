@@ -20,6 +20,7 @@ from oxDNA_analysis_tools.UTILS.RyeReader import get_confs, describe, write_conf
 from oxDNA_analysis_tools.UTILS.data_structures import Configuration
 
 from ipy_oxdna.oxdna_simulation import SimulationManager, Simulation
+from ipy_oxdna.observable import Observable
 
 from .simulation_specification import get_param_set
 from ..analpipe.analyzable import Analyzable
@@ -310,14 +311,18 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
     observables: dict[str: PatchySimObservable] = {}
 
     if OBSERABLES_KEY in cfg:
-        for obserable in cfg[OBSERABLES_KEY]:
-            # legacy: string-expression of observable
-            if isinstance(obserable, str):
-                observables[obserable] = observable_from_file(obserable)
-            else:
-                assert isinstance(obserable, dict), f"Invalid type for observale {type(obserable)}"
-                obserable = PatchySimObservable(**obserable)
-                observables[obserable.observable_name] = obserable
+        # iter observables in cfg
+        for obs in cfg[OBSERABLES_KEY]:
+            obs_name = obs[0]
+            observables[obs_name] = Observable(*obs)
+        # for obserable in cfg[OBSERABLES_KEY]:
+        #     # legacy: string-expression of observable
+        #     if isinstance(obserable, str):
+        #         observables[obserable] = observable_from_file(obserable)
+        #     else:
+        #         assert isinstance(obserable, dict), f"Invalid type for observale {type(obserable)}"
+        #         obserable = PatchySimObservable(**obserable)
+        #         observables[obserable.observable_name] = obserable
 
     if "server_settings" in cfg:
         if isinstance(cfg["server_settings"], str):
@@ -375,7 +380,7 @@ class PatchySimulationEnsemble(Analyzable):
     ensemble_params: list[EnsembleParameter]
     ensemble_param_name_map: dict[str, EnsembleParameter]
 
-    observables: dict[str: PatchySimObservable]
+    observables: dict[str, Observable]
 
     # ------------ SETUP STUFF -------------#
 
@@ -404,7 +409,7 @@ class PatchySimulationEnsemble(Analyzable):
                  default_param_set: ParamSet,
                  const_params: ParamSet,
                  ensemble_params: list[EnsembleParameter],
-                 observables: dict[str, PatchySimObservable],
+                 observables: dict[str, Observable],
                  analysis_file: str,
                  metadata_dict: dict,
                  server_settings: Union[PatchyServerConfig, None] = None):
@@ -698,7 +703,7 @@ class PatchySimulationEnsemble(Analyzable):
 
                     else:
                         particle_id_lists = [
-                            [pidx] * self.get_sim_particle_count(sim, pidx)  # get_sim_particle_count will take into acct. num assemblies
+                            [pidx] * self.get_sim_particle_count(sim, pidx) # get_sim_particle_count will take into acct. num assemblies
                             for pidx in range(self.sim_get_particles_set(sim).num_particle_types())
                         ]
                     stage_particles = list(itertools.chain.from_iterable(particle_id_lists))
@@ -1337,7 +1342,8 @@ class PatchySimulationEnsemble(Analyzable):
         extras.update(self.writer.get_input_file_data(scene, **reqd_extra_args))
 
         # create input file
-        self.write_input_file(sim, stage, replacer_dict, extras, analysis)
+        stage.build_input()
+        # self.write_input_file(sim, stage, replacer_dict, extras, analysis)
 
     def lorenzian_to_flavian(self,
                              write_path: Union[Path, str],
@@ -1375,7 +1381,7 @@ class PatchySimulationEnsemble(Analyzable):
                     print("Warning: Simulation directory already exists!")
 
 
-    # imminant deprecation
+    # DEPRECATED
     def write_input_file(self,
                          sim: PatchySimulation,
                          stage: Stage,

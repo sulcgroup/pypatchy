@@ -6,8 +6,7 @@ from .stage import Stage
 from ..util import get_spec_json
 
 
-# TODO: integrate with oxpy.core.observables stuff
-
+# DEPRECATED
 # TODOL integrate with ipy_oxdna
 class PatchySimObservable:
     """
