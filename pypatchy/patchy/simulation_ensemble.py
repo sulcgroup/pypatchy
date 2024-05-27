@@ -7,7 +7,7 @@ import shutil
 import tempfile
 import time
 from json import JSONDecodeError
-from typing import Any
+from typing import Any, Generator
 
 import subprocess
 import re
@@ -634,6 +634,57 @@ class PatchySimulationEnsemble(Analyzable):
         if paramname in self.server_settings.input_file_params:
             return self.server_settings.input_file_params[paramname]
         raise NoSuchParamError(self, paramname)
+
+    def iter_params(self, sim: PatchySimulation, stage: Stage) -> Generator[ParameterValue, None, None]:
+        """
+        Iterates through parameter values for the given simulation and stage
+        """
+        pvs: set[ParameterValue] = set()
+        # first, iter stage vals
+        for pv in stage.params():
+            if isinstance(pv, ParamValueGroup):
+                for pvv in pv:
+                    pvs.add(pvv)
+                    yield pvv
+            else:
+                pvs.add(pv)
+                yield pv
+        # iter sim vals
+        for pv in sim.param_vals:
+            if isinstance(pv, ParamValueGroup):
+                for pvv in pv:
+                    pvs.add(pvv)
+                    yield pvv
+            else:
+                pvs.add(pv)
+                yield pv
+        # iter const params
+        for pv in self.const_params:
+            if isinstance(pv, ParamValueGroup):
+                for pvv in pv:
+                    pvs.add(pvv)
+                    yield pvv
+            else:
+                pvs.add(pv)
+                yield pv
+        # iter server params
+        for pv in self.server_settings.input_file_params:
+            if isinstance(pv, ParamValueGroup):
+                for pvv in pv:
+                    pvs.add(pvv)
+                    yield pvv
+            else:
+                pvs.add(pv)
+                yield pv
+        # iter defaults
+        for pv in self.default_param_set:
+            if isinstance(pv, ParamValueGroup):
+                for pvv in pv:
+                    pvs.add(pvv)
+                    yield pvv
+            else:
+                pvs.add(pv)
+                yield pv
 
     def paramfile(self, sim: PatchySimulation, paramname: str) -> Path:
         """
@@ -1375,6 +1426,9 @@ class PatchySimulationEnsemble(Analyzable):
                     if (self.paramstagefile(sim, stage, "lastconf_file")).exists():
                         shutil.copy(self.paramstagefile(sim, stage, "lastconf_file"),
                                     sim_folder_path / self.sim_get_param(sim, "lastconf_file"))
+                    if (self.paramstagefile(sim, stage, "trajectory_file")).exists():
+                        shutil.copy(self.paramstagefile(sim, stage, "trajectory_file"),
+                                    sim_folder_path / self.sim_get_param(sim, "trajectory_file"))
                     else:
                         print(f"No last_conf.dat file for simulation {str(sim)} stage {stage.name()}")
                 except FileExistsError:

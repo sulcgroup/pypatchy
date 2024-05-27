@@ -1,3 +1,3 @@
 Requirements are listed in `pypatchy.yml`, or failing that, `requirements.txt`.
 For use instructions, see [the mdb wiki page](https://asudev.jira.com/wiki/spaces/MDB/pages/3068624944/The+PyPatchy+Python+Package).
-A compiled polycubes binary (see [](https://github.com/Akodiat/polycubes/)) is required for use of the `design` package. At a future point I plan to write/improve an install script for this but for now you need to manually move `libpolycubes.so` into the `bin` directory in the location you've installed `pypatchy`.
+A compiled polycubes binary (see~ [](https://github.com/Akodiat/polycubes/)) is required for use of the `design` package. At a future point I plan to write/improve an install script for this but for now you need to manually move `libpolycubes.so` into the `bin` directory in the location you've installed `pypatchy`.

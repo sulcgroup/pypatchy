@@ -39,6 +39,9 @@ class ParameterValue:
         """
         return f"{self.param_name}: {self.value_name()}"
 
+    def __hash__(self) -> int:
+        return hash((self.param_name, self.value_name(),))
+
 
 @dataclass
 class ParamValueGroup(ParameterValue):
@@ -74,6 +77,12 @@ class ParamValueGroup(ParameterValue):
         return f"{self.param_name}: {self.value_name()}\n" + \
                "\n".join([v.str_verbose().replace("\n", "\n\t") for v in self.param_value.values()])
 
+    def __iter__(self) -> Iterator[ParameterValue]:
+        for v in self.param_value.values():
+            if isinstance(v, ParamValueGroup):
+                yield from v
+            else:
+                yield v
 
 # probably a shorter, worse way to write this
 class EnsembleParameter:
