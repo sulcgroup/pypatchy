@@ -4,14 +4,23 @@ import re
 from datetime import datetime
 from typing import Generator, Iterable
 
+import libtlm
 import networkx as nx
 import numpy as np
+
+from pypatchy.structure import Structure, TypedStructure
 from pypatchy.util import get_output_dir, get_log_dir, enumerateRotations, getSignedAngle
 from pypatchy.polycubeutil.polycubesRule import RULE_ORDER
 from scipy.spatial.transform import Rotation as R
 
 logging.basicConfig(filename=get_log_dir() / "SAT" / datetime.now().strftime("log_%Y-%m-%d-%H:%M.txt"))
 logging.root.setLevel(logging.INFO)
+
+
+def to_diridx(x: int) -> libtlm.DirIdx:
+    return [libtlm.LEFT, libtlm.RIGHT,
+            libtlm.BOTTOM, libtlm.TOP,
+            libtlm.BACK, libtlm.FRONT][x]
 
 
 def setup_logger(logger_name, file_path=None):
@@ -496,3 +505,34 @@ def readSolutionOld(sol):
             # print("Patch {} on species {} has orientation {}".format(p, s, o))
             ruleMap[s][p]['orientation'] = int(o)
     return [rule.values() for rule in ruleMap.values()]
+
+
+"""
+implementation of TypedStructure without full cube types
+"""
+class TypedTopology (TypedStructure):
+    special_types: dict[int, int]
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        if "nanoparticles" in kwargs and len(kwargs["nanoparticles"]) > 0:
+            self.special_types = {int(key): val for key, val in kwargs["nanoparticles"].items()}
+        else:
+            self.special_types = dict()
+
+    def particle_type(self, particle_id: int) -> int:
+        return self.special_types[particle_id] if particle_id in self.special_types else -1
+
+    def get_particle_types(self) -> dict[int, int]:
+        return self.special_types
+
+    def get_topology(self) -> libtlm.TLMTopology:
+        """
+        converts to C++ library object
+        """
+        return libtlm.TLMTopology({
+            (
+                (i, to_diridx(di)),
+                (j, to_diridx(dj))
+             ) for i, di, j, dj in self.bindings_list},
+                                  self.get_particle_types())

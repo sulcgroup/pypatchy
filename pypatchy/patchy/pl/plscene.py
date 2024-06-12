@@ -112,6 +112,7 @@ class PLPSimulation(Scene, CellLists):
     def translate(self, translation_vector: np.ndarray):
         for p in self._particles:
             p.translate(translation_vector)
+        self.inbox()
         if self.particle_cells is not None:
             self.apportion_cells()
 

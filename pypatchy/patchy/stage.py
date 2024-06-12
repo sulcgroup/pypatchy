@@ -44,7 +44,6 @@ class Stage(BuildSimulation):
     # input_param_dict: dict
     _prev_stage: Union[Stage, None]
 
-    _allow_shortfall: bool
 
     def __init__(self,
                  sim: PatchySimulation,
@@ -53,14 +52,11 @@ class Stage(BuildSimulation):
                  paraminfo: StageInfoParam,
                  particles: list[Union[int, str]],
                  box_size: np.ndarray = np.array((0, 0, 0)),
-                 tlen: int = 0,
-                 tend: int = 0
                  ):
         super().__init__(Simulation(ctxt.folder_path(sim)) if previous_stage is None
                          else Simulation(previous_stage.sim.sim_dir, ctxt.folder_path(sim) / paraminfo.stage_name))
         self._ctxt = ctxt
         self._sim_spec = sim
-        assert tlen or tend, "Specify stage length with "
         self._prev_stage = previous_stage
         if previous_stage is not None:
             self._prev_stage._next_stage = self
@@ -68,10 +64,6 @@ class Stage(BuildSimulation):
         self._particles_to_add = particles
         self._box_size = box_size
         self._param_info = paraminfo
-        if tlen:
-            self._stage_time_length = tlen
-        else:
-            self._stage_time_length = tend - paraminfo.start_time
         self._allow_shortfall = False
         # self.input_param_dict = {}
 
@@ -118,10 +110,10 @@ class Stage(BuildSimulation):
         return self._param_info.start_time
 
     def time_length(self) -> int:
-        return self._stage_time_length
+        return self._param_info.info["steps"] - self.start_time()
 
     def end_time(self) -> int:
-        return self.start_time() + self.time_length()
+        return self._param_info.info["steps"]
 
     def has_var(self, key: str) -> bool:
         return key in self._param_info.info
@@ -245,22 +237,29 @@ class Stage(BuildSimulation):
         scene.apportion_cells()
         # add excluded volume potential
 
-        # # add patchy interaction
-        # # TODO: i'm like 99% sure we can ignore patchy interaction for this purpose
-        # if self.getctxt().sim_get_param(self.spec(), "use_torsion"):
-        #     raise Exception("Torsional patches not yet supported in this confgen! Get on it Josh!")
-        # else:
-        #     patchy_potential = PLPatchyPotential(
-        #         alpha=self.getctxt().sim_get_param(self.spec(), "PATCHY_alpha"),
-        #         rmax=0.4 * 1.5  # lorenzo's code, =0.6
-        #     )
-        #
-        # scene.add_potential(patchy_potential)
+        # add patchy interaction
+        # TODO: i'm like 99% sure we can ignore patchy interaction for this purpose
+        if self.getctxt().sim_get_param(self.spec(), "use_torsion"):
+            raise Exception("Torsional patches not yet supported in this confgen! Get on it Josh!")
+        else:
+            patchy_potential = PLPatchyPotential(
+                alpha=self.getctxt().sim_get_param(self.spec(), "PATCHY_alpha"),
+                rmax=0.4 * 1.5  # lorenzo's code, =0.6
+            )
+
+        scene.add_potential(patchy_potential)
         scene.add_potential(PLExclVolPotential(
             rmax=0.4 * 1.5,  # from lorenzo's code, =0.6. particle radius added at runtiume
             rstar=2 ** (1 / 6),  # this is the rcut used in lorenzo's code, = 1.122
             b=677.505671539  # from flavio's code
         ))
+        # unfortunately i haven't implemented the swap interaction here yet
+        # and even if I had it would have its own issues bc it's a state function
+        # so while ideally the computed energy should always be less than zero in practice it will sometimes be low
+        # but positive
+        e_start = scene.get_potential_energy()
+        assert e_start < 1., f"Scene energy {e_start} too high!!"
+
         # TODO: compute cell sizes using something other than "pull from rectum"
         assert all(self.box_size()), "Box size hasn't been set!!!"
 
@@ -296,7 +295,8 @@ class Stage(BuildSimulation):
         else:
             raise Exception(f"Invalid add method {type(self._param_info.add_method)}")
         e = scene.get_potential_energy()
-        assert e < 1e-4, "Scene energy too high!!"
+        # take starting energy into consideration
+        assert e < 0 or (e - e_start) < 1e-4, "Scene energy too high!!"
 
     def adjfn(self, file_name: str) -> str:
         if self.idx() > 0:
@@ -305,10 +305,10 @@ class Stage(BuildSimulation):
             return file_name
 
     def allow_shortfall(self) -> bool:
-        return self._allow_shortfall
+        return self._param_info.allow_shortfall
 
     def set_allow_shortfall(self, bNewVal: bool):
-        self._allow_shortfall = bNewVal
+        self._param_info.allow_shortfall = bNewVal
 
     def __str__(self) -> str:
         return f"Stage {self.name()} (#{self.idx()})"

@@ -221,11 +221,13 @@ class StagedAssemblyParam(ParameterValue):
 
 
 # todo: dataclass?
+# you should keep a const instance of this in a list of param vals but can clone them and edit
 class StageInfoParam(Mapping):
     start_time: int
     stage_name: str
     add_method: Union[None, StageParticleAdder]
     info: dict[str, Any]  # TODO: more detail?
+    allow_shortfall: bool
 
     def __init__(self, stage_name, **kwargs):
         self.stage_name = stage_name
@@ -252,26 +254,36 @@ class StageInfoParam(Mapping):
                     raise Exception("Not implemented yet")
             else:
                 raise TypeError(f"Invalid 'add_method' provided: {kwargs['add_method']}")
-
         else:
             self.add_method = None
+
+        if "allow_shortfall" in kwargs:
+            self.allow_shortfall = kwargs["allow_shortfall"]
+        else:
+            self.allow_shortfall = False
 
         # add more params
         self.info = {
             key: value for key, value in kwargs.items() if key not in ("t", "add_method", "density")
         }
 
+    def set_end_time(self, newval: int):
+        self.info["steps"] = newval
+    def get_end_time(self) -> int:
+        return self.info["steps"]
+
+    def get_start_time(self) -> int:
+        return self.start_time
+
     def __getitem__(self, item: str):
-        if item == "t":
-            return self.start_time
-        else:
-            return self.info[item]
+        return self.info[item]
 
     def __len__(self) -> int:
         return len(self.info)
 
     def __iter__(self) -> Iterator:
         return iter(self.info)
+
 
 
 

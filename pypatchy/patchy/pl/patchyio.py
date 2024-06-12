@@ -652,6 +652,7 @@ class LWriter(PLBaseWriter):
     def read_interaction_matrix(self, interaction_file: str) -> np.ndarray:
         pattern = r"patchy_eps\[(\d+)\]\[(\d+)\] = (\d+\.?\d*)"
         data = []
+        max_index = 0
         with self.file(interaction_file, "r") as f:
             for line in f:
                 match = re.search(pattern, line)
