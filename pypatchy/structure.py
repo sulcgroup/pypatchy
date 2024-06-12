@@ -438,3 +438,6 @@ class TypedStructure(Structure, ABC):
     def particle_type(self, particle_id: int) -> int:
         pass
 
+    @abstractmethod
+    def get_particle_types(self) -> dict[int, int]:
+        pass

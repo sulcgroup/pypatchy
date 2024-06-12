@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import datetime
 import itertools
 import multiprocessing
@@ -13,6 +14,7 @@ import subprocess
 import re
 import logging
 
+import pandas as pd
 # import oat stuff
 from oxDNA_analysis_tools.UTILS.oxview import from_path
 from oxDNA_analysis_tools.file_info import file_info
@@ -327,6 +329,8 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
     if "server_settings" in cfg:
         if isinstance(cfg["server_settings"], str):
             server_settings = load_server_settings(cfg["server_settings"])
+            if server_settings is None:
+                raise Exception(f"No server setting set called `{cfg['server_settings']}`")
         else:
             assert isinstance(cfg["server_settings"],
                               dict), f"Invalid type for key 'server_settings': {type(cfg['server_settings'])}"
@@ -676,8 +680,7 @@ class PatchySimulationEnsemble(Analyzable):
             else:
                 pvs.add(pv)
                 yield pv
-        # iter defaults
-        for pv in self.default_param_set:
+        # iter defaultsa
             if isinstance(pv, ParamValueGroup):
                 for pvv in pv:
                     pvs.add(pvv)
@@ -727,8 +730,8 @@ class PatchySimulationEnsemble(Analyzable):
         """
         assert isinstance(sim, PatchySimulation), "Cannot invoke this method with a parameter list!"
         try:
-            stages_info: list[StageInfoParam] = list(sorted(self.get_stages_info(sim).values(),
-                                                            key=lambda x: x.start_time))
+            stages_info: list[StageInfoParam] = copy.deepcopy(list(sorted(self.get_stages_info(sim).values(),
+                                                            key=lambda x: x.start_time)))
 
             # incredibly cursed line of code incoming
             # stages_info = [{"idx": i, **stage_info} for i, (stage_name, stage_info) in
@@ -772,20 +775,14 @@ class PatchySimulationEnsemble(Analyzable):
                                 cube_info["type"] for cube_info in pcinfo["cubes"]
                             ]
                 stage_init_args = {}
-                if "length" not in stage_info and "tlen" not in stage_info and "tend" not in stage_info:
-                    if i + 1 != len(stages_info):
-                        # if stage is not final stage, last step of this stage will be first step of next stage
-                        stage_init_args["tend"] = stages_info[i + 1]["t"]
-                    else:
-                        # if the stage is the final stage, last step will be end of simulation
-                        stage_init_args["tend"] = self.sim_get_param(sim, "steps")
-                elif "tend" in stage_info:
-                    stage_init_args["tlen"] = stage_info["tend"] - stage_info["t"]
-                elif "length" in stage_info:
-                    stage_init_args["tlen"] = stage_info["length"]
+                # compute stage runtime
+                assert stage_info.get_start_time() != 0 or i == 0, "Stages other than start stage must have specified start time"
+                if i + 1 != len(stages_info):
+                    # if stage is not final stage, last step of this stage will be first step of next stage
+                    stage_info.set_end_time(stages_info[i+1].get_start_time())
                 else:
-                    stage_init_args["tlen"] = stage_info["tlen"]
-
+                    # if the stage is the final stage, last step will be end of simulation
+                    stage_info.set_end_time(self.sim_get_param(sim, "steps"))
                 # construct stage objects
                 stages.append(Stage(sim,
                                     stages[i - 1] if i else None,
@@ -1433,7 +1430,7 @@ class PatchySimulationEnsemble(Analyzable):
                         print(f"No last_conf.dat file for simulation {str(sim)} stage {stage.name()}")
                 except FileExistsError:
                     print("Warning: Simulation directory already exists!")
-
+        print(f"Exported to {str(write_path)}, everything - or something at least - went ok")
 
     # DEPRECATED
     def write_input_file(self,
@@ -2070,6 +2067,17 @@ class PatchySimulationEnsemble(Analyzable):
                 return stage
         return None  # raise exception?
 
+    def read_energies(ensemble: PatchySimulationEnsemble) -> pd.DataFrame:
+        energy_data_frames = []
+        for sim in ensemble.ensemble():
+            energy_file: Path = ensemble.paramfile(sim, "energy_file")
+            sim_energies = pd.read_csv(energy_file, delim_whitespace=True, header=None,
+                                       names=["t", "pe", "ke", "te"])
+            for param in sim:
+                sim_energies[param.param_name] = param.value_name()
+            energy_data_frames.append(sim_energies)
+        df = pd.concat(energy_data_frames)
+        return df
 
 def process_simulation_data(args: tuple[PatchySimulationEnsemble, AnalysisPipelineStep, PatchySimulation, range]):
     ensemble, step, s, time_steps = args

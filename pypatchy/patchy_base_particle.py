@@ -65,7 +65,7 @@ class PatchyBaseParticleType(ABC):
         Returns:
             patch object specified by `patch_index`
         """
-        if isinstance(patch_idx, int):
+        if isinstance(patch_idx, int) or isinstance(patch_idx, np.integer):
             assert -1 < patch_idx < self.num_patches(), "Index out of bounds"
             return self._patches[patch_idx]
         else:

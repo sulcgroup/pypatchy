@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import itertools
 import math
 from abc import ABC, abstractmethod
+from typing import Union
 
 import numpy as np
 
@@ -124,24 +126,56 @@ class PLPatchyPotential(PLPotential):
         distsqr = periodic_dist_sqrd(box, p1.position(), p2.position())
         if distsqr > (self.rmax() + p1.radius() + p2.radius()) ** 2:
             return e
-        # TODO: could optimize more if i cared to
-        for p1patch, p2patch in zip(p1.patches(), p2.patches()):
-            e += self.energy_2_patch(box, p1, p1patch, p2, p2patch)
+        # this is harder than i initially thought
+        # step one:
+        patchy_rsqrds = np.zeros(shape=[p1.num_patches(), p2.num_patches()])
+
+        for (i, p1patch), (j, p2patch) in itertools.product(enumerate(p1.patches()),
+                                                            enumerate(p2.patches())):
+            patch1_pos: np.ndarray = p1.patch_position(p1patch)
+            patch2_pos: np.ndarray = p2.patch_position(p2patch)
+            dist = patch1_pos - patch2_pos
+            patchy_rsqrds[i, j] = dist @ dist.T
+
+        # this next bit is from chatGPT so it may not be well optimized
+        # Get indices of the patch pairs with minimum distances
+        patch_pairs = []
+        used_p1_patches = np.zeros(p1.num_patches(), dtype=bool)
+        used_p2_patches = np.zeros(p2.num_patches(), dtype=bool)
+
+        sorted_indices = np.argsort(patchy_rsqrds, axis=None)  # Flatten and sort distances
+        rsqrds = np.ravel(patchy_rsqrds)
+        for idx in sorted_indices:
+            i, j = np.unravel_index(idx, patchy_rsqrds.shape)
+            if not used_p1_patches[i] and not used_p2_patches[j]:
+                patch_pairs.append((i, j, rsqrds[idx]))
+                used_p1_patches[i] = True
+                used_p2_patches[j] = True
+                if np.all(used_p1_patches) or np.all(used_p2_patches):
+                    break  # Stop if all patches are used
+        assert len(patch_pairs) == min(p1.num_patches(), p2.num_patches())
+        for i, j, rsqrd in patch_pairs:
+            e += self.energy_2_patch(box, p1, p1.patch(i), p2, p2.patch(j))
         return e
 
+    """
+    
+    """
     def energy_2_patch(self,
                        box: np.ndarray,  # for periodic boundry conditions
                        particle1: PLPatchyParticle, patch1: PLPatch,
-                       particle2: PLPatchyParticle, patch2: PLPatch) -> float:
-        # there's DEFINATELY a way to simplify this
-        patch1_pos: np.ndarray = particle1.patch_position(patch1)
-        patch2_pos: np.ndarray = particle2.patch_position(patch2)
-        dist = patch1_pos - patch2_pos
-        rsqr = dist @ dist.T
+                       particle2: PLPatchyParticle, patch2: PLPatch,
+                       rsqr: Union[None, float] = None) -> float:
+        if rsqr is None:
+            # there's DEFINATELY a way to simplify this
+            patch1_pos: np.ndarray = particle1.patch_position(patch1)
+            patch2_pos: np.ndarray = particle2.patch_position(patch2)
+            dist = patch1_pos - patch2_pos
+            rsqr = dist @ dist.T
         if rsqr > self.rmax_sqr():
             return 0
         # check if patches are complimentary
-        if patch1.can_bind(patch1):
+        if patch1.can_bind(patch2):
             # check binding geometry
             # (warning: sus)
             # todo: verify that this behavior is correct!
@@ -171,7 +205,8 @@ class PLPTorsionalPatchyPotential(PLPatchyPotential):
     def energy_2_patch(self,
                        box: np.ndarray,  # for periodic boundry conditions
                        particle1: PLPatchyParticle, patch1: PLPatch,
-                       particle2: PLPatchyParticle, patch2: PLPatch) -> float:
+                       particle2: PLPatchyParticle, patch2: PLPatch,
+                       rsqrd: Union[None, float] = None) -> float:
         # begin with the non-torsional potential
         e = super().energy_2_patch(box, particle1, patch1, particle2, patch2)
         # TODO
