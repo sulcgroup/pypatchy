@@ -257,9 +257,11 @@ class Stage(BuildSimulation):
         # and even if I had it would have its own issues bc it's a state function
         # so while ideally the computed energy should always be less than zero in practice it will sometimes be low
         # but positive
-        e_start = scene.get_potential_energy()
-        assert e_start < 1., f"Scene energy {e_start} too high!!"
-
+        if scene.num_particles() > 0:
+            e_start = scene.get_potential_energy()
+            assert e_start < 1., f"Scene energy {e_start} too high!!"
+        else:
+            e_start = 0
         # TODO: compute cell sizes using something other than "pull from rectum"
         assert all(self.box_size()), "Box size hasn't been set!!!"
 

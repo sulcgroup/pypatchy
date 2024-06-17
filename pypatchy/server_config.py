@@ -25,7 +25,6 @@ def load_server_settings(settings_name: str) -> PatchyServerConfig:
         **get_spec_json(settings_name, "server_configs")
     )
 
-
 @dataclass
 class PatchyServerConfig:
     name: str = field()
