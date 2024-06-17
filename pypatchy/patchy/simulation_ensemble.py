@@ -810,11 +810,13 @@ class PatchySimulationEnsemble(Analyzable):
                 StageInfoParam(
                     "default",
                     add_method="RANDOM",
-                    density=self.sim_get_param(sim, "density")
+                    density=self.sim_get_param(sim, "density"),
+                    steps=self.get_param("steps"),
+                    allow_shortfall=True
                 ),
                 # stagename="default",
                 # t=0,
-                tend=self.sim_get_param(sim, "steps"),
+                # tend=self.sim_get_param(sim, "steps"),
                 particles=particles
             )]
             # box_size = (len(particles) / self.sim_get_param(sim, "density")) ** (1/3)
