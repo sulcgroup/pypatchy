@@ -58,7 +58,18 @@ def get_spec_json(name: str, folder: str) -> dict:
         with open(f"{get_local_dir()}/spec_files/{folder}/{name}.json") as f:
             return json.load(f)
     except IOError as e:
-        print(f"No file named {name} in {get_local_dir() / 'spec_files' / folder}!")
+        raise NoSpecJSONError(name, get_local_dir() / 'spec_files' / folder)
+
+class NoSpecJSONError(Exception):
+    json_name: str
+    folder: Path
+
+    def __init__(self, name: str, folder: Path):
+        self.json_name = name
+        self.folder = folder
+
+    def __str__(self):
+        return f"No file named {self.json_name} in {str(self.folder)}!"
 
 
 def is_sorted(target: Iterable[int]) -> bool:
