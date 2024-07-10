@@ -4,6 +4,7 @@ import copy
 import datetime
 import itertools
 import multiprocessing
+import os
 import shutil
 import tempfile
 import time
@@ -14,6 +15,7 @@ import subprocess
 import re
 import logging
 
+import oxpy
 import pandas as pd
 # import oat stuff
 from oxDNA_analysis_tools.UTILS.oxview import from_path
@@ -348,8 +350,8 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
         for key, paramData in cfg[ENSEMBLE_PARAMS_KEY]
     ]
 
-    ensemble = PatchySimulationEnsemble(export_name, setup_date, mdtfile, analysis_pipeline, default_param_set,
-                                        const_parameters, ensemble_parameters, observables, analysis_file, mdt,
+    ensemble = PatchySimulationEnsemble(export_name, setup_date, mdtfile, analysis_pipeline,
+                                        const_parameters + default_param_set, ensemble_parameters, observables, analysis_file, mdt,
                                         server_settings)
     # TODO: verify presence of required params
     # if "slurm_log" in mdt:
@@ -391,11 +393,6 @@ class PatchySimulationEnsemble(Analyzable):
     # simulation parameters which are constant over the entire ensemble
     const_params: ParamSet
 
-    # parameter values to use if not specified in `const_params` or in the
-    # simulation specification params
-    # load from `spec_files/input_files/[name].json`
-    default_param_set: ParamSet
-
     # log of slurm jobs
     slurm_log: SlurmLog
 
@@ -410,7 +407,6 @@ class PatchySimulationEnsemble(Analyzable):
                  setup_date: datetime.datetime,
                  metadata_file_name: str,
                  analysis_pipeline: AnalysisPipeline,
-                 default_param_set: ParamSet,
                  const_params: ParamSet,
                  ensemble_params: list[EnsembleParameter],
                  observables: dict[str, Observable],
@@ -459,7 +455,6 @@ class PatchySimulationEnsemble(Analyzable):
 
         self.metadata_file = metadata_file_name
 
-        self.default_param_set = default_param_set
         self.const_params = const_params
 
         self.ensemble_params = ensemble_params
@@ -631,9 +626,6 @@ class PatchySimulationEnsemble(Analyzable):
         # use const_params
         if paramname in self.const_params:
             return self.const_params[paramname]
-        # if paramname is surface level in default param set
-        if paramname in self.default_param_set:
-            return self.default_param_set[paramname]
         # # go deep
         if paramname in self.server_settings.input_file_params:
             return self.server_settings.input_file_params[paramname]
@@ -1296,26 +1288,6 @@ class PatchySimulationEnsemble(Analyzable):
             self.get_logger().info("Writing sbatch scripts...")
             self.write_run_script(sim)
 
-    def write_run_script(self, sim: PatchySimulation, input_file="input"):
-        # if no stage name provided use first stage
-        stage = self.check_stage(sim)
-
-        slurm_script_name = "slurm_script.sh"
-        slurm_script_name = stage.adjfn(slurm_script_name)
-
-        # input file is in same directory as slurm script so don't change the file name
-
-        # write slurm script
-        with open(self.folder_path(sim) / slurm_script_name, "w+") as slurm_file:
-            # bash header
-
-            self.server_settings.write_sbatch_params(self.export_name, slurm_file)
-
-            # skip confGenerator call because we will invoke it directly later
-            slurm_file.write(f"{self.server_settings.oxdna_path}/build/bin/oxDNA {input_file}\n")
-
-        self.bash_exec(f"chmod u+x {self.folder_path(sim)}/{slurm_script_name}")
-
     def write_setup_files(self,
                           sim: PatchySimulation,
                           stage: Union[str, Stage, None] = None,
@@ -1369,31 +1341,92 @@ class PatchySimulationEnsemble(Analyzable):
             last_complete_stage = self.sim_most_recent_stage(sim)
             scene = self.get_scene(sim, last_complete_stage)
         scene.set_temperature(self.sim_stage_get_param(sim, stage, "T"))
-        stage.apply(scene)
 
-        # grab args required by writer
-        reqd_extra_args = {
-            a: self.sim_stage_get_param(sim, stage, a) for a in self.writer.reqd_args()
-        }
-        assert "conf_file" in reqd_extra_args, "Missing conf file info!"
+        nTries = 0
+        # what should be the energy cutoff???
+        # if we're doing this right it should be the outer end of statistical distribution dependant
+        # on kB * T, with the variance dependant on the simulation size
+        # or we can just make up a coefficient like 3
+        # in oxDNA units kB = 1
+        e_cutoff = 3 * self.sim_stage_get_param(sim, stage, "T")
+        while nTries < 3:
 
-        # write top, conf, and others
-        # set writer directory to simulation folder path
-        self.writer.set_directory(self.folder_path(sim, stage))
-        self.writer.set_abs_paths(self.server_settings.absolute_paths)
-        self.folder_path(sim, stage).mkdir(exist_ok=True)
-        files = self.writer.write(scene,
-                                  **reqd_extra_args)
+            stage.apply(scene)
+            # Todo: cut next line once we have this working
+            scene_computed_energy = scene.get_potential_energy()
 
-        # update top and dat files in replacer dict
-        replacer_dict.update(files)
-        replacer_dict["steps"] = stage.end_time()
-        replacer_dict["trajectory_file"] = self.sim_get_param(sim, "trajectory_file")
-        extras.update(self.writer.get_input_file_data(scene, **reqd_extra_args))
+            # grab args required by writer
+            reqd_extra_args = {
+                a: self.sim_stage_get_param(sim, stage, a) for a in self.writer.reqd_args()
+            }
+            assert "conf_file" in reqd_extra_args, "Missing conf file info!"
 
-        # create input file
-        stage.build_input()
-        # self.write_input_file(sim, stage, replacer_dict, extras, analysis)
+            # write top, conf, and others
+            # set writer directory to simulation folder path
+            self.writer.set_directory(self.folder_path(sim, stage))
+            self.writer.set_abs_paths(self.server_settings.absolute_paths)
+            self.folder_path(sim, stage).mkdir(exist_ok=True)
+            files = self.writer.write(scene,
+                                      **reqd_extra_args)
+
+            # update top and dat files in replacer dict
+            replacer_dict.update(files)
+            replacer_dict["steps"] = stage.end_time()
+            replacer_dict["trajectory_file"] = self.sim_get_param(sim, "trajectory_file")
+            extras.update(self.writer.get_input_file_data(scene, **reqd_extra_args))
+
+            # create input file
+            stage.build_input()
+            # self.write_input_file(sim, stage, replacer_dict, extras, analysis)
+
+            # check energies
+            with oxpy.Context():
+                assert (self.folder_path(sim, stage) / "input").exists()
+                os.chdir(self.folder_path(sim, stage))
+                manager = oxpy.OxpyManager("input")
+                e = manager.system_energy()
+                del manager
+                if e < e_cutoff:
+                    self.get_logger().info(f"Conf energy verified for {str(sim)}, stage {str(stage)}!")
+                else:
+                    self.get_logger().info(f"Conf energy for {e} {str(sim)}, stage {str(stage)} exceeds cutoff {e_cutoff}. Computed energy from confgen = {scene_computed_energy}")
+                    nTries += 1
+        if nTries == 3:
+            raise Exception(f"Unable to generate a conf for Simulation {str(sim)}, stage {str(stage)}: System potential energy could not be brought below limit {e_cutoff}. Last potential energy was {e}.")
+
+
+
+    def write_run_script(self, sim: PatchySimulation, input_file="input"):
+        # if no stage name provided use first stage
+        stage = self.check_stage(sim)
+
+        slurm_script_name = "slurm_script.sh"
+        slurm_script_name = stage.adjfn(slurm_script_name)
+
+        # input file is in same directory as slurm script so don't change the file name
+
+        # write slurm script
+        with open(self.folder_path(sim) / slurm_script_name, "w+") as slurm_file:
+            # bash header
+
+            self.server_settings.write_sbatch_params(self.export_name, slurm_file)
+
+            # skip confGenerator call because we will invoke it directly later
+            slurm_file.write(f"{self.server_settings.oxdna_path}/build/bin/oxDNA {input_file}\n")
+
+        self.bash_exec(f"chmod u+x {self.folder_path(sim)}/{slurm_script_name}")
+
+    def run_simulation(self, sim: PatchySimulation):
+        """
+        Runs a patchy simulation using oxpy
+        """
+        stage = self.sim_most_recent_stage(sim)
+        with oxpy.Context():
+            assert (self.folder_path(sim, stage) / "input").exists()
+            os.chdir(self.folder_path(sim, stage))
+            manager = oxpy.OxpyManager("input")
+            manager.run(steps=stage.time_length(), print_output=True)
+            del manager
 
     def lorenzian_to_flavian(self,
                              write_path: Union[Path, str],

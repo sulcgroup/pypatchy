@@ -92,6 +92,13 @@ class ParamSet(LogEntryObject):
         return repr(self) == repr(other)
 
 
+    """
+    Merges two param sets. Note that this operation is NOT reflexive, a+b != b+a!
+    """
+    def __add__(self, other: ParamSet) -> ParamSet:
+        return ParamSet(self.param_vals + [pv for pv in other.param_vals if pv.param_name not in self])
+
+
 PatchySimulation = ParamSet  # alias for backwards compatibility
 
 
