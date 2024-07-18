@@ -1330,17 +1330,17 @@ class PatchySimulationEnsemble(Analyzable):
             assert stage.start_time() == 0, f"Stage {stage} has idx 0 but nonzero start time!"
 
             # generate conf
-            scene = PLPSimulation()
-            scene.set_temperature(self.sim_stage_get_param(sim, stage, "T"))
+            scene_start = PLPSimulation()
+            scene_start.set_temperature(self.sim_stage_get_param(sim, stage, "T"))
             particle_set = self.sim_get_particles_set(sim)
             # patches will be added automatically
-            scene.set_particle_types(particle_set)
+            scene_start.set_particle_types(particle_set)
 
         else:
             # don't catch exxeption here
             last_complete_stage = self.sim_most_recent_stage(sim)
-            scene = self.get_scene(sim, last_complete_stage)
-        scene.set_temperature(self.sim_stage_get_param(sim, stage, "T"))
+            scene_start = self.get_scene(sim, last_complete_stage)
+        scene_start.set_temperature(self.sim_stage_get_param(sim, stage, "T"))
 
         nTries = 0
         # what should be the energy cutoff???
@@ -1350,7 +1350,7 @@ class PatchySimulationEnsemble(Analyzable):
         # in oxDNA units kB = 1
         e_cutoff = 3 * self.sim_stage_get_param(sim, stage, "T")
         while nTries < 3:
-
+            scene = copy.deepcopy(scene_start)
             stage.apply(scene)
             # Todo: cut next line once we have this working
             scene_computed_energy = scene.get_potential_energy()
@@ -1386,10 +1386,12 @@ class PatchySimulationEnsemble(Analyzable):
                 manager = oxpy.OxpyManager("input")
                 e = manager.system_energy()
                 del manager
+                assert e - scene_computed_energy < 1e-4
                 if e < e_cutoff:
                     self.get_logger().info(f"Conf energy verified for {str(sim)}, stage {str(stage)}!")
+                    break
                 else:
-                    self.get_logger().info(f"Conf energy for {e} {str(sim)}, stage {str(stage)} exceeds cutoff {e_cutoff}. Computed energy from confgen = {scene_computed_energy}")
+                    self.get_logger().info(f"Conf energy {e} for {str(sim)}, stage {str(stage)} exceeds cutoff {e_cutoff}. Computed energy from confgen = {scene_computed_energy}")
                     nTries += 1
         if nTries == 3:
             raise Exception(f"Unable to generate a conf for Simulation {str(sim)}, stage {str(stage)}: System potential energy could not be brought below limit {e_cutoff}. Last potential energy was {e}.")
@@ -1425,7 +1427,7 @@ class PatchySimulationEnsemble(Analyzable):
             assert (self.folder_path(sim, stage) / "input").exists()
             os.chdir(self.folder_path(sim, stage))
             manager = oxpy.OxpyManager("input")
-            manager.run(steps=stage.time_length(), print_output=True)
+            manager.run(steps=int(stage.time_length()), print_output=True)
             del manager
 
     def lorenzian_to_flavian(self,
