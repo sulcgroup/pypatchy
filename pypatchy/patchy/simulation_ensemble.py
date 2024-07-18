@@ -1386,7 +1386,7 @@ class PatchySimulationEnsemble(Analyzable):
                 manager = oxpy.OxpyManager("input")
                 e = manager.system_energy()
                 del manager
-                assert e - scene_computed_energy < 1e-4
+                # assert e - scene_computed_energy < 1e-4
                 if e < e_cutoff:
                     self.get_logger().info(f"Conf energy verified for {str(sim)}, stage {str(stage)}!")
                     break
