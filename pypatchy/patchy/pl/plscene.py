@@ -91,6 +91,7 @@ class PLPSimulation(Scene, CellLists):
         checked_interactions: set[tuple] = set()
         for p1 in self.particles():
             for p2 in self.interaction_particles(p1):
+                assert self.dist_2particles(p1, p2) >= 1.;
                 pair = (p1.get_uid(), p2.get_uid()) if p1.get_uid() < p2.get_uid() else (p2.get_uid(), p2.get_uid())
                 if pair not in checked_interactions:
                     e_int = self.interaction_energy(p1, p2)
