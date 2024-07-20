@@ -38,9 +38,92 @@ class PLPotential(ABC):
                ) -> float:
         pass
 
+"""
+Lorenzo's excluded-volume potential
+TODO: find paper this was based on!
+"""
+class PLLRExclVolPotential(PLPotential):
 
-class PLExclVolPotential(PLPotential):
-    # eqn. 9 in https://pubs.acs.org/doi/10.1021/acsnano.2c09677
+    __particle_radius: float = 0.5 # TODO: make settable!
+    # repulsive radial cutoff???
+    # TODO: make this dependant on particle radii!!!
+    __rep_rcut: float = 2 ** (1./6.)
+    # the above, squared
+    __rep_sqr_rcut: float = __rep_rcut ** 2
+    __spherical_attraction_strength: float
+    __spherical_E_cut: float
+    __sqr_spherical_rcut: float
+    __epsilon: float
+
+    def __init__(self,
+                 rmax: float,
+                 epsilon: float = 1.,
+                 spherical_attr_strength=0.,
+                 spherical_E_cut=0.,
+                 sqr_spherical_rcut=0.):
+        super().__init__(rmax)
+        self.__epsilon = epsilon
+        self.__spherical_attraction_strength = spherical_attr_strength
+        self.__spherical_E_cut = spherical_E_cut
+        self.__sqr_spherical_rcut = sqr_spherical_rcut
+
+    def rep_sqr_rcut(self, particle_radius_sum: float):
+        assert particle_radius_sum == 1. # todo: custom radius
+        return self.__rep_sqr_rcut
+
+    def epsilon(self) -> float:
+        return self.__epsilon
+
+
+    """
+    direct copy of DetailedPatchySwapInteraction::_spherical_patchy_two_body in oxDNA
+    """
+    def energy(self,
+               box: np.ndarray,  # for periodic boundry conditions
+               p1: PLPatchyParticle,
+               p2: PLPatchyParticle) -> float:
+        sqr_r = periodic_dist_sqrd(box, p1.position(), p2.position())
+        energy = 0.
+
+        # if distance between particle centers is greater than the maximum,
+        # it's
+        if sqr_r > self.rmax_sqr():
+            return 0.
+
+        rep_sqr_rcut = self.rep_sqr_rcut(p1.radius() + p2.radius())
+        if sqr_r < rep_sqr_rcut or (sqr_r < self.__sqr_spherical_rcut and self.__spherical_attraction_strength > 0.0):
+            ir2 = 1.0 / sqr_r
+            # lennard-jones part? partial?
+            # lj_part evaluates to (sigma / r) ** 6 from the LJ 12-6
+            lj_part = ir2 * ir2 * ir2
+            if sqr_r < rep_sqr_rcut:
+                # i have not been using spherical attraction, idk what it does
+                spherical_part = self.__spherical_attraction_strength + self.__spherical_E_cut
+                # Lorenzo's version has epsilon hardcoded to 1.0, so it's a bit hard to tell if
+                # the spherical part belongs inside or outside the parentheses
+                energy = self.epsilon() * (4 * (lj_part ** 2 - lj_part) + 1.0 - spherical_part)
+            else:
+                if sqr_r < self.__sqr_spherical_rcut and self.__spherical_attraction_strength > 0.0:
+                    energy = 4 * self.__spherical_attraction_strength * (lj_part ** 2 - lj_part) - self._spherical_E_cut
+
+        return energy
+
+class PLLRPatchyPotential(PLPotential):
+    def __init__(self, rmax: float):
+        super().__init__(rmax)
+
+    def energy(self,
+               box: np.ndarray,  # for periodic boundry conditions
+               p1: PLPatchyParticle,
+               p2: PLPatchyParticle) -> float:
+        pass
+
+
+"""
+Flavio's excluded volume potential
+eqn. 9 in https://pubs.acs.org/doi/10.1021/acsnano.2c09677
+"""
+class PLFRExclVolPotential(PLPotential):
     # TODO: auto-set quadratic smoothing params to make sure piecewise potential is differentiable
 
     __rstar: float  # cutoff point for quadratic smoothing of lj potential
@@ -101,8 +184,11 @@ class PLExclVolPotential(PLPotential):
         return e
 
 
-class PLPatchyPotential(PLPotential):
-    # non-torsional potential from https://pubs.acs.org/doi/10.1021/acsnano.2c09677
+"""
+non-torsional potential from https://pubs.acs.org/doi/10.1021/acsnano.2c09677
+"""
+class PLFRPatchyPotential(PLPotential):
+    #
     __alpha: float  # patchy alpha potential
     __alpha_sqr: float
 
@@ -200,7 +286,7 @@ def periodic_dist_sqrd(box: np.ndarray, p1: np.ndarray, p2: np.ndarray) -> float
     return dist_sqrd
 
 
-class PLPTorsionalPatchyPotential(PLPatchyPotential):
+class PLFRTorsionalPatchyPotential(PLFRPatchyPotential):
     # torsional potential from https://pubs.acs.org/doi/10.1021/acsnano.2c09677
     def energy_2_patch(self,
                        box: np.ndarray,  # for periodic boundry conditions
