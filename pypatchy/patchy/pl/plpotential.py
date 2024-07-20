@@ -108,15 +108,93 @@ class PLLRExclVolPotential(PLPotential):
 
         return energy
 
+class PLLRPatchyBond:
+
 class PLLRPatchyPotential(PLPotential):
-    def __init__(self, rmax: float):
+    # it's extremly unclear what this is
+    __sigma_ss: float
+    __rcut_ss: float
+    # square of patchy interaction distance cutoff
+    # two patches with a square-distance greater than this cannot interact
+    __sqr_patch_rcut: float
+    __interaction_matrix: dict[tuple[int, int], float]
+
+    # patchy interaction params
+    __A_part: float
+    __B_part: float
+
+    __no_three_body: bool
+    # used for three-body interaction
+    __lambda: float
+
+    def __init__(self, rmax: float, interaction_matrix: dict[tuple[int, int], float],
+                 sigma_ss: float = 0.4):
         super().__init__(rmax)
+        self.__interaction_matrix = interaction_matrix
+        self.__sigma_ss = sigma_ss
+        self.__rcut_ss = 1.5 * sigma_ss
+        self.__sqr_patch_rcut = self.__rcut_ss ** 2
+        # no idea what these next few lines mean, i lifted them directly from DetailedPatchySwapInteraction::init()
+        B_ss = 1. / (1. + 4. * (1. - self.__rcut_ss / self.__sigma_ss) ** 2)
+        self.__A_part = -1. / (B_ss - 1.) / math.exp(1. / (1. - self.__rcut_ss / self.__sigma_ss))
+        self.__B_part = B_ss * self.__sigma_ss ** 4
+
+        self.__no_three_body = False
+
+    def rcut_ss(self):
+        return self.__rcut_ss
+
+    def sigma_ss(self):
+        return self.__sigma_ss
+
+    def sqr_patch_rcut(self):
+        return self.__sqr_patch_rcut
+
+    def is_three_body(self):
+        return not self.__no_three_body
+
+    def color_pair_interaction(self, c1: int, c2: int):
+        if c1 > c2:
+            return self.color_pair_interaction(c2, c1)
+        else:
+            return self.__interaction_matrix[(c1, c2)]
 
     def energy(self,
                box: np.ndarray,  # for periodic boundry conditions
                p1: PLPatchyParticle,
                p2: PLPatchyParticle) -> float:
-        pass
+        computed_r = periodic_dist_sqrt_vec(box, p1.position(), p2.position())
+        sqr_r = np.dot(computed_r, computed_r)
+        if sqr_r > self.rmax_sqr():
+            return 0.0
+
+        # TODO: compute patch pairs more efficiently, like i did in the FR version?
+        energy = 0.0
+        for (p_patch, q_patch) in itertools.product(p1.patches(), p2.patches()):
+            patch_dist = computed_r + p_patch.position() - q_patch.positon()
+            r_patch_sqr = patch_dist.norm()
+            if r_patch_sqr < self.sqr_patch_rcut():
+                epsilon = self.color_pair_interaction(p_patch.color(), q_patch.color())
+
+                if epsilon != 0.0:
+                    # compute actual distance between patches
+                    r_p = r_patch_sqr ** 0.5
+                    # compute
+                    exp_part = math.exp(self.sigma_ss() / (r_p - self.rcut_ss()))
+                    tmp_energy = epsilon * self._A_part * exp_part * (self._B_part / r_patch_sqr ** 2 - 1.0)
+
+                    energy += tmp_energy
+
+                    tb_energy = epsilon if r_p < self._sigma_ss else -tmp_energy
+
+                    p_bond = PLLRPatchyBond(q, r_p, p_patch, q_patch, tb_energy)
+                    q_bond = PLLRPatchyBond(p, r_p, q_patch, p_patch, tb_energy)
+
+                    if self.is_three_body():
+                        energy += self._three_body(p, p_bond)
+                        energy += self._three_body(q, q_bond)
+
+        return energy
 
 
 """
@@ -241,17 +319,17 @@ class PLFRPatchyPotential(PLPotential):
                     break  # Stop if all patches are used
         assert len(patch_pairs) == min(p1.num_patches(), p2.num_patches())
         for i, j, rsqrd in patch_pairs:
-            e += self.energy_2_patch(box, p1, p1.patch(i), p2, p2.patch(j))
+            e += self.fr_energy_2_patch(box, p1, p1.patch(i), p2, p2.patch(j))
         return e
 
     """
-    
+    flavio energy two patch point potential evangelion
     """
-    def energy_2_patch(self,
-                       box: np.ndarray,  # for periodic boundry conditions
-                       particle1: PLPatchyParticle, patch1: PLPatch,
-                       particle2: PLPatchyParticle, patch2: PLPatch,
-                       rsqr: Union[None, float] = None) -> float:
+    def fr_energy_2_patch(self,
+                          box: np.ndarray,  # for periodic boundry conditions
+                          particle1: PLPatchyParticle, patch1: PLPatch,
+                          particle2: PLPatchyParticle, patch2: PLPatch,
+                          rsqr: Union[None, float] = None) -> float:
         if rsqr is None:
             # there's DEFINATELY a way to simplify this
             patch1_pos: np.ndarray = particle1.patch_position(patch1)
@@ -275,25 +353,30 @@ def periodic_dist_sqrd(box: np.ndarray, p1: np.ndarray, p2: np.ndarray) -> float
     Computes the squared distance between p1 and p2 with periodic boundaries specified by box.
     If a dimension in `box` is zero, that dimension is treated as non-periodic.
     """
+    delta = periodic_dist_sqrt_vec(box, p1, p2)
+    dist_sqrd = np.dot(delta, delta)
+    return dist_sqrd
+
+"""
+computes the displacement vector between two particles, accounting for periodic boundry
+conditions
+"""
+def periodic_dist_sqrt_vec(box: np.ndarray, p1: np.ndarray, p2: np.ndarray):
     delta = p1 - p2  # Initial difference vector between the points
     for i in range(len(box)):
         if box[i] > 0:  # Check if the dimension is periodic
             # Apply PBC adjustment only if the dimension is periodic
             delta[i] -= box[i] * np.round(delta[i] / box[i])
-
-    # Calculate and return the squared distance considering the adjusted differences
-    dist_sqrd = np.dot(delta, delta)
-    return dist_sqrd
-
+    return delta
 
 class PLFRTorsionalPatchyPotential(PLFRPatchyPotential):
     # torsional potential from https://pubs.acs.org/doi/10.1021/acsnano.2c09677
-    def energy_2_patch(self,
-                       box: np.ndarray,  # for periodic boundry conditions
-                       particle1: PLPatchyParticle, patch1: PLPatch,
-                       particle2: PLPatchyParticle, patch2: PLPatch,
-                       rsqrd: Union[None, float] = None) -> float:
+    def fr_energy_2_patch(self,
+                          box: np.ndarray,  # for periodic boundry conditions
+                          particle1: PLPatchyParticle, patch1: PLPatch,
+                          particle2: PLPatchyParticle, patch2: PLPatch,
+                          rsqrd: Union[None, float] = None) -> float:
         # begin with the non-torsional potential
-        e = super().energy_2_patch(box, particle1, patch1, particle2, patch2)
+        e = super().fr_energy_2_patch(box, particle1, patch1, particle2, patch2)
         # TODO
 
