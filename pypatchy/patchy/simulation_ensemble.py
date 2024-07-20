@@ -1103,9 +1103,15 @@ class PatchySimulationEnsemble(Analyzable):
             stage = self.sim_get_stage(sim, stage)
         self.writer.set_directory(self.folder_path(sim, stage))
         top_file, traj_file = self.sim_get_stage_top_traj(sim, stage)
-        return self.writer.read_scene(top_file.name,
-                                      traj_file.name,
-                                      self.sim_get_particles_set(sim))
+        if traj_file.exists() and os.stat(traj_file).st_size > 0:
+            return self.writer.read_scene(top_file.name,
+                                          traj_file.name,
+                                          self.sim_get_particles_set(sim))
+        else:
+            conf_file = self.sim_stage_get_param(sim, stage, "conf_file")
+            return self.writer.read_scene(top_file.name,
+                                   conf_file,
+                                   self.sim_get_particles_set(sim))
         # scene: PLPSimulation()
 
     def is_traj_valid(self, sim: PatchySimulation, stage: Union[Stage, None] = None) -> bool:

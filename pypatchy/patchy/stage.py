@@ -1,26 +1,22 @@
 from __future__ import annotations
 
-import copy
-import json
-import math
+
 import os
-import re
-from pathlib import Path
+
 from typing import Union, Iterable, Any, Generator
 
 import numpy as np
 
-from ipy_oxdna.oxdna_simulation import BuildSimulation, Simulation, Input
-from .pl.plpotential import PLPatchyPotential, PLExclVolPotential
+from ipy_oxdna.oxdna_simulation import BuildSimulation, Simulation
+
+from .patchy_scripts import add_standard_patchy_interaction
+from .pl.plpotential import PLFRPatchyPotential, PLFRExclVolPotential
 
 from .ensemble_parameter import MDT_CONVERT_KEY, StageInfoParam, ParameterValue
 from .particle_adders import RandParticleAdder, FromPolycubeAdder, FromConfAdder
 from .pl.plpatchylib import polycube_to_pl
-from .simulation_specification import NoSuchParamError
 from ..patchy.simulation_specification import PatchySimulation
 from .pl.plscene import PLPSimulation
-from ..util import get_input_dir, EXTERNAL_OBSERVABLES
-
 
 class Stage(BuildSimulation):
     """
@@ -236,23 +232,11 @@ class Stage(BuildSimulation):
         scene.compute_cell_size(n_particles=self.num_particles_to_add())
         scene.apportion_cells()
         # add excluded volume potential
+        add_standard_patchy_interaction(scene,
+                                        self.getctxt().sim_get_param(self.spec(), "PATCHY_alpha"),
+                                        self.getctxt().sim_get_param(self.spec(), "use_torsion"))
 
         # add patchy interaction
-        # TODO: i'm like 99% sure we can ignore patchy interaction for this purpose
-        if self.getctxt().sim_get_param(self.spec(), "use_torsion"):
-            raise Exception("Torsional patches not yet supported in this confgen! Get on it Josh!")
-        else:
-            patchy_potential = PLPatchyPotential(
-                alpha=self.getctxt().sim_get_param(self.spec(), "PATCHY_alpha"),
-                rmax=0.4 * 1.5  # lorenzo's code, =0.6
-            )
-
-        scene.add_potential(patchy_potential)
-        scene.add_potential(PLExclVolPotential(
-            rmax=0.4 * 1.5,  # from lorenzo's code, =0.6. particle radius added at runtiume
-            rstar=2 ** (1 / 6),  # this is the rcut used in lorenzo's code, = 1.122
-            b=677.505671539  # from flavio's code
-        ))
         # unfortunately i haven't implemented the swap interaction here yet
         # and even if I had it would have its own issues bc it's a state function
         # so while ideally the computed energy should always be less than zero in practice it will sometimes be low

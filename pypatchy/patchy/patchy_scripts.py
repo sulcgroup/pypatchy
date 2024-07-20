@@ -6,6 +6,8 @@ from typing import Union
 
 from .pl.plparticleset import PLParticleSet, MultidentateConvertSettings
 from pypatchy.patchy.pl.patchyio import get_writer, FWriter, LWriter
+from .pl.plpotential import PLFRPatchyPotential, PLFRExclVolPotential, PLLRExclVolPotential, PLLRPatchyPotential
+from .pl.plscene import PLPSimulation
 from ..util import get_input_dir
 
 
@@ -110,4 +112,25 @@ def lorenzian_to_flavian(lorenzian_folder: Union[Path, str], flavian_folder: Uni
     get_writer("flavio").write_top(ftop, top_name)
     get_writer("flavio").write_particles_patches(topology.particle_types, "particles.txt", "patches.txt")
     shutil.copyfile(lorenzian_folder / conf_name, flavian_folder / conf_name)
+
+
+def add_standard_patchy_interaction(scene: PLPSimulation,
+                                    alpha: float,
+                                    use_torsion: bool = False):
+    """
+    quick function to add patchy interactions which mimic
+     rovigatti/Interaction/PatchySwapInteraction
+    """
+    scene.add_potential(PLLRExclVolPotential(
+        rmax=2.01421
+    ))
+    # TODO: i'm like 99% sure we can ignore patchy interaction for this purpose
+    if use_torsion:
+        raise Exception("Torsional patches not yet supported in this confgen! Get on it Josh!")
+    else:
+        patchy_potential = PLLRPatchyPotential(
+            rmax=2.01421  # cutoff for all interactions, computed assuming a particle w/ radius 0.5 and no spherical attraction
+        )
+
+    scene.add_potential(patchy_potential)
 
