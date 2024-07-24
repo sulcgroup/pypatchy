@@ -129,7 +129,9 @@ def add_standard_patchy_interaction(scene: PLPSimulation,
         raise Exception("Torsional patches not yet supported in this confgen! Get on it Josh!")
     else:
         patchy_potential = PLLRPatchyPotential(
-            rmax=2.01421  # cutoff for all interactions, computed assuming a particle w/ radius 0.5 and no spherical attraction
+            rmax=2.01421,  # cutoff for all interactions, computed assuming a particle w/ radius 0.5 and no spherical attraction
+            interaction_matrix=PLLRPatchyPotential.make_interaction_matrix(scene.particle_types().patches()),
+            sigma_ss=0.4
         )
 
     scene.add_potential(patchy_potential)
