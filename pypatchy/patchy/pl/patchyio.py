@@ -681,7 +681,7 @@ class LWriter(PLBaseWriter):
 
         # depth-first search which assigns colors
         def dfs(node: int, color: int):
-            if patches[node].color() != 0:
+            if patches[node].color() != 0 and patches[node].color() is not None:
                 return patches[node].color() == color
             patches[node].set_color(color)
             for neighbor in range(num_patches):
@@ -691,7 +691,7 @@ class LWriter(PLBaseWriter):
             return True
 
         for patch in range(num_patches):
-            if patches[patch].color() == 0 and not dfs(patch, 1):
+            if (patches[patch].color() == 0 or patches[patch].color() is None) and not dfs(patch, 1):
                 raise ValueError("Cannot assign colors such that interacting patches add to zero")
 
     def write_top(self, topology: LPatchyTopology, top_file: str):

@@ -109,7 +109,7 @@ class PLLRExclVolPotential(PLPotential):
         return energy
 
 class PLLRPatchyBond:
-
+    pass
 class PLLRPatchyPotential(PLPotential):
     # it's extremly unclear what this is
     __sigma_ss: float
@@ -195,6 +195,16 @@ class PLLRPatchyPotential(PLPotential):
                         energy += self._three_body(q, q_bond)
 
         return energy
+
+    @staticmethod
+    def make_interaction_matrix(patches: list[PLPatch]) -> dict[tuple[int, int], float]:
+        intmatrix = dict()
+        # we do want these to contain both (i,j) and (j,i)
+        for p1 in patches:
+            for p2 in patches:
+                if p1.color() == -p2.color():
+                    intmatrix[(p1.color(), p2.color())] = math.sqrt(p1.strength() * p2.strength())
+        return intmatrix
 
 
 """
