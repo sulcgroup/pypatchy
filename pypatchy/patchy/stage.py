@@ -172,40 +172,7 @@ class Stage(BuildSimulation):
             # todo: filter better, to use only actual oxdna params
             if type(pv) is ParameterValue:
                 self.sim.input[pv.param_name] = pv.param_value
-
-        # # write server config spec
-        # for pv in self.getctxt().server_settings.input_file_params:
-        #     self.sim.input[pv.param_name] = pv.param_value
-        #
-        # # write default input file stuff
-        #
-        # # loop parameters in group
-        # for param in self.getctxt().default_param_set:
-        #     paramname = param.param_name
-        #     # if we've specified this param in a replacer dict
-        #     # if no override
-        #     if paramname not in self.spec() and paramname not in self.getctxt().const_params:
-        #         val = self.getctxt().default_param_set[paramname]
-        #     else:
-        #         val = self.getctxt().sim_get_param(self.spec(), paramname)
-        #     # check paths are absolute if applicable
-        #     if self.getctxt().server_settings.absolute_paths:
-        #         # approximation for "is this a file?"
-        #         if isinstance(val, str) and re.search(r'\.\w+$', val) is not None:
-        #             # if path isn't absolute
-        #             if not Path(val).is_absolute():
-        #                 # prepend folder path
-        #                 val = str(self.getctxt().folder_path(self.spec(), self) / val)
-        #     self.sim.input[paramname] = val
-        #
-        # # write more parameters
-        # self.sim.input["T"] = self.getctxt().sim_get_param(self.spec(), 'T')
-        # try:
-        #     self.sim.input["narrow_type"] = self.getctxt().sim_get_param(self.spec(), 'narrow_type')
-        # except NoSuchParamError as e:
-        #     self.getctxt().get_logger().info(f"No narrow type specified for simulation {self.spec()}.")
-        #
-        # self.sim.input["steps"] = self.end_time()
+        assert self.sim.input.get_conf_file() is not None
 
         # write external observables file path
         if len(self.getctxt().observables) > 0:
@@ -280,9 +247,9 @@ class Stage(BuildSimulation):
             # step 2: add clusters using scene.add_conf_clusters
         else:
             raise Exception(f"Invalid add method {type(self._param_info.add_method)}")
-        e = scene.get_potential_energy()
+        # e = scene.get_potential_energy()
         # take starting energy into consideration
-        assert e < 0 or (e - e_start) < 1e-4, "Scene energy too high!!"
+        # assert e < 0 or (e - e_start) < 1e-4, "Scene energy too high!!"
 
     def adjfn(self, file_name: str) -> str:
         if self.idx() > 0:

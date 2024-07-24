@@ -5,6 +5,7 @@ import datetime
 import itertools
 import multiprocessing
 import os
+import random
 import shutil
 import tempfile
 import time
@@ -239,7 +240,10 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
 
     # normalize setup date (wrong word)
     setup_date: datetime.datetime = normalize_date(mdt["setup_date"])
-
+    # for debugging purporses, let me seed random
+    if "randseed" in cfg:
+        random.seed(cfg["randseed"])
+        np.random.seed(cfg["randseed"])
     # if metadata filename wasn't manually provided
     if mdtfile is None:
         mdtfile = f"{export_name}_{setup_date.strftime('%Y-%m-%d')}_metadata.json"
@@ -1264,9 +1268,6 @@ class PatchySimulationEnsemble(Analyzable):
         """
 
         """
-        if stage is not None:
-            self.get_logger().info(f"Stages other than zero don't require setup anymore! I hope!")
-            return
 
         # check for mps stuff
         if sims is None:
@@ -1339,7 +1340,7 @@ class PatchySimulationEnsemble(Analyzable):
 
             # generate conf
             scene_start = PLPSimulation()
-            scene_start.set_temperature(self.sim_stage_get_param(sim, stage, "T"))
+
             particle_set = self.sim_get_particles_set(sim)
             # patches will be added automatically
             scene_start.set_particle_types(particle_set)
