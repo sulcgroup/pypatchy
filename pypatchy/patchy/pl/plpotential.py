@@ -164,7 +164,10 @@ class PLLRPatchyPotential(PLPotential):
         if c1 > c2:
             return self.color_pair_interaction(c2, c1)
         else:
-            return self.__interaction_matrix[(c1, c2)]
+            if (c1, c2) in self.__interaction_matrix:
+                return self.__interaction_matrix[(c1, c2)]
+            else:
+                return 0
 
     def energy(self,
                box: np.ndarray,  # for periodic boundry conditions

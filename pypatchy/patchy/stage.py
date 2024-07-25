@@ -200,8 +200,7 @@ class Stage(BuildSimulation):
         scene.apportion_cells()
         # add excluded volume potential
         add_standard_patchy_interaction(scene,
-                                        self.getctxt().sim_get_param(self.spec(), "PATCHY_alpha"),
-                                        self.getctxt().sim_get_param(self.spec(), "use_torsion"))
+                                        sigma=self.getctxt().sim_get_param(self.spec(), "DPS_sigma_ss"))
 
         # add patchy interaction
         # unfortunately i haven't implemented the swap interaction here yet
