@@ -1339,17 +1339,17 @@ class PatchySimulationEnsemble(Analyzable):
             assert stage.start_time() == 0, f"Stage {stage} has idx 0 but nonzero start time!"
 
             # generate conf
-            scene_start = PLPSimulation()
+            scene = PLPSimulation()
 
             particle_set = self.sim_get_particles_set(sim)
             # patches will be added automatically
-            scene_start.set_particle_types(particle_set)
+            scene.set_particle_types(particle_set)
 
         else:
             # don't catch exxeption here
             last_complete_stage = self.sim_most_recent_stage(sim)
-            scene_start = self.get_scene(sim, last_complete_stage)
-        scene_start.set_temperature(self.sim_stage_get_param(sim, stage, "T"))
+            scene = self.get_scene(sim, last_complete_stage)
+        scene.set_temperature(self.sim_stage_get_param(sim, stage, "T"))
 
         nTries = 0
         # what should be the energy cutoff???
@@ -1357,56 +1357,45 @@ class PatchySimulationEnsemble(Analyzable):
         # on kB * T, with the variance dependant on the simulation size
         # or we can just make up a coefficient like 3
         # in oxDNA units kB = 1
-        e_cutoff = 3 * self.sim_stage_get_param(sim, stage, "T")
-        while nTries < 3:
-            scene = copy.deepcopy(scene_start)
-            stage.apply(scene)
-            # Todo: cut next line once we have this working
-            scene_computed_energy = scene.get_potential_energy()
+        stage.apply(scene)
+        # Todo: cut next line once we have this working
+        scene_computed_energy = scene.get_potential_energy()
 
-            # grab args required by writer
-            reqd_extra_args = {
-                a: self.sim_stage_get_param(sim, stage, a) for a in self.writer.reqd_args()
-            }
-            assert "conf_file" in reqd_extra_args, "Missing conf file info!"
+        # grab args required by writer
+        reqd_extra_args = {
+            a: self.sim_stage_get_param(sim, stage, a) for a in self.writer.reqd_args()
+        }
+        assert "conf_file" in reqd_extra_args, "Missing conf file info!"
 
-            # write top, conf, and others
-            # set writer directory to simulation folder path
-            self.writer.set_directory(self.folder_path(sim, stage))
-            self.writer.set_abs_paths(self.server_settings.absolute_paths)
-            self.folder_path(sim, stage).mkdir(exist_ok=True)
-            files = self.writer.write(scene,
-                                      **reqd_extra_args)
+        # write top, conf, and others
+        # set writer directory to simulation folder path
+        self.writer.set_directory(self.folder_path(sim, stage))
+        self.writer.set_abs_paths(self.server_settings.absolute_paths)
+        self.folder_path(sim, stage).mkdir(exist_ok=True)
+        files = self.writer.write(scene,
+                                  **reqd_extra_args)
 
-            # update top and dat files in replacer dict
-            replacer_dict.update(files)
-            replacer_dict["steps"] = stage.end_time()
-            replacer_dict["trajectory_file"] = self.sim_get_param(sim, "trajectory_file")
-            extras.update(self.writer.get_input_file_data(scene, **reqd_extra_args))
+        # update top and dat files in replacer dict
+        replacer_dict.update(files)
+        replacer_dict["steps"] = stage.end_time()
+        replacer_dict["trajectory_file"] = self.sim_get_param(sim, "trajectory_file")
+        extras.update(self.writer.get_input_file_data(scene, **reqd_extra_args))
 
-            # create input file
-            stage.build_input()
-            # self.write_input_file(sim, stage, replacer_dict, extras, analysis)
+        # create input file
+        stage.build_input()
+        # self.write_input_file(sim, stage, replacer_dict, extras, analysis)
 
-            # check energies
-            with oxpy.Context():
-                assert (self.folder_path(sim, stage) / "input").exists()
-                os.chdir(self.folder_path(sim, stage))
-                manager = oxpy.OxpyManager("input")
-                e = manager.system_energy()
-                del manager
-                # assert e - scene_computed_energy < 1e-4
-                if e < e_cutoff:
-                    self.get_logger().info(f"Conf energy verified for {str(sim)}, stage {str(stage)}!")
-                    break
-                else:
-                    self.get_logger().info(f"Conf energy {e} for {str(sim)}, stage {str(stage)} exceeds cutoff {e_cutoff}. Computed energy from confgen = {scene_computed_energy}")
-                    nTries += 1
-        if nTries == 3:
-            # TODO: raise exception
-            # todo: make any of this work
-            raise Exception(f"Unable to generate a conf for Simulation {str(sim)}, stage {str(stage)}:"
-                            f" System potential energy could not be brought below limit {e_cutoff}. Last potential energy was {e}.")
+        # check energies
+        # commented bc OxpyManager::system_energy() gives incorrect output
+        # with oxpy.Context():
+        #     assert (self.folder_path(sim, stage) / "input").exists()
+        #     os.chdir(self.folder_path(sim, stage))
+        #     manager = oxpy.OxpyManager("input")
+        #     e = manager.system_energy()
+        #     del manager
+        #     # assert e - scene_computed_energy < 1e-4
+        #     if abs(e - scene_computed_energy) > 1e-4:
+        #         raise Exception(f"Mismatch between python-computed energy {scene_computed_energy} and oxDNA-computed energy {e}")
 
     def write_run_script(self, sim: PatchySimulation, input_file="input"):
         # if no stage name provided use first stage
