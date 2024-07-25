@@ -129,29 +129,25 @@ def int_mat_to_keywise(m: np.ndarray, particles: PLParticleSet) -> dict[tuple[in
 
 
 def add_standard_patchy_interaction(scene: PLPSimulation,
-                                    alpha: float,
-                                    use_torsion: bool = False,
+                                    sigma: float,
                                     interaction_matrix: Union[np.ndarray, None, dict[tuple[int,int]], float] = None):
     """
     quick function to add patchy interactions which mimic
      rovigatti/Interaction/PatchySwapInteraction
     """
     if interaction_matrix is None:
-        interaction_matrix = PLLRPatchyPotential.make_interaction_matrix(scene.particle_types().patches());
+        interaction_matrix = PLLRPatchyPotential.make_interaction_matrix(scene.particle_types().patches())
     elif isinstance(interaction_matrix, np.ndarray):
         interaction_matrix = int_mat_to_keywise(interaction_matrix, scene.particle_types())
     scene.add_potential(PLLRExclVolPotential(
         rmax=2.01421
     ))
     # TODO: i'm like 99% sure we can ignore patchy interaction for this purpose
-    if use_torsion:
-        raise Exception("Torsional patches not yet supported in this confgen! Get on it Josh!")
-    else:
-        patchy_potential = PLLRPatchyPotential(
-            rmax=2.01421,  # cutoff for all interactions, computed assuming a particle w/ radius 0.5 and no spherical attraction
-            interaction_matrix=interaction_matrix,
-            sigma_ss=alpha
-        )
+    patchy_potential = PLLRPatchyPotential(
+        rmax=2.01421,  # cutoff for all interactions, computed assuming a particle w/ radius 0.5 and no spherical attraction
+        interaction_matrix=interaction_matrix,
+        sigma_ss=sigma
+    )
 
     scene.add_potential(patchy_potential)
 

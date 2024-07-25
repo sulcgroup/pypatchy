@@ -1102,7 +1102,7 @@ class PatchySimulationEnsemble(Analyzable):
             #           self.folder_path(sim) / "particles.txt",
             #           self.folder_path(sim) / "patches.txt")
 
-    def get_scene(self, sim: PatchySimulation, stage: Union[Stage, str]) -> PLPSimulation:
+    def get_scene(self, sim: PatchySimulation, stage: Union[Stage, str, None]=None) -> PLPSimulation:
         if isinstance(stage, str):
             stage = self.sim_get_stage(sim, stage)
         self.writer.set_directory(self.folder_path(sim, stage))
@@ -1405,7 +1405,7 @@ class PatchySimulationEnsemble(Analyzable):
         if nTries == 3:
             # TODO: raise exception
             # todo: make any of this work
-            print(f"Unable to generate a conf for Simulation {str(sim)}, stage {str(stage)}:"
+            raise Exception(f"Unable to generate a conf for Simulation {str(sim)}, stage {str(stage)}:"
                             f" System potential energy could not be brought below limit {e_cutoff}. Last potential energy was {e}.")
 
     def write_run_script(self, sim: PatchySimulation, input_file="input"):

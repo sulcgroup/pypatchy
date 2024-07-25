@@ -70,6 +70,7 @@ class PLBaseWriter(ABC):
         return self._writing_directory
 
     def file(self, filename, access="w") -> IO:
+        assert (self.directory() / filename).exists()
         return open(self.directory() / filename, access)
 
     @abstractmethod
