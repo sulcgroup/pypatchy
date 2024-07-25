@@ -136,6 +136,7 @@ class PLLRPatchyPotential(PLPotential):
         self.__sqr_patch_rcut = self.__rcut_ss ** 2
         # no idea what these next few lines mean, i lifted them directly from DetailedPatchySwapInteraction::init()
         B_ss = 1. / (1. + 4. * (1. - self.__rcut_ss / self.__sigma_ss) ** 2)
+        # a_part evaluates to 2 * e**2 for some reason
         self.__A_part = -1. / (B_ss - 1.) / math.exp(1. / (1. - self.__rcut_ss / self.__sigma_ss))
         self.__B_part = B_ss * self.__sigma_ss ** 4
 
@@ -146,6 +147,12 @@ class PLLRPatchyPotential(PLPotential):
 
     def sigma_ss(self):
         return self.__sigma_ss
+
+    def A_part(self) -> float:
+        return self.__A_part
+
+    def B_part(self) -> float:
+        return self.__B_part;
 
     def sqr_patch_rcut(self):
         return self.__sqr_patch_rcut
@@ -161,38 +168,41 @@ class PLLRPatchyPotential(PLPotential):
 
     def energy(self,
                box: np.ndarray,  # for periodic boundry conditions
-               p1: PLPatchyParticle,
-               p2: PLPatchyParticle) -> float:
-        computed_r = periodic_dist_sqrt_vec(box, p1.position(), p2.position())
+               p: PLPatchyParticle,
+               q: PLPatchyParticle) -> float:
+        computed_r = periodic_dist_sqrt_vec(box, p.position(), q.position())
         sqr_r = np.dot(computed_r, computed_r)
         if sqr_r > self.rmax_sqr():
             return 0.0
 
         # TODO: compute patch pairs more efficiently, like i did in the FR version?
         energy = 0.0
-        for (p_patch, q_patch) in itertools.product(p1.patches(), p2.patches()):
-            patch_dist = computed_r + p_patch.position() - q_patch.positon()
-            r_patch_sqr = patch_dist.norm()
-            if r_patch_sqr < self.sqr_patch_rcut():
-                epsilon = self.color_pair_interaction(p_patch.color(), q_patch.color())
+        for (p_patch, q_patch) in itertools.product(p.patches(), q.patches()):
+            epsilon = self.color_pair_interaction(p_patch.color(), q_patch.color())
 
-                if epsilon != 0.0:
+            # interaction energy calculates much faster so check it first
+            if epsilon != 0.0:
+                r_patch_sqr = periodic_dist_sqrd(box,
+                                                 p.patch_position(p_patch),
+                                                 q.patch_position(q_patch))
+                if r_patch_sqr < self.sqr_patch_rcut():
+
                     # compute actual distance between patches
                     r_p = r_patch_sqr ** 0.5
                     # compute
                     exp_part = math.exp(self.sigma_ss() / (r_p - self.rcut_ss()))
-                    tmp_energy = epsilon * self._A_part * exp_part * (self._B_part / r_patch_sqr ** 2 - 1.0)
+                    tmp_energy = epsilon * self.A_part() * exp_part * (self.B_part() / r_patch_sqr ** 2 - 1.0)
 
                     energy += tmp_energy
 
-                    tb_energy = epsilon if r_p < self._sigma_ss else -tmp_energy
+                    tb_energy = epsilon if r_p < self.sigma_ss() else -tmp_energy
 
-                    p_bond = PLLRPatchyBond(q, r_p, p_patch, q_patch, tb_energy)
-                    q_bond = PLLRPatchyBond(p, r_p, q_patch, p_patch, tb_energy)
-
-                    if self.is_three_body():
-                        energy += self._three_body(p, p_bond)
-                        energy += self._three_body(q, q_bond)
+                    # p_bond = PLLRPatchyBond(q, r_p, p_patch, q_patch, tb_energy)
+                    # q_bond = PLLRPatchyBond(p, r_p, q_patch, p_patch, tb_energy)
+                    #
+                    # if self.is_three_body():
+                    #     energy += self._three_body(p, p_bond)
+                    #     energy += self._three_body(q, q_bond)
 
         return energy
 

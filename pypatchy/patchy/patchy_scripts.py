@@ -4,6 +4,8 @@ import shutil
 from pathlib import Path
 from typing import Union
 
+import numpy as np
+
 from .pl.plparticleset import PLParticleSet, MultidentateConvertSettings
 from pypatchy.patchy.pl.patchyio import get_writer, FWriter, LWriter
 from .pl.plpotential import PLFRPatchyPotential, PLFRExclVolPotential, PLLRExclVolPotential, PLLRPatchyPotential
@@ -114,13 +116,30 @@ def lorenzian_to_flavian(lorenzian_folder: Union[Path, str], flavian_folder: Uni
     shutil.copyfile(lorenzian_folder / conf_name, flavian_folder / conf_name)
 
 
+def int_mat_to_keywise(m: np.ndarray, particles: PLParticleSet) -> dict[tuple[int,int], float]:
+    assert len(m.shape) == 2
+    assert m.shape[0] == m.shape[1]
+    int_map = dict()
+    for i in range(m.shape[0]):
+        for j in range(m.shape[1]):
+            if m[(i, j)]:
+                int_map[particles.patch(i).color(), particles.patch(j).color()] = m[i, j]
+    return int_map
+
+
+
 def add_standard_patchy_interaction(scene: PLPSimulation,
                                     alpha: float,
-                                    use_torsion: bool = False):
+                                    use_torsion: bool = False,
+                                    interaction_matrix: Union[np.ndarray, None, dict[tuple[int,int]], float] = None):
     """
     quick function to add patchy interactions which mimic
      rovigatti/Interaction/PatchySwapInteraction
     """
+    if interaction_matrix is None:
+        interaction_matrix = PLLRPatchyPotential.make_interaction_matrix(scene.particle_types().patches());
+    elif isinstance(interaction_matrix, np.ndarray):
+        interaction_matrix = int_mat_to_keywise(interaction_matrix, scene.particle_types())
     scene.add_potential(PLLRExclVolPotential(
         rmax=2.01421
     ))
@@ -130,8 +149,8 @@ def add_standard_patchy_interaction(scene: PLPSimulation,
     else:
         patchy_potential = PLLRPatchyPotential(
             rmax=2.01421,  # cutoff for all interactions, computed assuming a particle w/ radius 0.5 and no spherical attraction
-            interaction_matrix=PLLRPatchyPotential.make_interaction_matrix(scene.particle_types().patches()),
-            sigma_ss=0.4
+            interaction_matrix=interaction_matrix,
+            sigma_ss=alpha
         )
 
     scene.add_potential(patchy_potential)
