@@ -172,6 +172,8 @@ class Stage(BuildSimulation):
             # todo: filter better, to use only actual oxdna params
             if type(pv) is ParameterValue:
                 self.sim.input[pv.param_name] = pv.param_value
+        self.sim.input["steps"] = self.end_time()
+        self.sim.input["restart_step_counter"] = 0
         assert self.sim.input.get_conf_file() is not None
 
         # write external observables file path

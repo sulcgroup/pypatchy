@@ -115,10 +115,8 @@ class PLBaseWriter(ABC):
         pass
 
     @abstractmethod
-    def read_scene(self,
-                   top_file: Union[Path, str],
-                   traj_file: Union[Path, str],
-                   particle_types: PLParticleSet) -> PLPSimulation:
+    def read_scene(self, top_file: Union[Path, str], traj_file: Union[Path, str], particle_types: PLParticleSet,
+                   conf_idx=None) -> PLPSimulation:
         pass
 
     # @abstractmethod
@@ -357,10 +355,7 @@ class FWriter(PLBaseWriter):
             raise IOError('Loaded %d patches, as opposed to the desired %d types ' % (Np, num_patches))
         return patches
 
-    def read_scene(self,
-                   top_file: Path,
-                   traj_file: Path,
-                   particle_types: PLParticleSet) -> PLPSimulation:
+    def read_scene(self, top_file: Path, traj_file: Path, particle_types: PLParticleSet, conf_idx=None) -> PLPSimulation:
         """
         Reads a patchy particle scene from files
         """
@@ -578,8 +573,8 @@ class JLWriter(JWriter):
     def write_top(self, topology: LWriter.PatchyTopology, top_path: Union[str, Path]):
         pass
 
-    def read_scene(self, top_file: Union[Path, str], traj_file: Union[Path, str],
-                   particle_types: PLParticleSet) -> PLPSimulation:
+    def read_scene(self, top_file: Union[Path, str], traj_file: Union[Path, str], particle_types: PLParticleSet,
+                   conf_idx=None) -> PLPSimulation:
         pass
 
     def particle_type_string(self, particle: PLPatchyParticle, extras: dict[str, str] = {}) -> str:
@@ -704,15 +699,17 @@ class LWriter(PLBaseWriter):
                 f.write(self.particle_type_str(ptype,
                                                topology.particle_type_count(ptype.type_id())) + "\n")
 
-    def read_scene(self, top_file: Union[Path, str], traj_file: Union[Path, str],
-                   particle_types: PLParticleSet) -> PLPSimulation:
+    def read_scene(self, top_file: Union[Path, str], traj_file: Union[Path, str], particle_types: PLParticleSet,
+                   conf_idx: Union[None, int] = None) -> PLPSimulation:
         top: LWriter.PatchyTopology = self.read_top(top_file)
         scene = PLPSimulation()
         scene.set_particle_types(particle_types)
         top_info, traj_info = rr.describe(str(self.directory() / top_file),
                                           str(self.directory() / traj_file))
-
-        conf = rr.get_confs(top_info, traj_info, traj_info.nconfs - 1, 1)[0]
+        if conf_idx is None:
+            conf = rr.get_confs(top_info, traj_info, traj_info.nconfs - 1, 1)[0]
+        else:
+            conf = rr.get_confs(top_info, traj_info, conf_idx, 1)[0]
         conf = rr.inbox(conf, center=False)
         assert ((conf.positions < conf.box) & (conf.positions >= 0)).all(), "Conf inbox did not inbox!"
         scene = PLPSimulation()
@@ -969,10 +966,8 @@ class SWriter(PLBaseWriter):
     def read_particle_types(self, topology) -> PLParticleSet:
         return self.read_top(topology).particle_set()
 
-    def read_scene(self,
-                   top_file: Union[Path, str],
-                   traj_file: Union[Path, str],
-                   particle_types: PLParticleSet) -> PLPSimulation:
+    def read_scene(self, top_file: Union[Path, str], traj_file: Union[Path, str], particle_types: PLParticleSet,
+                   conf_idx=None) -> PLPSimulation:
         top = self.read_top(top_file)
         traj_file = self.directory() / traj_file
         # terrified of this line of code, i do not think the ryereader method will play nice with subhajit's format
