@@ -502,11 +502,15 @@ class PLPSimulation(Scene, CellLists):
     def set_time(self, t):
         self._time = t
 
-    def interaction_energy(self, p1: PLPatchyParticle, p2: PLPatchyParticle) -> float:
+    def interaction_energy(self, p1: Union[PLPatchyParticle, int], p2: Union[PLPatchyParticle, int]) -> float:
         """
         computes the interaction potential between two particles
         """
         e = 0.
+        if isinstance(p1, int):
+            p1 = self.get_particle(p1)
+        if isinstance(p2, int):
+            p2 = self.get_particle(p2)
         for potential_function in self.potentials:
             # TODO: non-periodic or semi-periodic dimensions
             e += potential_function.energy(self.box_size(), p1, p2)

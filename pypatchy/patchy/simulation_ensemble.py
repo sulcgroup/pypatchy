@@ -872,7 +872,7 @@ class PatchySimulationEnsemble(Analyzable):
             return stages[stage_name]
         # inefficient search algorithm but len(stages) should never be more than like 10 tops
         for stage in stages:
-            if stage.name() == stage_name:
+            if stage.name() == stage_name or f"stage_{stage_name}" == stage.name():
                 return stage
         raise Exception(f"No stage named {stage_name}!")
 
@@ -918,8 +918,11 @@ class PatchySimulationEnsemble(Analyzable):
             if (self.folder_path(sim) / self.sim_get_param(sim, "trajectory_file")).exists():
                 try:
                     stage_last_step = self.sim_get_stage_last_step(sim, stage)
-                    if stage_last_step == stage.end_time() or stage.allow_shortfall():
+                    if stage_last_step == stage.end_time() or \
+                            (stage_last_step < stage.end_time() and stage.allow_shortfall()):
                         return stage
+                    elif stage_last_step > stage.end_time():
+                        return stage # more to do here?
                     # if stage is incomplete, raise an exception
                     raise IncompleteStageError(
                         stage,
@@ -1102,20 +1105,23 @@ class PatchySimulationEnsemble(Analyzable):
             #           self.folder_path(sim) / "particles.txt",
             #           self.folder_path(sim) / "patches.txt")
 
-    def get_scene(self, sim: PatchySimulation, stage: Union[Stage, str, None]=None) -> PLPSimulation:
+    def get_scene(self, sim: PatchySimulation,
+                  stage: Union[Stage, str, None]=None,
+                  step: Union[int, None]= None) -> PLPSimulation:
         if isinstance(stage, str):
             stage = self.sim_get_stage(sim, stage)
         self.writer.set_directory(self.folder_path(sim, stage))
         top_file, traj_file = self.sim_get_stage_top_traj(sim, stage)
         if traj_file.exists() and os.stat(traj_file).st_size > 0:
-            return self.writer.read_scene(top_file.name,
-                                          traj_file.name,
-                                          self.sim_get_particles_set(sim))
+            conf_interval = self.sim_stage_get_param(sim, stage, "print_conf_interval")
+            assert step % conf_interval == 0
+            return self.writer.read_scene(top_file.name, traj_file.name,
+                                          self.sim_get_particles_set(sim),
+                                          int(step / conf_interval)-1)
         else:
+            assert step is None
             conf_file = self.sim_stage_get_param(sim, stage, "conf_file")
-            return self.writer.read_scene(top_file.name,
-                                   conf_file,
-                                   self.sim_get_particles_set(sim))
+            return self.writer.read_scene(top_file.name, conf_file, self.sim_get_particles_set(sim), None)
         # scene: PLPSimulation()
 
     def is_traj_valid(self, sim: PatchySimulation, stage: Union[Stage, None] = None) -> bool:
@@ -1136,8 +1142,10 @@ class PatchySimulationEnsemble(Analyzable):
         num_particles = self.sim_get_total_stage_particles(sim, stage)
         assert num_particles > 0
 
+
     def get_conf(self, sim: PatchySimulation, timepoint: int) -> Configuration:
         """
+        do not add a stage parameter!
         Returns:
             a Configuration object showing the conf of the given simulation at the given timepoint
         """
@@ -1147,6 +1155,7 @@ class PatchySimulationEnsemble(Analyzable):
             # this means that we're dealing with tidxs not step numbers
             return self.get_conf(sim, int(timepoint / self.sim_get_param(sim, "print_conf_interval")))
         else:
+
             stage = self.sim_get_timepoint_stage(sim, timepoint)
             # it's possible there's a better way to do this
             top_file, traj_file = self.sim_get_stage_top_traj(sim, stage)
@@ -1327,12 +1336,12 @@ class PatchySimulationEnsemble(Analyzable):
         elif isinstance(stage, str):
             stage = self.sim_get_stage(sim, stage)
 
-        if extras is None:
-            extras = {}
-
-        # get server config
-        if replacer_dict is None:
-            replacer_dict = {}
+        # if extras is None:
+        #     extras = {}
+        #
+        # # get server config
+        # if replacer_dict is None:
+        #     replacer_dict = {}
 
         # if this is the first conf
         if stage.idx() == 0:
@@ -1348,7 +1357,8 @@ class PatchySimulationEnsemble(Analyzable):
         else:
             # don't catch exxeption here
             last_complete_stage = self.sim_most_recent_stage(sim)
-            scene = self.get_scene(sim, last_complete_stage)
+            step = stage.end_time()
+            scene = self.get_scene(sim, last_complete_stage, step)
         scene.set_temperature(self.sim_stage_get_param(sim, stage, "T"))
 
         nTries = 0
@@ -1376,26 +1386,26 @@ class PatchySimulationEnsemble(Analyzable):
                                   **reqd_extra_args)
 
         # update top and dat files in replacer dict
-        replacer_dict.update(files)
-        replacer_dict["steps"] = stage.end_time()
-        replacer_dict["trajectory_file"] = self.sim_get_param(sim, "trajectory_file")
-        extras.update(self.writer.get_input_file_data(scene, **reqd_extra_args))
+        # replacer_dict.update(files)
+        # replacer_dict["steps"] = stage.end_time()
+        # replacer_dict["trajectory_file"] = self.sim_get_param(sim, "trajectory_file")
+        # extras.update(self.writer.get_input_file_data(scene, **reqd_extra_args))
 
         # create input file
         stage.build_input()
         # self.write_input_file(sim, stage, replacer_dict, extras, analysis)
 
         # check energies
-        # commented bc OxpyManager::system_energy() gives incorrect output
-        # with oxpy.Context():
-        #     assert (self.folder_path(sim, stage) / "input").exists()
-        #     os.chdir(self.folder_path(sim, stage))
-        #     manager = oxpy.OxpyManager("input")
-        #     e = manager.system_energy()
-        #     del manager
-        #     # assert e - scene_computed_energy < 1e-4
-        #     if abs(e - scene_computed_energy) > 1e-4:
-        #         raise Exception(f"Mismatch between python-computed energy {scene_computed_energy} and oxDNA-computed energy {e}")
+        with oxpy.Context():
+            assert (self.folder_path(sim, stage) / "input").exists()
+            os.chdir(self.folder_path(sim, stage))
+            manager = oxpy.OxpyManager("input")
+            e = manager.system_energy()
+            del manager
+
+            # oxpy manager gets total energy rather than per particle
+            if e > 0 and abs(e / scene.num_particles() - scene_computed_energy) > 1e-4:
+                raise Exception(f"Mismatch between python-computed energy {scene_computed_energy} and oxDNA-computed energy {e}")
 
     def write_run_script(self, sim: PatchySimulation, input_file="input"):
         # if no stage name provided use first stage

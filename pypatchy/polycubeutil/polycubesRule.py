@@ -4,6 +4,7 @@ import copy
 import itertools
 import math
 import typing
+from pathlib import Path
 from typing import Union
 
 import drawsvg
@@ -891,6 +892,26 @@ class PolycubesRule(BaseParticleSet):
 
     def num_colors(self) -> int:
         return len(self.color_set())
+
+    def to_SAT(self, filename: Union[Path, str]):
+        """
+        convert particle set to SAT format
+        """
+        if isinstance(filename, str):
+            filename = Path(filename)
+        colorcount = 0
+        with filename.open("w") as f:
+            colormap: dict[int, int] = dict()
+            for i_particle, particle_type in enumerate(self.particles()):
+                for patch in particle_type.patches():
+                    if patch.color() not in colormap:
+                        colormap[patch.color()] = colorcount
+                        colorcount += 1
+                    f.write(f"C({i_particle},{patch.dirIdx()},{colormap[patch.color()]})\n")
+            for color in self.color_set():
+                if color > 0:
+                    assert -color in colormap
+                    f.write(f"B({colormap[color]},{colormap[-color]})\n")
 
 
 # TODO: integrate with C++ TLM / Polycubes
