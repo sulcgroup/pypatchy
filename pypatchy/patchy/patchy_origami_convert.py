@@ -158,6 +158,7 @@ class PatchyOrigamiConverter:
 
         # set parameters
         self.spacer_length = spacer_length
+        assert spacer_length is not None, "Cannot skip spacer length! To have no spacers, set spacer_length=0"
         self.particle_delta = particle_delta
         self.bond_length = bond_length
         self.cos_theta_max = cos_theta_max
@@ -201,6 +202,19 @@ class PatchyOrigamiConverter:
         merged_conf = sum(particles[1:], start=particles[0])
         return merged_conf
 
+    def get_sticky_length(self) -> float:
+        """
+        This method is *not* a simple accessor for self.sticky_length!
+        If sticky end length has been hard coded it will simply return self.sticky_length
+        If sticky length is not hardcoded it will return the average sticky length
+        this is important for computing spacing when positioning particles
+        """
+        if self.sticky_length is not None:
+            return self.sticky_length
+        else:
+            assert len(self.color_sequences) > 0, "Can't dynamically calculate sticky end length without assigned sticky ends!"
+            return sum([len(seq) for seq in self.color_sequences.values()]) / len(self.color_sequences)
+
     def check_rms(self, testval: float, dna: DNAParticle) -> float:
         """
 
@@ -218,7 +232,7 @@ class PatchyOrigamiConverter:
 
         if self.dist_ratio is None:
             dist_ratios = []
-            dna_distance = (2 * self.spacer_length + self.sticky_length) * BASE_BASE
+            dna_distance = (2 * self.spacer_length + self.get_sticky_length()) * BASE_BASE
 
             # WARNING! this algorithm could become very intense very quickly for large scenes
             for p1, p2 in self.patchy_scene.iter_bound_particles():
@@ -245,7 +259,6 @@ class PatchyOrigamiConverter:
                 print(f"Warning: The standard deviation of individual particle distance ratios {np.std(dist_ratios)}"
                       f" is more than 5% of the value of the mean distance ratio {dist_ratio}.")
             self.dist_ratio = dist_ratio
-
         return self.dist_ratio
 
     # TODO: write better?
@@ -829,7 +842,7 @@ class PatchyOrigamiConverter:
                 print(sz)
 
     def export_stickys_staples(self,
-                               fp: Path,
+                               fp: Union[Path, str],
                                by_row=True,
                                incl_no_sticky: bool=True,
                                incl_absent: bool = True,
@@ -839,8 +852,12 @@ class PatchyOrigamiConverter:
         Parameters:
             by_row: if true, the excel spreadsheet will export so as to make each row on the 96-well plate (each pair of letters) correspond to a specific particle. this will go. very poorly if each DNA particle doesn't have exactly 24 sticky candidates
             incl_no_sticky: if true, the spreadsheet will only include strands which have sticky-ends (the strands that facilitate interparticle interaction)
-            incl_absent: if
+            incl_absent: if true, the converted will include all staples required for the origiami, not just
+            incl_original_patch_nums: if true, the converter will include the patch numbers or (for palycuebes) direction names. This currently only works with polycubes.
         """
+        if isinstance(fp, str):
+            fp = Path(fp)
+        assert fp.parent.exists(), f"No such location as {str(fp.parent)}"
         wb = openpyxl.Workbook()
         ws = wb.active
 
