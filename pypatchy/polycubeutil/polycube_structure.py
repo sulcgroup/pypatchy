@@ -359,6 +359,10 @@ class PolycubeStructure(TypedStructure, Scene):
         """
         return len(self.graph.edges) / 2  # divide by 2 b/c graph is bidirerctional
 
+    def get_particle_types(self) -> dict[int, int]:
+        # TODOOOOO!!!!!
+        pass
+
 
 class PolycubesStructureCube(PatchyBaseParticle):
     _type_cube: PolycubeRuleCubeType
@@ -434,6 +438,7 @@ class PolycubesStructureCube(PatchyBaseParticle):
         Returns the patches on this polycube, rotated correctly
         """
         return [p.rotate(self.rot_mat()) for p in self.get_cube_type().patches()]
+
 
 
 def load_polycube(file_path: Union[Path, str]) -> PolycubeStructure:

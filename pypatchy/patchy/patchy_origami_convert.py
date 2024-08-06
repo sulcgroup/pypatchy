@@ -23,6 +23,7 @@ import itertools
 
 from ..patchy.mgl import MGLPatch, MGLScene
 from ..patchy_base_particle import PatchyBaseParticle
+from ..polycubeutil.polycubesRule import diridx, FACE_NAMES
 from ..util import dist, normalize, get_output_dir
 
 
@@ -827,12 +828,28 @@ class PatchyOrigamiConverter:
             else:
                 print(sz)
 
-    def export_stickys_staples(self, fp: Path, by_row=True, incl_no_sticky: bool=True, incl_absent:bool = True):
+    def export_stickys_staples(self,
+                               fp: Path,
+                               by_row=True,
+                               incl_no_sticky: bool=True,
+                               incl_absent: bool = True,
+                               incl_original_patch_nums: bool=False):
         """
         Exports sticky-end staples to an excel file for ordering
+        Parameters:
+            by_row: if true, the excel spreadsheet will export so as to make each row on the 96-well plate (each pair of letters) correspond to a specific particle. this will go. very poorly if each DNA particle doesn't have exactly 24 sticky candidates
+            incl_no_sticky: if true, the spreadsheet will only include strands which have sticky-ends (the strands that facilitate interparticle interaction)
+            incl_absent: if
         """
         wb = openpyxl.Workbook()
         ws = wb.active
+
+        #TODO: CHECK USING PATCHY CONVERT PIPELINE OBJECT TYPES
+        is_polycube = True
+
+        # verify validity of by_row parameter
+        assert not by_row or all([len(particle.flat_strand_ids) == 24 for particle in self.particle_type_map.values()]), \
+            "Option `by_row` is not supported for particles with a number of binding strands other than 24."
 
         idx = 1
         ws[f"A{idx}"] = "Wells"
@@ -867,9 +884,21 @@ class PatchyOrigamiConverter:
             plate_col = plate_cell % 12 + 1
 
             ws[f"A{idx}"] = f"{plate_row}{plate_col}"
-            ws[f"B{idx}"] = f"ParticleType{dna.linked_particle.get_type()}_Strand{strand_id}"
+            seq_string_descriptor = f"ParticleType{dna.linked_particle.get_type()}"
+            seq_string_descriptor += f"_Strand{strand_id}"
+
             if patch_id is not None:
-                ws[f"B{idx}"] = ws[f"B{idx}"].value + f"_Patch{patch_id}"
+                seq_string_descriptor += f"_Patch{patch_id}"
+                if incl_original_patch_nums:
+                    patch_src = self.patchy_scene.particle_types().get_src_map().get_src_patch(self.patchy_scene.particle_types().patch(patch_id))
+                    if is_polycube:
+                        # disgusting hack which i hate
+                        # todo: burn it with fire
+                        patch_direction_index = diridx(patch_src.position() / np.linalg.norm(patch_src.position()))
+                        assert -1 < patch_direction_index < len(FACE_NAMES)
+                        seq_string_descriptor += f"_{FACE_NAMES[patch_direction_index]}"
+            ws[f"B{idx}"] = seq_string_descriptor
+            assert strand.seq(True) # unclear when this would ever fire, doubel check
             ws[f"C{idx}"] = strand.seq(True)
             idx += 1
 
