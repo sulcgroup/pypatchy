@@ -71,6 +71,11 @@ class PolycubeStructure(TypedStructure, Scene):
                         cr['w']
                     ))
                 cube_type = self.rule.particle(cube["type"])
+                # type checking for cube state (ive been burned before)
+                assert all([isinstance(sval, bool) for sval in cube["state"]]), f"Cube {cube_idx} has invalid state {str(cube['state'])}"
+                if not cube["state"][0]:
+                    print(f"Warning! Cube {cube_idx} has tautology state variable s[0] set to false, which seems "
+                          f"bad but maybe you're doing something clever.")
                 # emplace cube in map
                 cubeObj = PolycubesStructureCube(cube_idx,
                                                  cube_position,
