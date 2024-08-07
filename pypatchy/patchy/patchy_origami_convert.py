@@ -332,7 +332,7 @@ class PatchyOrigamiConverter:
                     return -color
 
     def get_expected_pad_distance(self) -> float:
-        return (self.sticky_length + 2.0 * self.spacer_length) * POS_BASE
+        return (self.get_sticky_length() + 2.0 * self.spacer_length) * POS_BASE
 
     def set_color_match(self,
                         colorstr: str,
@@ -712,7 +712,7 @@ class PatchyOrigamiConverter:
         print("binding particles using 3p patches")
         self.bind_particles3p()
         assert self.expected_num_edges == -1 or self.bondcount == self.expected_num_edges, \
-            "Wrong number of bonds created!"
+            f"Wrong number of bonds created! Expected {self.expected_num_edges} bonds, got {self.bondcount}."
 
         print("Done!")
 
