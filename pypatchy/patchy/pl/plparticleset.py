@@ -176,6 +176,14 @@ class PLParticleSet(BaseParticleSet):
     def has_udt_src(self) -> bool:
         return self.get_src() is not None and isinstance(self.get_src_map(), PLMultidentateSourceMap)
 
+    def remove_patch(self, patch_type_id: int):
+        for particle_type in self.particles():
+            particle_type._patches = [patch for patch in particle_type._patches if patch.type_id() != patch_type_id]
+        self._patch_types = self._patch_types[:patch_type_id] + self._patch_types[patch_type_id+1:]
+        for idx in range(patch_type_id, self.num_patches()):
+            self.patch(idx)._type -= 1
+
+
     def patch_groups(self, particle: Union[int, PLPatchyParticle, None] = None) -> list[set[int]]:
         """
         Returns the patches in this particle set, grouped by the
