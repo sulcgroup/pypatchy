@@ -45,6 +45,9 @@ class PLMultidentateSourceMap(PLSourceMap):
             for patch_id in mdt_patches:
                 self.__patch_src_map[patch_id] = src_patch_idx
 
+    def get_conversion_params(self) -> MultidentateConvertSettings:
+        return copy.deepcopy(self.__conversion_params)
+
     def get_src_patch(self, patch: PLPatch) -> PLPatch:
         """
         Given a patch in this particle set, returns the corresponding unidentate patch

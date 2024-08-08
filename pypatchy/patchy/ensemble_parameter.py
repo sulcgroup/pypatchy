@@ -145,7 +145,7 @@ class ParticleSetParam(ParameterValue, PLParticleSet):
 
     def __init__(self, particles: PLParticleSet, name=PARTICLE_TYPES_KEY):
         ParameterValue.__init__(self, PARTICLE_TYPES_KEY, particles)
-        PLParticleSet.__init__(self, particles.particles())
+        PLParticleSet.__init__(self, particles.particles(), particles.get_src_map())
         self.set_name = name
 
     def value_name(self):
