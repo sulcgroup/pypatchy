@@ -27,6 +27,7 @@ from oxDNA_analysis_tools.UTILS.data_structures import Configuration
 from ipy_oxdna.oxdna_simulation import SimulationManager, Simulation
 from ipy_oxdna.observable import Observable
 
+from .pl.pljsonrw import PLJSONEncoder
 from .simulation_specification import get_param_set
 from ..analpipe.analyzable import Analyzable
 
@@ -276,11 +277,15 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
     # todo: revise
     if any(key in cfg for key in [PARTICLE_TYPES_KEY, "rule", "cube_types"]):
         if PARTICLE_TYPES_KEY in cfg:
-            assert isinstance(cfg[PARTICLE_TYPES_KEY], dict), "Must include load info"
-            ptypedict = {**cfg[PARTICLE_TYPES_KEY]}
-            particles = load_pl_particles(**ptypedict)
+            if isinstance(cfg[PARTICLE_TYPES_KEY], PLParticleSet):
+                particles = cfg[PARTICLE_TYPES_KEY]
+            else:
+                assert isinstance(cfg[PARTICLE_TYPES_KEY], dict), "Must include load info"
+                ptypedict = {**cfg[PARTICLE_TYPES_KEY]}
+                particles = load_pl_particles(**ptypedict)
 
         elif "cube_types" in cfg:
+
             if len(cfg["cube_types"]) > 0 and isinstance(cfg["cube_types"][0], dict):
                 rule: PolycubesRule = PolycubesRule(rule_json=cfg["cube_types"])
             else:
@@ -366,7 +371,7 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
     #         assert sim is not None, f"Slurm log included a record for invalid simulation {str(entry['simulation'])}"
     #         entry["simulation"] = sim
     #     ensemble.slurm_log = SlurmLog(*[SlurmLogEntry(**e) for e in mdt["slurm_log"]])
-    ensemble.dump_metadata()
+    # ensemble.dump_metadata()
     return ensemble
 
 
@@ -1559,7 +1564,8 @@ class PatchySimulationEnsemble(Analyzable):
         self.metadata["analysis_file"] = self.analysis_file
         # dump metadata dict to file
         with open(get_input_dir() / self.metadata_file, "w") as f:
-            json.dump(self.metadata, fp=f, indent=4)
+            # TODO: more encoders?
+            json.dump(self.metadata, fp=f, indent=4, cls=PLJSONEncoder)
         # dump analysis pipevline as pickle
         # if "analysis_file" not in self.metadata:
         #     self.metadata["analysis_file"] = get_input_dir() / (self.export_name + "_analysis_pipeline.pickle")

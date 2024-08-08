@@ -42,6 +42,14 @@ class ParamSet(LogEntryObject):
     def __getitem__(self, parameter_name: str) -> Any:
         return self.parameter_dict[parameter_name]
 
+    def __setitem__(self, parameter_name: str, item: ParameterValue):
+        for i, pv in enumerate(self.param_vals):
+            if pv.param_name == parameter_name:
+                self.param_vals[i] = item
+        if isinstance(item, ParamValueGroup):
+            for param_name in item.group_params_names():
+                self.parameter_dict[param_name] = item[param_name]
+
     def var_names(self) -> list[str]:
         """
 
