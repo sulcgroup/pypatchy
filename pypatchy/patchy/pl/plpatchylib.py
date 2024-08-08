@@ -116,6 +116,8 @@ def PL_to_rule(particles: list[PLPatchyParticle], ) -> Union[None, PolycubesRule
         for particle in particles])
 
 
+
+
 def polycube_to_pl(polycube: PolycubeStructure,
                    mdt_convert: Union[MultidentateConvertSettings, None] = None,
                    nteeth=1,
