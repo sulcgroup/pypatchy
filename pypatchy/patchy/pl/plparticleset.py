@@ -96,7 +96,7 @@ class MultidentateConvertSettings:
     dental_radius: float = field()
     torsion: bool = field(default=True)  # this will have no effect on non-torsional patches
     follow_surf: bool = field(default=False)
-    # energy scale > 0 means "multiply the energy by the scale
+    # energy scale > 0 means "multiply the en         ergy by the scale
     energy_scale_method: Union[int, float] = field(
         default=ENERGY_SCALE_LINEAR)  # TODO: flexable support for energy scaling
     alpha_scale_method: Union[int, float] = field(default=ALPHA_SCALE_NONE)
