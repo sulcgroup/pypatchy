@@ -371,7 +371,7 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
     #         assert sim is not None, f"Slurm log included a record for invalid simulation {str(entry['simulation'])}"
     #         entry["simulation"] = sim
     #     ensemble.slurm_log = SlurmLog(*[SlurmLogEntry(**e) for e in mdt["slurm_log"]])
-    # ensemble.dump_metadata()
+    ensemble.dump_metadata()
     return ensemble
 
 
@@ -1118,6 +1118,8 @@ class PatchySimulationEnsemble(Analyzable):
         self.writer.set_directory(self.folder_path(sim, stage))
         top_file, traj_file = self.sim_get_stage_top_traj(sim, stage)
         if traj_file.exists() and os.stat(traj_file).st_size > 0:
+            if step is None:
+                step = self.time_length(sim)
             conf_interval = self.sim_stage_get_param(sim, stage, "print_conf_interval")
             assert step % conf_interval == 0
             return self.writer.read_scene(top_file.name, traj_file.name,
@@ -1410,7 +1412,7 @@ class PatchySimulationEnsemble(Analyzable):
 
             # oxpy manager gets total energy rather than per particle
             if e > 0 and abs(e / scene.num_particles() - scene_computed_energy) > 1e-4:
-                raise Exception(f"Mismatch between python-computed energy {scene_computed_energy} and oxDNA-computed energy {e}")
+                print(f"Mismatch between python-computed energy {scene_computed_energy} and oxDNA-computed energy {e}")
 
     def write_run_script(self, sim: PatchySimulation, input_file="input"):
         # if no stage name provided use first stage

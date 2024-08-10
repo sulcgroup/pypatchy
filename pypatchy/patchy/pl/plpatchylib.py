@@ -375,16 +375,18 @@ def load_pl_particles(**kwargs) -> PLParticleSet:
             assert PARTICLE_TYPES_KEY in kwargs and "patches" in kwargs, "No writer or particle/patches info specified!"
             particles_list = kwargs[PARTICLE_TYPES_KEY]
             patches_list = kwargs["patches"]
-            # fix names
+            # fix json field names
             for patch in patches_list:
-                patch["type_id"] = patch["id"]
-                del patch["id"]
-                patch["relposition"] = patch["position"]
-                del patch["position"]
+                if "id" in patch:
+                    patch["type_id"] = patch["id"]
+                    del patch["id"]
+                if "position" in patch:
+                    patch["relposition"] = patch["position"]
+                    del patch["position"]
 
             patches = [PLPatch(**p) for p in patches_list]
             particles_list = [PLPatchyParticle([patches[patch_id] for patch_id in p["patches"]],
-                                               type_id=p["typex"])
+                                               type_id=p["type"])
                               for p in particles_list]
             return PLParticleSet(particles_list)
     except ValueError as e:
