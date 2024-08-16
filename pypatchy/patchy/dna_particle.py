@@ -1,17 +1,19 @@
 from __future__ import annotations
 
+import copy
 import itertools
 import math
 from dataclasses import dataclass
 from typing import Union
 
 import numpy as np
+from typing_extensions import override
 
 from .pl.plparticle import PLPatchyParticle
 from .pl.plpatch import PLPatch
 from ..patchy_base_particle import PatchyBaseParticle
 
-from ipy_oxdna.dna_structure import DNAStructure, DNABase, DNAStructureStrand
+from ipy_oxdna.dna_structure import DNAStructure, DNABase, DNAStructureStrand, GEN_UIDS
 
 
 class DNAParticle (DNAStructure):
@@ -63,6 +65,17 @@ class DNAParticle (DNAStructure):
         # self.conf = next(linear_read(get_traj_info(str(dat_file)), self.topology))[0]
         #
         # self.patch_positions = patch_positions
+
+    # @override
+    # def clone(self) -> DNAParticle:
+    #     """
+    #     creates a copy of this DNA particle, with new base uids
+    #     I wish there was a better way to do this
+    #     """
+    #     cpy = copy.deepcopy(self)
+    #     for strand in cpy.strands:
+    #         strand.very_global_uids = GEN_UIDS(len(strand))
+    #     return cpy
 
     def linked_particle(self) -> PatchyBaseParticle:
         return self.linked_particle

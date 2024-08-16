@@ -1,4 +1,5 @@
 import copy
+import json
 import math
 import os
 from copy import deepcopy
@@ -24,7 +25,7 @@ import itertools
 from ..patchy.mgl import MGLPatch, MGLScene
 from ..patchy_base_particle import PatchyBaseParticle
 from ..polycubeutil.polycubesRule import diridx, FACE_NAMES
-from ..util import dist, normalize, get_output_dir
+from ..util import dist, normalize, get_output_dir, selectColor
 
 
 # todo: MORE PARAMETERS
@@ -193,12 +194,17 @@ class PatchyOrigamiConverter:
             assert particle_type in self.particle_type_map, f"Particle type {particle_type} not in type map!"
             return self.particle_type_map[particle_type]
 
-    def get_full_conf(self) -> DNAStructure:
+    def get_full_conf(self, clusters=False) -> DNAStructure:
+        """
+        Combines all structures together into a single DNAStructure
+        """
         print("merging the topologies")
         particles = self.get_particles()
-        # for p in particles:
-        #     for b in range(p.nbases):
-        #         p.assign_base_to_cluster(b, 0)
+        if clusters:
+            for p in particles:
+                p.clear_clusters()
+                for b in p.iter_bases():
+                    p.assign_base_to_cluster(b.uid, 0)
         merged_conf = sum(particles[1:], start=particles[0])
         return merged_conf
 
@@ -603,6 +609,7 @@ class PatchyOrigamiConverter:
         for i, particle in enumerate(particles):
             # clone dna particle
             origami: DNAParticle = deepcopy(self.get_dna_origami(particle))
+            # origami: DNAParticle = self.get_dna_origami(particle).clone()
             print(f"{i}/{pl}", end="\r")
             assert origami.linked_particle.matches(particle)
             # align dna particle with patchy
@@ -780,14 +787,32 @@ class PatchyOrigamiConverter:
 
         print(f"Wrote conf file to {str(write_conf_path)}")
 
-    def save_oxview(self, write_oxview_path: Union[Path, str]):
+    def save_oxview(self, write_oxview_path: Union[Path, str], clusters=False, color_by_type=False):
+        """
+        Saves the converted structure as an .oxview file
+        Parameters:
+            write_oxview_path the path at which to write the oxview file
+            clusters whether to save each DNA particle in the oxview file as its own cluster (will be slower)
+            color_by_type whether to color the DNA particles according to patchy particle type (will be slower)
+        """
         if isinstance(write_oxview_path, str):
             write_oxview_path = Path(write_oxview_path)
         if not write_oxview_path.is_absolute():
             write_oxview_path = get_output_dir() / write_oxview_path
 
-        merged_conf = self.get_full_conf()
-        merged_conf.export_oxview(write_oxview_path)
+        merged_conf = self.get_full_conf(clusters=clusters or color_by_type)
+        oxview_json = merged_conf.get_oxview_json()
+        # colorcode particles by type
+        if color_by_type:
+            for strand in oxview_json['systems'][0]['strands']:
+                for monomer in strand['monomers']:
+                    particle = self.dna_particles[monomer['cluster']]
+                    particle_type = particle.linked_particle.type_id()
+                    color = selectColor(particle_type) # get hex string code of color
+                    # oxview file format requires we convert the hex code to base 10
+                    monomer["color"] = int(color[1:], 16)
+        with write_oxview_path.open("w") as f:
+            json.dump(oxview_json, f, indent=4)
         print(f"Wrote OxView file to {str(write_oxview_path)}")
 
     def iter_sticky_staples(self,
