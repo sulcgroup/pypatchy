@@ -128,12 +128,13 @@ class PatchyOrigamiConverter:
     dist_ratio: float
     sticky_length: Union[int, None]
     check_strict_rc: bool = True
+    scale_factor: Union[float, None] = None
+    # "book" of sticky ends which have already been added to the scene, used
+    # to find un-added stickies and add them later
+    sticky_book: set[tuple[int, int]] = set()
 
     def __init__(self,
                  scene: PLPSimulation,
-                 # particle_types: Union[Path, DNAParticle,
-                 #                     dict[str, DNAParticle]],
-                 # additional arguements (optional)
                  spacer_length: int = 16,
                  particle_delta: float = 1.2,
                  bond_length: float = 0.4,
@@ -218,7 +219,8 @@ class PatchyOrigamiConverter:
         if self.sticky_length is not None:
             return self.sticky_length
         else:
-            assert len(self.color_sequences) > 0, "Can't dynamically calculate sticky end length without assigned sticky ends!"
+            assert len(
+                self.color_sequences) > 0, "Can't dynamically calculate sticky end length without assigned sticky ends!"
             return sum([len(seq) for seq in self.color_sequences.values()]) / len(self.color_sequences)
 
     def check_rms(self, testval: float, dna: DNAParticle) -> float:
@@ -227,6 +229,16 @@ class PatchyOrigamiConverter:
         """
         rel_rms = testval / dna.patches_sphere_circumfrance()
         return self.rel_rms_tolerance > rel_rms
+
+    def get_scale_factor(self) -> float:
+        """
+        Computes the scale factor for the converter, if it hasn't been set manually
+        """
+        if self.scale_factor is not None:
+            return self.scale_factor
+        else:
+            scale_factor = self.get_dist_ratio() * self.padding
+            return scale_factor
 
     def get_dist_ratio(self) -> float:
         """
@@ -260,8 +272,12 @@ class PatchyOrigamiConverter:
                 dist_ratio = dna_distance_2p / particles_distance
                 dist_ratios.append(dist_ratio)
             dist_ratio = np.mean(dist_ratios)
-            assert not np.isnan(dist_ratio)
-            if np.std(dist_ratios) > 0.05 * dist_ratio:
+            # if the distance ratio is NaN, that means there are no bound particles
+            # we may however want to continue anyway
+            # todo: make this an exception which we can catch
+            if np.isnan(dist_ratio):
+                print("Warning: scene has no bound particles!")
+            elif np.std(dist_ratios) > 0.05 * dist_ratio:
                 print(f"Warning: The standard deviation of individual particle distance ratios {np.std(dist_ratios)}"
                       f" is more than 5% of the value of the mean distance ratio {dist_ratio}.")
             self.dist_ratio = dist_ratio
@@ -363,8 +379,15 @@ class PatchyOrigamiConverter:
         """
         assert (p.rotmatrix() == np.identity(3)).all(), "Cannot perform match on rotated patchy particle!"
 
-        n_patches_udt = self.patchy_scene.particle_types().get_src().particle(p.type_id()).num_patches()
-        # if num patches is less than 3, align teeth individually
+        if self.patchy_scene.particle_types().has_udt_src():
+            n_patches_udt = self.patchy_scene.particle_types().get_src().particle(p.type_id()).num_patches()
+        else:
+            # this is not ideal but we can derive the number of "source patches". badly.
+            assert all([len(strand_ids) == len(dna.patch_strand_ids[0]) for strand_ids in dna.patch_strand_ids[1:]])
+            assert p.num_patches() % len(dna.patch_strand_ids[0]) == 0
+            n_patches_udt = int(p.num_patches() / len(dna.patch_strand_ids[0]))
+            raise Exception("Currently do not support converting patchy sets without a unidentate source!")
+        # if num patches is less than 3, align teeth individually to prevent gimbal lock problems
         if n_patches_udt < 3:
             best_rms = np.inf
             svd = SVDSuperimposer()
@@ -486,8 +509,10 @@ class PatchyOrigamiConverter:
             f"Not enough patches on DNA particle ({len(dna.patch_strand_ids)}) to link DNA particle to " \
             f"on patchy particle({p.num_patches()})!"
         # compute strand mapping
+        # if we have no strand map, construct one
         if not dna.has_strand_map():
             relation = self.match_patches_to_strands(p, dna)
+        # if we have manually mapped strands to patches, we can just kinda ignore and move on
         else:
             relation = PatchyOriRelation(p, dna, np.identity(3), dna.patch_strand_map, 0)
         # apply the rotation to the dna structure so it matches the particle
@@ -519,7 +544,6 @@ class PatchyOrigamiConverter:
             pnorm = patch.a1()
             pl_patch_norms[patch_type_id].append(pnorm)
         return pl_patch_coords, pl_patch_norms
-
 
     def align_patches(self, p: PLPatchyParticle, dna: DNAParticle) -> PatchyOriRelation:
         """
@@ -614,7 +638,7 @@ class PatchyOrigamiConverter:
             assert origami.linked_particle.matches(particle)
             # align dna particle with patchy
             origami.instance_align(particle)
-            scale_factor = self.get_dist_ratio() * self.padding
+            scale_factor = self.get_scale_factor()
             # scale factor tells us how to convert MGL distance units into our DNA model distances
             # transform origami
             origami.transform(tran=particle.position() * scale_factor)
@@ -652,6 +676,9 @@ class PatchyOrigamiConverter:
             particle2 (DNAParticle): DNAParticle object representing particle b
             patch2 (MGLPatch): mgl patch object?
         """
+        # chcek that patchs are free
+        assert (particle1.linked_particle.get_uid(), patch1.type_id()) not in self.sticky_book
+        assert (particle2.linked_particle.get_uid(), patch2.type_id()) not in self.sticky_book
 
         # find nucleotides which will be extended to form patches
         assert patch1.color() + patch2.color() == 0
@@ -684,9 +711,54 @@ class PatchyOrigamiConverter:
                                              rbases=patch2_seq)
         strand1 = strand1[:len(patch1_seq)]  # shave off dummy spacer from previous line of code
 
+        # extend strands
         particle1.patch_strand(patch1).prepend(strand1[::-1])
         particle2.patch_strand(patch2).prepend(strand2[::-1])
+
+        # register stickies in sticky book
+        self.sticky_book.add((particle1.linked_particle.get_uid(), patch1.type_id()))
+        self.sticky_book.add((particle2.linked_particle.get_uid(), patch2.type_id()))
+
         self.bondcount += 1
+
+    def add_unbound_stickies(self):
+        """
+        there is  a better way to handle this stuff but in the current stage of development,
+        code stability is a top priorituy
+        """
+        # iter individual particles
+        for particle in self.get_particles():
+            # iter patches
+            for patch in particle.linked_particle.patches():
+                # check that we have not already 3'-extended this SE
+                if not (particle.linked_particle.get_uid(), patch.type_id()) in self.sticky_book:
+                    self.add_patch_sticky(particle, patch)
+
+    def add_patch_sticky(self, particle: DNAParticle, patch: PLPatch):
+        """
+        extends a staple to add a single-stranded overhang (aka sticky end) without using it to bind to
+        another particle
+        TODO: merge with bind_patches_3p
+        """
+        assert (particle.linked_particle.get_uid(), patch.type_id()) not in self.sticky_book
+
+        # find strand 3' base start position
+        start_position = particle.patch_3p(patch).pos
+
+        # use patch info to find direction vector
+        direction_vector = particle.linked_particle.patch_a1(patch)
+
+        # get sequence & add spacer
+        patch1_seq = self.spacer_length * "T" + self.color_sequence(patch.color())
+
+        # construct DNA strand
+        strand, _ = construct_strands(patch1_seq,
+                                      # start at 1 base past the start point
+                                      start_position + direction_vector * BASE_BASE,
+                                      direction_vector
+                                      )
+        particle.patch_strand(patch).prepend(strand[::-1])
+        self.sticky_book.add((particle.linked_particle.get_uid(), patch.type_id()))
 
     def get_particles(self) -> list[DNAParticle]:
         """
@@ -710,7 +782,7 @@ class PatchyOrigamiConverter:
             assert pl in self.dna_particles
             return self.dna_particles[pl]
 
-    def convert(self):
+    def convert(self, unbound_stickies: bool = True):
         """
         Converts a scene containing joined MGL particles to an oxDNA model consisting of
         DNA origamis joined by sticky end handles.
@@ -720,7 +792,8 @@ class PatchyOrigamiConverter:
         self.bind_particles3p()
         assert self.expected_num_edges == -1 or self.bondcount == self.expected_num_edges, \
             f"Wrong number of bonds created! Expected {self.expected_num_edges} bonds, got {self.bondcount}."
-
+        if unbound_stickies:
+            self.add_unbound_stickies()
         print("Done!")
 
     def dump_monomers(self, fp: Union[None, Path, str] = None, only_present=False):
@@ -808,7 +881,7 @@ class PatchyOrigamiConverter:
                 for monomer in strand['monomers']:
                     particle = self.dna_particles[monomer['cluster']]
                     particle_type = particle.linked_particle.type_id()
-                    color = selectColor(particle_type) # get hex string code of color
+                    color = selectColor(particle_type)  # get hex string code of color
                     # oxview file format requires we convert the hex code to base 10
                     monomer["color"] = int(color[1:], 16)
         with write_oxview_path.open("w") as f:
@@ -819,9 +892,9 @@ class PatchyOrigamiConverter:
                             pl_type: Union[int, PLPatchyParticle, None] = None,
                             incl_no_sticky: bool = True,
                             incl_absent: bool = True) -> Generator[tuple[DNAParticle, int,
-                                                                            int, DNAStructureStrand],
-                                                                      None,
-                                                                      None]:
+                                                                         int, DNAStructureStrand],
+                                                                   None,
+                                                                   None]:
         if pl_type is None:
             for p in self.patchy_scene.particle_types():
                 if incl_absent or self.patchy_scene.particle_type_counts()[p.get_type()] > 0:
@@ -858,7 +931,7 @@ class PatchyOrigamiConverter:
     def print_sticky_staples(self,
                              pl_type: Union[int, PLPatchyParticle, None] = None,
                              incl_no_sticky: bool = True,
-                             incl_absent:bool = True):
+                             incl_absent: bool = True):
         for dna, strand_id, patch_id, strand in self.iter_sticky_staples(pl_type, incl_no_sticky, incl_absent):
             sz = f"Strand {strand_id} : 5' {strand.seq(True)} 3'"
             if patch_id is not None:
@@ -869,9 +942,9 @@ class PatchyOrigamiConverter:
     def export_stickys_staples(self,
                                fp: Union[Path, str],
                                by_row=True,
-                               incl_no_sticky: bool=True,
+                               incl_no_sticky: bool = True,
                                incl_absent: bool = True,
-                               incl_original_patch_nums: bool=False):
+                               incl_original_patch_nums: bool = False):
         """
         Exports sticky-end staples to an excel file for ordering
         Parameters:
@@ -886,7 +959,7 @@ class PatchyOrigamiConverter:
         wb = openpyxl.Workbook()
         ws = wb.active
 
-        #TODO: CHECK USING PATCHY CONVERT PIPELINE OBJECT TYPES
+        # TODO: CHECK USING PATCHY CONVERT PIPELINE OBJECT TYPES
         is_polycube = True
 
         # verify validity of by_row parameter
@@ -932,7 +1005,8 @@ class PatchyOrigamiConverter:
             if patch_id is not None:
                 seq_string_descriptor += f"_Patch{patch_id}"
                 if incl_original_patch_nums:
-                    patch_src = self.patchy_scene.particle_types().get_src_map().get_src_patch(self.patchy_scene.particle_types().patch(patch_id))
+                    patch_src = self.patchy_scene.particle_types().get_src_map().get_src_patch(
+                        self.patchy_scene.particle_types().patch(patch_id))
                     if is_polycube:
                         # disgusting hack which i hate
                         # todo: burn it with fire
@@ -940,7 +1014,7 @@ class PatchyOrigamiConverter:
                         assert -1 < patch_direction_index < len(FACE_NAMES)
                         seq_string_descriptor += f"_{FACE_NAMES[patch_direction_index]}"
             ws[f"B{idx}"] = seq_string_descriptor
-            assert strand.seq(True) # unclear when this would ever fire, doubel check
+            assert strand.seq(True)  # unclear when this would ever fire, doubel check
             ws[f"C{idx}"] = strand.seq(True)
             idx += 1
 
