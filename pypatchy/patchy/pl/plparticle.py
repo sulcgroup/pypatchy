@@ -244,10 +244,21 @@ class PLPatchyParticle(PatchyBaseParticleType, PatchyBaseParticle):
     def __contains__(self, item: PLPatch):
         return any([p == item for p in self.patches()])
 
-    def patch_position(self, p: Union[int, PLPatch]):
+    def patch_position(self, p: Union[int, PLPatch]) -> np.ndarray:
+        """
+        get patch position accounting for patch rotation & particle position
+        """
         if isinstance(p, int):
             return self.patch_position(self.patch(p))
         return p.position() @ self.rotmatrix() + self.position()
+
+    def patch_a1(self, p: Union[int, PLPatch]) -> np.ndarray:
+        """
+        get patch a1 vector in global space
+        """
+        if isinstance(p, int):
+            return self.patch_position(self.patch(p))
+        return p.a1() @ self.rotmatrix()
 
     def instantiate(self, uid: int) -> PLPatchyParticle:
         p = copy.deepcopy(self)

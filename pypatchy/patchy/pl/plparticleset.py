@@ -177,7 +177,7 @@ class PLParticleSet(BaseParticleSet):
         return self.get_src_map().src_set()
 
     def has_udt_src(self) -> bool:
-        return self.get_src() is not None and isinstance(self.get_src_map(), PLMultidentateSourceMap)
+        return self.get_src_map() is not None and isinstance(self.get_src_map(), PLMultidentateSourceMap)
 
     def remove_patch(self, patch_type_id: int):
         for particle_type in self.particles():
