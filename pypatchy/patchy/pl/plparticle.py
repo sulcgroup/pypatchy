@@ -8,11 +8,15 @@ import numpy as np
 
 from .plpatch import PLPatch
 from ...patchy_base_particle import PatchyBaseParticleType, PatchyBaseParticle
-from ...util import random_unit_vector
+from ...util import random_unit_vector, selectColor
 
 PATCHY_NULL_A1: np.ndarray = np.array([0, 0, 1])
 PATCHY_NULL_A3: np.ndarray = np.array([1, 0, 0])
 
+
+MGL_PARTICLE_COLORS = ['blue','green','red','black','yellow','cyan','magenta','orange','violet']
+MGL_PATCH_COLORS = [
+    'green','violet','pink','brown','orange','red','black']
 
 class PLPatchyParticle(PatchyBaseParticleType, PatchyBaseParticle):
     # HATE making the particle type and the particle the same class but refactoring is objectively not the
@@ -183,22 +187,20 @@ class PLPatchyParticle(PatchyBaseParticleType, PatchyBaseParticle):
     a2: np.ndarray = property(get_a2)
 
     def export_to_mgl(self,
-                      patch_colors: list[str],
-                      particle_color: str,
-                      patch_width: float = 0.1,
-                      patch_extension: float = 0.2) -> str:
+                      patch_width: float = 0.1) -> str:
+
         # sout = '%f %f %f @ %f C[%s] ' % (self.cm_pos[0],self.cm_pos[1],self.cm_pos[2],self._radius,particle_color)
         # sout = '%f %f %f @ %f C[%s] ' % (self.cm_pos[0], self.cm_pos[1], self.cm_pos[2], 0.4, particle_color)
-        sout = f"{self.cm_pos[0]} {self.cm_pos[1]} {self.cm_pos[2]} @ {self.radius()} C[{particle_color}] "
-        if len(self._patches) > 0:
-            sout = sout + 'M '
+        # write x,y,z of patch + color
+        particle_color = selectColor(self.get_type(), fmt='arr')
+        particle_color = ",".join([str(i) for i in particle_color])
+        sout = f"{np.array2string(self.position())[1:-1]} @ {self.radius()} C[{particle_color}]\n"
+        # mgl format for patches is hardcoded as KF-like
+        # so instead we will use spheres
         for i, p in enumerate(self._patches):
-            pos = p.position()[0] * self.a1 + p.position()[1] * self.a2 + p.position()[2] * self.a3
-            pos *= (1.0 + patch_extension)
-            # print 'Critical: ',p._type,patch_colors
-            # g = '%f %f %f %f C[%s] ' % (pos[0], pos[1], pos[2], patch_width, patch_colors[i])
-            g = f"{np.array2string(pos)[1:-1]} {patch_width} {patch_colors[i]}"
-            sout = sout + g
+            patch_color = selectColor(p.color(), saturation=60 if p.color() > 0 else 40, fmt="arr")
+            patch_color = ",".join([str(i) for i in patch_color])
+            sout += f"{np.array2string(self.patch_position(p))[1:-1]} @ {patch_width} C[{patch_color}]\n"
         return sout
 
     def export_to_lorenzian_mgl(self,

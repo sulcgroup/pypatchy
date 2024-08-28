@@ -4,6 +4,7 @@ import copy
 import itertools
 import math
 import random
+from pathlib import Path
 from typing import Union, Iterable, Generator
 
 import networkx as nx
@@ -20,7 +21,6 @@ from ...scene import Scene
 from ...util import dist, pairwise, random_unit_vector
 
 PATCHY_CUTOFF = 0.18
-
 
 class PLPSimulation(Scene, CellLists):
     """
@@ -324,47 +324,42 @@ class PLPSimulation(Scene, CellLists):
     #                 if p.cm_pos[i] < 0:
     #                     p.cm_pos[i] += self._box_size[i]
 
-    # def get_color(self, index: int):
-    #     if abs(index) >= 20:
-    #         index = abs(index) - 20
-    #     # print index
-    #     # print self._patch_colors
-    #     # return self.generate_random_color()
-    #     return self._patch_colors[index]
-    #     #
-    #     # if not ispatch:
-    #     #     if index < 0 or index >= len(self._particle_colors):
-    #     #         if index in self._complementary_colors.keys():
-    #     #             return self._complementary_colors[index]
-    #     #         else:
-    #     #             return self.generate_random_color()
-    #     #     else:
-    #     #         return self._particle_colors[index]
-    #     # else:
-    #     #     if index < 0 or index >= len(self._patch_colors):
-    #     #         if index in self._complementary_colors.keys():
-    #     #             return self._complementary_colors[index]
-    #     #         else:
-    #     #             return self.generate_random_color(index)
-    #     #     else:
-    #     #         return self._patch_colors[index]
+    def get_color(self, index: int):
+        if abs(index) >= 20:
+            index = abs(index) - 20
+        # print index
+        # print self._patch_colors
+        # return self.generate_random_color()
+        return self._patch_Fcolors[index]
+        #
+        # if not ispatch:
+        #     if index < 0 or index >= len(self._particle_colors):
+        #         if index in self._complementary_colors.keys():
+        #             return self._complementary_colors[index]
+        #         else:
+        #             return self.generate_random_color()
+        #     else:
+        #         return self._particle_colors[index]
+        # else:
+        #     if index < 0 or index >= len(self._patch_colors):
+        #         if index in self._complementary_colors.keys():
+        #             return self._complementary_colors[index]
+        #         else:
+        #             return self.generate_random_color(index)
+        #     else:
+        #         return self._patch_colors[index]
 
-    # def export_to_mgl(self,
-    #                   filename: str,
-    #                   regime: str = 'w',
-    #                   icosahedron=True):
-    #     out = open(filename, regime)
-    #     sout = f".Box: {np.array2string(self._box_size, separator=',')[1:-1]}\n"
-    #     # sout = ".Box:%f,%f,%f\n" % (self._box_size[0], self._box_size[1], self._box_size[2])
-    #     for p in self._particles:
-    #         patch_colors = [self.get_color(pat.color()) for pat in p.patches()]
-    #         particle_color = self.get_color(p.type_id())
-    #         sout = sout + p.export_to_mgl(patch_colors, particle_color) + '\n'
-    #         if icosahedron:
-    #             p.print_icosahedron(particle_color)
-    #
-    #     out.write(sout)
-    #     out.close()
+    def export_to_mgl(self,
+                      filename: Union[Path, str],
+                      patches_w: float,
+                      regime: str = 'w'):
+        if isinstance(filename, str):
+            filename = Path(filename)
+        with filename.open(regime) as out:
+            out.write(f".Box: {np.array2string(self._box_size, separator=',')[1:-1]}\n")
+            # sout = ".Box:%f,%f,%f\n" % (self._box_size[0], self._box_size[1], self._box_size[2])
+            for p in self._particles:
+                out.write(p.export_to_mgl(patch_width=patches_w))
 
     #
     # def export_to_lorenzian_mgl(self,
@@ -660,6 +655,7 @@ class PLPSimulation(Scene, CellLists):
         scene_particles = [copy.deepcopy(self.get_particle(particle_id)) for particle_id in particle_ids]
         # do box size computatioins
         # set box size for cluster scene (add padding)
+        # scene.set_box_size(self.box_size())
         scene.set_box_size(np.stack([p.position() for p in scene_particles]).max(axis=0) + np.array([0.1, 0.1, 0.1]))
         scene.compute_cell_size(n_particles=len(scene_particles))
         scene.apportion_cells()
