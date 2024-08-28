@@ -113,7 +113,7 @@ def lorenzian_to_flavian(lorenzian_folder: Union[Path, str], flavian_folder: Uni
     ftop = FWriter.FPatchyTopology(topology.particles())
     get_writer("flavio").write_top(ftop, top_name)
     get_writer("flavio").write_particles_patches(topology.particle_types, "particles.txt", "patches.txt")
-    assert (lorenzian_folder / conf_name).exists()
+    assert (lorenzian_folder / conf_name).exists(), f"No file at {str(lorenzian_folder / conf_name)}"
     shutil.copyfile(lorenzian_folder / conf_name, flavian_folder / conf_name)
 
 

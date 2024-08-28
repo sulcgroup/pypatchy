@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Iterable
+from typing import Iterable, Union
 
 from scipy.spatial.transform import Rotation as R
 from itertools import groupby, combinations, chain, tee
@@ -85,8 +85,7 @@ class BadSimulationDirException(Exception):
     def __str__(self) -> str:
         return f"Path {self.p} does not have expected format for the patch to a patchy particles trial simulation"
 
-
-def selectColor(number: int, saturation=50, value=65, fmt="hex") -> str:
+def selectColor(number: int, saturation=50, value=65, fmt="hex") -> Union[str, np.ndarray]:
     hue = number * 137.508  # use golden angle approximation
     if fmt == "hsv":
         return f"hsv({hue},{saturation}%,{value}%)"
@@ -94,9 +93,10 @@ def selectColor(number: int, saturation=50, value=65, fmt="hex") -> str:
         r, g, b = hsv_to_rgb(hue / 255, saturation / 100, value / 100)
         if fmt == "rgb":
             return f"rgb({r},{g},{b})"
-        else:
+        elif fmt == "hex":
             return f"#{hex(int(255 * r))[-2:]}{hex(int(255 * g))[-2:]}{hex(int(255 * b))[-2:]}"
-
+        else:
+            return np.array([r, g, b])
 
 def rotAroundAxis(patchPos, axis, angle):
     r = R.from_rotvec(angle * axis)
