@@ -110,12 +110,23 @@ class PLPSimulation(Scene, CellLists):
             e += e_int
         return e / self.num_particles()
 
-    def translate(self, translation_vector: np.ndarray):
+    def translate(self, translation_vector: np.ndarray, reapporiton_cells: bool = True):
         for p in self._particles:
             p.translate(translation_vector)
         self.inbox()
-        if self.particle_cells is not None:
+        if reapporiton_cells and self.particle_cells is not None:
             self.apportion_cells()
+
+    def rotate(self, rot: np.ndarray, center: Union[None, np.ndarray] = None):
+        assert np.allclose(rot.transpose() @ rot, np.identity(3))
+        assert abs(1-np.linalg.det(rot) < 1e-4)
+        if center is None:
+            center = self.cms()
+        for p in self._particles:
+            p.translate(-center)
+            p.set_position(p.position() @ rot)
+            p.rotate(rot)
+            p.translate(center)
 
     def sort_particles_by_type(self):
         """
@@ -359,7 +370,7 @@ class PLPSimulation(Scene, CellLists):
             out.write(f".Box: {np.array2string(self._box_size, separator=',')[1:-1]}\n")
             # sout = ".Box:%f,%f,%f\n" % (self._box_size[0], self._box_size[1], self._box_size[2])
             for p in self._particles:
-                out.write(p.export_to_mgl(patch_width=patches_w))
+                out.write(p.export_to_mgl(patch_width=patches_w, patch_shrink_scale=0.0))
 
     #
     # def export_to_lorenzian_mgl(self,
@@ -496,6 +507,14 @@ class PLPSimulation(Scene, CellLists):
 
     def set_time(self, t):
         self._time = t
+
+    def cms(self) -> np.ndarray:
+        position_sum = np.zeros((3,))
+        for particle in self.particles():
+            assert all((particle.position() > 0) & (particle.position() < self.box_size())),\
+                "Cannot get cms of non-inboxed conf"
+            position_sum += particle.position()
+        return position_sum / self.num_particles()
 
     def interaction_energy(self, p1: Union[PLPatchyParticle, int], p2: Union[PLPatchyParticle, int]) -> float:
         """
@@ -666,3 +685,58 @@ class PLPSimulation(Scene, CellLists):
         scene.inbox()
         scene.translate(-np.stack([p.position() for p in scene.particles()]).min(axis=0))
         return scene
+
+    def add_conf_clusters(self, clusters: list[PLPSimulation], nTries=1e3):
+        """
+        Adds other PL confs ("clusters") to this simulation, using a similar method to add_particle_rand_positions
+        """
+        # loop particles
+        for cluster in clusters:
+            # we need to cache positions because PLPSimulation (unlike PLPatchyParticle)
+            # has no method to set absolute position
+            cluster_last_position = np.zeros((3,))
+
+            # set cluster box size
+            cluster.set_box_size(self.box_size())
+
+            t = 0
+            # set max tries so it doesn't go forever
+            while t < nTries:
+                # random position
+                new_pos = np.random.rand(3) * self._box_size
+                cluster.translate(new_pos - cluster_last_position)
+                cluster_last_position = new_pos
+
+                # randomly rotate cluster
+                a1 = random_unit_vector()
+                x = random_unit_vector()
+                # i had to replace this code Joakim or someone wrote because it's literally the "what not to do" solution
+                # self.a1 = np.array(np.random.random(3))
+                # self.a1 = self.a1 / np.sqrt(np.dot(self.a1, self.a1))
+                # x = np.random.random(3)
+                a3 = x - np.dot(a1, x) * a1
+                # normalize a3 vector
+                a3 = a3 / np.sqrt(np.dot(a3, a3))
+                if abs(np.dot(a1, a3)) > 1e-10:
+                    raise Exception("Could not generate random orientation?")
+                # please tell me this produces a random rotation matrix
+                cluster.rotate(np.stack([a1, np.cross(a3, a1), a3]))
+                assert np.allclose(self.box_size(), cluster.box_size())
+                if not self.check_conf_overlap(cluster):
+                    self.add(cluster)
+                    break
+                t += 1
+            if t == nTries:
+                raise Exception(f"Could not find a position t(o place a cluster! nTries={nTries}")
+
+    def check_conf_overlap(self, cluster: PLPSimulation) -> bool:
+        """
+        checks if the provided cluster would create high-energy interactions (vol excl overlap)
+        uses this.potentials
+        """
+        # not using cells for these
+        e = 0.
+        for p1, p2 in itertools.product(self.particles(), cluster.particles()):
+            for potential in self.potentials:
+                e += potential.energy(self.box_size(), p1, p2)
+        return np.exp(-e / self.T()) > random.random()

@@ -235,12 +235,15 @@ class StageInfoParam(Mapping):
         # if this stage adds particles
         if "add_method" in kwargs:
             if "density" not in kwargs:
-                raise TypeError("particle adder specified without density!")
-            if kwargs["add_method"].upper() == "RANDOM":
-                self.add_method = RandParticleAdder(kwargs["density"])
-            # backwards-compatiility with string addition
-            elif "=" in kwargs["add_method"]:
-                self.add_method = FromPolycubeAdder(kwargs["add_method"].split("=")[1])
+                    raise TypeError("particle adder specified without density!")
+            if isinstance(kwargs["add_method"], str):
+                if kwargs["add_method"].upper() == "RANDOM":
+                    self.add_method = RandParticleAdder(kwargs["density"])
+                # backwards-compatiility with string addition
+                elif "=" in kwargs["add_method"]:
+                    self.add_method = FromPolycubeAdder(kwargs["add_method"].split("=")[1])
+                else:
+                    raise TypeError(f"Invalid 'add_method' provided: {kwargs['add_method']}")
             elif isinstance(kwargs["add_method"], dict):
                 if "type" not in kwargs["add_method"]:
                     raise TypeError("No type specified for particle add method! Specify 'polycube', 'patchy', "
@@ -249,7 +252,7 @@ class StageInfoParam(Mapping):
                 if add_type == 'random':
                     self.add_method = RandParticleAdder(kwargs["density"])
                 elif add_type == "polycube":
-                    self.add_method = FromPolycubeAdder(*kwargs["polycubes"], density=kwargs["density"])
+                    self.add_method = FromPolycubeAdder(*kwargs["add_method"]["polycubes"], density=kwargs["density"])
                 elif add_type == "patchy":
                     raise Exception("Not implemented yet")
             else:
@@ -283,8 +286,6 @@ class StageInfoParam(Mapping):
 
     def __iter__(self) -> Iterator:
         return iter(self.info)
-
-
 
 
 def parameter_value(key: str, val: Union[dict, str, int, float, bool]) -> ParameterValue:

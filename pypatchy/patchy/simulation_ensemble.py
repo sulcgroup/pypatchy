@@ -749,13 +749,16 @@ class PatchySimulationEnsemble(Analyzable):
                     num_assemblies = self.sim_get_param(sim, "num_assemblies")
 
                 # get list of names of particles to add
-                # if add_method is specified as RANDOM or is unspecified (default to RANDOM)
-                if "add_method" not in stage_info or stage_info["add_method"].upper() == "RANDOM":
+                # we need to know how we are adding particles
+                stage_particle_add_method = stage_info.add_method
+                # if particles are added randomly
+                if isinstance(stage_particle_add_method, RandParticleAdder):
+                    # if stage info has particle count info, use that
                     if "particles" in stage_info:
                         particle_id_lists = [
                             [pname] * (stage_info["particles"][pname] * num_assemblies)
                             for pname in stage_info["particles"]]
-
+                    # otherwise use sim or global particle count info
                     else:
                         particle_id_lists = [
                             [pidx] * self.get_sim_particle_count(sim, pidx) # get_sim_particle_count will take into acct. num assemblies
@@ -763,18 +766,7 @@ class PatchySimulationEnsemble(Analyzable):
                         ]
                     stage_particles = list(itertools.chain.from_iterable(particle_id_lists))
                 else:
-                    mode, src = stage_info["add_method"].split("=")
-                    if mode == "from_conf":
-                        raise Exception(
-                            "If you're seeing this, this feature hasn't been implemented yet although it can't be"
-                            "THAT hard really")
-                    elif mode == "from_polycubes":
-                        with open(get_input_dir() / src, "r") as f:
-                            pcinfo = json.load(f)
-                            stage_particles = [
-                                # for now only cube types are important
-                                cube_info["type"] for cube_info in pcinfo["cubes"]
-                            ]
+                    stage_particles = stage_particle_add_method.get_particle_counts()
                 stage_init_args = {}
                 # compute stage runtime
                 assert stage_info.get_start_time() != 0 or i == 0, "Stages other than start stage must have specified start time"
@@ -1294,15 +1286,19 @@ class PatchySimulationEnsemble(Analyzable):
             assert self.sim_get_param(sim, "print_conf_interval") < self.sim_get_param(sim, "steps")
             self.get_logger().info(f"Setting up folder / file structure for {repr(sim)}...")
             # create nessecary folders
-            if not os.path.isdir(self.folder_path(sim, stage)):
-                self.get_logger().info(f"Creating folder {self.folder_path(sim, stage)}")
-                Path(self.folder_path(sim, stage)).mkdir(parents=True)
+            if isinstance(stage, str):
+                stage_obj = self.sim_get_stage(sim, stage)
             else:
-                self.get_logger().info(f"Folder {self.folder_path(sim, stage)} already exists. Continuing...")
+                stage_obj = stage
+            if not os.path.isdir(self.folder_path(sim, stage_obj)):
+                self.get_logger().info(f"Creating folder {self.folder_path(sim, stage_obj)}")
+                Path(self.folder_path(sim, stage_obj)).mkdir(parents=True)
+            else:
+                self.get_logger().info(f"Folder {self.folder_path(sim, stage_obj)} already exists. Continuing...")
 
             # write requisite top, patches, particles files
             self.get_logger().info("Writing .top, .txt, input, etc. files...")
-            self.write_setup_files(sim, stage, gen_conf=gen_conf)
+            self.write_setup_files(sim, stage_obj, gen_conf=gen_conf)
             # write observables.json if applicble
             if EXTERNAL_OBSERVABLES:
                 self.get_logger().info("Writing observable json, as nessecary...")
