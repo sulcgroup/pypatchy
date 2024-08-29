@@ -194,6 +194,8 @@ class Stage(BuildSimulation):
         self.sim.input.write_input(production=production)
 
         assert (self.getctxt().folder_path(self.spec(),
+                                           self) / "input").exists(), "Didn't correctly set up input file!"
+        assert (self.getctxt().folder_path(self.spec(),
                                            self) / "input.json").exists(), "Didn't correctly set up input file!"
 
     def apply(self, scene: PLPSimulation):
@@ -201,8 +203,9 @@ class Stage(BuildSimulation):
         scene.compute_cell_size(n_particles=self.num_particles_to_add())
         scene.apportion_cells()
         # add excluded volume potential
+        dps_sigma = self.getctxt().sim_get_param(self.spec(), "DPS_sigma_ss") # todo: back-compatibility w/ flavio
         add_standard_patchy_interaction(scene,
-                                        sigma=self.getctxt().sim_get_param(self.spec(), "DPS_sigma_ss"))
+                                        sigma=dps_sigma)
 
         # add patchy interaction
         # unfortunately i haven't implemented the swap interaction here yet
@@ -227,19 +230,11 @@ class Stage(BuildSimulation):
             scene.add_particle_rand_positions(particles)
 
         elif isinstance(self._param_info.add_method, FromPolycubeAdder):
-            if len(self._param_info.add_method.polycubes) == 1:
-                pl = polycube_to_pl(self._param_info.add_method.polycubes[0],
-                                    self.getctxt().sim_get_param(self.spec(), MDT_CONVERT_KEY), pad_cubes=0.13)
-                scene.add(pl, cubize_box=True)
-            else:
-                print("WARNING: I HAVE NOT TESTED THIS YET")
-                scene.add_conf_clusters([
-                    polycube_to_pl(pc,
-                                   self.getctxt().sim_get_param(self.spec(), MDT_CONVERT_KEY),
-                                   pad_cubes=0.13)
-                    for pc in self._param_info.add_method.polycubes
-                ])
-
+            scene.add_conf_clusters([
+                polycube_to_pl(pc.polycube_file_path,
+                               self.getctxt().sim_get_param(self.spec(), MDT_CONVERT_KEY),
+                               pad_cubes=dps_sigma * pc.patch_distance_multiplier)
+                for pc in self._param_info.add_method.iter_polycubes()])
         elif isinstance(self._param_info.add_method, FromConfAdder):
             raise Exception("If you're seeing this, this feature hasn't been implemented yet although it can't be"
                             "THAT hard really")

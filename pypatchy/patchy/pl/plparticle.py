@@ -187,8 +187,9 @@ class PLPatchyParticle(PatchyBaseParticleType, PatchyBaseParticle):
     a2: np.ndarray = property(get_a2)
 
     def export_to_mgl(self,
-                      patch_width: float = 0.1) -> str:
-
+                      patch_width: float = 0.1,
+                      patch_shrink_scale=0.) -> str:
+        # TODO: patch shrink scale to avoid overlapping patches
         # sout = '%f %f %f @ %f C[%s] ' % (self.cm_pos[0],self.cm_pos[1],self.cm_pos[2],self._radius,particle_color)
         # sout = '%f %f %f @ %f C[%s] ' % (self.cm_pos[0], self.cm_pos[1], self.cm_pos[2], 0.4, particle_color)
         # write x,y,z of patch + color
@@ -198,7 +199,7 @@ class PLPatchyParticle(PatchyBaseParticleType, PatchyBaseParticle):
         # mgl format for patches is hardcoded as KF-like
         # so instead we will use spheres
         for i, p in enumerate(self._patches):
-            patch_color = selectColor(p.color(), saturation=60 if p.color() > 0 else 40, fmt="arr")
+            patch_color = selectColor(abs(p.color()), saturation=65 if p.color() > 0 else 25, fmt="arr")
             patch_color = ",".join([str(i) for i in patch_color])
             sout += f"{np.array2string(self.patch_position(p))[1:-1]} @ {patch_width} C[{patch_color}]\n"
         return sout
