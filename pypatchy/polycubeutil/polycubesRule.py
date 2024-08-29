@@ -893,6 +893,35 @@ class PolycubesRule(BaseParticleSet):
     def num_colors(self) -> int:
         return len(self.color_set())
 
+    def make_colors_continuous(self):
+        #
+        if self.num_colors() == max(self.color_set()):
+            return
+        else:
+            i_color = 1
+            while i_color < max(self.color_set()):
+                # if color is unused
+                if not self.num_patches_with_color(i_color):
+                    # pop max color
+                    max_color = max(self.color_set())
+                    for patch in self.patches():
+                        if patch.color() == max_color:
+                            patch.set_color(i_color)
+                        if patch.color() == -max_color:
+                            patch.set_color(-i_color)
+                i_color += 1
+
+    def num_patches_with_color(self, color: int) -> int:
+        i = 0
+        for p in self.patches():
+            if p.color() == color:
+                i += 1
+        return i
+
+
+
+
+
     def to_SAT(self, filename: Union[Path, str]):
         """
         convert particle set to SAT format
