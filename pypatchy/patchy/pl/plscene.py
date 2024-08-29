@@ -62,7 +62,12 @@ class PLPSimulation(Scene, CellLists):
         moves all particles to inside the box
         """
         assert (self._box_size > 0).all()
-        self.set_conf(inbox(self.get_conf()))
+        self.set_conf(inbox(self.get_conf(), center=False))
+
+    def is_inboxed(self) -> bool:
+        return all([
+            all((particle.position() >= 0) & (particle.position() < self.box_size()))
+            for particle in self.particles()])
 
     def set_temperature(self, t: float):
         self._temperature = t
@@ -91,12 +96,15 @@ class PLPSimulation(Scene, CellLists):
         checked_interactions: set[tuple] = set()
         for p1 in self.particles():
             for p2 in self.interaction_particles(p1):
-                assert self.dist_2particles(p1, p2) >= 1.;
-                pair = (p1.get_uid(), p2.get_uid()) if p1.get_uid() < p2.get_uid() else (p2.get_uid(), p2.get_uid())
-                if pair not in checked_interactions:
-                    e_int = self.interaction_energy(p1, p2)
-                    e += e_int
-                    checked_interactions.add(pair)
+                # 2-particle dist should always be >= r1+r2 but there are cases where we want to test for insanely high energies
+                if self.dist_2particles(p1, p2) <= p1.radius() + p2.radius():
+                    return float('inf')
+                else:
+                    pair = (p1.get_uid(), p2.get_uid()) if p1.get_uid() < p2.get_uid() else (p2.get_uid(), p2.get_uid())
+                    if pair not in checked_interactions:
+                        e_int = self.interaction_energy(p1, p2)
+                        e += e_int
+                        checked_interactions.add(pair)
         return e / self.num_particles()
 
     def get_energy_full(self) -> float:
@@ -110,10 +118,11 @@ class PLPSimulation(Scene, CellLists):
             e += e_int
         return e / self.num_particles()
 
-    def translate(self, translation_vector: np.ndarray, reapporiton_cells: bool = True):
+    def translate(self, translation_vector: np.ndarray, inbox: bool = True, reapporiton_cells: bool = True):
         for p in self._particles:
             p.translate(translation_vector)
-        self.inbox()
+        if inbox:
+            self.inbox()
         if reapporiton_cells and self.particle_cells is not None:
             self.apportion_cells()
 
@@ -123,9 +132,13 @@ class PLPSimulation(Scene, CellLists):
         if center is None:
             center = self.cms()
         for p in self._particles:
+            # move to rotation reference pt
             p.translate(-center)
+            # set position to position rotated by matrix
             p.set_position(p.position() @ rot)
+            # rotate particle in-place
             p.rotate(rot)
+            # return from reference pt
             p.translate(center)
 
     def sort_particles_by_type(self):
@@ -488,7 +501,7 @@ class PLPSimulation(Scene, CellLists):
         sets particle positions from conf
         """
         if auto_inbox:
-            conf = inbox(conf)
+            conf = inbox(conf, center=False)
         # set scene time
         self.set_time(conf.time)
         # set scene energy
@@ -511,7 +524,7 @@ class PLPSimulation(Scene, CellLists):
     def cms(self) -> np.ndarray:
         position_sum = np.zeros((3,))
         for particle in self.particles():
-            assert all((particle.position() > 0) & (particle.position() < self.box_size())),\
+            assert self.is_inboxed(),\
                 "Cannot get cms of non-inboxed conf"
             position_sum += particle.position()
         return position_sum / self.num_particles()
@@ -694,33 +707,36 @@ class PLPSimulation(Scene, CellLists):
         for cluster in clusters:
             # we need to cache positions because PLPSimulation (unlike PLPatchyParticle)
             # has no method to set absolute position
-            cluster_last_position = np.zeros((3,))
 
             # set cluster box size
             cluster.set_box_size(self.box_size())
+            conf_start = cluster
 
             t = 0
             # set max tries so it doesn't go forever
             while t < nTries:
+                cluster = copy.deepcopy(conf_start)
                 # random position
                 new_pos = np.random.rand(3) * self._box_size
-                cluster.translate(new_pos - cluster_last_position)
-                cluster_last_position = new_pos
+                cluster.translate(new_pos, True, False)
 
-                # randomly rotate cluster
-                a1 = random_unit_vector()
-                x = random_unit_vector()
-                # i had to replace this code Joakim or someone wrote because it's literally the "what not to do" solution
-                # self.a1 = np.array(np.random.random(3))
-                # self.a1 = self.a1 / np.sqrt(np.dot(self.a1, self.a1))
-                # x = np.random.random(3)
-                a3 = x - np.dot(a1, x) * a1
-                # normalize a3 vector
-                a3 = a3 / np.sqrt(np.dot(a3, a3))
-                if abs(np.dot(a1, a3)) > 1e-10:
-                    raise Exception("Could not generate random orientation?")
-                # please tell me this produces a random rotation matrix
-                cluster.rotate(np.stack([a1, np.cross(a3, a1), a3]))
+                # # randomly rotate cluster
+                # a1 = random_unit_vector()
+                # x = random_unit_vector()
+                # # i had to replace this code Joakim or someone wrote because it's literally the "what not to do" solution
+                # # self.a1 = np.array(np.random.random(3))
+                # # self.a1 = self.a1 / np.sqrt(np.dot(self.a1, self.a1))
+                # # x = np.random.random(3)
+                # a3 = x - np.dot(a1, x) * a1
+                # # normalize a3 vector
+                # a3 = a3 / np.sqrt(np.dot(a3, a3))
+                # if abs(np.dot(a1, a3)) > 1e-10:
+                #     raise Exception("Could not generate random orientation?")
+                # # please tell me this produces a random rotation matrix
+                # cluster.inbox()
+                # cluster.rotate(np.stack([a1, np.cross(a3, a1), a3]))
+                # cluster.inbox()
+
                 assert np.allclose(self.box_size(), cluster.box_size())
                 if not self.check_conf_overlap(cluster):
                     self.add(cluster)
@@ -739,4 +755,5 @@ class PLPSimulation(Scene, CellLists):
         for p1, p2 in itertools.product(self.particles(), cluster.particles()):
             for potential in self.potentials:
                 e += potential.energy(self.box_size(), p1, p2)
-        return np.exp(-e / self.T()) > random.random()
+            # should return false if overlap is present, true if energetically acceptable
+        return np.exp(-e / self.T()) <= random.random()
