@@ -137,7 +137,7 @@ class PLPSimulation(Scene, CellLists):
             # set position to position rotated by matrix
             p.set_position(p.position() @ rot)
             # rotate particle in-place
-            p.rotate(rot)
+            p.rotate(rot.T)
             # return from reference pt
             p.translate(center)
 
@@ -716,26 +716,27 @@ class PLPSimulation(Scene, CellLists):
             # set max tries so it doesn't go forever
             while t < nTries:
                 cluster = copy.deepcopy(conf_start)
+
+                # # randomly rotate cluster
+                a1 = random_unit_vector()
+                x = random_unit_vector()
+                # self.a1 = np.array(np.random.random(3))
+                # self.a1 = self.a1 / np.sqrt(np.dot(self.a1, self.a1))
+                # x = np.random.random(3)
+                a3 = x - np.dot(a1, x) * a1
+                # normalize a3 vector
+                a3 = a3 / np.sqrt(np.dot(a3, a3))
+                if abs(np.dot(a1, a3)) > 1e-10:
+                    raise Exception("Could not generate random orientation?")
+                # please tell me this produces a random rotation matrix
+                cluster.rotate(np.stack([a1, np.cross(a3, a1), a3]))
+
+
                 # random position
                 new_pos = np.random.rand(3) * self._box_size
                 cluster.translate(new_pos, True, False)
 
-                # # randomly rotate cluster
-                # a1 = random_unit_vector()
-                # x = random_unit_vector()
-                # # i had to replace this code Joakim or someone wrote because it's literally the "what not to do" solution
-                # # self.a1 = np.array(np.random.random(3))
-                # # self.a1 = self.a1 / np.sqrt(np.dot(self.a1, self.a1))
-                # # x = np.random.random(3)
-                # a3 = x - np.dot(a1, x) * a1
-                # # normalize a3 vector
-                # a3 = a3 / np.sqrt(np.dot(a3, a3))
-                # if abs(np.dot(a1, a3)) > 1e-10:
-                #     raise Exception("Could not generate random orientation?")
-                # # please tell me this produces a random rotation matrix
-                # cluster.inbox()
-                # cluster.rotate(np.stack([a1, np.cross(a3, a1), a3]))
-                # cluster.inbox()
+                cluster.inbox()
 
                 assert np.allclose(self.box_size(), cluster.box_size())
                 if not self.check_conf_overlap(cluster):
