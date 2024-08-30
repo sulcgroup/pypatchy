@@ -804,7 +804,7 @@ class PatchyOrigamiConverter:
         self.bind_particles3p()
         assert self.expected_num_edges == -1 or self.bondcount == self.expected_num_edges, \
             f"Wrong number of bonds created! Expected {self.expected_num_edges} bonds, got {self.bondcount}."
-        if unbound_stickies:
+        if self.is_track_conf_stickies() and unbound_stickies:
             self.add_unbound_stickies()
         print("Done!")
 
