@@ -131,7 +131,7 @@ class PatchyOrigamiConverter:
     scale_factor: Union[float, None] = None
     # "book" of sticky ends which have already been added to the scene, used
     # to find un-added stickies and add them later
-    sticky_book: set[tuple[int, int]] = set()
+    sticky_book: Union[set[tuple[int, int]], None] = set()
 
     def __init__(self,
                  scene: PLPSimulation,
@@ -186,6 +186,15 @@ class PatchyOrigamiConverter:
         self.expected_num_edges = expected_num_edges
         assert not flexable_patch_distances or expected_num_edges > 0
         self.rel_rms_tolerance = rel_rms_tolerance
+
+    def set_track_conf_stickies(self, bNewVal):
+        if bNewVal:
+            self.sticky_book = set()
+        else:
+            self.sticky_book = None
+    def is_track_conf_stickies(self) ->bool:
+        return self.sticky_book is not None
+
 
     def get_dna_origami(self,
                         particle_type: Union[str, int, PatchyBaseParticle]) -> DNAParticle:
@@ -677,8 +686,8 @@ class PatchyOrigamiConverter:
             patch2 (MGLPatch): mgl patch object?
         """
         # chcek that patchs are free
-        assert (particle1.linked_particle.get_uid(), patch1.type_id()) not in self.sticky_book
-        assert (particle2.linked_particle.get_uid(), patch2.type_id()) not in self.sticky_book
+        assert (not self.is_track_conf_stickies() or particle1.linked_particle.get_uid(), patch1.type_id()) not in self.sticky_book
+        assert (not self.is_track_conf_stickies() or particle2.linked_particle.get_uid(), patch2.type_id()) not in self.sticky_book
 
         # find nucleotides which will be extended to form patches
         assert patch1.color() + patch2.color() == 0
@@ -716,8 +725,9 @@ class PatchyOrigamiConverter:
         particle2.patch_strand(patch2).prepend(strand2[::-1])
 
         # register stickies in sticky book
-        self.sticky_book.add((particle1.linked_particle.get_uid(), patch1.type_id()))
-        self.sticky_book.add((particle2.linked_particle.get_uid(), patch2.type_id()))
+        if self.is_track_conf_stickies():
+            self.sticky_book.add((particle1.linked_particle.get_uid(), patch1.type_id()))
+            self.sticky_book.add((particle2.linked_particle.get_uid(), patch2.type_id()))
 
         self.bondcount += 1
 
@@ -727,6 +737,7 @@ class PatchyOrigamiConverter:
         code stability is a top priorituy
         """
         # iter individual particles
+        assert self.is_track_conf_stickies()
         for particle in self.get_particles():
             # iter patches
             for patch in particle.linked_particle.patches():
@@ -740,7 +751,7 @@ class PatchyOrigamiConverter:
         another particle
         TODO: merge with bind_patches_3p
         """
-        assert (particle.linked_particle.get_uid(), patch.type_id()) not in self.sticky_book
+        assert (not self.is_track_conf_stickies() or particle.linked_particle.get_uid(), patch.type_id()) not in self.sticky_book
 
         # find strand 3' base start position
         start_position = particle.patch_3p(patch).pos
@@ -758,7 +769,8 @@ class PatchyOrigamiConverter:
                                       direction_vector
                                       )
         particle.patch_strand(patch).prepend(strand[::-1])
-        self.sticky_book.add((particle.linked_particle.get_uid(), patch.type_id()))
+        if self.is_track_conf_stickies():
+            self.sticky_book.add((particle.linked_particle.get_uid(), patch.type_id()))
 
     def get_particles(self) -> list[DNAParticle]:
         """
