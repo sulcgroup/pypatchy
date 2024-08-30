@@ -879,21 +879,28 @@ class PatchySimulationEnsemble(Analyzable):
             the traj and top FILES for provided simulation and stage
         """
         return (
-            self.folder_path(sim, stage) / self.sim_stage_get_param(sim, stage, "topology"),
+            self.sim_get_stage_top(sim, stage),
             self.folder_path(sim, stage) / self.sim_stage_get_param(sim, stage, "trajectory_file")
         )
 
+    def sim_get_stage_top(self, sim: PatchySimulation, stage: Union[str, int, Stage]) -> Path:
+        return self.folder_path(sim, stage) / self.sim_stage_get_param(sim, stage, "topology")
+
+    def sim_get_stage_last_conf(self, sim: PatchySimulation, stage: Union[str, int, Stage]):
+        return self.folder_path(sim, stage) / self.sim_stage_get_param(sim, stage, "lastconf_file")
+
+
     def sim_get_stage_last_step(self, sim: PatchySimulation, stage: Union[str, int, Stage]) -> int:
-        _, traj = self.sim_get_stage_top_traj(sim, stage)
-        if not traj.is_file():
-            raise NoStageTrajError(stage, sim, str(traj))
+        lastconf_file = self.sim_get_stage_last_conf(sim, stage)
+        if not lastconf_file.is_file():
+            raise NoStageTrajError(stage, sim, str(lastconf_file))
         else:
             # return timepoint of last conf in traj
             try:
-                return file_info([str(traj)])["t_end"][0]
+                return file_info([str(lastconf_file)])["t_end"][0]
             except IndexError as e:
                 # trajectory file empty
-                raise StageTrajFileEmptyError(stage, sim, str(traj))
+                raise StageTrajFileEmptyError(stage, sim, str(lastconf_file))
 
     def sim_get_total_stage_particles(self, sim: PatchySimulation, stage: Stage) -> int:
         """
@@ -912,7 +919,7 @@ class PatchySimulationEnsemble(Analyzable):
         # increment in  reverse order so we check later stages first
         for stage in reversed(self.sim_get_stages(sim)):
             # if traj file exists
-            if (self.folder_path(sim) / self.sim_get_param(sim, "trajectory_file")).exists():
+            if (self.folder_path(sim) / self.sim_get_param(sim, "lastconf_file")).exists():
                 try:
                     stage_last_step = self.sim_get_stage_last_step(sim, stage)
                     if stage_last_step == stage.end_time() or \
@@ -932,7 +939,6 @@ class PatchySimulationEnsemble(Analyzable):
                 except StageTrajFileEmptyError as e:
                     # if the stage traj is empty just continue
                     pass
-
         # if no stage has a traj file, raise exception
         trajpath = self.folder_path(sim) / self.sim_get_stage(sim,
                                                               0).adjfn(self.sim_get_param(sim,
@@ -1108,7 +1114,7 @@ class PatchySimulationEnsemble(Analyzable):
         if isinstance(stage, str):
             stage = self.sim_get_stage(sim, stage)
         self.writer.set_directory(self.folder_path(sim, stage))
-        top_file, traj_file = self.sim_get_stage_top_traj(sim, stage)
+        top_file, traj_file = self.sim_get_stage_top(sim, stage), self.sim_get_stage_last_conf(sim, stage)
         if traj_file.exists() and os.stat(traj_file).st_size > 0:
             if step is None:
                 step = self.time_length(sim)
@@ -1360,7 +1366,7 @@ class PatchySimulationEnsemble(Analyzable):
         else:
             # don't catch exxeption here
             last_complete_stage = self.sim_most_recent_stage(sim)
-            step = stage.end_time()
+            step = last_complete_stage.end_time()
             scene = self.get_scene(sim, last_complete_stage, step)
         scene.set_temperature(self.sim_stage_get_param(sim, stage, "T"))
 
