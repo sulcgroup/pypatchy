@@ -195,7 +195,6 @@ class PatchyOrigamiConverter:
     def is_track_conf_stickies(self) ->bool:
         return self.sticky_book is not None
 
-
     def get_dna_origami(self,
                         particle_type: Union[str, int, PatchyBaseParticle]) -> DNAParticle:
         if isinstance(particle_type, PatchyBaseParticle):
@@ -686,8 +685,8 @@ class PatchyOrigamiConverter:
             patch2 (MGLPatch): mgl patch object?
         """
         # chcek that patchs are free
-        assert (not self.is_track_conf_stickies() or particle1.linked_particle.get_uid(), patch1.type_id()) not in self.sticky_book
-        assert (not self.is_track_conf_stickies() or particle2.linked_particle.get_uid(), patch2.type_id()) not in self.sticky_book
+        assert ((not self.is_track_conf_stickies()) or particle1.linked_particle.get_uid(), patch1.type_id()) not in self.sticky_book
+        assert ((not self.is_track_conf_stickies()) or particle2.linked_particle.get_uid(), patch2.type_id()) not in self.sticky_book
 
         # find nucleotides which will be extended to form patches
         assert patch1.color() + patch2.color() == 0
@@ -751,7 +750,7 @@ class PatchyOrigamiConverter:
         another particle
         TODO: merge with bind_patches_3p
         """
-        assert (not self.is_track_conf_stickies() or particle.linked_particle.get_uid(), patch.type_id()) not in self.sticky_book
+        assert ((not self.is_track_conf_stickies()) or particle.linked_particle.get_uid(), patch.type_id()) not in self.sticky_book
 
         # find strand 3' base start position
         start_position = particle.patch_3p(patch).pos
