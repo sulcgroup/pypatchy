@@ -362,6 +362,9 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
     ensemble = PatchySimulationEnsemble(export_name, setup_date, mdtfile, analysis_pipeline,
                                         const_parameters + default_param_set, ensemble_parameters, observables, analysis_file, mdt,
                                         server_settings)
+
+    if "no_oxpy_check" in cfg and cfg["no_oxpy_check"]:
+        ensemble.no_oxpy_check_energies = True
     # TODO: verify presence of required params
     # if "slurm_log" in mdt:
     #     for entry in mdt["slurm_log"]:
@@ -396,6 +399,8 @@ class PatchySimulationEnsemble(Analyzable):
     ensemble_param_name_map: dict[str, EnsembleParameter]
 
     observables: dict[str, Observable]
+    # skip oxpy checking, reqd for interactions like Romano
+    no_oxpy_check_energies: bool = False
 
     # ------------ SETUP STUFF -------------#
 
@@ -954,12 +959,12 @@ class PatchySimulationEnsemble(Analyzable):
         """
         similar to get_last_step but returns a boolean: true if stage traj exists and is correct length, false otherwise
         """
-        _, traj = self.sim_get_stage_top_traj(sim, stage)
-        if not traj.is_file():
+        last_conf_file = self.sim_get_stage_last_conf(sim, stage)
+        if not last_conf_file.is_file():
             return False
         else:
             # return timepoint of last conf in traj
-            return file_info([str(traj)])["t_end"][0] == stage.end_time()
+            return file_info([str(last_conf_file)])["t_end"][0] == stage.end_time()
 
     def ensemble(self) -> list[PatchySimulation]:
         """
@@ -1405,16 +1410,17 @@ class PatchySimulationEnsemble(Analyzable):
         # self.write_input_file(sim, stage, replacer_dict, extras, analysis)
 
         # check energies
-        with oxpy.Context():
-            assert (self.folder_path(sim, stage) / "input").exists()
-            os.chdir(self.folder_path(sim, stage))
-            manager = oxpy.OxpyManager("input")
-            e = manager.system_energy()
-            del manager
+        if not self.no_oxpy_check_energies:
+            with oxpy.Context():
+                assert (self.folder_path(sim, stage) / "input").exists()
+                os.chdir(self.folder_path(sim, stage))
+                manager = oxpy.OxpyManager("input")
+                e = manager.system_energy()
+                del manager
 
-            # oxpy manager gets total energy rather than per particle
-            if e > 0 and abs(e / scene.num_particles() - scene_computed_energy) > 1e-4:
-                print(f"Mismatch between python-computed energy {scene_computed_energy} and oxDNA-computed energy {e}")
+                # oxpy manager gets total energy rather than per particle
+                if e > 0 and abs(e / scene.num_particles() - scene_computed_energy) > 1e-4:
+                    print(f"Mismatch between python-computed energy {scene_computed_energy} and oxDNA-computed energy {e}")
 
     def write_run_script(self, sim: PatchySimulation, input_file="input"):
         # if no stage name provided use first stage
