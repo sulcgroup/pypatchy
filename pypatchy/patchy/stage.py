@@ -191,6 +191,8 @@ class Stage(BuildSimulation):
         # already ran adjfn on input_json_name, ignore stage info
         # with open(self.getctxt().folder_path(self.spec()) / input_json_name, "w+") as f:
         #     json.dump(self.input_param_dict, f)
+
+
         self.sim.input.write_input(production=production)
 
         assert (self.getctxt().folder_path(self.spec(),

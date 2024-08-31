@@ -1382,6 +1382,7 @@ class PatchySimulationEnsemble(Analyzable):
         # or we can just make up a coefficient like 3
         # in oxDNA units kB = 1
         stage.apply(scene)
+
         # Todo: cut next line once we have this working
         scene_computed_energy = scene.get_potential_energy()
 
@@ -1389,6 +1390,9 @@ class PatchySimulationEnsemble(Analyzable):
         reqd_extra_args = {
             a: self.sim_stage_get_param(sim, stage, a) for a in self.writer.reqd_args()
         }
+        for key, value in self.writer.get_input_file_data(scene):
+            stage.sim.input[key] = value
+
         assert "conf_file" in reqd_extra_args, "Missing conf file info!"
 
         # write top, conf, and others
@@ -1402,8 +1406,9 @@ class PatchySimulationEnsemble(Analyzable):
         # update top and dat files in replacer dict
         # replacer_dict.update(files)
         # replacer_dict["steps"] = stage.end_time()
-        # replacer_dict["trajectory_file"] = self.sim_get_param(sim, "trajectory_file")
-        # extras.update(self.writer.get_input_file_data(scene, **reqd_extra_args))
+        # replacer_dict["trajectory_file"] = self.sim_get_param(sim, "trajctory_file")
+
+        # add additional scene-specific args required b writer
 
         # create input file
         stage.build_input()
