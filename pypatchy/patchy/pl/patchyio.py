@@ -368,9 +368,13 @@ class FWriter(PLBaseWriter):
         scene.set_time(conf.time)
         scene.set_particle_types(particle_types)
         scene.set_box_size(conf.box)
+
         with top_file.open("r") as f:
             f.readline()
             ptypelist = [int(i) for i in f.readline().split()]
+
+            scene.compute_cell_size(n_particles=len(ptypelist))
+            scene.apportion_cells()
             for i, ptype_idx in enumerate(ptypelist):
                 ptype: PLPatchyParticle = particle_types.particle(ptype_idx)
                 pp = PLPatchyParticle(
