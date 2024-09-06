@@ -15,7 +15,7 @@ from .pl.plpotential import PLFRPatchyPotential, PLFRExclVolPotential
 from .ensemble_parameter import MDT_CONVERT_KEY, StageInfoParam, ParameterValue
 from .particle_adders import RandParticleAdder, FromPolycubeAdder, FromConfAdder
 from .pl.plpatchylib import polycube_to_pl
-from ..patchy.simulation_specification import PatchySimulation
+from ..patchy.simulation_specification import PatchySimulation, NoSuchParamError
 from .pl.plscene import PLPSimulation
 
 class Stage(BuildSimulation):
@@ -232,9 +232,13 @@ class Stage(BuildSimulation):
             scene.add_particle_rand_positions(particles)
 
         elif isinstance(self._param_info.add_method, FromPolycubeAdder):
+            try:
+                mdt_settings = self.getctxt().sim_get_param(self.spec(), MDT_CONVERT_KEY)
+            except NoSuchParamError:
+                mdt_settings = None
             scene.add_conf_clusters([
                 polycube_to_pl(pc.polycube_file_path,
-                               self.getctxt().sim_get_param(self.spec(), MDT_CONVERT_KEY),
+                               mdt_settings,
                                pad_cubes=dps_sigma * pc.patch_distance_multiplier)
                 for pc in self._param_info.add_method.iter_polycubes()])
         elif isinstance(self._param_info.add_method, FromConfAdder):
