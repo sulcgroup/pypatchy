@@ -1391,7 +1391,8 @@ class PatchySimulationEnsemble(Analyzable):
             a: self.sim_stage_get_param(sim, stage, a) for a in self.writer.reqd_args()
         }
         for key, value in self.writer.get_input_file_data(scene):
-            stage.sim.input[key] = value
+            # if we assign to input directly it will update input file, causing its own issues
+            stage.sim.input.input_dict[key] = value
 
         assert "conf_file" in reqd_extra_args, "Missing conf file info!"
 
