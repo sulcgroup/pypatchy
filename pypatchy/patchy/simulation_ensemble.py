@@ -1623,14 +1623,17 @@ class PatchySimulationEnsemble(Analyzable):
                           e: Union[None, list[PatchySimulation]] = None,
                           stage: Union[str, None] = None):
         """
-        Starts all simulations
+        Starts simulations
+        If no simulation param is specificed will start all
+
         """
         if e is None:
             e = self.ensemble()
 
         # normal circumstances - no batch exec, do the old way
         if not self.server_settings.is_batched():
-            self.do_setup(e)
+            if not self.is_setup_done(e, stage):
+                self.do_setup(e, stage)
             for sim in e:
                 self.start_simulation(sim, stage_name=stage)
         else:
@@ -1657,6 +1660,23 @@ class PatchySimulationEnsemble(Analyzable):
             # TODO: better slurm logging!
 
         self.dump_metadata()
+    def is_setup_done(self, sims: list[PatchySimulation], stage: Union[None, str]) -> bool:
+        """
+        tests if setup is complete for the given simulations and stages
+        """
+        # loop sims
+        for sim in sims:
+            # check that folder exists
+            if not self.folder_path(sim, stage).exists():
+                return False
+            # check for various files
+            if not self.sim_get_stage_top(sim, stage).exists():
+                return False
+            if not (self.folder_path(sim, stage) / self.sim_stage_get_param(sim, stage, "conf_file")).exists():
+                return False
+            if not (self.folder_path(sim, stage) / "input").exists():
+                return False
+        return True
 
     def ok_to_run(self, sim: PatchySimulation, stage: Stage) -> bool:
         try:
@@ -2146,6 +2166,8 @@ class PatchySimulationEnsemble(Analyzable):
             energy_data_frames.append(sim_energies)
         df = pd.concat(energy_data_frames)
         return df
+
+
 
 def process_simulation_data(args: tuple[PatchySimulationEnsemble, AnalysisPipelineStep, PatchySimulation, range]):
     ensemble, step, s, time_steps = args
