@@ -1671,7 +1671,7 @@ class PatchySimulationEnsemble(Analyzable):
             else:
                 sim_stage = self.sim_most_recent_stage(sim)
             # check that folder exists
-            if not self.folder_path(sim, stage).exists():
+            if not self.folder_path(sim, sim_stage).exists():
                 return False
             # check for various files
             if not self.sim_get_stage_top(sim, sim_stage).exists():
