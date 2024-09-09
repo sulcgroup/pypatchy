@@ -1666,15 +1666,19 @@ class PatchySimulationEnsemble(Analyzable):
         """
         # loop sims
         for sim in sims:
+            if isinstance(stage, str):
+                sim_stage = self.sim_get_stage(sim, stage)
+            else:
+                sim_stage = self.sim_most_recent_stage(sim)
             # check that folder exists
             if not self.folder_path(sim, stage).exists():
                 return False
             # check for various files
-            if not self.sim_get_stage_top(sim, stage).exists():
+            if not self.sim_get_stage_top(sim, sim_stage).exists():
                 return False
-            if not (self.folder_path(sim, stage) / self.sim_stage_get_param(sim, stage, "conf_file")).exists():
+            if not (self.folder_path(sim, sim_stage) / self.sim_stage_get_param(sim, sim_stage, "conf_file")).exists():
                 return False
-            if not (self.folder_path(sim, stage) / "input").exists():
+            if not (self.folder_path(sim, sim_stage) / "input").exists():
                 return False
         return True
 
