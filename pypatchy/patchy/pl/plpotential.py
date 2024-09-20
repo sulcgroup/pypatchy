@@ -260,8 +260,6 @@ class PLFRExclVolPotential(PLPotential):
         # if r > rmax, no interaction
         e = 0.
 
-        p1pos = p1.position()
-        p2pos = p2.position()
         r_squared = periodic_dist_sqrd(box, p1.position(), p2.position())
         # if r is greater than max interaction distance, no energy
         # typically this is the sum of the radii

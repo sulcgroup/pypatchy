@@ -84,7 +84,7 @@ class CellLists:
         return self._box_size
 
     def set_box_size(self, box: Union[np.ndarray, list]):
-        assert box.size == 3
+        assert len(box) == 3
         oldbox = self.box_size()
         self._box_size = np.array(box)
         # clear cells
