@@ -364,17 +364,12 @@ class FWriter(PLBaseWriter):
         top_info, traj_info = rr.describe(str(top_file), str(traj_file))
         # only retrieve last conf
         conf = rr.get_confs(top_info, traj_info, traj_info.nconfs - 1, 1)[0]
+        conf = rr.inbox(conf, center=False)
+
         scene = PLPSimulation()
         scene.set_time(conf.time)
         scene.set_particle_types(particle_types)
         scene.set_box_size(conf.box)
-
-        def realMod(n, m):
-            return (((n % m) + m) % m)
-
-        def coord_in_box(p):
-            p = realMod(p, conf.box)
-            return (p)
 
         with top_file.open("r") as f:
             f.readline()
@@ -389,7 +384,7 @@ class FWriter(PLBaseWriter):
                     particle_name=f"{ptype.name()}_{i}",
                     type_id=ptype_idx,
                     index_=i,
-                    position=coord_in_box(conf.positions[i, :]),
+                    position=conf.positions[i, :],
                 )
                 pp.set_orientation(conf.a1s[i, :], conf.a3s[i, :])
                 scene.add_particle(pp)

@@ -10,6 +10,7 @@ import numpy as np
 from ipy_oxdna.oxdna_simulation import BuildSimulation, Simulation
 
 from .patchy_scripts import add_standard_patchy_interaction
+from .pl.plparticleset import PLParticleSet
 from .pl.plpotential import PLFRPatchyPotential, PLFRExclVolPotential
 
 from .ensemble_parameter import MDT_CONVERT_KEY, StageInfoParam, ParameterValue
@@ -61,6 +62,23 @@ class Stage(BuildSimulation):
         self._box_size = box_size
         self._param_info = paraminfo
         self._allow_shortfall = False
+
+        dps_sigma = self.getctxt().sim_get_param(self.spec(), "DPS_sigma_ss") # todo: back-compatibility w/ flavio
+
+        # check that add param info add method is valid
+        if isinstance(self._param_info.add_method, FromPolycubeAdder):
+            # check that the particle set matches up
+            # todo: do this somewhere where i need to run the check fewer times
+            try:
+                mdt_settings = self.getctxt().sim_get_param(self.spec(), MDT_CONVERT_KEY)
+            except NoSuchParamError:
+                mdt_settings = None
+            for pc in self._param_info.add_method.iter_polycubes():
+                sim_particle_set: PLParticleSet = self.getctxt().sim_get_particles_set(sim)
+                pc_particle_set: PLParticleSet = polycube_to_pl(pc.polycube_file_path,
+                               mdt_settings,
+                               pad_cubes=dps_sigma * pc.patch_distance_multiplier).particle_types()
+                assert sim_particle_set == pc_particle_set
         # self.input_param_dict = {}
 
     def idx(self) -> int:
@@ -231,11 +249,14 @@ class Stage(BuildSimulation):
                          for i, i_type in enumerate(self._particles_to_add)]
             scene.add_particle_rand_positions(particles)
 
+        # TODO: merge FromPolycubeAdder into FromConfAdder
         elif isinstance(self._param_info.add_method, FromPolycubeAdder):
+            # try to get multidentate convert settings
             try:
                 mdt_settings = self.getctxt().sim_get_param(self.spec(), MDT_CONVERT_KEY)
             except NoSuchParamError:
                 mdt_settings = None
+            # add polycubes
             scene.add_conf_clusters([
                 polycube_to_pl(pc.polycube_file_path,
                                mdt_settings,

@@ -359,3 +359,26 @@ class PLParticleSet(BaseParticleSet):
             new_patches += new_particle_patches
         particle_set = PLParticleSet(new_particles, PLMultidentateSourceMap(self, id_map, mdt_params))
         return particle_set
+
+    def __eq__(self, other: PLParticleSet) -> bool:
+        """
+        tests if two particle sets are exactly equal
+        (not taking into account rotation, color synonyms, particle type IDs, etc.)
+        so this is not an equivalence method, we are talking EQUAL EQUAL EQUAL
+        although let's skip source maps
+        """
+        # loop patches
+        for patch1, patch2 in zip(self.patches(), other.patches()):
+            if patch1 != patch2:
+                return False
+        for (particle1, particle2) in zip(self.particles(), other.particles()):
+            if particle1.num_patches() != particle2.num_patches():
+                return False
+
+            for (patch1, patch2) in zip(particle1.patches(), particle2.patches()):
+                if patch1 != patch2:
+                    return False
+
+        return True
+
+

@@ -731,7 +731,6 @@ class PLPSimulation(Scene, CellLists):
                 # please tell me this produces a random rotation matrix
                 cluster.rotate(np.stack([a1, np.cross(a3, a1), a3]))
 
-
                 # random position
                 new_pos = np.random.rand(3) * self._box_size
                 cluster.translate(new_pos, True, False)

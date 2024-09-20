@@ -126,3 +126,24 @@ class PLPatch(BasePatchType):
 
     def has_torsion(self):
         return self.num_key_points() == 2
+
+    def __eq__(self, other: PLPatch) -> bool:
+        # check IDs
+        if self.get_id() != other.get_id():
+            return False
+        # check colors
+        if self.color() != other.color():
+            return False
+        # check torsion (just for fun)
+        if self.has_torsion != other.has_torsion():
+            return False
+        if not np.allclose(self.a1(), other.a1()) or not np.allclose(patch1.a3(), patch2.a3()):
+            return False
+        if not np.allclose(self.position(), other.position()):
+            return False
+        if not self.strength() == other.strength():
+            return False
+        return True
+
+    def __ne__(self, other: PLPatch):
+        return not (self == other)
