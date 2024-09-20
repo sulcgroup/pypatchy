@@ -117,15 +117,24 @@ def PL_to_rule(particles: list[PLPatchyParticle], ) -> Union[None, PolycubesRule
 
 def polycube_to_pl(polycube: PolycubeStructure,
                    mdt_convert: Union[MultidentateConvertSettings, None] = None,
-                   nteeth=1,
-                   dental_radius=0,
+                   nteeth: Union[int, None] = None,
+                   dental_radius: Union[float, None] = None,
                    pad_cubes: float = 0.05,
                    pad_edges: float = 0.1) -> PLPSimulation:
+    # construct empty patchy scene
     pl = PLPSimulation()
-    # convert polycubes rule to multidentate patchy particles
-    if mdt_convert is None:
-        mdt_convert = MultidentateConvertSettings(n_teeth=nteeth, dental_radius=dental_radius)
-    pl_types = to_PL(polycube.rule, mdt_convert)
+    # convert polycubes rule to patchy particles
+    # convert to pl and then do multidentate, to maintain consistancy elsewhere
+    pl_types = polycube_rule_to_PL(polycube.particle_types())
+    # if we have multidentate settings
+    if mdt_convert is not None or nteeth is not None:
+        # backwards compatibility for passing tooth info directly
+        if mdt_convert is None:
+            # construct convert settings from nteeth and dental radius
+            mdt_convert = MultidentateConvertSettings(n_teeth=nteeth, dental_radius=dental_radius)
+        # else, mdt convert has already been set
+        # convert
+        pl_types = pl_types.to_multidentate(mdt_convert)
     pl_types = pl_types.normalize()
     pl.set_particle_types(pl_types)
     mins = np.full(fill_value=np.inf, shape=3)

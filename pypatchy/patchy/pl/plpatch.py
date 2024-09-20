@@ -135,9 +135,11 @@ class PLPatch(BasePatchType):
         if self.color() != other.color():
             return False
         # check torsion (just for fun)
-        if self.has_torsion != other.has_torsion():
+        if self.has_torsion() != other.has_torsion():
             return False
-        if not np.allclose(self.a1(), other.a1()) or not np.allclose(patch1.a3(), patch2.a3()):
+        if not np.allclose(self.a1(), other.a1()):
+            return False
+        if not np.allclose(self.a3(), other.a3()):
             return False
         if not np.allclose(self.position(), other.position()):
             return False

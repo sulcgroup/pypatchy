@@ -283,20 +283,19 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
                 assert isinstance(cfg[PARTICLE_TYPES_KEY], dict), "Must include load info"
                 ptypedict = {**cfg[PARTICLE_TYPES_KEY]}
                 particles = load_pl_particles(**ptypedict)
-
-        elif "cube_types" in cfg:
-
-            if len(cfg["cube_types"]) > 0 and isinstance(cfg["cube_types"][0], dict):
-                rule: PolycubesRule = PolycubesRule(rule_json=cfg["cube_types"])
+        elif "cube_types" in cfg or "rule" in cfg:
+            if "cube_types" in cfg:
+                if len(cfg["cube_types"]) > 0 and isinstance(cfg["cube_types"][0], dict):
+                    rule: PolycubesRule = PolycubesRule(rule_json=cfg["cube_types"])
+                else: # please do not
+                    rule: PolycubesRule = PolycubesRule(rule_str=cfg["cube_types"])
+                particles = polycube_rule_to_PL(rule)
+            elif "rule" in cfg:  # 'rule' tag assumes serialized rule string
+                # please for the love of god use this one
+                rule: PolycubesRule = PolycubesRule(rule_str=cfg["rule"])
             else:
-                rule: PolycubesRule = PolycubesRule(rule_str=cfg["cube_types"])
-            particles = polycube_rule_to_PL(rule)
-        elif "rule" in cfg:  # 'rule' tag assumes serialized rule string
-            # please for the love of god use this one
-            rule: PolycubesRule = PolycubesRule(rule_str=cfg["rule"])
-            particles = polycube_rule_to_PL(rule)
-        else:
-            raise Exception("wtf")
+                raise Exception("wtf")
+            particles = polycube_rule_to_PL(rule).normalize()
         params.append(ParticleSetParam(particles))
     else:
         print("Warning: No particle info specified!")
