@@ -68,26 +68,30 @@ class SolverResponse(Enum):
 
 # Polycube SAT Solver
 class Polysat(SATProblem):
-
-    logger: logging.Logger
-    solver_timeout: Union[int, None]
-    allostery_constraints: AllosteryLimits
-    nS: int
-    nC: int
-    nD: int
+    # number of patches allowed per species
     nP: int
+    # number of orientations allowed for a patch
     nO: int
+    # whether patches are torsional
     torsionalPatches: bool
-    rotations: dict[int: dict[int, int]]
+
+    # number of nanoparticle types
     nNPT: int
+    # map of locations of nanoparticles (a list of locations if we only have one np type, a dict otherwise
     np_locations: Union[dict[int, int], list[int]]
-    variables: dict[str, int]
-    basic_sat_clauses: list[SATClause]
+
     additional_sat_clauses: list[SATClause]
     BCO_varlen: int
-    allo_clauses: Union[None, list[SATClause]]
+    # allo_clauses: Union[None, list[SATClause]]
     nanoparticle_clauses: Union[None, list[SATClause]]
     input_params: SolveParams
+
+    # read nS, nC, etc. properties from self.input_params
+    # nS = Number of distinct cube types for the solver
+    nS: int = property(lambda self: self.input_params.nS)
+    # nC = number of color variables, a function of input_params.nC but not indentical
+    nC: int = property(lambda self: (self.input_params.nC * 2) + 1)
+    nD: int = property(lambda self: self.input_params.nD)
 
     def __init__(self,
                  params: SolveParams):
@@ -96,21 +100,12 @@ class Polysat(SATProblem):
         # save solve parameter set
         self.input_params = params
 
-        self.allostery_constraints = params.allo_limits
+        # self.allostery_constraints = params.allo_limits
 
-        # Number of distinct cube types for the solver
-        self.nS = params.nS
-
+        # nL = number of locations
         self.nL, _ = countParticlesAndBindings(params.topology.bindings_list)
         self.internal_bindings = copy.deepcopy(params.topology.bindings_list)
 
-        # Different color coding, color n binds not to -n but
-        # to another m, also ignore 0 and 1.
-        self.nC = (params.nC + 1) * 2
-
-        # Read number of particles from the topology
-
-        self.nD = params.nDim  #: Number of dimensions
         self.torsionalPatches = params.torsion
         if self.torsionalPatches:
             self.nO = 4  #: Number of possible orientations for a patch, N,S,W,E
@@ -135,7 +130,7 @@ class Polysat(SATProblem):
 
         self.additional_sat_clauses = []  # some additional conditions
         self.BCO_varlen = 0  # the number of clauses that determine B and C
-        self.allo_clauses = None  # clauses to handle allostery
+        # self.allo_clauses = None  # clauses to handle allostery
         self.nanoparticle_clauses = None
 
         # self.nA = 0 if self.allostery_complexity_constraints['type'] == 'none' else \
@@ -173,8 +168,8 @@ class Polysat(SATProblem):
         if self.nD == 3 and self.torsionalPatches:
             self.add_constraints_fixed_blank_orientation()
 
-        if self.allostery_constraints.allostery_type() is None:
-            self.fix_empties()
+        # if self.allostery_constraints.allostery_type() is None:
+        #     self.fix_empties()
 
     def rotation(self, p: int, r: int) -> int:
         """ patch that p rotates to under rotation r """
@@ -753,21 +748,12 @@ class Polysat(SATProblem):
             self.fix_slot_colors(particle, patch, 1)
             # print("Particle {} patch {} should be empty".format(particle, patch))
 
-    def gen_allostery_constraints(self):
-        """Adds all allosteric control SAT clauses (xi - xvi)"""
-
-        self.allo_clauses = []
-
-        # TODO
-
-        return self.allo_clauses
-
     def output_cnf(self, out: Union[IO, None] = None) -> str:
         """ Outputs a CNF formula """
         num_vars = max(self.variables.values())
         num_constraints = len(self.basic_sat_clauses)
-        if self.allo_clauses is not None:
-            num_constraints += len(self.allo_clauses)
+        # if self.allo_clauses is not None:
+        #     num_constraints += len(self.allo_clauses)
         if self.nanoparticle_clauses is not None:
             num_constraints += len(self.nanoparticle_clauses)
         outstr = "p cnf %s %s\n" % (num_vars, num_constraints)
@@ -779,9 +765,9 @@ class Polysat(SATProblem):
         if self.nanoparticle_clauses is not None:
             for c in self.nanoparticle_clauses:
                 outstr += ' '.join([str(v) for v in c]) + ' 0\n'
-        if self.allo_clauses is not None:
-            for c in self.allo_clauses:
-                outstr += ' '.join([str(v) for v in c]) + ' 0\n'
+        # if self.allo_clauses is not None:
+        #     for c in self.allo_clauses:
+        #         outstr += ' '.join([str(v) for v in c]) + ' 0\n'
         if out is not None:
             out.write(outstr)
         return outstr

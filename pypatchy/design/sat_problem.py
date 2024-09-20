@@ -11,10 +11,27 @@ SATClause = Union[tuple[int, ...], list[int, ...]]
 
 
 class SATProblem(ABC):
+    # number of locations
     nL: int
+    # number of rotations
     nR: int
+    # bindings
     bindings: dict[tuple[int, int]: tuple[int, int]]  # ngl I have no idea why they're like this
     internal_bindings: list[tuple[int, int, int, int]]
+
+    # map of SAT variable names to SAT variable numbers
+    variables: dict[str, int]
+
+    # list of all possible rotations (dependant on dimensionality, for now it's fixed)
+    rotations: dict[int: dict[int, int]]
+
+    # list of "basic" SAT clauses
+    basic_sat_clauses: list[SATClause]
+
+    # logger for SAT solver
+    logger: logging.Logger
+    # timeout for SAT solver
+    solver_timeout: Union[int, None]
 
     def __init__(self, logger: logging.Logger, timeout: int):
         self.logger = logger
