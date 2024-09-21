@@ -33,6 +33,7 @@ import datetime
 import itertools
 import os
 import re
+import time
 from enum import Enum
 from pathlib import Path
 from typing import Union, IO
@@ -40,7 +41,8 @@ from typing import Union, IO
 from ..polycubeutil.polycubesRule import PolycubesRule, PolycubesPatch, get_orientation
 from ..polycubeutil.polycubesRule import RULE_ORDER
 
-from .solve_utils import patchRotToVec, getIndexOf, patchVecToRot, getFlatFaceRot, calcEmptyFromTop, countParticlesAndBindings
+from .solve_utils import patchRotToVec, getIndexOf, patchVecToRot, getFlatFaceRot, calcEmptyFromTop, \
+    countParticlesAndBindings
 import numpy as np
 from pysat.formula import CNF
 from pysat.solvers import Glucose4
@@ -51,7 +53,9 @@ from .sat_problem import SATProblem, SATClause, interrupt
 from .solution import SATSolution
 
 from .solve_params import *
-from . import libpolycubes
+# from . import libpolycubes
+import libtlm
+from libtlm import TLMParameters
 
 RELSAT_EXE = 'relsat'
 
@@ -91,7 +95,10 @@ class Polysat(SATProblem):
     nS: int = property(lambda self: self.input_params.nS)
     # nC = number of color variables, a function of input_params.nC but not indentical
     nC: int = property(lambda self: (self.input_params.nC * 2) + 1)
-    nD: int = property(lambda self: self.input_params.nD)
+    nD: int = property(lambda self: self.input_params.nDim)
+
+    n_TLM_steps: int
+    tlm_record_interval: int
 
     def __init__(self,
                  params: SolveParams):
@@ -929,6 +936,25 @@ class Polysat(SATProblem):
     def fix_color_interaction(self, c1, c2):
         self.basic_sat_clauses.append([self.B(c1, c2)])
 
+    def tlm_params(self,
+                   rule: PolycubesRule,
+                   temperature: float,
+                   density: float,
+                   type_counts: list[int],
+                   interaction_matrix: dict[tuple[int,int],float]) -> TLMParameters:
+        return TLMParameters(
+            self.input_params.torsion,
+            True,  # deplete types, reconsider hardcoding?
+            temperature,
+            density,
+            str(rule),
+            type_counts,
+            self.n_TLM_steps,
+            interaction_matrix,
+            time.ctime(), # random seed
+            self.tlm_record_interval
+        )
+
     def forbidSolution(self, solution: SATSolution):
         """
         Forbid a specific solution, which while valid from the SAT perspective has
@@ -949,7 +975,8 @@ class Polysat(SATProblem):
         self.basic_sat_clauses.append(forbidden)
 
     def run_sat_solve(self, nSolutions: int, solver_timeout: Union[int, None]) -> Union[
-        SolverResponse, list[SATSolution]]:
+            SolverResponse,
+            list[SATSolution]]:
         if nSolutions == 1:  # Use minisat for single solutions
             result = self.run_glucose()
         else:  # use relsat for larger problems
@@ -1103,13 +1130,17 @@ class Polysat(SATProblem):
     def get_solution_var_names(self, solution: set[int]) -> list[str]:
         return [vname for vname, vnum in self.variables.items() if vnum in solution]
 
-    def find_solution(self, solve_params: SolveParams):
+    def find_solution(self):
+        """
+        big method! go go go!
+        """
         nTries = 0
         good_soln = None
 
-        while nTries < solve_params.maxAltTries and not good_soln:
+        while nTries < self.input_params.maxAltTries and not good_soln:
             # run SAT
-            result = self.run_sat_solve(solve_params.nSolutions, solve_params.solver_timeout)
+            result = self.run_sat_solve(self.input_params.nSolutions,
+                                        self.input_params.solver_timeout)
 
             # check response
             if result == SolverResponse.SOLN_TIMEOUT:
@@ -1123,36 +1154,68 @@ class Polysat(SATProblem):
                 # for now let's use Joakim's rule formulation
                 self.logger.info("\n".join("\t" + soln.decRuleOld() for soln in result))
                 # skip Polycubes call if the target is a crystal
-                if solve_params.crystal:
-                    self.logger.info("Cannot test solutions to crystal topologies in Polycubes :(((")
-                    good_soln = result[0]
-                elif solve_params.is_multifarious():
-                    # TODO
-                    self.logger.info("Cannot test solutions to multifarious structures in Polycubes :((((")
-                    good_soln = result[0]
-                else:
-                    # if the solve target has nanoparticles, you can still use polycubes
-                    # but warn the user that this may create false positives
-                    if solve_params.has_nanoparticles():
-                        self.logger.info("Warning: Polycubes Does Not Currently Support nanoparticles! "
-                                    "Rules generated may be nondeterministic with respect to nanoparticles.")
-                    # loop each solution in the results
-                    for soln in result:
-                        self.logger.info(f"Testing rule {soln.decRuleOld()}")
-                        # use polycubes to check if the rule is bounded and determinstic
-                        if libpolycubes.isBoundedAndDeterministic(soln.decRuleOld(), isHexString=False):
-                            self.logger.info(f"{soln.decRuleOld()} works!! We can stop now!")
-                            good_soln = soln  # if the rule is bounded and deterministic, good! we're done!
-                            break
-                        else:
-                            self.logger.info(f"{soln.decRuleOld()} found to be unbounded and/or nondeterministic.")
-                        # break if we run out of tries or if the problem is unsat / times out
-                        # forbid all solutions
-                        for soln in result:
-                            self.forbidSolution(soln)
 
+                good_soln = self.find_good_solution(result)
+                if good_soln is None:
+                    for soln in result:
+                        self.forbidSolution(soln)
                 nTries += 1
             else:
                 self.logger.error("Undefined problem of some sort!!!")
                 break
         return good_soln
+
+    def find_good_solution(self, sat_solutions: list[SATSolution]) -> Union[SATSolution, None]:
+        """
+        ok this is complecated because what makes a solution "good" depends on what kind of structure we're
+        trying to design here
+        """
+        for soln in sat_solutions:
+            if self.input_params.crystal:
+                if self.test_crystal(soln):
+                    return soln
+            elif self.input_params.is_multifarious():
+                if self.test_multifarious_finite_size(soln):
+                    return soln
+            elif self.input_params.has_nanoparticles():
+                # if the solve target has nanoparticles, you can still use polycubes
+                # but warn the user that this may create false positives
+                if self.test_type_specific_finite_size(soln):
+                    return soln
+            else:
+                # loop each solution in the results
+                if self.test_finite_size(soln):
+                    return soln
+        return None
+
+    def test_crystal(self, sat_solution: SATSolution) -> bool:
+        """
+        this becomes. tricky.
+
+        """
+        pass
+
+    def test_multifarious_finite_size(self, sat_solution: SATSolution) -> bool:
+        """
+
+        """
+        polycube_results = libtlm.runSimulations(self.tlm_params())
+
+    def test_type_specific_finite_size(self, sat_solution: SATSolution) -> bool:
+        """
+
+        """
+        pass
+
+    def test_finite_size(self, sat_solution: SATSolution) -> bool:
+        """
+        this is old code but it should still work
+        """
+        self.logger.info(f"Testing rule {sat_solution.decRuleOld()}")
+        # use polycubes to check if the rule is bounded and determinstic
+        if libtlm.isBoundedAndDeterministic(sat_solution.decRuleOld(), isHexString=False):
+            self.logger.info(f"{sat_solution.decRuleOld()} works!! We can stop now!")
+            return True
+        else:
+            self.logger.info(f"{sat_solution.decRuleOld()} found to be unbounded and/or nondeterministic.")
+            return False

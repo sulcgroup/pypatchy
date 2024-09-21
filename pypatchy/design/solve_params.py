@@ -109,45 +109,48 @@ class SolveParams:
     # def is_multifarious(self):
     #     return Structure(bindings=self.bindings).is_multifarious()
 
-    def __add__(self, other: SolveParams) -> SolveParams:
-        """
-        NOT COMMUTITIVE
-        copies most stuff of self but adds bindings from other
-        """
-        combined: SolveParams = copy.deepcopy(self)
-        combined.name += "_" + other.name
-        location_map: dict[int, int] = dict()
-
-        if not combined.is_multifarious:
-            combined.structure_ids = {l: 0 for l in combined.get_locations()}
-
-        def lmap (i: int) -> int:
-            if i not in location_map:
-                iNewVal = 0
-                # find a number which is not in the set of existing location indices
-                while iNewVal in combined.get_locations().union(location_map.values()):
-                    iNewVal += 1
-                location_map[i] = iNewVal
-            return location_map[i]
-
-        combined.bindings += [
-            (lmap(i), di, lmap(j), j)
-            for i, di, j, dj in other.bindings
-        ]
-        combined.extraConnections += [
-            (lmap(i), di, lmap(j), j)
-            for i, di, j, dj in other.extraConnections
-        ]
-
-        # update multifarious location map
-        combined.structure_ids.update({l: 0 for l in location_map.values()})
-
-        # and i think this is. good?
-        return combined
+    # def __add__(self, other: SolveParams) -> SolveParams:
+    #     """
+    #     NOT COMMUTITIVE
+    #     copies most stuff of self but adds bindings from other
+    #     """
+    #     combined: SolveParams = copy.deepcopy(self)
+    #     combined.name += "_" + other.name
+    #     location_map: dict[int, int] = dict()
+    #
+    #     if not combined.is_multifarious:
+    #         combined.structure_ids = {l: 0 for l in combined.get_locations()}
+    #
+    #     def lmap (i: int) -> int:
+    #         if i not in location_map:
+    #             iNewVal = 0
+    #             # find a number which is not in the set of existing location indices
+    #             while iNewVal in combined.get_locations().union(location_map.values()):
+    #                 iNewVal += 1
+    #             location_map[i] = iNewVal
+    #         return location_map[i]
+    #
+    #     combined.bindings += [
+    #         (lmap(i), di, lmap(j), j)
+    #         for i, di, j, dj in other.bindings
+    #     ]
+    #     combined.extraConnections += [
+    #         (lmap(i), di, lmap(j), j)
+    #         for i, di, j, dj in other.extraConnections
+    #     ]
+    #
+    #     # update multifarious location map
+    #     combined.structure_ids.update({l: 0 for l in location_map.values()})
+    #
+    #     # and i think this is. good?
+    #     return combined
 
 
 def construct(name: str, min_nC: int, max_nC: int, min_nS: int, max_nS: int, max_diff: Union[int, None],
               **kwargs) -> list[SolveParams]:
+    """
+    what
+    """
     paramsets = [SolveParams(
         name,
         nSpecies=nS,

@@ -2,16 +2,13 @@ import argparse
 import itertools
 import logging
 import sys
-from multiprocessing import Pool
 from pathlib import Path
 
-from pypatchy.design import solve_params
-from pypatchy.design.solve_exec import get_max_colors, get_max_species, solve_multi
 import json
 
-from pypatchy.util import get_input_dir
-from solve_utils import setup_logger
-
+from ..util import get_input_dir
+from .solve_utils import setup_logger
+from .solve_exec import get_max_colors, get_max_species, solve_multi
 
 def multisolve(solve_spec: str,
                minS: int = 1,

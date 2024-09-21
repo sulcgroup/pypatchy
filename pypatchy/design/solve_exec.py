@@ -148,7 +148,7 @@ def solve(solve_params: SolveParams) -> Union[None, SATSolution]:
     mysat.init()
     logger.info(f"Constructed sat problem with {mysat.num_variables()} variables and {mysat.num_clauses()} clauses.")
     mysat.check_settings()
-    good_soln = mysat.find_solution(solve_params)
+    good_soln = mysat.find_solution()
 
     if good_soln:
         logger.info(f"WORKING RULE: {good_soln.decRuleOld()}")
@@ -192,6 +192,10 @@ def solve_multi(solve_params: dict,
                 solve_name: str,
                 checks: list[tuple[int, int]],
                 num_cpus: int):
+    """
+    batches solve of structures
+
+    """
     worker_params = [(idx, nS, nC, solve_params, solve_name)
                      for (idx, (nS, nC)) in enumerate(checks)]
     logging.getLogger(f"{solve_name}_main").info(
@@ -203,7 +207,7 @@ def solve_multi(solve_params: dict,
         for p in worker_params:
             solve_worker(p)
 
-def get_max_colors(solveSpec):
+def get_max_colors(solveSpec: dict) -> int:
     """
     Given a solve spec, returns the number of colors in the fully-addressable
      rule for the provided topology
@@ -220,7 +224,7 @@ def get_max_colors(solveSpec):
         return nBind
 
 
-def get_max_species(solveSpec):
+def get_max_species(solveSpec: dict) -> int:
     """
     Given a solve spec, returns the number of cube types (species) in the fully
     addressable rule for the provided topology
