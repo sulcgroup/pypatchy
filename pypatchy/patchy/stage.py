@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-
+import itertools
 import os
 
 from typing import Union, Iterable, Any, Generator
@@ -26,11 +26,6 @@ class Stage(BuildSimulation):
     """
     # the name of this stage
     _stage_name: str
-    # the step (time) that this stage starts
-    # a list of PARTICLE TYPE IDS of particles to add
-    # the length of this list should be the number of particles to add in
-    # this stage and each item is a TYPE ID of a particle type to add.
-    _particles_to_add: list[int]
     _ctxt: Any  # PatchySimulationEnsemble
     _sim_spec: PatchySimulation
 
@@ -40,14 +35,13 @@ class Stage(BuildSimulation):
     # why
     # input_param_dict: dict
     _prev_stage: Union[Stage, None]
-
+    _allow_shortfall: bool
 
     def __init__(self,
                  sim: PatchySimulation,
                  previous_stage: Union[Stage, None],
                  ctxt: Any,  # it's PatchySimulationEnsemble but if we tell it that we get a circular import
                  paraminfo: StageInfoParam,
-                 particles: list[Union[int, str]],
                  box_size: np.ndarray = np.array((0, 0, 0)),
                  ):
         super().__init__(Simulation(ctxt.folder_path(sim)) if previous_stage is None
@@ -58,7 +52,6 @@ class Stage(BuildSimulation):
         if previous_stage is not None:
             self._prev_stage._next_stage = self
         self._next_stage = None
-        self._particles_to_add = particles
         self._box_size = box_size
         self._param_info = paraminfo
         self._allow_shortfall = False
@@ -115,7 +108,15 @@ class Stage(BuildSimulation):
         self._box_size = np.array(box_size)
 
     def particles_to_add(self) -> list[int]:
-        return self._particles_to_add
+        if self._param_info.add_method is None:
+            return []
+        else:
+            num_assemblies = self.getctxt().sim_stage_get_param(self.spec(), self, "num_assemblies")
+
+            return list(itertools.chain.from_iterable(itertools.chain.from_iterable([
+                [[key] * count * num_assemblies]
+                for key, count in self._param_info.add_method.get_particle_counts().items()
+            ])))
 
     def num_particles_to_add(self) -> int:
         return len(self.particles_to_add())
@@ -170,7 +171,7 @@ class Stage(BuildSimulation):
 
         # update top and dat files in replacer dict
         self.input_param_dict.update(files)
-        self.input_param_dict["steps"] = self.end_time()
+        self.input_param_dict["steps"] = self.time_length()
         self.input_param_dict["trajectory_file"] = self.adjfn(
             self.getctxt().sim_get_param(self.spec(), "trajectory_file"))
         # include input file stuff required by writer
@@ -190,7 +191,7 @@ class Stage(BuildSimulation):
             # todo: filter better, to use only actual oxdna params
             if type(pv) is ParameterValue:
                 self.sim.input[pv.param_name] = pv.param_value
-        self.sim.input["steps"] = self.end_time()
+        self.sim.input["steps"] = self.time_length()
         self.sim.input["restart_step_counter"] = 0
         assert self.sim.input.get_conf_file() is not None
 
@@ -219,9 +220,13 @@ class Stage(BuildSimulation):
                                            self) / "input.json").exists(), "Didn't correctly set up input file!"
 
     def apply(self, scene: PLPSimulation):
-        scene.set_box_size(self.box_size())
-        scene.compute_cell_size(n_particles=self.num_particles_to_add())
-        scene.apportion_cells()
+        if scene.num_particles() > 0:
+            assert np.allclose(self.box_size(), scene.box_size())
+        else:
+            # set box size
+            scene.set_box_size(self.box_size())
+            scene.compute_cell_size(n_particles=self.num_particles_to_add())
+            scene.apportion_cells()
         # add excluded volume potential
         dps_sigma = self.getctxt().sim_get_param(self.spec(), "DPS_sigma_ss") # todo: back-compatibility w/ flavio
         add_standard_patchy_interaction(scene,
@@ -241,12 +246,12 @@ class Stage(BuildSimulation):
         assert all(self.box_size()), "Box size hasn't been set!!!"
 
         if self._param_info.add_method is None:
-            assert len(self._particles_to_add) == 0, "No add method specified but particles still " \
+            assert len(self.particles_to_add()) == 0, "No add method specified but particles still " \
                                                         "queued to add!"
         elif isinstance(self._param_info.add_method, RandParticleAdder):
             start_particle_count = scene.num_particles()
             particles = [scene.particle_types().particle(i_type).instantiate(i + start_particle_count)
-                         for i, i_type in enumerate(self._particles_to_add)]
+                         for i, i_type in enumerate(self.particles_to_add())]
             scene.add_particle_rand_positions(particles)
 
         # TODO: merge FromPolycubeAdder into FromConfAdder

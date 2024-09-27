@@ -13,7 +13,7 @@ from .plparticleset import PLParticleSet, PLSourceMap, MultidentateConvertSettin
 from .plpatch import PLPatch
 from .plscene import PLPSimulation
 from ...patchy_base_particle import BaseParticleSet
-from pypatchy.patchy.pl.patchyio import writer_options, get_writer
+from .patchyio import writer_options, get_writer
 from ...polycubeutil.polycube_structure import PolycubeStructure
 from ...polycubeutil.polycubesRule import PolycubesRule
 from ...util import to_xyz, halfway_vector, normalize, get_input_dir

@@ -23,7 +23,7 @@ class ParamSet(LogEntryObject):
     # ordered list of parameter values that specify this simulation
     param_vals: list[ParameterValue]
 
-    parameter_dict: dict[str, Any]  # for easy access
+    parameter_dict: dict[str, Union[ParameterValue, bool, float, int, str]]  # for easy access
 
     def __init__(self, parameter_values: Iterable[ParameterValue]):
         self.param_vals = list(parameter_values)
@@ -99,12 +99,19 @@ class ParamSet(LogEntryObject):
     def __eq__(self, other: ParamSet) -> bool:
         return repr(self) == repr(other)
 
-
-    """
-    Merges two param sets. Note that this operation is NOT reflexive, a+b != b+a!
-    """
     def __add__(self, other: ParamSet) -> ParamSet:
+        """
+        Merges two param sets. Note that this operation is NOT reflexive, a+b != b+a!
+        """
         return ParamSet(self.param_vals + [pv for pv in other.param_vals if pv.param_name not in self])
+
+    def append(self, pv: ParameterValue):
+        """
+        adds a parameter value to the set, in-place
+        """
+        assert pv.param_name not in self.parameter_dict, f"Trying to add existing parameter {pv.param_name}"
+        self.param_vals.append(pv)
+        self.parameter_dict[pv.param_name] = pv
 
 
 PatchySimulation = ParamSet  # alias for backwards compatibility

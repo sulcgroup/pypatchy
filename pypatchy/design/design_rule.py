@@ -53,9 +53,9 @@ from .sat_problem import SATProblem, SATClause, interrupt
 from .solution import SATSolution
 
 from .solve_params import *
-# from . import libpolycubes
+import libpolycubes
 import libtlm
-from libtlm import TLMParameters
+from libtlm import TLMParameters, TLMPolycube
 
 RELSAT_EXE = 'relsat'
 
@@ -1192,14 +1192,30 @@ class Polysat(SATProblem):
         """
         this becomes. tricky.
 
+
         """
-        pass
+        T = 0.5
+
+        polycube_results = libtlm.runSimulations(self.tlm_params(
+            self.torsionalPatches, # torsion
+            True, # Type depletion
+            T,  # temperature
+            0.1,  # density
+            sat_solution.decRuleOld(),
+            [200, 200],  # type counts
+            int(5e6),  # steps
+            1000  # data point interval
+
+        ))
+
 
     def test_multifarious_finite_size(self, sat_solution: SATSolution) -> bool:
         """
-
+        tricky
         """
-        polycube_results = libtlm.runSimulations(self.tlm_params())
+        polycube_results = libtlm.runSimulations(self.tlm_params(
+
+        ))
 
     def test_type_specific_finite_size(self, sat_solution: SATSolution) -> bool:
         """
@@ -1212,8 +1228,8 @@ class Polysat(SATProblem):
         this is old code but it should still work
         """
         self.logger.info(f"Testing rule {sat_solution.decRuleOld()}")
-        # use polycubes to check if the rule is bounded and determinstic
-        if libtlm.isBoundedAndDeterministic(sat_solution.decRuleOld(), isHexString=False):
+        # use "classic" polycubes to check if the rule is bounded and determinstic
+        if libpolycubes.isBoundedAndDeterministic(sat_solution.decRuleOld(), isHexString=False):
             self.logger.info(f"{sat_solution.decRuleOld()} works!! We can stop now!")
             return True
         else:

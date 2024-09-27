@@ -9,6 +9,7 @@ import random
 import shutil
 import tempfile
 import time
+from collections import Counter
 from json import JSONDecodeError
 from typing import Any, Generator
 
@@ -287,7 +288,7 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
             if "cube_types" in cfg:
                 if len(cfg["cube_types"]) > 0 and isinstance(cfg["cube_types"][0], dict):
                     rule: PolycubesRule = PolycubesRule(rule_json=cfg["cube_types"])
-                else: # please do not
+                else:  # please do not
                     rule: PolycubesRule = PolycubesRule(rule_str=cfg["cube_types"])
                 particles = polycube_rule_to_PL(rule)
             elif "rule" in cfg:  # 'rule' tag assumes serialized rule string
@@ -359,7 +360,8 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
     ]
 
     ensemble = PatchySimulationEnsemble(export_name, setup_date, mdtfile, analysis_pipeline,
-                                        const_parameters + default_param_set, ensemble_parameters, observables, analysis_file, mdt,
+                                        const_parameters + default_param_set, ensemble_parameters, observables,
+                                        analysis_file, mdt,
                                         server_settings)
 
     if "no_oxpy_check" in cfg and cfg["no_oxpy_check"]:
@@ -476,8 +478,8 @@ class PatchySimulationEnsemble(Analyzable):
 
     # --------------- Accessors and Mutators -------------------------- #
     def get_simulation(self, *args: Union[tuple[str, Any], ParameterValue], **kwargs) -> Union[
-                                                                                               PatchySimulation,
-                                                                                               list[PatchySimulation]]:
+        PatchySimulation,
+        list[PatchySimulation]]:
         """
         This is a very flexable method for returning PatchySimulation objects
         but is also very complex, due to the range of inputs accepted
@@ -685,7 +687,7 @@ class PatchySimulationEnsemble(Analyzable):
             else:
                 pvs.add(pv)
                 yield pv
-        # iter defaultsa
+            # iter defaultsa
             if isinstance(pv, ParamValueGroup):
                 for pvv in pv:
                     pvs.add(pvv)
@@ -730,132 +732,102 @@ class PatchySimulationEnsemble(Analyzable):
     def sim_get_stages(self, sim: PatchySimulation) -> list[Stage]:
         """
         Computes stages
+        horrible nightmare code
         Stage objects require other ensemble parameters so must be constructed as needed and not on init
-        # TODO: make this dynamic, use a generator
+
         """
         assert isinstance(sim, PatchySimulation), "Cannot invoke this method with a parameter list!"
+        # ---------- STEP ONE: LOAD STAGE INFO ------------------------------
+        cumulative_type_counts = Counter()
         try:
+            # load stage info parameters for simulation
+            # sort by start time
             stages_info: list[StageInfoParam] = copy.deepcopy(list(sorted(self.get_stages_info(sim).values(),
-                                                            key=lambda x: x.start_time)))
+                                                                          key=lambda x: x.start_time)))
 
-            # incredibly cursed line of code incoming
-            # stages_info = [{"idx": i, **stage_info} for i, (stage_name, stage_info) in
-            #                enumerate(sorted(stages_info.items(), key=lambda x: x[1]["t"]))]
-            stages = []
+            stages: list[Stage] = []
             # loop stages in stage list from spec
+            # we need to initially loop them forward in order to compute run times
             for i, stage_info in enumerate(stages_info):
-                # get stage idx
-
-                # find num assemblies
-                if "num_assemblies" in stage_info:
-                    num_assemblies = stage_info["num_assemblies"]
-                else:
-                    num_assemblies = self.sim_get_param(sim, "num_assemblies")
-
-                # get list of names of particles to add
-                # we need to know how we are adding particles
-                stage_particle_add_method = stage_info.add_method
-                # if particles are added randomly
-                if isinstance(stage_particle_add_method, RandParticleAdder):
-                    # if stage info has particle count info, use that
-                    if "particles" in stage_info:
-                        particle_id_lists = [
-                            [pname] * (stage_info["particles"][pname] * num_assemblies)
-                            for pname in stage_info["particles"]]
-                    # otherwise use sim or global particle count info
-                    else:
-                        particle_id_lists = [
-                            [pidx] * self.get_sim_particle_count(sim, pidx) # get_sim_particle_count will take into acct. num assemblies
-                            for pidx in range(self.sim_get_particles_set(sim).num_particle_types())
-                        ]
-                    stage_particles = list(itertools.chain.from_iterable(particle_id_lists))
-                else:
-                    stage_particles = stage_particle_add_method.get_particle_counts()
                 stage_init_args = {}
                 # compute stage runtime
-                assert stage_info.get_start_time() != 0 or i == 0, "Stages other than start stage must have specified start time"
+                assert stage_info.get_start_time() != 0 or i == 0,\
+                    "Stages other than start stage must have specified start time"
+                # if this is not the last stage
                 if i + 1 != len(stages_info):
                     # if stage is not final stage, last step of this stage will be first step of next stage
-                    stage_info.set_end_time(stages_info[i+1].get_start_time())
+                    # assign stage endtime
+                    stage_info.set_end_time(stages_info[i + 1].get_start_time())
                 else:
                     # if the stage is the final stage, last step will be end of simulation
                     stage_info.set_end_time(self.sim_get_param(sim, "steps"))
                 # construct stage objects
+                cumulative_type_counts.update(stage_info.add_method.get_particle_counts())
                 stages.append(Stage(sim,
                                     stages[i - 1] if i else None,
                                     self,
                                     stage_info,
-                                    stage_particles,
                                     **stage_init_args
                                     ))
 
         except NoSuchParamError as e:
+            # if we are missing a parameter other than "staging", we are going to have problems
             if e.param_name() != STAGES_KEY:
                 raise e
             # if stages not found
-            # default: 1 stage, density = starting density, add method=random
-            num_assemblies = self.sim_get_param(sim, "num_assemblies")
-            particles = list(itertools.chain.from_iterable([
-                [p.type_id()] * self.sim_get_param(sim, p.name()) * num_assemblies
+            # list particle type counts
+            particles = {
+                p.name(): self.sim_get_param(sim, p.name())
                 for p in self.sim_get_particles_set(sim).particles()
-            ]))
-
+            }
+            cumulative_type_counts.update(particles)
             stages = [Stage(
                 sim,
                 None,
                 self,
                 StageInfoParam(
                     "default",
-                    add_method="RANDOM",
-                    density=self.sim_get_param(sim, "density"),
-                    steps=self.get_param("steps"),
+                    add_method=RandParticleAdder(particles=particles),
+                    steps=self.sim_get_param(sim, "steps"),
                     allow_shortfall=True
-                ),
-                # stagename="default",
-                # t=0,
-                # tend=self.sim_get_param(sim, "steps"),
-                particles=particles
+                )
             )]
-            # box_size = (len(particles) / self.sim_get_param(sim, "density")) ** (1/3)
-            # write stage dict for code below
-            stages_info = {
-                0: {
-                    "density": self.sim_get_param(sim, "density")
-                }
-            }
 
         # assign box sizes
         for stage in stages:
-            stage_info = stages_info[stage.idx()]
             # if box size is specified explicitly
-            if "box_size" in stage_info:
-                stage.set_box_size(stage_info["box_size"])
+            # i've never used this and don't know why anyone ever would
+            if stage.has_var("box_size"):
+                stage.set_box_size(stage.get_var("box_size"))
             # if box size is specified relative to number of particles
+            # REMOvED. I AM ONCE AGAIN ASKING YOU NOT TO BE FUCKING CLEVER
+            # else:
+            #     # if we are to use all particles (not changing volume)
+            #     # default to no calc fwd
+            #     if "calc_fwd" not in stage_info or stage_info["calc_fwd"]:
+            #         # make sure there are stages after this one
+            #         num_particles = sum([len(s.particles_to_add()) for s in stages])
+            #     else:
+            #         # only consider particles in past stages (incl. this one)
+            #         num_particles = sum([len(s.particles_to_add()) for s in stages[:stage.idx()]])
+            #
+            #     # do NOT incorporate num assemblies - already did above!
+            #
+            #     if "rel_volume" in stage_info:
+            #         relvol = stage_info["rel_volume"]
+            #         box_side = (relvol * num_particles) ** (1 / 3)
+            #
+            #     # if density format
+            #     elif "density" in stage_info:
+            #         # box side length = cube root of n / density
+            #         density = stage_info["density"]
+            #         box_side = (num_particles / density) ** (1 / 3)
+            #
             else:
-                # if we are to use all particles (not changing volume)
-                # default to no calc fwd
-                if "calc_fwd" not in stage_info or stage_info["calc_fwd"]:
-                    # make sure there are stages after this one
-                    num_particles = sum([len(s.particles_to_add()) for s in stages])
-                else:
-                    # only consider particles in past stages (incl. this one)
-                    num_particles = sum([len(s.particles_to_add()) for s in stages[:stage.idx()]])
-
-                # do NOT incorporate num assemblies - already did above!
-
-                if "rel_volume" in stage_info:
-                    relvol = stage_info["rel_volume"]
-                    box_side = (relvol * num_particles) ** (1 / 3)
-
-                # if density format
-                elif "density" in stage_info:
-                    # box side length = cube root of n / density
-                    density = stage_info["density"]
-                    box_side = (num_particles / density) ** (1 / 3)
-
-                else:
-                    density = self.sim_get_param(sim, "density")
-                    box_side = (num_particles / density) ** (1 / 3)
+                # please do not use density or num_assemblies as a staging param. please. please.
+                num_particles = sum(cumulative_type_counts.values()) * self.sim_get_param(sim, "num_assemblies")
+                density = self.sim_get_param(sim, "density")
+                box_side = (num_particles / density) ** (1 / 3)
 
                 stage.set_box_size(np.array((box_side, box_side, box_side)))
 
@@ -893,7 +865,6 @@ class PatchySimulationEnsemble(Analyzable):
     def sim_get_stage_last_conf(self, sim: PatchySimulation, stage: Union[str, int, Stage]):
         return self.folder_path(sim, stage) / self.sim_stage_get_param(sim, stage, "lastconf_file")
 
-
     def sim_get_stage_last_step(self, sim: PatchySimulation, stage: Union[str, int, Stage]) -> int:
         lastconf_file = self.sim_get_stage_last_conf(sim, stage)
         if not lastconf_file.is_file():
@@ -930,7 +901,7 @@ class PatchySimulationEnsemble(Analyzable):
                             (stage_last_step < stage.end_time() and stage.allow_shortfall()):
                         return stage
                     elif stage_last_step > stage.end_time():
-                        return stage # more to do here?
+                        return stage  # more to do here?
                     # if stage is incomplete, raise an exception
                     raise IncompleteStageError(
                         stage,
@@ -977,6 +948,13 @@ class PatchySimulationEnsemble(Analyzable):
             the number of ensemble parameters
         """
         return len(self.ensemble_params)
+
+    def add_params(self, **kwargs):
+        for key, value in kwargs.items():
+            if isinstance(value, (str, float, bool, int)):
+                self.const_params.append(ParameterValue(key, value))
+            else:
+                raise Exception(f"invalid data type {type(value)} provided to add_params")
 
     def tld(self) -> Path:
         """
@@ -1062,13 +1040,13 @@ class PatchySimulationEnsemble(Analyzable):
         for param in self.const_params:
             print(param.str_verbose())
             # if isinstance(param, ParamValueGroup):
-                # if param.param_name == "stages":
-                #     print_stages(param.param_value, 2)
+            # if param.param_name == "stages":
+            #     print_stages(param.param_value, 2)
 
-                # else:
-                # print(f"\t{param.param_name}:")
-                # for name in param.group_params_names():
-                #     print(f"\t\t{name}: {param.param_value[name].value_name()}")
+            # else:
+            # print(f"\t{param.param_name}:")
+            # for name in param.group_params_names():
+            #     print(f"\t\t{name}: {param.param_value[name].value_name()}")
             # else:
             #     print(f"\t{param.param_name}: {param.value_name()}")
 
@@ -1113,8 +1091,8 @@ class PatchySimulationEnsemble(Analyzable):
             #           self.folder_path(sim) / "patches.txt")
 
     def get_scene(self, sim: PatchySimulation,
-                  stage: Union[Stage, str, None]=None,
-                  step: Union[int, None]= None) -> PLPSimulation:
+                  stage: Union[Stage, str, None] = None,
+                  step: Union[int, None] = None) -> PLPSimulation:
         if isinstance(stage, str):
             stage = self.sim_get_stage(sim, stage)
         self.writer.set_directory(self.folder_path(sim, stage))
@@ -1126,7 +1104,7 @@ class PatchySimulationEnsemble(Analyzable):
             assert step % conf_interval == 0
             return self.writer.read_scene(top_file.name, traj_file.name,
                                           self.sim_get_particles_set(sim),
-                                          int(step / conf_interval)-1)
+                                          int(step / conf_interval) - 1)
         else:
             assert step is None
             conf_file = self.sim_stage_get_param(sim, stage, "conf_file")
@@ -1150,7 +1128,6 @@ class PatchySimulationEnsemble(Analyzable):
         traj_file = stage.adjfn(self.sim_get_param(sim, "trajectory_file"))
         num_particles = self.sim_get_total_stage_particles(sim, stage)
         assert num_particles > 0
-
 
     def get_conf(self, sim: PatchySimulation, timepoint: int) -> Configuration:
         """
@@ -1282,7 +1259,7 @@ class PatchySimulationEnsemble(Analyzable):
     def do_setup(self,
                  sims: Union[list[PatchySimulation], None] = None,
                  stage: Union[None, str, Stage] = None,
-                 gen_conf:bool = False):
+                 gen_conf: bool = False):
         """
 
         """
@@ -1368,8 +1345,8 @@ class PatchySimulationEnsemble(Analyzable):
             scene.set_particle_types(particle_set)
 
         else:
+            last_complete_stage = stage.get_prev()
             # don't catch exxeption here
-            last_complete_stage = self.sim_most_recent_stage(sim)
             step = last_complete_stage.end_time()
             scene = self.get_scene(sim, last_complete_stage, step)
         scene.set_temperature(self.sim_stage_get_param(sim, stage, "T"))
@@ -1425,7 +1402,8 @@ class PatchySimulationEnsemble(Analyzable):
 
                 # oxpy manager gets total energy rather than per particle
                 if e > 0 and abs(e / scene.num_particles() - scene_computed_energy) > 1e-4:
-                    print(f"Mismatch between python-computed energy {scene_computed_energy} and oxDNA-computed energy {e}")
+                    print(
+                        f"Mismatch between python-computed energy {scene_computed_energy} and oxDNA-computed energy {e}")
 
     def write_run_script(self, sim: PatchySimulation, input_file="input"):
         # if no stage name provided use first stage
@@ -1445,7 +1423,7 @@ class PatchySimulationEnsemble(Analyzable):
             # skip confGenerator call because we will invoke it directly later
             slurm_file.write(f"{self.server_settings.oxdna_path}/build/bin/oxDNA {input_file}\n")
 
-        self.bash_exec(f"chmod u+x {self.folder_path(sim)}/{slurm_script_name}")
+        self.bash_exec(f"chmod u+x {self.folder_path(sim)}/{slurm_script_name}", is_async=False)
 
     def run_simulation(self, sim: PatchySimulation):
         """
@@ -1659,18 +1637,31 @@ class PatchySimulationEnsemble(Analyzable):
             # TODO: better slurm logging!
 
         self.dump_metadata()
-    def is_setup_done(self, sims: list[PatchySimulation], stage: Union[None, str]) -> bool:
+
+    def is_setup_done(self, sims: list[PatchySimulation], stage: Union[None, str, Stage]) -> bool:
         """
         tests if setup is complete for the given simulations and stages
         """
         # loop sims
         for sim in sims:
-            if isinstance(stage, str):
+            # input sanitization
+            if isinstance(stage, Stage):
+                # stage info provided as Stage object - good!
+                sim_stage = stage
+            elif isinstance(stage, str):
+                # stage info provided as stage name identifier string - acceptable!
                 sim_stage = self.sim_get_stage(sim, stage)
             else:
-                sim_stage = self.sim_most_recent_stage(sim)
+                # stage info not provided! let's improvise!
+                try:
+                    sim_stage = self.sim_most_recent_stage(sim)
+                except NoStageTrajError as e:
+                    # if we don't have traj for any stage that means either setup is incomplet3
+                    # or the stage is stage 0
+                    sim_stage = self.sim_get_stages(sim)[0]
+
             # check that folder exists
-            if not self.folder_path(sim, sim_stage).exists():
+            if not stage.sim.sim_dir.exists():
                 return False
             # check for various files
             if not self.sim_get_stage_top(sim, sim_stage).exists():
@@ -1737,6 +1728,9 @@ class PatchySimulationEnsemble(Analyzable):
         return True
 
     def check_stage(self, sim: PatchySimulation):
+        """
+        Checks staging status of this simulation
+        """
         # if no stage name provided use first stage
         try:
             stage = self.sim_most_recent_stage(sim)
@@ -1760,7 +1754,11 @@ class PatchySimulationEnsemble(Analyzable):
                          backoff_factor=2) -> int:
         """
         Starts an oxDNA simulation. direct invocation is not suggested;
-        use `start_simulations` instead
+
+        NOTE: even for non-slurm jobs we use subprocess.run on an execution file rather than
+        oxpy.run for backwards compatibility with oxDNA_torsion, which isn't compatible with oxpy
+        because oxDNA versions are a horrible nightmare world
+
         Parameters:
              sim : simulation to start
              script_name : the name of the slurm script file
@@ -1771,6 +1769,9 @@ class PatchySimulationEnsemble(Analyzable):
         else:
             stage = self.check_stage(sim)
 
+        if not self.is_setup_done([sim], stage):
+            self.do_setup([sim], stage)
+
         if not force_ignore_ok_check and not self.ok_to_run(sim, stage):
             self.get_logger().warning(f"Stage {stage.name()} not ok to run for sim {repr(sim)}")
             return -1
@@ -1779,7 +1780,7 @@ class PatchySimulationEnsemble(Analyzable):
         if not is_analysis:
             job_type_name = "oxdna"
         else:
-            job_type_name = "analysis"
+            raise Exception("Since implementing this I have learned that dnaAnalysis doesn't work for patchy particles")
 
         if self.server_settings.is_server_slurm():
             command = f"sbatch --chdir={self.folder_path(sim)}"
@@ -1799,13 +1800,20 @@ class PatchySimulationEnsemble(Analyzable):
         # DO NOT DO RETRIES ON NON SLURM MACHINE!!! THIS IS SUSPECTED OF DESTROYING MY ENTIRE LIFE!!!!
         if not self.server_settings.is_server_slurm():
             retries = 1
+        # for nonslurm servers retries should equal 1
         for i in range(retries):
-            submit_txt = self.bash_exec(command, is_async=not self.server_settings.is_server_slurm(),
-                                        cwd=self.folder_path(sim, stage))
+            # always run async for submitting slurm jobs, optionally also run serially
+            do_async = not self.server_settings.is_server_slurm() and not self.is_run_serial()
+            # execute or sbatch slurm script
+            submit_txt = self.bash_exec(command,
+                                        is_async=do_async,
+                                        cwd=self.folder_path(sim, stage)
+                                        )
             if submit_txt:
                 break
             time.sleep(backoff_factor ** i)
 
+        # if we're running this on a slurm server, log the slurm job info (for some reason?)
         if self.server_settings.is_server_slurm():
             if not submit_txt:
                 raise Exception(f"Submit slurm job failed for simulation {sim}")
@@ -1821,6 +1829,14 @@ class PatchySimulationEnsemble(Analyzable):
             return jobid
         else:
             return -1
+
+    def is_run_serial(self):
+        try:
+            # if param exists, return serial param val
+            return self.get_param("run_serial")
+        except NoSuchParamError as e:
+            # if not, default to false
+            return False
 
     # def get_run_oxdna_sh(self, sim: PatchySimulation) -> Path:
     #     """
@@ -2135,22 +2151,13 @@ class PatchySimulationEnsemble(Analyzable):
         """
         Executes a bash command and returns the output
         """
-        if cwd is not None:
-            self.get_logger().debug(f"`{cwd}$ {command}`")
-        else:
-            self.get_logger().debug(f"`{os.getcwd()}$ {command}`")
         if not is_async:
-            response = subprocess.run(command,
-                                      shell=True,
-                                      capture_output=True,
-                                      text=True,
-                                      check=False)
+            response = subprocess.Popen(command.split(), cwd=cwd, stdout=subprocess.PIPE)
+            response.communicate()
+            return response.returncode
         else:
             response = subprocess.Popen(command.split(), cwd=cwd)
-        # response = subprocess.check_output(command, shell=True, stderr=subprocess.STDOUT, check=False,
-        # universal_newlines=True)
-        self.get_logger().debug(f"`{response.stdout}`")
-        return response.stdout
+            return response.stdout
 
     def sim_get_timepoint_stage(self, sim: PatchySimulation, timepoint: int) -> Union[Stage, None]:
         for stage in self.sim_get_stages(sim):
@@ -2169,7 +2176,6 @@ class PatchySimulationEnsemble(Analyzable):
             energy_data_frames.append(sim_energies)
         df = pd.concat(energy_data_frames)
         return df
-
 
 
 def process_simulation_data(args: tuple[PatchySimulationEnsemble, AnalysisPipelineStep, PatchySimulation, range]):

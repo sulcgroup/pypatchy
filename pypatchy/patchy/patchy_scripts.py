@@ -143,12 +143,12 @@ def add_standard_patchy_interaction(scene: PLPSimulation,
     scene.add_potential(PLLRExclVolPotential(
         rmax=2.01421
     ))
-    # TODO: i'm like 99% sure we can ignore patchy interaction for this purpose
-    patchy_potential = PLLRPatchyPotential(
-        rmax=2.01421,  # cutoff for all interactions, computed assuming a particle w/ radius 0.5 and no spherical attraction
-        interaction_matrix=interaction_matrix,
-        sigma_ss=sigma
-    )
 
-    scene.add_potential(patchy_potential)
+    # patchy_potential = PLLRPatchyPotential(
+    #     rmax=2.01421,  # cutoff for all interactions, computed assuming a particle w/ radius 0.5 and no spherical attraction
+    #     interaction_matrix=interaction_matrix,
+    #     sigma_ss=sigma
+    # )
+
+    # scene.add_potential(patchy_potential)
 
