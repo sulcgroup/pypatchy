@@ -715,6 +715,8 @@ class LWriter(PLBaseWriter):
         if conf_idx is None:
             conf = rr.get_confs(top_info, traj_info, traj_info.nconfs - 1, 1)[0]
         else:
+            assert conf_idx < traj_info.nconfs, f"Trying to read conf {conf_idx} from traj at " \
+                                                f"{str(self.directory() / traj_file)} but file only contains {traj_info.nconfs} confs!"
             conf = rr.get_confs(top_info, traj_info, conf_idx, 1)[0]
         conf = rr.inbox(conf, center=False)
         assert ((conf.positions < conf.box) & (conf.positions >= 0)).all(), "Conf inbox did not inbox!"
