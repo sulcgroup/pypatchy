@@ -58,12 +58,13 @@ def find_crystal_temperature(tinter: float,
         } for tidx, datapoint in enumerate(sim_records) if datapoint.energy()]
         for i, sim_records in enumerate(polycube_results)
     ]))
+    df.dropna(inplace=True) # TODO: make not problem
 
     # interpret data
     fit_results = []
     for sim in df['sim'].unique():
         sim_data = df[df['sim'] == sim]
-        x_data = sim_data['time']
+        x_data = sim_data['step']
         y_data = sim_data['energy']
 
         # Initial guesses for L, k, and x0

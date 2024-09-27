@@ -250,6 +250,7 @@ class Stage(BuildSimulation):
                                                         "queued to add!"
         elif isinstance(self._param_info.add_method, RandParticleAdder):
             start_particle_count = scene.num_particles()
+            # self.particles_to_add incorporates num_assmblies
             particles = [scene.particle_types().particle(i_type).instantiate(i + start_particle_count)
                          for i, i_type in enumerate(self.particles_to_add())]
             scene.add_particle_rand_positions(particles)
@@ -262,11 +263,14 @@ class Stage(BuildSimulation):
             except NoSuchParamError:
                 mdt_settings = None
             # add polycubes
-            scene.add_conf_clusters([
-                polycube_to_pl(pc.polycube_file_path,
-                               mdt_settings,
-                               pad_cubes=dps_sigma * pc.patch_distance_multiplier)
-                for pc in self._param_info.add_method.iter_polycubes()])
+            # self._param_info.add_method.iter_polycubes() does NOT incorporate num_assemblies
+            # so be explicit about that!
+            for _ in range(self.getctxt().sim_get_param(self.spec(), "num_assemblies")):
+                scene.add_conf_clusters([
+                    polycube_to_pl(pc.polycube_file_path,
+                                   mdt_settings,
+                                   pad_cubes=dps_sigma * pc.patch_distance_multiplier)
+                    for pc in self._param_info.add_method.iter_polycubes()])
         elif isinstance(self._param_info.add_method, FromConfAdder):
             raise Exception("If you're seeing this, this feature hasn't been implemented yet although it can't be"
                             "THAT hard really")
