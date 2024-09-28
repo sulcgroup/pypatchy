@@ -8,12 +8,14 @@ from scipy.optimize import curve_fit
 
 from pypatchy.polycubeutil.polycubesRule import PolycubesRule
 
+
 # Define the sigmoid function
 def sigmoid(x, L, k, x0, b):
     return -L / (1 + np.exp(-k * (x - x0))) + b
 
-def tanh(x: np.ndarray, L: float, k: float, x0: float, b:float) -> np.ndarray:
-    return L * np.tanh(k * (x-x0)) + b
+
+def tanh(x: np.ndarray, L: float, k: float, x0: float, b: float) -> np.ndarray:
+    return L * np.tanh(k * (x - x0)) + b
 
 
 @dataclass
@@ -21,7 +23,7 @@ class CrystallizationTestParams:
     rule: PolycubesRule
     n_replicas: int
     data_point_interval: int
-    n_unit_cells:int
+    n_unit_cells: int
     cube_type_counts: list[int]
     sim_n_steps: int
     torsion: bool = True
@@ -29,10 +31,11 @@ class CrystallizationTestParams:
 
     total_type_counts = property(lambda self: [n * self.n_unit_cells for n in self.cube_type_counts])
 
+
 def find_crystal_temperature(tinter: float,
-             tmin: float,
-             tmax: float,
-            params:CrystallizationTestParams) -> tuple[list[list[libtlm.TLMHistoryRecord]], float]:
+                             tmin: float,
+                             tmax: float,
+                             params: CrystallizationTestParams) -> tuple[list[list[libtlm.TLMHistoryRecord]], float]:
     assert len(params.cube_type_counts) == len(params.rule)
     T = (tmax + tmin) / 2  # find midpoint
     print(f"Testing crystallization at temperature {T}")
@@ -58,7 +61,7 @@ def find_crystal_temperature(tinter: float,
         } for tidx, datapoint in enumerate(sim_records) if datapoint.energy()]
         for i, sim_records in enumerate(polycube_results)
     ]))
-    df.dropna(inplace=True) # TODO: make not problem
+    df.dropna(inplace=True)  # TODO: make not problem
 
     # interpret data
     fit_results = []
@@ -111,13 +114,14 @@ def find_crystal_temperature(tinter: float,
         return polycube_results, T
     return find_crystal_temperature(tinter, tmin, tmax, params)
 
+
 def is_aggregate(curve_fits: pd.DataFrame) -> bool:
     # if the sigmoid best fit has a midpoint before the start
     # that means it started forming immediately & thus aggregated
     return curve_fits["x0"].mean() < 0
 
+
 def is_melt(curve_fits: pd.DataFrame) -> bool:
     # if L is negligable that means melt
     fit_results_stats = curve_fits.describe()
     return abs(curve_fits["L"].mean() / curve_fits["b"].mean()) < 0.01
-
