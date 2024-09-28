@@ -1816,7 +1816,8 @@ class PatchySimulationEnsemble(Analyzable):
         # if we're running this on a slurm server, log the slurm job info (for some reason?)
         if self.server_settings.is_server_slurm():
             if not submit_txt:
-                raise Exception(f"Submit slurm job failed for simulation {sim}")
+                raise Exception(f"Submit slurm job failed for simulation {sim}\n"
+                                f"Submit command: `{command}`")
 
             jobid = int(re.search(SUBMIT_SLURM_PATTERN, submit_txt).group(1))
             self.append_slurm_log(SlurmLogEntry(
@@ -2152,12 +2153,15 @@ class PatchySimulationEnsemble(Analyzable):
         Executes a bash command and returns the output
         """
         if not is_async:
-            response = subprocess.Popen(command.split(), cwd=cwd, stdout=subprocess.PIPE)
-            response.communicate()
-            return response.returncode
+            response = subprocess.run(command,
+                                      shell=True,
+                                      capture_output=True,
+                                      text=True,
+                                      check=False,
+                                      cwd=cwd)
         else:
             response = subprocess.Popen(command.split(), cwd=cwd)
-            return response.stdout
+        return response.stdout
 
     def sim_get_timepoint_stage(self, sim: PatchySimulation, timepoint: int) -> Union[Stage, None]:
         for stage in self.sim_get_stages(sim):
