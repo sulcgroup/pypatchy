@@ -49,7 +49,7 @@ def find_crystal_temperature(tinter: float,
         params.total_type_counts,  # type counts
         params.sim_n_steps,  # steps
         params.data_point_interval  # data point interval
-    ), params.n_replicas)
+    ), params.n_replicas, 1000)
 
     # convert results to pandas dataframe
     df = pd.DataFrame(itertools.chain.from_iterable([
