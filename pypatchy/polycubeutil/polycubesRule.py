@@ -146,6 +146,13 @@ class PolycubesPatch(BasePatchType):
     def activation_var(self) -> int:
         return self._activationVar
 
+    def set_type_id(self, new_val: int):
+        """
+        sets patch unique identifier
+        use with caution!
+        """
+        self._uid = new_val
+
     def rotate(self, rotation: np.ndarray) -> PolycubesPatch:
         """
         Rotates and returns copy of patch

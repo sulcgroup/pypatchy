@@ -1,3 +1,4 @@
+import copy
 import itertools
 from dataclasses import dataclass
 from typing import Union
@@ -8,6 +9,7 @@ import libtlm
 import numpy as np
 from scipy.optimize import curve_fit
 
+from pypatchy.design.solve_params import CrystallizationTestParams
 from pypatchy.polycubeutil.polycubesRule import PolycubesRule
 
 
@@ -20,26 +22,31 @@ def tanh(x: np.ndarray, L: float, k: float, x0: float, b: float) -> np.ndarray:
     return L * np.tanh(k * (x - x0)) + b
 
 
-@dataclass
-class CrystallizationTestParams:
+class DoesNotCrystalizeException(BaseException):
+    """
+    Exception for when the finder does not find crystal.
+    todo: get rid of this? use a class for crystal finder for better logging?
+    """
     rule: PolycubesRule
-    n_replicas: int
-    data_point_interval: int
-    n_unit_cells: int
-    cube_type_counts: list[int]
-    sim_n_steps: int
-    torsion: bool = True
+    polycubes_data: list[list[libtlm.TLMHistoryRecord]]
+    T: float
 
-    total_type_counts = property(lambda self: [n * self.n_unit_cells for n in self.cube_type_counts])
+    def __init__(self, rule: PolycubesRule, polycubes_data: list, T: float):
+        self.rule = rule
+        self.polycubes_data = polycubes_data
+        self.T = T
+
+    def __str__(self):
+        return f"Could not find crystallization temperature! Best temperature was T={self.T}"
+
 
 # todo: make this a class so it can properly store temperature data
-def find_crystal_temperature(tinter: float,
-                             tmin: float,
-                             tmax: float,
+def find_crystal_temperature(rule: PolycubesRule,
+                             unit_cell_type_counts: list[int],
                              params: CrystallizationTestParams) -> tuple[
     Union[None, list[list[libtlm.TLMHistoryRecord]]], float]:
-    assert len(params.cube_type_counts) == len(params.rule)
-    T = (tmax + tmin) / 2  # find midpoint
+    assert len(unit_cell_type_counts) == len(rule)
+    T = (params.Tmax + params.Tmax) / 2  # find midpoint
     print(f"------------------------ Testing crystallization at temperature {T} -------------------")
     # run simulations
     polycube_results: list[list[libtlm.TLMHistoryRecord]] = libtlm.runSimulations(
@@ -47,14 +54,14 @@ def find_crystal_temperature(tinter: float,
             params.torsion,  # torsion
             True,  # deplete types
             T,  # temperature
-            0.1,  # density - TODO: customize?
-            str(params.rule),
-            params.total_type_counts,  # type counts
-            params.sim_n_steps,  # steps
-            params.data_point_interval  # data point interval
+            params.density,  # density
+            str(rule),
+            params.get_total_type_counts(unit_cell_type_counts),  # type counts
+            params.n_steps,  # steps
+            params.record_interval  # data point interval
         ),
-        params.n_replicas, # number of replicase
-        int(1e5) # interval to print energy to console
+        params.n_replicas,  # number of replicase
+        params.record_interval / 10  # interval to print energy to console
     )
 
     # convert results to pandas dataframe
@@ -99,7 +106,6 @@ def find_crystal_temperature(tinter: float,
             else:
                 raise e
 
-
         # Plot each fit
         # x_fit = np.linspace(min(x_data), max(x_data), 100)
         y_fit = sigmoid(x_data, *popt)
@@ -121,22 +127,23 @@ def find_crystal_temperature(tinter: float,
     # TODO: we can do better?
     # todo: quantitiative measure of crystal-ness
 
+    new_params = copy.deepcopy(params)
+
     if result_is_melt or is_melt(fit_results):
         # if we've melted, lower temperature
         print(f"Rule melts at T={T}")
-        tmax = T
+        new_params.Tmax = T
     elif is_aggregate(fit_results):
         # if aggregat, raise temperature
         print(f"Rule aggregates at T={T}")
-        tmin = T
+        new_params.Tmin = T
     else:
         assert is_crystal(fit_results)
         print(f"Crystal at T={T}!")
         return polycube_results, T
-    if (tmax - tmin) < tinter: # limit recursion depth
-        print(f"Could not find crystallization temperature! Best temperature was T={T}")
-        return polycube_results, T
-    return find_crystal_temperature(tinter, tmin, tmax, params)
+    if new_params.t_interval_valid:  # limit recursion depth
+        raise DoesNotCrystalizeException(rule, polycube_results, T)
+    return find_crystal_temperature(rule, unit_cell_type_counts, new_params)
 
 
 def is_aggregate(curve_fits: pd.DataFrame) -> bool:

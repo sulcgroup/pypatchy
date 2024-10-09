@@ -38,11 +38,15 @@ from enum import Enum
 from pathlib import Path
 from typing import Union, IO
 
+from scipy.spatial.transform import Rotation
+
+from .crystal_finder import find_crystal_temperature, CrystallizationTestParams, DoesNotCrystalizeException
+from ..polycubeutil.polycube_structure import PolycubeStructure
 from ..polycubeutil.polycubesRule import PolycubesRule, PolycubesPatch, get_orientation
 from ..polycubeutil.polycubesRule import RULE_ORDER
 
 from .solve_utils import patchRotToVec, getIndexOf, patchVecToRot, getFlatFaceRot, calcEmptyFromTop, \
-    countParticlesAndBindings
+    countParticlesAndBindings, toPolycube
 import numpy as np
 from pysat.formula import CNF
 from pysat.solvers import Glucose4
@@ -94,11 +98,11 @@ class Polysat(SATProblem):
     # nS = Number of distinct cube types for the solver
     nS: int = property(lambda self: self.input_params.nS)
     # nC = number of color variables, a function of input_params.nC but not indentical
-    nC: int = property(lambda self: (self.input_params.nC * 2) + 1)
+    nC: int = property(lambda self: (self.input_params.nC + 1) * 2)
     nD: int = property(lambda self: self.input_params.nDim)
 
-    n_TLM_steps: int
-    tlm_record_interval: int
+    crystal_fit_clauses: list[SATClause]
+
 
     def __init__(self,
                  params: SolveParams):
@@ -106,8 +110,6 @@ class Polysat(SATProblem):
 
         # save solve parameter set
         self.input_params = params
-
-        # self.allostery_constraints = params.allo_limits
 
         # nL = number of locations
         self.nL, _ = countParticlesAndBindings(params.topology.bindings_list)
@@ -137,14 +139,12 @@ class Polysat(SATProblem):
 
         self.additional_sat_clauses = []  # some additional conditions
         self.BCO_varlen = 0  # the number of clauses that determine B and C
-        # self.allo_clauses = None  # clauses to handle allostery
         self.nanoparticle_clauses = None
 
-        # self.nA = 0 if self.allostery_complexity_constraints['type'] == 'none' else \
-        #     (self.allostery_complexity_constraints['max_n_patches_with_allostery']
-        #      if 'max_n_patches_with_allostery' in self.allostery_complexity_constraints else self.nP)
+        self.crystal_fit_clauses = None
 
     def init(self, strict_counts=True):
+        # generate basic constraints
         self.generate_constraints()
 
         # if problem has nanoparticles
@@ -160,23 +160,32 @@ class Polysat(SATProblem):
             self.add_constraints_all_particles()
 
         # Solution must use all patches, except color 0 which should not bind
+        # It is not necessary for a solution to have empty patches (e.g. if we
+        # actually want an unbounded solution, so we don't require color 1)
+        # in other words, color 0 is forbidden and color 1 is allowed but not required
+        # todo: revisit
         self.add_constraints_all_patches_except([0], [1])
 
         # A color cannot bind to itself
+        # this is probably redundant w/ fix_color_interaction
         self.add_constraints_no_self_complementarity()
 
         # Make sure color 0 binds to 1 and nothing else
         # self.fix_color_interaction(0, 1)
 
         # Fix interaction matrix, to avoid redundant solution
+        # in other words, c2 should bind with c3, c4 with c5, etc.
+        # if we don't do this then when we forbid a solution it will just find an alternative
+        # arrangement of color vars
         for c in range(2, self.nC - 1, 2):
             self.fix_color_interaction(c, c + 1)
 
+        # if we have torsional patches,
         if self.nD == 3 and self.torsionalPatches:
             self.add_constraints_fixed_blank_orientation()
 
-        # if self.allostery_constraints.allostery_type() is None:
-        #     self.fix_empties()
+        # force faces in topology which do not have bonds to not have patches
+        self.fix_empties()
 
     def rotation(self, p: int, r: int) -> int:
         """ patch that p rotates to under rotation r """
@@ -251,6 +260,16 @@ class Polysat(SATProblem):
         assert 0 <= r < self.nR
         return self.variable("P", l, s, r)
         # return self.variables.setdefault(f'P({l},{s},{r})', len(self.variables) + 1)
+
+    def Pstar(self, lstar: int, l: int) -> int:
+        assert 0 <= l < self.nL
+        # lstar is dependant on test crystal size, can't test validity
+        assert 0 <= lstar
+        return self.variable("L*", lstar, l)
+
+    def Rstar(self, r: int) -> int:
+        assert 0 <= r < self.nR
+        return self.variable("R*", r)
 
     ## NANOPARTICLE SAT VARIABLES ##
     def N_single(self, s: int) -> int:
@@ -405,19 +424,20 @@ class Polysat(SATProblem):
         return constraints
 
     def generate_BCO(self):
+        """
+        constructs all nessecary variables for vars B, C, and O
+        """
         # make sure B, C and O vars are first:
-        for c1 in range(self.nC):
-            for c2 in range(self.nC):
-                self.B(c1, c2)
-        for s in range(self.nS):
-            for p in range(self.nP):
-                for c in range(self.nC):
-                    self.C(s, p, c)
+        # var B(c1, c2) = color c1 is compatible with C2
+        for (c1, c2) in itertools.product(range(self.nC), range(self.nC)):
+            self.B(c1, c2)
+        # var C = patch p on species s has color c
+        for s, p, c in itertools.product(range(self.nS), range(self.nP), range(self.nC)):
+            self.C(s, p, c)
+        # var O = patch p on species s has color c
         if self.torsionalPatches:
-            for s in range(self.nS):
-                for p in range(self.nP):
-                    for o in range(self.nO):
-                        self.O(s, p, o)
+            for s, p, o in itertools.product(range(self.nS), range(self.nP), range(self.nO)):
+                self.O(s, p, o)
 
     def gen_legal_color_bindings(self) -> list[SATClause]:
         """
@@ -427,9 +447,9 @@ class Polysat(SATProblem):
         Returns: a list of CNF clauses that together represent clause i
         """
         constraints = []
-        # BASIC THINGS:
-        #
+        # loop colors, skipping color 0
         for c1 in range(self.nC):
+            # each color should bind w/ exactly one other color
             constraints.extend(self._exactly_one([self.B(c1, c2) for c2 in range(self.nC)]))
 
         return constraints
@@ -515,9 +535,8 @@ class Polysat(SATProblem):
         # forall (l1, p1) binding with (l2, p2) from crystal spec:
         # forall c1, c2: F(l1, p1, c1) and F(l2, p2, c2) => B(c1, c2)
         for (l1, p1), (l2, p2) in self.bindings.items():
-            for c1 in range(self.nC):
-                for c2 in range(self.nC):
-                    constraints.append((-self.F(l1, p1, c1), -self.F(l2, p2, c2), self.B(c1, c2)))
+            for c1, c2 in itertools.product(range(self.nC), range(self.nC)):
+                constraints.append((-self.F(l1, p1, c1), -self.F(l2, p2, c2), self.B(c1, c2)))
 
         # - Forms desired crystal:
         # "Specified binds have compatible orientations"
@@ -525,9 +544,8 @@ class Polysat(SATProblem):
         # 		forall o1, o2: A(l1, p1, o1) and A(l2, p2, o2) => D(c1, c2)
         if self.torsionalPatches:
             for (l1, p1), (l2, p2) in self.bindings.items():
-                for o1 in range(self.nO):
-                    for o2 in range(self.nO):
-                        constraints.append((-self.A(l1, p1, o1), -self.A(l2, p2, o2), self.D(p1, o1, p2, o2)))
+                for o1, o2 in itertools.product(range(self.nO), range(self.nO)):
+                    constraints.append((-self.A(l1, p1, o1), -self.A(l2, p2, o2), self.D(p1, o1, p2, o2)))
         return constraints
 
     def gen_hard_code_orientations(self):
@@ -711,6 +729,8 @@ class Polysat(SATProblem):
         Returns: a list of SAT clauses
 
         """
+        assert self.nNPT > 1, "You're trying to add multi-type nanoparticle clauses for a system with only" \
+                              " one nanoparticle type! Please reformat your setup json"
         constraints = []
         # generate disjointitiy clause - each species s has exactly one nanoparticle type
         for s in range(self.nS):
@@ -751,6 +771,9 @@ class Polysat(SATProblem):
         return constraints
 
     def fix_empties(self):
+        """
+        forces empty-binding colors to be 1
+        """
         for particle, patch in self.empty:
             self.fix_slot_colors(particle, patch, 1)
             # print("Particle {} patch {} should be empty".format(particle, patch))
@@ -903,19 +926,29 @@ class Polysat(SATProblem):
         for c in range(self.nC):
             self.basic_sat_clauses.append([self.C(s, p, c) for s in range(self.nS) for p in range(self.nP)])
 
-    def add_constraints_all_patches_except(self, forbidden: list[int], nonRequired: list[int] = [1]):
+    def add_constraints_all_patches_except(self,
+                                           forbidden: list[int],
+                                           nonRequired: list[int] = [1]):
+        """
+        Adds constraints which require the solution to include all patches, w/ exceptions
+        Colors in forbidden cannot be used in the solution at all, colors in nonRequired can be used but don't have to be
+        """
+        # loop colors
         for c in range(self.nC):
+            # skip patches that aren't in either "forbidden" or "nonrequired"
             if c not in forbidden and c not in nonRequired:
                 self.basic_sat_clauses.append([self.C(s, p, c) for s in range(self.nS) for p in range(self.nP)])
             # Do not use forbidden color
-            for p in range(self.nP):
-                for s in range(self.nS):
-                    for nForbidden in forbidden:
-                        self.basic_sat_clauses.append(
-                            [-self.C(s, p, nForbidden)]
-                        )
+            # for all patches p, species s, nForbidden of our list of forbidden colors
+            for p, s, nForbidden in itertools.product(range(self.nP), range(self.nS), forbidden):
+                self.basic_sat_clauses.append(
+                    [-self.C(s, p, nForbidden)]
+                )
 
     def add_constraints_fixed_blank_orientation(self):
+        """
+        hardcodes blank patch orientations to 0
+        """
         for p in range(self.nP):
             for s in range(self.nS):
                 self.basic_sat_clauses.append((
@@ -924,36 +957,51 @@ class Polysat(SATProblem):
                 ))
 
     def add_constraints_no_self_complementarity(self, above_color=0):
+        """
+        forbids colors from being complimentary to themselves
+        """
         for c in range(above_color, self.nC):
             self.basic_sat_clauses.append([-self.B(c, c)])
 
-    def fix_particle_colors(self, ptype, sid, cid):
-        self.basic_sat_clauses.append([self.C(ptype, sid, cid)])
+    def fix_particle_colors(self, ptype: int, sid: int, cid: int):
+        """
+        requires patch ptype on species s to have color cid
+        this function is never used and is inherited from JB, I have preserved it on
+        the grounds that it may someday be useful
+        """
+        self.basic_sat_clauses.append([self.C(sid, ptype, cid)])
 
-    def fix_slot_colors(self, ptype, sid, cid):
-        self.basic_sat_clauses.append([self.F(ptype, sid, cid)])
+    def fix_slot_colors(self, loc: int, p: int, cid: int):
+        """
+        Forces patch p at locaion l to have color cid
+        useful for fixing empties, may have other applications in more bespoke SAT designs
+        """
+        self.basic_sat_clauses.append([self.F(loc, p, cid)])
 
-    def fix_color_interaction(self, c1, c2):
+    def fix_color_interaction(self, c1: int, c2: int):
+        """
+        hardcodes color c1 to interact with color c2
+        """
         self.basic_sat_clauses.append([self.B(c1, c2)])
 
-    def tlm_params(self,
-                   rule: PolycubesRule,
-                   temperature: float,
-                   density: float,
-                   type_counts: list[int],
-                   interaction_matrix: dict[tuple[int,int],float]) -> TLMParameters:
-        return TLMParameters(
-            self.input_params.torsion,
-            True,  # deplete types, reconsider hardcoding?
-            temperature,
-            density,
-            str(rule),
-            type_counts,
-            self.n_TLM_steps,
-            interaction_matrix,
-            time.ctime(), # random seed
-            self.tlm_record_interval
-        )
+    # def tlm_params(self,
+    #                rule: PolycubesRule,
+    #                temperature: float,
+    #                density: float,
+    #                type_counts: list[int],
+    #                interaction_matrix: dict[tuple[int,int],float]) -> TLMParameters:
+    #     return TLMParameters(
+    #         self.input_params.torsion,
+    #         True,  # deplete types, reconsider hardcoding?
+    #         temperature,
+    #         density,
+    #         str(rule),
+    #         type_counts,
+    #         self.n_TLM_steps,
+    #         interaction_matrix,
+    #         time.ctime(), # random seed
+    #         self.tlm_record_interval
+    #     )
 
     def forbidSolution(self, solution: SATSolution):
         """
@@ -1174,7 +1222,7 @@ class Polysat(SATProblem):
             if self.input_params.crystal:
                 if self.test_crystal(soln):
                     return soln
-            elif self.input_params.is_multifarious():
+            elif self.input_params.is_multifarious:
                 if self.test_multifarious_finite_size(soln):
                     return soln
             elif self.input_params.has_nanoparticles():
@@ -1188,34 +1236,113 @@ class Polysat(SATProblem):
                     return soln
         return None
 
+    def add_lmap_clauses(self, nlstar: int):
+        """
+        add SAT clauses that map locations in a polycube to locations in the model
+        """
+        # iter locations in polycube
+        for lstar in range(nlstar):
+            # each lstar should be associated with exactly one l
+            self.crystal_fit_clauses.extend(self._exactly_one([self.Pstar(lstar, l) for l in range(self.nL)]))
+
+
+    def polycube_satisfies(self, soln: SATSolution, crystal: PolycubeStructure) -> bool:
+        """
+        sets up and executes a sat-solve to test if the polycube object given matches the given SAT
+        problem
+        """
+        # skip polycubes with more locations than the crystal unit cell
+        self.crystal_fit_clauses = []
+        if crystal.num_particles() > self.nL:
+            # test the polycube!
+            # first add mapping clauses
+            self.add_lmap_clauses(crystal.num_particles())
+            # rotation clauses
+            self.add_crystal_rotation_clauses()
+            # can we assume that cube type IDs in the tlm are indexed the same as s variables?
+            # i *think* the answer is yes
+            # for location in polycube:
+            for lstar, cube in enumerate(crystal.particles()):
+                # find rotational index that corresponds to cube rotation
+                r: int = self.find_closest_symmetry_key(cube.rotation())
+                assert r is not None
+                # loop all location lstar in the unit cell
+                for l in range(self.nL):
+                    # get species present in location lstar
+                    s: int = cube.get_type()
+                    # if location lstar maps to location l, species s must be present at location l
+                    # and rotation mapping must be correct
+                    # let rho be a possible rotation index in enumerateRotations()
+                    for rho in range(self.nR):
+                        # compute phi r (q)
+                        # grab rotation of cube
+                        # R(r) => (P*(l*,l) => P(l,s,r))
+                        # or in other words, ~R(r) v ~P*(l*,l) v ~P(l,s,r)
+                        # or in other other words, one of the following must be FALSE
+                        #   - the rotation of the crystal with respect to the unit cell is rho
+                        #   - the location l* in the crystal is equivalent to the location l in the unit cell
+                        #   - location l in the unit cell is occupied by species s rotated by rho ??????
+                        self.crystal_fit_clauses.append([-self.Rstar(rho),
+                                                         -self.Pstar(lstar, l),
+                                                         -self.P(l, s, rho)])
+        else:
+            # polycube w/ less particles than the unit cell is nessecarily not a crystal
+            return False
+
+        # try to find solution
+
+
+        # clear Pstar variables
+        for lstar, l in itertools.product(range(crystal.num_particles()), range(self.nL)):
+            del self.variables[f"Pstar({lstar, l})"]
+
+    def test_crystal_structure(self, crystal_structure: PolycubeStructure,
+                               unit_cell_structure: PolycubeStructure) -> bool:
+        """
+        tests if the crystal matches the provided polycube unit cell
+        """
+        if crystal_structure.rule != unit_cell_structure.rule:
+            self.logger.warning("Trying to compare structures that don't share the same particle set!")
+            return False
+        # try to overlay unit cell on crystal structure
+        # todo?
+
     def test_crystal(self, sat_solution: SATSolution) -> bool:
         """
         this becomes. tricky.
+        this method will only work for non-multifarious crystals
 
 
         """
-        T = 0.5
 
-        polycube_results = libtlm.runSimulations(self.tlm_params(
-            self.torsionalPatches, # torsion
-            True, # Type depletion
-            T,  # temperature
-            0.1,  # density
-            sat_solution.decRuleOld(),
-            [200, 200],  # type counts
-            int(5e6),  # steps
-            1000  # data point interval
+        try:
+            polycube_data, T = find_crystal_temperature(sat_solution.decRuleOld(),
+                                                        sat_solution.type_counts(),
+                                                        self.input_params.tlm_params)
+            self.logger.info(f"Rule {str(sat_solution.rule)} crystallizes at T={T}, testing particle types...")
+            # hardcode sat solution into solution (i promise this makes sense probably dude trust me bro)
 
-        ))
+            # only use final timestep polycubes
+            final_records: list[libtlm.TLMHistoricalRecord] = [records[-1] for records in polycube_data]
+            # convert polycube data to objects
+            polycube_data: list[list[PolycubeStructure]] = [[toPolycube(sat_solution.rule, pc) for pc in record] for record in final_records]
+            for polycube in itertools.chain.from_iterable(polycube_data):
+                # of the polycube has formed a crystal other than the desired one, return false
+                # use SAT-solver approach
+                if not self.polycube_satisfies(sat_solution, polycube):
+                    return False
+
+        except DoesNotCrystalizeException as e:
+            self.logger.info(str(e))
+            self.logger.info(f"Forbidding solution {str(e)}")
+            return False
 
 
     def test_multifarious_finite_size(self, sat_solution: SATSolution) -> bool:
         """
         tricky
         """
-        polycube_results = libtlm.runSimulations(self.tlm_params(
 
-        ))
 
     def test_type_specific_finite_size(self, sat_solution: SATSolution) -> bool:
         """

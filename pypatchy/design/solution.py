@@ -13,12 +13,14 @@ class SATSolution:
 
     num_species: int
     num_colors: int
+    # var C(s,p,c) = patch p on species s has color c
     C_vars: list[str]
+    # var O(s,p,o) = patch p on species s has orientation o
     O_vars: list[str]
 
     rule: PolycubesRule
 
-    # spacial map is a topology; a list of edges connecting cubes
+    # spacial map is a list of tuples where the first value is a particle species, the second is a rotation
     spacial_map: list[tuple[int, int]]
     nanoparticle_map: dict
 
@@ -138,7 +140,7 @@ class SATSolution:
                 self.rule.particle(species_idx).get_patch_by_diridx(direction_idx).set_align_rot(rotation)
 
         # construct map of location indexes to coordinates in 3-space....
-        if not input_params.is_multifarious():
+        if not input_params.is_multifarious:
             self.coord_map = compute_coordinates(solver.internal_bindings)
         else:
             self.coord_map = None
@@ -170,6 +172,12 @@ class SATSolution:
                 logger.info(f"\t\tType {nptype + 1}: {[i for i, ct in enumerate(self.rule.particles()) if self.nanoparticle_map[i] == nptype + 1]}")
 
         logger.info("-----------------")
+
+    def type_counts(self) -> list[int]:
+        tyoe_counts = [0 for _ in range(self.num_species)]
+        for species, _ in self.spatial_map:
+            tyoe_counts[species] += 1
+        return tyoe_counts
 
     def exportScene(self, modelname="scene"):
         data = {

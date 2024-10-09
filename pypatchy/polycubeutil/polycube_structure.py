@@ -371,6 +371,8 @@ class PolycubeStructure(TypedStructure, Scene):
 
 class PolycubesStructureCube(PatchyBaseParticle):
     _type_cube: PolycubeRuleCubeType
+    _rot: Rotation
+    _state: list[bool]
 
     def __init__(self,
                  uid: int,

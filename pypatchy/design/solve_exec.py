@@ -160,7 +160,7 @@ def solve(solve_params: SolveParams) -> Union[None, SATSolution]:
 
 
 # worker for multiprocessing
-def solve_worker(params, attach_parent=True):
+def solve_worker(params: tuple[int, int, int, dict, str], attach_parent=True):
     (idx, nS, nC, data, topname) = params
 
     solve_params = SolveParams(
@@ -173,7 +173,8 @@ def solve_worker(params, attach_parent=True):
     logger = setup_logger(solve_params.get_logger_name())
     if attach_parent:
         # add superlogger handler
-        logger.addHandler(logging.getLogger(f"{topname}_main").handlers[0])
+        for main_logger_handler in logging.getLogger(f"{topname}_main").handlers:
+            logger.addHandler(main_logger_handler)
 
     logging.getLogger(f"{topname}_main").info(f"Attaching process to solve "
                                               f"nS={nS}, nC={nC} "
@@ -186,6 +187,7 @@ def solve_worker(params, attach_parent=True):
         solution.printToLog()
         if solution.has_coord_map():
             solution.exportScene(topname)
+            # return when we find solution
 
 
 def solve_multi(solve_params: dict,

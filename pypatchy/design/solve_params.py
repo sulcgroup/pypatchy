@@ -1,8 +1,10 @@
 import copy
 import itertools
 import logging
+from dataclasses import dataclass, field
 from typing import Union
 
+from pypatchy.design.solve_utils import CrystalSolnTestParams
 from pypatchy.structure import Structure
 
 
@@ -22,6 +24,31 @@ from pypatchy.structure import Structure
 # NO_ALLOSTERY.allow_allostery = False
 
 
+@dataclass
+class CrystallizationTestParams:
+    """
+    dataclass that holds wide-scale info about how to test a crystal, for the sat solver
+    """
+    n_replicas: int = field(default=24)
+    n_unit_cells: int = field(default=400)  # can apply even to finite size assemblies
+    # simulation step count - I strongly advise against leaving this as default!
+    n_steps: int = field(default=int(5e6))
+    # historical record interval
+    record_interval: int = field(default=1000)
+    density: float = field(default=0.1)
+
+    # min, max, interval temperatures
+    Tmin: float = field(default=0)
+    Tmax: float = field(default=1)
+    Tinterval: float = field(default=0.001)
+
+    torsion: bool = field(default=True)
+
+    def get_total_type_counts(self, cube_type_counts: list[int]):
+        return [n * self.n_unit_cells for n in cube_type_counts]
+
+    t_interval_valid: bool = property(lambda self: self.Tmax - self.Tmin > self.Tinterval)
+
 class SolveParams:
     """
     A class that holds the parameters for a SAT solver execution
@@ -40,7 +67,7 @@ class SolveParams:
     # forbid self interact?
     forbid_self_interact: bool
     # positions of nanoparticles
-    nanoparticles: dict[int, int]
+    nanoparticles: Union[dict[int, int], list[int]]
     # number of dimensions (currently locked to 3)
     nDim: int
     # if the structure we're trying to solve for is a crystal
@@ -52,6 +79,9 @@ class SolveParams:
     # number of seconds to run the SAT solver for before giving up
     solver_timeout: int
     structure_ids: Union[dict[int, int], None]
+
+    tlm_params: CrystalSolnTestParams
+
 
     def __init__(self, name, **kwargs):
         self.name = name
@@ -72,13 +102,25 @@ class SolveParams:
         self.maxAltTries = kwargs["maxAltTries"] if "maxAltTries" in kwargs else 32
         self.nanoparticles = {int(k): kwargs["nanoparticles"][k] for k in kwargs["nanoparticles"]}\
             if "nanoparticles" in kwargs else {}
+        # fix nanoparticles if num np types == 1
+        if len(self.nanoparticles) > 0 and len(set(self.nanoparticles.values())) == 1:
+            self.nanoparticles = list(self.nanoparticles.values())
         self.crystal = bool(kwargs["crystal"]) if "crystal" in kwargs else 'extraConnections' in kwargs
-        # self.allo_limits = kwargs["allo_limits"] if "allo_limits" in kwargs else NO_ALLOSTERY
         self.solver_timeout = kwargs["solve_timeout"] if "solve_timeout" in kwargs else 21600
         self.forbid_self_interact = bool(kwargs["forbid_self_interact"]) if "forbid_self_interact" in kwargs else False
         # default timeout: 6 hrs, which is probably both too long and not long enough
         # structure IDS - used for multifarious design
+        # maybe unused
         self.structure_ids = None
+
+        # if we're testing a crystal, initialize parameters to pass to tlm
+        if self.crystal:
+            if "tlm_params" in kwargs:
+                self.tlm_params = CrystalSolnTestParams(torsion=self.torsion, **kwargs["tlm_params"])
+            else:
+                # default tlm params, whatever
+                # warn?
+                self.tlm_params = CrystalSolnTestParams(torsion=self.torsion)
 
     topology: Structure = property(lambda self: Structure(bindings=self.bindings + self.extraConnections))
     is_multifarious: bool = property(lambda self: self.structure_ids is not None)

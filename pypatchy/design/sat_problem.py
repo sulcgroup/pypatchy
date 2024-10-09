@@ -5,7 +5,10 @@ from abc import ABC, abstractmethod
 import re
 from typing import Union, IO, Iterable
 
-from pypatchy.util import enumerateRotations
+import numpy as np
+from scipy.spatial.transform import Rotation
+
+from pypatchy.util import enumerateRotations, getRotations
 
 SATClause = Union[tuple[int, ...], list[int, ...]]
 
@@ -219,6 +222,17 @@ class SATProblem(ABC):
         parameters = self.output_cnf()
         with open(fname, 'w') as outf:
             outf.write(parameters)
+
+    # Function to map a Rotation object to a key
+    def find_closest_symmetry_key(self, rotation_obj: Rotation) -> Union[int, None]:
+        rotation_matrix = rotation_obj.as_matrix()
+
+        for (key, _), sym_matrix in zip(self.rotations.items(), getRotations()):
+            # Compare matrices (you may want to use a tolerance here for floating-point comparisons)
+            if np.allclose(rotation_matrix, sym_matrix, atol=1e-6):
+                return key
+
+        return None  # If no match is found
 
 
 def interrupt(s):

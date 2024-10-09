@@ -1,6 +1,7 @@
 import itertools
 import logging
 import re
+from dataclasses import field, dataclass
 from datetime import datetime
 from typing import Generator, Iterable
 
@@ -8,13 +9,15 @@ import libtlm
 import networkx as nx
 import numpy as np
 
+from pypatchy.polycubeutil.polycube_structure import PolycubeStructure
 from pypatchy.structure import Structure, TypedStructure
 from pypatchy.util import get_output_dir, get_log_dir, enumerateRotations, getSignedAngle
-from pypatchy.polycubeutil.polycubesRule import RULE_ORDER
+from pypatchy.polycubeutil.polycubesRule import RULE_ORDER, PolycubesRule
 from scipy.spatial.transform import Rotation as R
 
 logging.basicConfig(filename=get_log_dir() / "SAT" / datetime.now().strftime("log_%Y-%m-%d-%H:%M.txt"))
 logging.root.setLevel(logging.INFO)
+
 
 
 def to_diridx(x: int) -> libtlm.DirIdx:
@@ -412,7 +415,7 @@ def compute_coordinates(topology: frozenset) -> dict[int, np.array]:
             loc1, dir1, loc2, dir2 = top_queue[i]
             assert -1 < dir1 < len(RULE_ORDER), f"Invalid direction index {dir1}"
             assert -1 < dir2 < len(RULE_ORDER), f"Invalid direction index {dir2}"
-            if loc1 in coord_dict and loc2 in coord_dict: # unclear how this happened
+            if loc1 in coord_dict and loc2 in coord_dict:  # unclear how this happened
                 top_queue = top_queue[:i] + top_queue[i + 1:]
                 continue
             # assert loc1 not in coord_dict or loc2 not in coord_dict, \
@@ -428,7 +431,7 @@ def compute_coordinates(topology: frozenset) -> dict[int, np.array]:
                 coord_dict[loc1] = coord_dict[loc2] + RULE_ORDER[dir2]
             else:
                 continue
-            top_queue = top_queue[:i] + top_queue[i+1:]
+            top_queue = top_queue[:i] + top_queue[i + 1:]
 
     if len(top_queue) > 0:
         raise Exception("Unable to construct a coordinate map! Perhaps topology is not connected?")
@@ -471,46 +474,24 @@ def build_graphs(topology):
     return graph_list
 
 
-def readSolutionOld(sol):
-    colorCounter = 1
-    colorMap = {}
-    ruleMap = {}
-    bMatches = re.findall(r'B\((\d+),(\d+)\)', sol)
-    for c1, c2 in bMatches:  # color c1 binds with c2
-        # print("Color {} binds with {}".format(c1, c2))
-        assert (c1 not in colorMap or c2 not in colorMap)
-        if int(c1) < 2 or int(c2) < 2:
-            colorMap[c1] = 0
-            colorMap[c2] = 0
-        else:
-            colorMap[c1] = colorCounter
-            colorMap[c2] = -colorCounter
-            colorCounter += 1
-    cMatches = re.findall(r'C\((\d+),(\d+),(\d+)\)', sol)
-    for s, p, c in cMatches:  # Patch p on species s has color c
-        # print("Patch {} on species {} has color {}".format(p, s, c))
-        if s not in ruleMap:
-            ruleMap[s] = {}
-        if p not in ruleMap[s]:
-            ruleMap[s][p] = {}
-        ruleMap[s][p]['color'] = colorMap[c]
-    oMatches = re.findall(r'O\((\d+),(\d+),(\d+)\)', sol)
-    if len(oMatches) == 0:
-        print("Found no orientation values")
-        for patches in ruleMap.values():
-            for i, p in patches.items():
-                p['orientation'] = getFlatFaceRot()[int(i)]
-    else:
-        for s, p, o in oMatches:  # Patch on species l has orientation o
-            # print("Patch {} on species {} has orientation {}".format(p, s, o))
-            ruleMap[s][p]['orientation'] = int(o)
-    return [rule.values() for rule in ruleMap.values()]
+def toPolycube(rule: PolycubesRule, pc: libtlm.TLMPolycube) -> PolycubeStructure:
+    return PolycubeStructure(rule=rule, cubes=[
+        {
+            "position": tlm_cube_info.getPosition(),
+            "rotation": tlm_cube_info.getRotation(),
+            "state": tlm_cube_info.getState(),
+            "type": tlm_cube_info.getTypeID(),
+            "personalName": f"cube_{tlm_cube_info.getUID()}"
+        } for tlm_cube_info in pc.getCubes()
+    ])
 
 
 """
 implementation of TypedStructure without full cube types
 """
-class TypedTopology (TypedStructure):
+
+
+class TypedTopology(TypedStructure):
     special_types: dict[int, int]
 
     def __init__(self, **kwargs):
@@ -534,5 +515,5 @@ class TypedTopology (TypedStructure):
             (
                 (i, to_diridx(di)),
                 (j, to_diridx(dj))
-             ) for i, di, j, dj in self.bindings_list},
-                                  self.get_particle_types())
+            ) for i, di, j, dj in self.bindings_list},
+            self.get_particle_types())
