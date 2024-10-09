@@ -4,7 +4,6 @@ from typing import Union
 
 from pypatchy.polycubeutil.polycube_structure import PolycubeStructure
 from pypatchy.polycubeutil.polycubesRule import PolycubesRule
-from pypatchy.polycubeutil.polycubes_setup import setup_from_json, PolycubesSetup
 from pypatchy.util import get_output_dir, get_input_dir
 
 # TODO: read json tag names from tlm c++
@@ -19,13 +18,6 @@ class PolycubesSimStep:
     def __init__(self, step_num: int, pcs: list[PolycubeStructure]):
         self.step_num = step_num
         self.structures = pcs
-
-def load_sim_step(data: dict, ctxt: PolycubesSetup) -> PolycubesSimStep:
-    step_num = data["step_number"]
-    structures: list[PolycubeStructure] = []
-    for pc_data in data["polycubes"]:
-        structures.append(PolycubeStructure(rule=ctxt.rule(), structure=pc_data))
-    return PolycubesSimStep(step_num, structures)
 
 
 class PolycubesSim:
