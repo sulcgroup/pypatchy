@@ -11,13 +11,12 @@ import os
 import sys
 from multiprocessing import Pool
 
-import libpolycubes
-from ..util import get_input_dir
+from pypatchy.util import get_input_dir
 
-from .solution import SATSolution
-from .solve_utils import *
-from .design_rule import Polysat
-from .solve_params import *
+from pypatchy.design.sat.solution import SATSolution
+from pypatchy.design.solve_utils import *
+from pypatchy.design.sat.design_rule import Polysat
+from pypatchy.design.solve_params import *
 
 
 def smartEnumerate(xMax, yMax):
@@ -146,7 +145,7 @@ def solve(solve_params: SolveParams) -> Union[None, SATSolution]:
     # try:
     mysat = Polysat(solve_params)
     mysat.init()
-    logger.info(f"Constructed sat problem with {mysat.num_variables()} variables and {mysat.num_clauses()} clauses.")
+    logger.info(f"Constructed sat problem with {mysat.problem.num_variables()} variables and {mysat.problem.num_clauses()} clauses.")
     mysat.check_settings()
     good_soln = mysat.find_solution()
 

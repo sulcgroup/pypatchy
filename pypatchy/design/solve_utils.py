@@ -1,23 +1,19 @@
 import itertools
 import logging
-import re
-from dataclasses import field, dataclass
 from datetime import datetime
-from typing import Generator, Iterable
 
 import libtlm
 import networkx as nx
 import numpy as np
 
 from pypatchy.polycubeutil.polycube_structure import PolycubeStructure
-from pypatchy.structure import Structure, TypedStructure
-from pypatchy.util import get_output_dir, get_log_dir, enumerateRotations, getSignedAngle
+from pypatchy.structure import TypedStructure
+from pypatchy.util import get_log_dir, enumerateRotations, getSignedAngle
 from pypatchy.polycubeutil.polycubesRule import RULE_ORDER, PolycubesRule
 from scipy.spatial.transform import Rotation as R
 
 logging.basicConfig(filename=get_log_dir() / "SAT" / datetime.now().strftime("log_%Y-%m-%d-%H:%M.txt"))
 logging.root.setLevel(logging.INFO)
-
 
 
 def to_diridx(x: int) -> libtlm.DirIdx:
@@ -221,65 +217,6 @@ def rot_idx_to_quaternion(idx: int) -> np.ndarray:
 
 def rot_map_to_quat(rot_map: dict[int, int]) -> np.ndarray:
     return rotation_matrix_to_quaternion(rotation_mapping_to_matrix(rot_map))
-
-
-# def topFromFile(path, nDim=3):
-#     neigbourDirs = getRuleOrder(nDim)
-#
-#     coords = [np.array(i) for i in coordsFromFile(path)]
-#     top = []
-#     empty = []
-#     donePairs = []  # Keep track so that only one bond per pair is saved
-#
-#     # For each position
-#     for i, current in enumerate(coords):
-#         # Enumerate von Neumann neighborhood
-#         for dPi, dP in enumerate(neigbourDirs):
-#             neigbourPos = current + dP
-#             found = False
-#             # Check if current neighbor is among the positions
-#             for j, other in enumerate(coords):
-#                 if (neigbourPos == other).all():
-#                     if not (j, i) in donePairs:
-#                         top.append((
-#                             i, dPi,
-#                             j, dPi + (1 if dPi % 2 == 0 else -1)))
-#                         donePairs.append((i, j))
-#                     found = True
-#             # If the current neigbour is empty, save
-#             if not found:
-#                 empty.append((i, dPi))
-#     return top, empty
-#
-
-def calcEmptyFromTop(top: Iterable[tuple[int, int, int, int]]) -> list[tuple[int, int]]:
-    ids = set(i for i, _, _, _ in top).union(set(j for _, _, j, _ in top))
-    patches = set(((i, dPi) for i, dPi, _, _ in top)).union(((j, dPj) for _, _, j, dPj in top))
-
-    empty = []
-    for i in ids:
-        for dPi in range(6):
-            if not (i, dPi) in patches:
-                empty.append((i, dPi))
-    return empty
-
-
-# def calcCoordsFromTop(top, nDim=3):
-#     posmaps = []
-#     origin = np.array([0, 0, 0])
-#     posmap = {0: origin}
-#     dirs = getRuleOrder(nDim)
-#     for i, dPi, j, dPj in sorted(top):
-#         if i in posmap:
-#             posmap[j] = posmap[i] + dirs[dPi]
-#         elif j in posmap:
-#             posmap[i] = posmap[j] + dirs[dPj]
-#         else:
-#             posmaps.append(posmap)
-#             posmap = {i: origin, j: dirs[dPi]}
-#     posmaps.append(posmap)
-#
-#     return [np.array([v for v in posmap.values()]).T for posmap in posmaps]
 
 
 def countParticlesAndBindings(topology):

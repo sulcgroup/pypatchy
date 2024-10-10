@@ -4,7 +4,6 @@ import logging
 from dataclasses import dataclass, field
 from typing import Union
 
-from pypatchy.design.solve_utils import CrystalSolnTestParams
 from pypatchy.structure import Structure
 
 
@@ -47,7 +46,9 @@ class CrystallizationTestParams:
     def get_total_type_counts(self, cube_type_counts: list[int]):
         return [n * self.n_unit_cells for n in cube_type_counts]
 
-    t_interval_valid: bool = property(lambda self: self.Tmax - self.Tmin > self.Tinterval)
+    @property
+    def t_interval_valid(self):
+        return self.Tmax - self.Tmin > self.Tinterval
 
 class SolveParams:
     """
@@ -80,7 +81,7 @@ class SolveParams:
     solver_timeout: int
     structure_ids: Union[dict[int, int], None]
 
-    tlm_params: CrystalSolnTestParams
+    tlm_params: CrystallizationTestParams
 
 
     def __init__(self, name, **kwargs):
@@ -116,11 +117,11 @@ class SolveParams:
         # if we're testing a crystal, initialize parameters to pass to tlm
         if self.crystal:
             if "tlm_params" in kwargs:
-                self.tlm_params = CrystalSolnTestParams(torsion=self.torsion, **kwargs["tlm_params"])
+                self.tlm_params = CrystallizationTestParams(torsion=self.torsion, **kwargs["tlm_params"])
             else:
                 # default tlm params, whatever
                 # warn?
-                self.tlm_params = CrystalSolnTestParams(torsion=self.torsion)
+                self.tlm_params = CrystallizationTestParams(torsion=self.torsion)
 
     topology: Structure = property(lambda self: Structure(bindings=self.bindings + self.extraConnections))
     is_multifarious: bool = property(lambda self: self.structure_ids is not None)

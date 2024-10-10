@@ -4,12 +4,14 @@ import logging
 from pypatchy.structure import *
 from pypatchy.util import get_output_dir
 
-from .solve_params import SolveParams
-from .solve_utils import compute_coordinates, to_xyz, rot_idx_to_quaternion, quaternion_inverse
+from pypatchy.design.solve_params import SolveParams
+from pypatchy.design.solve_utils import compute_coordinates, to_xyz, rot_idx_to_quaternion, quaternion_inverse
 import re
 
 
 class SATSolution:
+    # list of variables that are true
+    raw: frozenset[int]
 
     num_species: int
     num_colors: int
@@ -26,13 +28,14 @@ class SATSolution:
 
     coordinate_map: Union[dict[int, np.array], None]
 
-    def __init__(self, solver, input_params: SolveParams, sat_results: frozenset):
+    def __init__(self, solver, sat_results: frozenset):
         """
         Constructor.
         Args:
             solver: an instance of Polysat, used to contextualize SAT solver data
             sat_results: a frozenset object containing variables (as numbers) in the solution that are True
         """
+        self.raw = sat_results
         # save solver parameters
         self.num_species = solver.nS
         self.num_colors = int(solver.nC / 2 - 1)
@@ -140,7 +143,7 @@ class SATSolution:
                 self.rule.particle(species_idx).get_patch_by_diridx(direction_idx).set_align_rot(rotation)
 
         # construct map of location indexes to coordinates in 3-space....
-        if not input_params.is_multifarious:
+        if not solver.input_params.is_multifarious and not solver.input_params.is_crystal():
             self.coord_map = compute_coordinates(solver.internal_bindings)
         else:
             self.coord_map = None
