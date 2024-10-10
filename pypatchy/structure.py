@@ -1,24 +1,12 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-import itertools
-from typing import TypeVar, Generator, Any
+from typing import Generator, Iterable
 
-from oxDNA_analysis_tools.UTILS.data_structures import TopInfo, Configuration
-from scipy.spatial.transform import Rotation
-
-import networkx as nx
-import numpy as np
-from collections import defaultdict
-
-import igraph as ig
-
-from pypatchy.patchy_base_particle import PatchyBaseParticle
-from pypatchy.scene import Scene
-from pypatchy.util import getRotations, enumerateRotations, from_xyz
+from Bio.SVDSuperimposer import SVDSuperimposer
 
 from pypatchy.polycubeutil.polycubesRule import *
-from Bio.SVDSuperimposer import SVDSuperimposer
+from pypatchy.util import enumerateRotations
 
 
 def get_nodes_overlap(homocycles: list[list[int]]) -> set[int]:
@@ -83,6 +71,9 @@ class Structure:
 
     def vertices(self) -> list[int]:
         return [int(n) for n in self.graph.nodes]
+
+    def get_empties(self) -> list[tuple[int, int]]:
+        return calcEmptyFromTop(self.bindings_list)
 
     def substructures(self) -> Generator[Structure]:
         # iterate possible sets of nodes in this graph
@@ -441,3 +432,15 @@ class TypedStructure(Structure, ABC):
     @abstractmethod
     def get_particle_types(self) -> dict[int, int]:
         pass
+
+
+def calcEmptyFromTop(top: Iterable[tuple[int, int, int, int]]) -> list[tuple[int, int]]:
+    ids = set(i for i, _, _, _ in top).union(set(j for _, _, j, _ in top))
+    patches = set(((i, dPi) for i, dPi, _, _ in top)).union(((j, dPj) for _, _, j, dPj in top))
+
+    empty = []
+    for i in ids:
+        for dPi in range(6):
+            if not (i, dPi) in patches:
+                empty.append((i, dPi))
+    return empty
