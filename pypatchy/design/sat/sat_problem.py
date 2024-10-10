@@ -227,6 +227,9 @@ class SATProblem:
             out.write(outstr)
         return outstr
 
+    def describe_brief(self) -> str:
+        return f"SAT Problem with {self.num_variables()} vars and {self.num_clauses()} clauses."
+
     def dump_cnf_to_file(self, fname):
         parameters = self.output_cnf()
         with open(fname, 'w') as outf:

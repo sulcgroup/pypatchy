@@ -86,7 +86,6 @@ class SolveParams:
 
     def __init__(self, name, **kwargs):
         self.name = name
-        top = copy.deepcopy(kwargs["bindings"])
         self.bindings = copy.deepcopy(kwargs["bindings"])
         if 'extraConnections' in kwargs:
             self.extraConnections = kwargs['extraConnections']

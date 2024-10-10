@@ -331,17 +331,21 @@ class PolycubeSATProblem(SATProblem):
         constraints: list[SATClause] = []
         # Hard-code patch orientations to bind only if they point in the same direction
         if self.torsionalPatches:
-            for p1, p2 in itertools.combinations(range(self.nP), 2):
-                for o1, o2 in itertools.product(range(self.nO), range(self.nO)):
-                    v1 = patchRotToVec(p1, o1)
-                    v2 = patchRotToVec(p2, o2)
-                    # Do they point in the same global direction?
-                    # And do the patches face each other?
-                    if np.array_equal(v1, v2) and p2 % 2 == 0 and p2 + 1 == p1:
-                        constraints.append([self.D(p1, o1, p2, o2)])
-                        # print("patch {}, orientation {} binds with patch {}, orientation {}".format(p1, o1, p2, o2))
-                    else:
-                        constraints.append([-self.D(p1, o1, p2, o2)])
+            for p1 in range(self.nP):
+                for p2 in range(self.nP):
+                    if p2 >= p1:
+                        break
+                    for o1 in range(self.nO):
+                        for o2 in range(self.nO):
+                            v1 = patchRotToVec(p1, o1)
+                            v2 = patchRotToVec(p2, o2)
+                            # Do they point in the same global direction?
+                            # And do the patches face each other?
+                            if np.array_equal(v1, v2) and p2 % 2 == 0 and p2 + 1 == p1:
+                                constraints.append([self.D(p1, o1, p2, o2)])
+                                # print("patch {}, orientation {} binds with patch {}, orientation {}".format(p1, o1, p2, o2))
+                            else:
+                                constraints.append([-self.D(p1, o1, p2, o2)])
         self.sat_problem_parts["D"].clauses = constraints
 
     def gen_legal_species_placement(self):

@@ -10,6 +10,7 @@ from pypatchy.util import get_input_dir
 from pypatchy.design.solve_utils import setup_logger
 from pypatchy.design.sat.solve_exec import get_max_colors, get_max_species, solve_multi
 
+
 def multisolve(solve_spec: str,
                minS: int = 1,
                minC: int = 1,

@@ -261,36 +261,6 @@ def parseDecRule(decRule):
         rule.append(faces)
     return rule
 
-
-# def parseDecRule(decRule):
-#     rule = []
-#     for s in decRule.split('_'):
-#         faces = []
-#         for face in s.split('#'):
-#             if face != '':
-#                 color, orientation, conditional = [int(v) for v in face.split(':')]
-#             else:
-#                 color = 0
-#                 orientation = 0
-#             faces.append({
-#                 'color': color,
-#                 'orientation': orientation,
-#                 'conditional': conditional
-#             })
-#         rule.append(faces)
-#     return rule
-#
-#
-# def ruleToDec(ruleset):
-#     return '_'.join(
-#         '#'.join(
-#             "{}:{}:{}".format(
-#                 f['color'], f['orientation'], f['conditional']
-#             ) for f in s
-#         ) for s in ruleset
-#     )
-
-
 def parseHexRule(hexRule):
     ruleset = []
     faces = []

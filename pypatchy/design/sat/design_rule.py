@@ -175,6 +175,7 @@ class Polysat:
 
         # force faces in topology which do not have bonds to not have patches
         self.problem.fix_empties(self.target_structure)
+        self.logger.info(f"Constructed {self.problem.describe_brief()}")
 
     def check_settings(self):
         # assert len(self.bindings) == (self.nL * self.nP) / 2.0
@@ -537,49 +538,35 @@ class Polysat:
                         -pstar(lstar_2, l2)
                     ])
             # we have constructed SAT problem
+
+            # try to find solution
+            formula = CNF(from_string=crystal_test_problem.output_cnf())
+            tstart = datetime.datetime.now()
+            self.logger.info(f"Starting crystal structure SAT test with Glucose4, timeout {self.solver_timeout}")
+            with Glucose4(bootstrap_with=formula.clauses) as m:
+                # if the solver has a timeout specified
+                if self.solver_timeout:
+                    timer = Timer(self.solver_timeout, interrupt, [m])
+                    timer.start()
+                    solved = m.solve_limited(assumptions=soln, expect_interrupt=True)
+                    timer.cancel()
+                else:
+                    solved = m.solve(assumptions=soln)
+                if solved:
+                    self.logger.info("SAT test passed!")
+                    # we don't actually need to know anything about the SAT problem, only that it was solved
+                    return True
+                else:
+                    # if the solve solver timed out
+                    if self.solver_timeout and (datetime.datetime.now() - tstart).seconds > self.solver_timeout:
+                        raise Exception("SolverTimeoutException")
+                    # if the solver failed but didn't time out, conclude that the problem
+                    # is not satisfiable
+                    else:
+                        return False
         else:
             # polycube w/ less particles than the unit cell is nessecarily not a crystal
             return False
-
-        # try to find solution
-        formula = CNF(from_string=crystal_test_problem.output_cnf())
-        tstart = datetime.datetime.now()
-        self.logger.info(f"Starting crystal structure SAT test with Glucose4, timeout {self.solver_timeout}")
-        with Glucose4(bootstrap_with=formula.clauses) as m:
-            # if the solver has a timeout specified
-            if self.solver_timeout:
-                timer = Timer(self.solver_timeout, interrupt, [m])
-                timer.start()
-                solved = m.solve_limited(assumptions=soln, expect_interrupt=True)
-                timer.cancel()
-            else:
-                solved = m.solve(assumptions=soln)
-            if solved:
-                self.logger.info("SAT test passed!")
-                # we don't actually need to know anything about the SAT problem, only that it was solved
-            else:
-                # if the solve solver timed out
-                if self.solver_timeout and (datetime.datetime.now() - tstart).seconds > self.solver_timeout:
-                    raise Exception("SolverTimeoutException")
-                # if the solver failed but didn't time out, conclude that the problem
-                # is not satisfiable
-                else:
-                    return False
-
-        # clear Pstar variables
-        for lstar, l in itertools.product(range(crystal.num_particles()), range(self.nL)):
-            del self.variables[f"Pstar({lstar, l})"]
-
-    def test_crystal_structure(self, crystal_structure: PolycubeStructure,
-                               unit_cell_structure: PolycubeStructure) -> bool:
-        """
-        tests if the crystal matches the provided polycube unit cell
-        """
-        if crystal_structure.rule != unit_cell_structure.rule:
-            self.logger.warning("Trying to compare structures that don't share the same particle set!")
-            return False
-        # try to overlay unit cell on crystal structure
-        # todo?
 
     def test_crystal(self, sat_solution: SATSolution) -> bool:
         """

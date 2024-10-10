@@ -925,10 +925,6 @@ class PolycubesRule(BaseParticleSet):
                 i += 1
         return i
 
-
-
-
-
     def to_SAT(self, filename: Union[Path, str]):
         """
         convert particle set to SAT format
@@ -948,6 +944,5 @@ class PolycubesRule(BaseParticleSet):
                 if color > 0:
                     assert -color in colormap
                     f.write(f"B({colormap[color]},{colormap[-color]})\n")
-
 
 # TODO: integrate with C++ TLM / Polycubes
