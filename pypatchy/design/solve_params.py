@@ -104,7 +104,7 @@ class SolveParams:
             if "nanoparticles" in kwargs else {}
         # fix nanoparticles if num np types == 1
         if len(self.nanoparticles) > 0 and len(set(self.nanoparticles.values())) == 1:
-            self.nanoparticles = list(self.nanoparticles.values())
+            self.nanoparticles = list(self.nanoparticles.keys())
         self.crystal = bool(kwargs["crystal"]) if "crystal" in kwargs else 'extraConnections' in kwargs
         self.solver_timeout = kwargs["solve_timeout"] if "solve_timeout" in kwargs else 21600
         self.forbid_self_interact = bool(kwargs["forbid_self_interact"]) if "forbid_self_interact" in kwargs else False

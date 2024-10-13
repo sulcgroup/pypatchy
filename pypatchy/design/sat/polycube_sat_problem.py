@@ -7,7 +7,7 @@ import numpy as np
 
 from pypatchy.design.sat.sat_problem import SATProblem, SATProblemPart, SATClause, exactly_one
 from pypatchy.design.solve_utils import patchRotToVec, getFlatFaceRot, getIndexOf, patchVecToRot
-from pypatchy.polycubeutil.polycubesRule import RULE_ORDER
+from pypatchy.polycubeutil.polycubesRule import RULE_ORDER, PolycubesRule
 from pypatchy.structure import Structure
 from pypatchy.util import enumerateRotations
 
@@ -486,23 +486,29 @@ class PolycubeSATProblem(SATProblem):
         Returns: a list of SAT clauses
         """
         constraints = []
-        self.add_problem_part(SATProblemPart("NPs",
-                                                       ["l", "s", "r"]))
+        ppart = SATProblemPart("NPs",
+                                ["l", "s", "r"])
+        self.add_problem_part(ppart)
         # for each location
         for l in range(self.nL):
             # if location l has a nanoparticle
             hasParticle = l in np_locations  # eval now to save time
-            constraints.extend(itertools.chain.from_iterable(
-                [
-                    [
-                        [self.N_single(s), -self.P(l, s, r)]
-                        if hasParticle else
-                        [-self.N_single(s), -self.P(l, s, r)]
-                        for s in range(self.nS)
-                    ]
-                    for r in range(self.nR)]
-            ))
-        self.sat_problem_parts["NPs"].clauses = constraints
+            # loop species
+            for s in range(self.nS):
+                if hasParticle:
+                    # if there's a nanoparticle at location l, either the species s
+                    # has a nanoparticle or location l is NOT occupied by species s (any rotation)
+                    ppart.clauses.append([self.N_single(s),
+                                          *[-self.P(l,s,r) for r in range(self.nR)]])
+                else:
+                    # if there's a NOT a nanoparticle at location l, either the species s doesn't have
+                    # a nanoparticle or species s is not at location l(any rotation)
+                    # so, for every rotation
+                    for r in range(self.nR):
+                        # either the species does not have a nanoparticle
+                        # or the species is not present in location l with rotation r
+                        ppart.clauses.append([-self.N_single(s),
+                                              -self.P(l,s,r)])
 
     def gen_nanoparticle_multiparticle(self, np_locations: dict[int, int]):
         """
@@ -588,6 +594,35 @@ class PolycubeSATProblem(SATProblem):
         assert r in self.rotations
         assert p in self.rotations[r]
         return self.rotations[r][p]
+
+    def solution_from_rule(self, rule: PolycubesRule, start_color_count=2) -> list[int]:
+        """
+        reads SBO vars from a polycubes rule
+        returns: a list of variables that would be T for the provided rule
+        default is to start color count at 2 because colors 0 and 1 are forbidden
+        """
+        solution_vars: list[int] = []
+        colormap: dict[int, int] = dict()
+        #
+        colorcount = start_color_count
+        # iter perticle types
+        for i_particle, particle_type in enumerate(rule.particles()):
+            for patch in particle_type.patches():
+                if patch.color() not in colormap:
+                    colormap[patch.color()] = colorcount
+                    colorcount += 1
+                solution_vars.append(self.C(i_particle,
+                                            patch.dirIdx(),
+                                            colormap[patch.color()]))
+                solution_vars.append(self.O(i_particle,
+                                            patch.dirIdx(),
+                                            patch.get_align_rot_num()))
+        for color in rule.color_set():
+            if color > 0:
+                assert -color in colormap
+                solution_vars.append(self.B(colormap[color], colormap[-color]))
+        return solution_vars
+
 
     def B(self, c1: int, c2: int) -> int:
         """ color c1 binds with c2 """

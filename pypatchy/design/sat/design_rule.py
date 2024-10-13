@@ -99,7 +99,7 @@ class Polysat:
                  params: SolveParams):
         self.logger = params.get_logger()
         self.solver_timeout = params.solver_timeout
-        self.target_structure = Structure(bindings=params.bindings)
+        self.target_structure = Structure(bindings=[*params.bindings, *params.extraConnections])
 
         # save solve parameter set
         self.input_params = params
@@ -142,9 +142,9 @@ class Polysat:
         if self.problem.nNPT > 0:
             # if the nanoparticle data is provided as a list, that means single np type
             if isinstance(self.np_locations, list):
-                self.nanoparticle_clauses = self.problem.gen_nanoparticle_singleparticle(self.np_locations)
+                self.problem.gen_nanoparticle_singleparticle(self.np_locations)
             else:
-                self.nanoparticle_clauses = self.problem.gen_nanoparticle_multiparticle(self.np_locations)
+                self.problem.gen_nanoparticle_multiparticle(self.np_locations)
 
         # Solution must use all particles
         if strict_counts:
@@ -268,7 +268,7 @@ class Polysat:
             result = [result]  # list form, to be consistant
         return result
 
-    def run_glucose(self) -> Union[SolverResponse, SATSolution]:
+    def run_glucose(self, assumptions: list[int] = []) -> Union[SolverResponse, SATSolution]:
         """
         Uses Glucose to solve the SAT problem
         Returns either a SATSolution object or a SolverResponse code specifying what didn't work
@@ -281,10 +281,10 @@ class Polysat:
             if self.solver_timeout:
                 timer = Timer(self.solver_timeout, interrupt, [m])
                 timer.start()
-                solved = m.solve_limited(expect_interrupt=True)
+                solved = m.solve_limited(assumptions=assumptions, expect_interrupt=True)
                 timer.cancel()
             else:
-                solved = m.solve()
+                solved = m.solve(assumptions=assumptions)
             if solved:
                 self.logger.info("Solved!")
                 # pysat returns solution as a list of variables

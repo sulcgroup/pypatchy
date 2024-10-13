@@ -236,8 +236,6 @@ class SATProblem:
             outf.write(parameters)
 
 
-
-
 def interrupt(s):
     print("Timeout. Interrupting solve...")
     s.interrupt()
