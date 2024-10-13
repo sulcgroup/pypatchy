@@ -3,6 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Generator, Iterable
 
+import networkx as nx
 from Bio.SVDSuperimposer import SVDSuperimposer
 
 from pypatchy.polycubeutil.polycubesRule import *
@@ -34,12 +35,12 @@ class Structure:
     https://paper.dropbox.com/doc/Computational-Design-of-Allostery-ddFV7iLkKaua1tnDZOQFu#:uid=923787386309510691921072&h2=Empirical-Definition-of-a-Comp
     so go read that
     """
-    graph: nx.DiGraph
+    graph: nx.MultiDiGraph
     # TODO: deprecated bindings_list and just use graph instead since it contains the same data
     bindings_list: set[tuple[int, int, int, int]]
 
     def __init__(self, **kwargs):
-        self.graph: nx.DiGraph = nx.DiGraph()
+        self.graph: nx.MultiDiGraph = nx.MultiDiGraph()
         self.bindings_list = set()
         if "bindings" in kwargs:
             for n1, d1, n2, d2 in kwargs["bindings"]:
@@ -73,7 +74,16 @@ class Structure:
         return [int(n) for n in self.graph.nodes]
 
     def get_empties(self) -> list[tuple[int, int]]:
-        return calcEmptyFromTop(self.bindings_list)
+        """
+        calcEmptyFromTop has... issues
+        """
+        empties = []
+        # return calcEmptyFromTop(self.bindings_list)
+        for vert_id in self.vertices():
+            for di, _ in enumerate(RULE_ORDER):
+                if not self.bi_edge_exists(vert_id, di):
+                    empties.append((vert_id, di))
+        return empties
 
     def substructures(self) -> Generator[Structure]:
         # iterate possible sets of nodes in this graph
@@ -218,7 +228,12 @@ class Structure:
         """
         returns true if the digraph contains an edge out from position v with direction delta
         """
-        return len([d for a, b, d in self.graph.out_edges(v, "dirIdx") if d == delta]) > 0
+        return len([d for _, _, d in self.graph.out_edges(v, "dirIdx") if d == delta]) > 0
+
+    def bi_edge_exists(self, v: int, delta: int) -> bool:
+        return self.edge_exists(v, delta) or any([
+            d == rdir(delta) for _, _, d in self.graph.in_edges(v, "dirIdx")
+        ])
 
     def positions_connected(self, v1: int, v2: int) -> bool:
         """
@@ -435,6 +450,9 @@ class TypedStructure(Structure, ABC):
 
 
 def calcEmptyFromTop(top: Iterable[tuple[int, int, int, int]]) -> list[tuple[int, int]]:
+    """
+
+    """
     ids = set(i for i, _, _, _ in top).union(set(j for _, _, j, _ in top))
     patches = set(((i, dPi) for i, dPi, _, _ in top)).union(((j, dPj) for _, _, j, dPj in top))
 
