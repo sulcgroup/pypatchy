@@ -1,13 +1,16 @@
 from __future__ import annotations
 
+import warnings
 from abc import ABC, abstractmethod
 from typing import Generator, Iterable
 
 import networkx as nx
 from Bio.SVDSuperimposer import SVDSuperimposer
+from matplotlib import pyplot as plt
+import matplotlib.colors as mcolors
 
-from pypatchy.polycubeutil.polycubesRule import *
-from pypatchy.util import enumerateRotations
+from .polycubeutil.polycubesRule import *
+from .util import enumerateRotations
 
 
 def get_nodes_overlap(homocycles: list[list[int]]) -> set[int]:
@@ -51,8 +54,10 @@ class Structure:
                 self.graph.add_edge(n1, n2, dirIdx=d1)
                 self.graph.add_edge(n2, n1, dirIdx=d2)
                 self.bindings_list.add((n1, d1, n2, d2))
+        # if we have passed a graph object
         if "graph" in kwargs:
             # TODO: test!
+            assert isinstance(kwargs["graph"], nx.MultiDiGraph)
             self.graph = kwargs["graph"]
             handled_set = set()
             # iter edges
@@ -85,6 +90,38 @@ class Structure:
                     empties.append((vert_id, di))
         return empties
 
+
+    def draw(self, pos=None):
+        """
+        Draws the MultiDiGraph with matplotlib.
+        Parameters:
+            graph (nx.MultiDiGraph): The graph to draw.
+            pos (dict, optional): Dictionary defining the layout of nodes.
+                                  If None, the spring layout will be used.
+        """
+
+        # If no position is provided, use spring layout
+        if pos is None:
+            pos = nx.spring_layout(self.graph)
+
+        # Draw nodes
+        nx.draw_networkx_nodes(self.graph, pos, node_size=700, node_color='lightblue')
+
+        # Draw edges, distinguishing direction with arrows
+        nx.draw_networkx_edges(self.graph, pos, edgelist=self.graph.edges, edge_color='black', arrows=True,
+                               connectionstyle='arc3,rad=0.2')
+
+        # Add edge labels for direction (dirIdx)
+        edge_labels = {(u, v, k): d['dirIdx'] for u, v, k, d in self.graph.edges(keys=True, data=True)}
+        nx.draw_networkx_edge_labels(self.graph, pos, edge_labels=edge_labels)
+
+        # Add node labels
+        nx.draw_networkx_labels(self.graph, pos, font_size=12, font_color='black')
+
+        # Display the graph
+        plt.show()
+
+
     def substructures(self) -> Generator[Structure]:
         # iterate possible sets of nodes in this graph
         # a subgraph of 1 node isn't a graph for our purposes; a subgraph of all nodes is self
@@ -112,43 +149,6 @@ class Structure:
         return Structure(bindings=[
             (lmap[u], du, lmap[v], dv) for u, du, v, dv in self.bindings_list if u in lmap and v in lmap
         ])
-
-    # def cycles_by_size(self, filter_repeat_nodes=True) -> dict[int: list[int]]:
-    #     """
-    #     Code partially written by ChatGPT
-    #     Construct a list of unique cycles in the graph,
-    #     where each second-level list is composed of cycles of the same size,
-    #     and each cycle visits each node at most once.
-    #
-    #     Returns:
-    #     dict: dictionary where keys are cycle sizes and values are lists of unique cycles
-    #     """
-    #
-    #     # Use simple_cycles to get all cycles in the graph
-    #     all_cycles = list(nx.simple_cycles(self.graph))
-    #
-    #     # Filter out cycles with fewer than 3 nodes
-    #     # (since the graph is undirected, any edge is also a "cycle" so filter those out)
-    #     cycles = [cycle for cycle in all_cycles if len(cycle) > 2]
-    #     if filter_repeat_nodes:
-    #         # filter and cycles that visit any node more than once
-    #         cycles = [cycle for cycle in cycles if len(cycle) == len(set(cycle))]
-    #
-    #     # Remove duplicates from the cycles (ignoring the order of nodes)
-    #     unique_cycles = list(set(frozenset(cycle) for cycle in cycles))
-    #
-    #     # Initialize a default dictionary to store cycles by size
-    #     unique_cycles_by_size = defaultdict(list)
-    #
-    #     # Iterate over the cycles
-    #     for cycle in unique_cycles:
-    #         # The size of the cycle is its length
-    #         size = len(cycle)
-    #
-    #         # Append the cycle to the list of cycles of the same size
-    #         unique_cycles_by_size[size].append(self.graph.subgraph(list(cycle)))
-    #
-    #     return unique_cycles_by_size
 
     def homomorphism(self, structure: Structure) -> Union[bool, StructuralHomomorphism]:
         hms = self.homomorphisms(structure)
@@ -296,6 +296,37 @@ class Structure:
 
     def __str__(self) -> str:
         return f"Structure with {len(self.vertices())} particles and {len(self.bindings_list)} connections"
+
+    def is_crystal(self) -> bool:
+        """
+        caveat: this code is from chatGPT
+        Determines if the structure forms a Euclidean crystal by checking if
+        the nodes form a consistent lattice according to the directional rules in RULE_ORDER.
+        Returns:
+            True if the structure is Euclidean, False otherwise.
+        """
+        try:
+            # Get the node positions
+            node_positions = self.matrix()
+
+            # Calculate distances between connected nodes
+            for v1, d1, v2, d2 in self.bindings_list:
+                # Calculate the expected position difference based on the RULE_ORDER
+                expected_position_diff = RULE_ORDER[d1]
+
+                # Actual position difference between the nodes
+                actual_position_diff = node_positions[v2] - node_positions[v1]
+
+                # Check if the actual difference matches the expected difference
+                if not np.allclose(actual_position_diff, expected_position_diff):
+                    return False
+
+            # If all connections match their expected Euclidean positions
+            return True
+
+        except AssertionError:
+            # If the structure is not connected or matrix calculation fails, it's not Euclidean
+            return False
 
 
 class FiniteLatticeStructure(Structure):
@@ -448,6 +479,47 @@ class TypedStructure(Structure, ABC):
     def get_particle_types(self) -> dict[int, int]:
         pass
 
+    def draw(self, pos=None):
+        """
+        Draws the MultiDiGraph with matplotlib.
+        Parameters:
+            graph (nx.MultiDiGraph): The graph to draw.
+            pos (dict, optional): Dictionary defining the layout of nodes.
+                                  If None, the spring layout will be used.
+        """
+
+        # Get a list of available colors from matplotlib
+        available_colors = list(mcolors.TABLEAU_COLORS.values())
+
+        if len(self.get_particle_types()) > len(available_colors):
+            raise ValueError(f"Too many particle types for available colors! Max is {len(available_colors)}.")
+
+        # Generate a color map assigning a color to each particle type
+        color_map = {i: available_colors[i] for i in set(self.get_particle_types().values())}
+
+        # If no position is provided, use spring layout
+        if pos is None:
+            pos = nx.spring_layout(self.graph)
+
+        # Draw nodes
+        nx.draw_networkx_nodes(self.graph,
+                               pos,
+                               node_size=700,
+                               node_color=[color_map[self.particle_type(v)] for v in self.graph.nodes])
+
+        # Draw edges, distinguishing direction with arrows
+        nx.draw_networkx_edges(self.graph, pos, edgelist=self.graph.edges, edge_color='black', arrows=True,
+                               connectionstyle='arc3,rad=0.2')
+
+        # Add edge labels for direction (dirIdx)
+        edge_labels = {(u, v, k): d['dirIdx'] for u, v, k, d in self.graph.edges(keys=True, data=True)}
+        nx.draw_networkx_edge_labels(self.graph, pos, edge_labels=edge_labels)
+
+        # Add node labels
+        nx.draw_networkx_labels(self.graph, pos, font_size=12, font_color='black')
+
+        # Display the graph
+        plt.show()
 
 def calcEmptyFromTop(top: Iterable[tuple[int, int, int, int]]) -> list[tuple[int, int]]:
     """

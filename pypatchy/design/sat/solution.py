@@ -1,10 +1,12 @@
+from __future__ import annotations
+
 import json
 import logging
 
+from pypatchy.design.sat.polycube_sat_problem import PolycubeSATProblem
 from pypatchy.structure import *
 from pypatchy.util import get_output_dir
 
-from pypatchy.design.solve_params import SolveParams
 from pypatchy.design.solve_utils import compute_coordinates, to_xyz, rot_idx_to_quaternion, quaternion_inverse
 import re
 
@@ -28,7 +30,11 @@ class SATSolution:
 
     coordinate_map: Union[dict[int, np.array], None]
 
-    def __init__(self, solver, sat_results: frozenset):
+    def __init__(self,
+                 sat_problem: PolycubeSATProblem,
+                 sat_results: frozenset[int],
+                 target_structure: Structure
+                 ):
         """
         Constructor.
         Args:
@@ -37,15 +43,15 @@ class SATSolution:
         """
         self.raw = sat_results
         # save solver parameters
-        self.num_species = solver.nS
-        self.num_colors = int(solver.nC / 2 - 1)
+        self.num_species = sat_problem.nS
+        self.num_colors = int(sat_problem.nC / 2 - 1)
 
         # members for color and orientation variables
         self.C_vars: list[str] = []
         self.O_vars: list[str] = []
         # loop through variables
         colorMap = {}
-        self.rule = PolycubesRule(nS=solver.nS)
+        self.rule = PolycubesRule(nS=sat_problem.nS)
         # we have to grab the color data and then process it, because otherwise we will
         # not know the color mapping soon enough (i'm so tired)
         p_color_data = []
@@ -54,14 +60,14 @@ class SATSolution:
         p_orientation_data = []
         colorCounter = 1
         # species identity, rotation tuple for each position in nL
-        self.spatial_map = [(-1, -1) for _ in range(solver.nL)]
+        self.spatial_map = [(-1, -1) for _ in range(sat_problem.nL)]
         self.nanoparticle_map = {}
         assert all([
             any([
-                solver.P(l, s, r) in sat_results
-                for s, r in itertools.product(range(solver.nS), range(solver.nR))])
-            for l in range(solver.nL)])
-        for vname, vnum in solver.list_vars():
+                sat_problem.P(l, s, r) in sat_results
+                for s, r in itertools.product(range(sat_problem.nS), range(sat_problem.nR))])
+            for l in range(sat_problem.nL)])
+        for vname, vnum in sat_problem.list_vars():
             # if variable is True in solution
             if vnum in sat_results:
                 # check if this variable is a color match spec
@@ -96,7 +102,7 @@ class SATSolution:
                     continue
 
                 # check if this variable is a patch orientation specifier
-                if solver.torsionalPatches:
+                if sat_problem.torsionalPatches:
                     m = re.match(r"O\((\d*),\s*(\d*),\s*(\d*)\)", vname)
                     if m:
                         p_orientation_data.append(m.groups())
@@ -104,9 +110,9 @@ class SATSolution:
                         continue
 
                 # check for nanoparticles
-                if solver.nNPT > 0:
+                if sat_problem.nNPT > 0:
                     # if there's 1 nanoparticle type
-                    if solver.nNPT == 1:
+                    if sat_problem.nNPT == 1:
                         m = re.match(r"N\((\d*)\)", vname)
                         if m:
                             self.nanoparticle_map[int(m.groups()[0])] = 1
@@ -143,8 +149,8 @@ class SATSolution:
                 self.rule.particle(species_idx).get_patch_by_diridx(direction_idx).set_align_rot(rotation)
 
         # construct map of location indexes to coordinates in 3-space....
-        if not solver.input_params.is_multifarious and not solver.input_params.is_crystal():
-            self.coord_map = compute_coordinates(solver.internal_bindings)
+        if not target_structure.is_multifarious() and not target_structure.is_crystal():
+            self.coord_map = compute_coordinates(target_structure.bindings_list)
         else:
             self.coord_map = None
 
@@ -189,8 +195,16 @@ class SATSolution:
                 self.cubeToJSON(i) for i in range(len(self.spatial_map))
             ]
         }
+        if modelname.startswith("/"):
+            p = Path(modelname)
+        elif modelname.startswith("~"):
+            p = Path.expanduser(modelname)
+        elif modelname.endswith(".json"):
+            p = get_output_dir() / "SAT" / modelname
+        else:
+            p = get_output_dir() / "SAT" / f"{modelname}_{self.num_species}S_{self.num_colors}C.json"
         try:
-            with open(get_output_dir() / f"SAT/{modelname}_{self.num_species}S_{self.num_colors}C.json", "w+") as f:
+            with p.open("w+") as f:
                 json.dump(data, f, indent=4)
         except FileNotFoundError as e:
             print(e.strerror)

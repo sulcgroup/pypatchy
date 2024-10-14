@@ -1,7 +1,6 @@
 import itertools
 from collections.abc import Generator
 from pathlib import Path
-from typing import Union, IO
 
 import numpy as np
 
@@ -498,8 +497,10 @@ class PolycubeSATProblem(SATProblem):
                 if hasParticle:
                     # if there's a nanoparticle at location l, either the species s
                     # has a nanoparticle or location l is NOT occupied by species s (any rotation)
-                    ppart.clauses.append([self.N_single(s),
-                                          *[-self.P(l,s,r) for r in range(self.nR)]])
+                    for r in range(self.nR):
+                        # for all species, rotations: either species s has a nanoparticle,
+                        # or location l is not occupied by species s rotated by r
+                        ppart.clauses.append([self.N_single(s), -self.P(l, s, r)])
                 else:
                     # if there's a NOT a nanoparticle at location l, either the species s doesn't have
                     # a nanoparticle or species s is not at location l(any rotation)
@@ -508,7 +509,7 @@ class PolycubeSATProblem(SATProblem):
                         # either the species does not have a nanoparticle
                         # or the species is not present in location l with rotation r
                         ppart.clauses.append([-self.N_single(s),
-                                              -self.P(l,s,r)])
+                                              -self.P(l, s, r)])
 
     def gen_nanoparticle_multiparticle(self, np_locations: dict[int, int]):
         """

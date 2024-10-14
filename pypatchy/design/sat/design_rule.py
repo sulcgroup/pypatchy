@@ -204,8 +204,6 @@ class Polysat:
     def all_bindings(self) -> list:
         return list(self.bindings.keys()) + list(self.bindings.values())
 
-
-
     def generate_constraints(self):
         """
         Adds all constraints from the original paper (clauses i - x)
@@ -293,7 +291,7 @@ class Polysat:
                 model = m.get_model()
                 # we can pass the model directly to the SATSolution constructor because it will
                 # just check for positive variables to be present
-                return SATSolution(self, self.input_params, frozenset(model))
+                return SATSolution(self.problem, frozenset(model), self.target_structure)
             else:
                 # if the solve solver timed out
                 if self.solver_timeout and (datetime.datetime.now() - tstart).seconds > self.solver_timeout:

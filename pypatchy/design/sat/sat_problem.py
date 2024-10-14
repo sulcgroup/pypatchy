@@ -1,8 +1,11 @@
+from __future__ import annotations
+from typing import TYPE_CHECKING
 import itertools
 import re
 from typing import Union, IO
 
-from pypatchy.design.sat.solution import SATSolution
+if TYPE_CHECKING:
+    from pypatchy.design.sat.solution import SATSolution
 
 SATClause = Union[tuple[int, ...], list[int, ...]]
 
@@ -99,12 +102,10 @@ class SATProblem:
     # for defn. of "problem  part" see the SATProblem class doc
     sat_problem_parts: dict[str, SATProblemPart]
     variables: dict[str, int]
-    variable_types: dict[str, set[int]]
 
     def __init__(self):
         self.sat_problem_parts = dict()
         self.variables = dict()
-        self.variable_types = dict()
 
     def get_problem_part(self, name: str) -> SATProblemPart:
         return self.sat_problem_parts[name]
