@@ -142,7 +142,7 @@ def find_crystal_temperature(rule: PolycubesRule,
         assert is_crystal(fit_results)
         print(f"Crystal at T={T}!")
         return polycube_results, T
-    if new_params.t_interval_valid:  # limit recursion depth
+    if not new_params.t_interval_valid:  # limit recursion depth
         raise DoesNotCrystalizeException(rule, polycube_results, T)
     return find_crystal_temperature(rule, unit_cell_type_counts, new_params)
 
