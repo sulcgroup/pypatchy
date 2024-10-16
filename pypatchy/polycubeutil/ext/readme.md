@@ -1,0 +1,1 @@
+Module for polycubes classes and functions that utilizes the exernal `libtlm.so` module. I've seperated thse from the `polycubeutil` package so that the other methods can be used without building `libtlm`. I've seperated this module from `design.sat` because methods here do not require `pysat`.

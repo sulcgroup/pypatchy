@@ -97,9 +97,10 @@ def find_crystal_temperature(rule: PolycubesRule,
         try:
             popt, pcov = curve_fit(sigmoid, x_data, y_data, p0=initial_guesses, maxfev=10000)
             # if the curve fit algorithm can't find ideal curve, it throws a runtimer error
+            # which is really bad and annoying btw
         except RuntimeError as e:
             # if the curve fitter can't fit the data that means the thing is probably melted
-            if str(e).startswith("RuntimeError: Optimal parameters not found:"):
+            if str(e).find("Optimal") != -1:
                 result_is_melt = True
                 print("Could not fit data to signoidal curve. Conclusion: Melt")
                 break

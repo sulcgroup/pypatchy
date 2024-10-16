@@ -6,11 +6,13 @@ import libtlm
 import networkx as nx
 import numpy as np
 
-from pypatchy.polycubeutil.polycube_structure import PolycubeStructure
-from pypatchy.structure import TypedStructure
-from pypatchy.util import get_log_dir, enumerateRotations, getSignedAngle
-from pypatchy.polycubeutil.polycubesRule import RULE_ORDER, PolycubesRule
 from scipy.spatial.transform import Rotation as R
+
+
+from ..polycubeutil.polycube_structure import PolycubeStructure
+from ..structure import TypedStructure
+from ..util import get_log_dir, enumerateRotations, getSignedAngle
+from ..polycubeutil.polycubesRule import RULE_ORDER, PolycubesRule
 
 logging.basicConfig(filename=get_log_dir() / "SAT" / datetime.now().strftime("log_%Y-%m-%d-%H:%M.txt"))
 logging.root.setLevel(logging.INFO)

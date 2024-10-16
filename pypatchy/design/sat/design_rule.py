@@ -38,7 +38,6 @@ from enum import Enum
 from pathlib import Path
 from threading import Timer
 
-import libpolycubes
 import libtlm
 from pysat.formula import CNF
 from pysat.solvers import Glucose4
@@ -616,8 +615,7 @@ class Polysat:
         this is old code but it should still work
         """
         self.logger.info(f"Testing rule {sat_solution.decRuleOld()}")
-        # use "classic" polycubes to check if the rule is bounded and determinstic
-        if libpolycubes.isBoundedAndDeterministic(sat_solution.decRuleOld(), isHexString=False):
+        if libtlm.isBoundedAndDeterministic(sat_solution.decRuleOld(), 100):
             self.logger.info(f"{sat_solution.decRuleOld()} works!! We can stop now!")
             return True
         else:
