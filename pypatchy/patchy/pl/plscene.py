@@ -202,6 +202,15 @@ class PLPSimulation(Scene, CellLists):
             if p.get_type() not in saved_types.keys():
                 saved_types[p.get_type()] = copy.deepcopy(p)
 
+    def clear_particles(self):
+        """
+        removes all particles
+        """
+        # clear particles list
+        self._particles.clear()
+        # clear cells
+        self.apportion_cells()
+
     def add_particle(self, p: PLPatchyParticle):
         super().add_particle(p)
         cell = self.get_cell(p.position())
@@ -211,6 +220,9 @@ class PLPSimulation(Scene, CellLists):
     def insert_particle(self,
                         particle: PLPatchyParticle,
                         check_overlap=False):
+        """
+        ADDS
+        """
         if check_overlap:
             if self.check_for_particle_overlap(particle):
                 return False
@@ -260,118 +272,8 @@ class PLPSimulation(Scene, CellLists):
         # but it's VERY VERY SLOW
         # assert self.get_potential_energy() < 0
 
-    # def add_conf_clusters(self,
-    #                       conf_clusters: Iterable[PLPSimulation], # are you insane
-    #                       nTries=1e3):
-    #     # loop clusters
-    #     for cluster in conf_clusters:
-    #         t = 0
-    #         # set max tries so it doesn't go forever
-    #         while t < nTries:
-    #             # random position
-    #             new_pos = np.random.rand(3) * self._box_size
-    #             cluster.translate(new_pos)
-    #             if not self.check_for_particle_overlap(cluster):
-    #                 break
-    #             t += 1
-    #         if t == nTries:
-    #             raise Exception(f"Could not find a position t(o place a particle! nTries={nTries}")
-    #         # randomize orientation
-    #         # compute random rotation matrix
-    #         a1 = random_unit_vector()
-    #         x = random_unit_vector()
-    #         # i had to replace this code Joakim or someone wrote because it's literally the "what not to do" solution
-    #         # self.a1 = np.array(np.random.random(3))
-    #         # self.a1 = self.a1 / np.sqrt(np.dot(self.a1, self.a1))
-    #         # x = np.random.random(3)
-    #         a3 = x - np.dot(a1, x) * a1
-    #         a3 = a3 / np.sqrt(np.dot(a3, a3))
-    #         rot = np.stack([a1, a2, a3])
-
-    # the following assertion is useful for catching energy issues at low particle counts
-    # but it's VERY VERY SLOW
-    # assert self.get_potential_energy() < 0
-
     def num_particle_types(self) -> int:
         return self.particle_types().num_particle_types()
-
-    # def load_configuration(self,
-    #                        configuration_file: str,
-    #                        conf_to_skip=0,
-    #                        close_file=True):
-    #     _conf = open(configuration_file, 'r')
-    #     if conf_to_skip > 0:
-    #         conf_lines = 3 + self.N
-    #         for j in range(conf_lines * conf_to_skip):
-    #             _conf.readline()
-    #
-    #     self.read_next_configuration(_conf)
-    #
-    #     if close_file:
-    #         _conf.close()
-    #
-    #     return _conf
-
-    # def read_next_configuration(self, file_handle: IO) -> Union[bool, IO]:
-    #     _conf = file_handle
-    #
-    #     timeline = _conf.readline()
-    #     time = 0.
-    #     if len(timeline) == 0:
-    #         return False
-    #     else:
-    #         time = float(timeline.split()[2])
-    #
-    #     box = np.array([float(x) for x in _conf.readline().split()[2:]])
-    #     [E_tot, E_pot, E_kin] = [float(x) for x in _conf.readline().split()[2:5]]
-    #
-    #     self._box_size = box
-    #     self._E_tot = E_tot
-    #     self._E_pot = E_pot
-    #     self._E_kin = E_kin
-    #
-    #     for i in range(self.N):
-    #         ls = _conf.readline().split()
-    #         self._particles[i].fill_configuration(np.array(ls))
-    #
-    #     return _conf
-    #
-    # def bring_in_box(self, all_positive=False):
-    #     for p in self._particles:
-    #         nx = np.rint(p.cm_pos[0] / float(self._box_size[0])) * self._box_size[0]
-    #         ny = np.rint(p.cm_pos[1] / float(self._box_size[1])) * self._box_size[1]
-    #         nz = np.rint(p.cm_pos[2] / float(self._box_size[2])) * self._box_size[2]
-    #         # print np.array([nx,ny,nz])
-    #         p.cm_pos -= np.array([nx, ny, nz])
-    #         if all_positive:
-    #             for i in range(3):
-    #                 if p.cm_pos[i] < 0:
-    #                     p.cm_pos[i] += self._box_size[i]
-
-    def get_color(self, index: int):
-        if abs(index) >= 20:
-            index = abs(index) - 20
-        # print index
-        # print self._patch_colors
-        # return self.generate_random_color()
-        return self._patch_Fcolors[index]
-        #
-        # if not ispatch:
-        #     if index < 0 or index >= len(self._particle_colors):
-        #         if index in self._complementary_colors.keys():
-        #             return self._complementary_colors[index]
-        #         else:
-        #             return self.generate_random_color()
-        #     else:
-        #         return self._particle_colors[index]
-        # else:
-        #     if index < 0 or index >= len(self._patch_colors):
-        #         if index in self._complementary_colors.keys():
-        #             return self._complementary_colors[index]
-        #         else:
-        #             return self.generate_random_color(index)
-        #     else:
-        #         return self._patch_colors[index]
 
     def export_to_mgl(self,
                       filename: Union[Path, str],
@@ -384,88 +286,6 @@ class PLPSimulation(Scene, CellLists):
             # sout = ".Box:%f,%f,%f\n" % (self._box_size[0], self._box_size[1], self._box_size[2])
             for p in self._particles:
                 out.write(p.export_to_mgl(patch_width=patches_w, patch_shrink_scale=0.0))
-
-    #
-    # def export_to_lorenzian_mgl(self,
-    #                             filename: str,
-    #                             regime: str = 'w',
-    #                             icosahedron: bool = True):
-    #     out = open(filename, regime)
-    #     sout = ".Box:%f,%f,%f\n" % (self._box_size[0], self._box_size[1], self._box_size[2])
-    #     for p in self._particles:
-    #         patch_colors = [self.get_color(pat.color()) for pat in p.patches()]
-    #         particle_color = self.get_color(p.type_id())
-    #         sout = sout + p.export_to_lorenzian_mgl(patch_colors, particle_color) + '\n'
-    #         if icosahedron:
-    #             p.print_icosahedron(particle_color)
-    #
-    #     out.write(sout)
-    #     out.close()
-
-    # def export_to_francesco_mgl(self,
-    #                             filename: str,
-    #                             regime: str = 'w',
-    #                             icosahedron: bool = True):
-    #     with open(filename, regime) as fout:
-    #         sout = f".Box:{np.array2string(self._box_size, separator=',')}\n"
-    #         # sout = ".Box:%f,%f,%f\n" % (self._box_size[0], self._box_size[1], self._box_size[2])
-    #         for p in self._particles:
-    #             patch_colors = [self.get_color(pat.color()) for pat in p.patches()]
-    #             particle_type = p.type_id()
-    #             patch_position_0 = p.cm_pos + p.get_patch_position(0)
-    #             patch_position_1 = p.cm_pos + p.get_patch_position(1)
-    #             line = '%d %f %f %f %f %f %f %f %f %f' % (
-    #                 particle_type, p.cm_pos[0], p.cm_pos[1], p.cm_pos[2], patch_position_0[0], patch_position_0[1],
-    #                 patch_position_0[2], patch_position_1[0], patch_position_1[1], patch_position_1[2])
-    #             particle_color = self.get_color(p.type_id())
-    #             sout = sout + line + '\n'  # p.export_to_lorenzian_mgl(patch_colors,particle_color) + '\n'
-    #             if icosahedron:
-    #                 p.print_icosahedron(particle_color)
-    #
-    #         fout.write(sout)
-
-    # def export_to_xyz(self,
-    #                   filename: str,
-    #                   regime: str = 'w'):
-    #     with open(filename, regime) as fout:
-    #
-    #         sout = str(len(self._particles)) + '\n'
-    #         sout += "Box:%f,%f,%f\n" % (self._box_size[0], self._box_size[1], self._box_size[2])
-    #         for p in self._particles:
-    #             sout = sout + p.export_to_xyz() + '\n'
-    #
-    #         fout.write(sout)
-
-    # def from_top_conf(self, top: TopInfo, conf: Configuration):
-    #     rw = get_writer()
-    #     rw.read_top(Path(top.path), self)
-    #
-    #     self._time = conf.time
-    #     self._E_pot, self._E_kin, self._E_tot = conf.energy
-    #     self._box_size = conf.box
-    #
-    #     for i, p in enumerate(self.particles()):
-    #         p.a1 = conf.a1s[i, :]
-    #         p.a3 = conf.a3s[i, :]
-    #         p.set_position(conf.positions[i, :])
-    # #
-    # def to_top_conf(self, top_path: Path, conf_path: Path) -> tuple[TopInfo, Configuration]:
-    #     rw = get_writer()
-    #     top = TopInfo(str(top_path), self.num_particles())
-    #     rw.write_top(top_path, self)
-    #
-    #     particle_positions = np.stack([p.position() for p in self.particles()])
-    #     particle_a1s = np.stack([p.a1 for p in self.particles()])
-    #     particle_a3s = np.stack([p.a3 for p in self.particles()])
-    #
-    #     conf = Configuration(self._time,
-    #                          self._box_size,
-    #                          np.array([self._E_pot, self._E_kin, self._E_tot]),
-    #                          particle_positions,
-    #                          particle_a1s,
-    #                          particle_a3s)
-    #
-    #     return top, conf
 
     def particle_types(self) -> PLParticleSet:
         return self._particle_types
@@ -517,6 +337,38 @@ class PLPSimulation(Scene, CellLists):
             p.set_position(conf.positions[i, :])
             p.a1 = conf.a1s[i, :]
             p.a3 = conf.a3s[i, :]
+
+    def alter_box_size(self, new_box_size: Union[np.ndarray, float], cluster_energy_threshold: float):
+        """
+        This is VERY different from set_box_size
+        """
+        # if we've passed a scaling factor instead of an actual
+        if not isinstance(new_box_size, np.ndarray):
+            new_box_size = self.box_size()  * new_box_size
+        assert len(self.potentials) > 0, "Cannot resize box without first adding interaction potentials"
+        # find clusters
+        clusters = list(self.split_scene_by_clusters(cluster_energy_threshold, 2))
+        # to find counts of free-floating particles, start w/ total counts and count down
+        free_particles_types = self.particle_type_counts()
+        # iter clusters
+        for cluster in clusters:
+            for type_id, count in cluster.particle_type_counts().items():
+                # mark particles of type type_id as accounted for
+                free_particles_types[type_id] -= count
+                assert free_particles_types[type_id] >= 0, f"Miscount (?) of particle type {type_id}!"
+        # clear particles
+        self.clear_particles()
+        # set new box size
+        self.set_box_size(new_box_size)
+        # re-add clusters
+        # in this operation, we lose uids, which is HOPEFULLY OKAY??
+        self.add_conf_clusters(clusters)
+        # add free particles
+        for type_id, count in free_particles_types:
+            self.add_particle_rand_positions([
+                self.particle_types().particle(type_id).instantiate(self.num_particles()+i)
+                for i in range(count)
+            ])
 
     def set_time(self, t):
         self._time = t
