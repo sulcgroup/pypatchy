@@ -38,18 +38,18 @@ class PLPotential(ABC):
                ) -> float:
         pass
 
-"""
-Lorenzo's excluded-volume potential
-TODO: find paper this was based on!
-"""
-class PLLRExclVolPotential(PLPotential):
 
-    __particle_radius: float = 0.5 # TODO: make settable!
+class PLLRExclVolPotential(PLPotential):
+    """
+    Lorenzo's excluded-volume potential
+    TODO: find paper this was based on!
+    """
+    __particle_radius: float  # TODO: make settable!
     # repulsive radial cutoff???
     # TODO: make this dependant on particle radii!!!
-    __rep_rcut: float = 2 ** (1./6.)
+    __rep_rcut: float
     # the above, squared
-    __rep_sqr_rcut: float = __rep_rcut ** 2
+    __rep_sqr_rcut: float
     __spherical_attraction_strength: float
     __spherical_E_cut: float
     __sqr_spherical_rcut: float
@@ -60,20 +60,25 @@ class PLLRExclVolPotential(PLPotential):
                  epsilon: float = 1.,
                  spherical_attr_strength=0.,
                  spherical_E_cut=0.,
-                 sqr_spherical_rcut=0.):
+                 sqr_spherical_rcut=0.,
+                 particle_radius=0.5):
         super().__init__(rmax)
         self.__epsilon = epsilon
         self.__spherical_attraction_strength = spherical_attr_strength
         self.__spherical_E_cut = spherical_E_cut
         self.__sqr_spherical_rcut = sqr_spherical_rcut
+        self.__particle_radius = particle_radius
+        # for default particle radius=0.5, the repulsive r cutoff = 2 ** (1./6.)
+        self.__rep_rcut = 2 * particle_radius * 2 ** (1./6.)
+        self.__rep_sqr_rcut = self.__rep_rcut ** 2
 
     def rep_sqr_rcut(self, particle_radius_sum: float):
-        assert particle_radius_sum == 1. # todo: custom radius
+        assert particle_radius_sum == 2 * self.__particle_radius
+        # todo: custom radius
         return self.__rep_sqr_rcut
 
     def epsilon(self) -> float:
         return self.__epsilon
-
 
     """
     direct copy of DetailedPatchySwapInteraction::_spherical_patchy_two_body in oxDNA
@@ -108,8 +113,7 @@ class PLLRExclVolPotential(PLPotential):
 
         return energy
 
-class PLLRPatchyBond:
-    pass
+
 class PLLRPatchyPotential(PLPotential):
     # it's extremly unclear what this is
     __sigma_ss: float
@@ -220,11 +224,11 @@ class PLLRPatchyPotential(PLPotential):
         return intmatrix
 
 
-"""
-Flavio's excluded volume potential
-eqn. 9 in https://pubs.acs.org/doi/10.1021/acsnano.2c09677
-"""
 class PLFRExclVolPotential(PLPotential):
+    """
+    Flavio's excluded volume potential
+    eqn. 9 in https://pubs.acs.org/doi/10.1021/acsnano.2c09677
+    """
     # TODO: auto-set quadratic smoothing params to make sure piecewise potential is differentiable
 
     __rstar: float  # cutoff point for quadratic smoothing of lj potential
@@ -283,11 +287,10 @@ class PLFRExclVolPotential(PLPotential):
         return e
 
 
-"""
-non-torsional potential from https://pubs.acs.org/doi/10.1021/acsnano.2c09677
-"""
 class PLFRPatchyPotential(PLPotential):
-    #
+    """
+    non-torsional potential from https://pubs.acs.org/doi/10.1021/acsnano.2c09677
+    """
     __alpha: float  # patchy alpha potential
     __alpha_sqr: float
 
@@ -343,14 +346,15 @@ class PLFRPatchyPotential(PLPotential):
             e += self.fr_energy_2_patch(box, p1, p1.patch(i), p2, p2.patch(j))
         return e
 
-    """
-    flavio energy two patch point potential evangelion
-    """
+
     def fr_energy_2_patch(self,
                           box: np.ndarray,  # for periodic boundry conditions
                           particle1: PLPatchyParticle, patch1: PLPatch,
                           particle2: PLPatchyParticle, patch2: PLPatch,
                           rsqr: Union[None, float] = None) -> float:
+        """
+        flavio energy two patch point potential evangelion
+        """
         if rsqr is None:
             # there's DEFINATELY a way to simplify this
             patch1_pos: np.ndarray = particle1.patch_position(patch1)
@@ -378,11 +382,12 @@ def periodic_dist_sqrd(box: np.ndarray, p1: np.ndarray, p2: np.ndarray) -> float
     dist_sqrd = np.dot(delta, delta)
     return dist_sqrd
 
-"""
-computes the displacement vector between two particles, accounting for periodic boundry
-conditions
-"""
+
 def periodic_dist_sqrt_vec(box: np.ndarray, p1: np.ndarray, p2: np.ndarray):
+    """
+    computes the displacement vector between two particles, accounting for periodic boundry
+    conditions
+    """
     delta = p1 - p2  # Initial difference vector between the points
     for i in range(len(box)):
         if box[i] > 0:  # Check if the dimension is periodic
@@ -390,7 +395,84 @@ def periodic_dist_sqrt_vec(box: np.ndarray, p1: np.ndarray, p2: np.ndarray):
             delta[i] -= box[i] * np.round(delta[i] / box[i])
     return delta
 
+
+def narrow_type(nt: int) -> dict[str, float]:
+    """
+    values from https://doi.org/10.1021/acsnano.2c09677, fig 9
+    """
+    if nt == 0:
+        return {
+            "width": 2.345750,
+            "delta": 0.7,
+            "delta_c": 3.105590,
+            "a": 0.46,
+            "b": 0.133855
+        }
+    elif nt == 1:
+        return {
+            "width": 0.954736,
+            "delta": 0.2555,
+            "delta_c": 1.304631,
+            "a": 3,
+            "b":0.730694
+        }
+    elif nt == 2:
+        return {
+            "width": 0.656996,
+            "delta": 0.2555,
+            "delta_c": 0.782779,
+            "a": 5,
+            "b": 2.42282
+        }
+    elif nt == 3:
+        return {
+            "width": 0.396613,
+            "delta": 0.17555,
+            "delta_c": 0.438183,
+            "a": 13,
+            "b": 8.689492
+        }
+    elif nt == 4:
+        return {
+            "width": 0.336622,
+            "delta": 0.17555,
+            "delta_c": 9.322741,
+            "a": 17.65,
+            "b": 21.0506
+        }
+    else:
+        raise Exception(f"No narrow type {nt}")
+
+
+
+
 class PLFRTorsionalPatchyPotential(PLFRPatchyPotential):
+    # for explaination of torsional params, see https://doi.org/10.1021/acsnano.2c09677, fig 9
+    __theta_0: float = 0
+
+    __width: float
+    __delta: float
+    __delta_c: float
+    __a: float
+    __b: float
+
+    def __init__(self, rmax: float, alpha: float, **kwargs):
+        """
+
+        """
+        super().__init__(rmax=rmax, alpha=alpha)
+        if "theta_0" in kwargs:
+            self.__theta_0 = kwargs["theta_0"]
+        # if we pass a narrow type number, use narrow-type params
+        if "narrow_type" in kwargs:
+            kwargs.update(narrow_type(kwargs["narrow_type"]))
+        self.__width = kwargs["width"]
+        # todo: calculate dynamically from width? or just replace w/ non piecewise function
+        self.__delta = kwargs["delta"]
+        self.__delta_c = kwargs["delta_c"]
+        self.__a = kwargs["a"]
+        self.__b = kwargs["b"]
+
     # torsional potential from https://pubs.acs.org/doi/10.1021/acsnano.2c09677
     def fr_energy_2_patch(self,
                           box: np.ndarray,  # for periodic boundry conditions
@@ -398,6 +480,49 @@ class PLFRTorsionalPatchyPotential(PLFRPatchyPotential):
                           particle2: PLPatchyParticle, patch2: PLPatch,
                           rsqrd: Union[None, float] = None) -> float:
         # begin with the non-torsional potential
-        e = super().fr_energy_2_patch(box, particle1, patch1, particle2, patch2)
-        # TODO
+        e = super().fr_energy_2_patch(box, particle1, patch1, particle2, patch2, rsqrd)
+        # don't bother with multipliers for zero energy
+        if e < -1e-5:
+            # compute distance between patches
+            # there's DEFINATELY a way to simplify this
+            patch1_pos: np.ndarray = particle1.patch_position(patch1)
+            patch2_pos: np.ndarray = particle2.patch_position(patch2)
+            dist: np.ndarray = patch1_pos - patch2_pos
+            rsqr: float = dist @ dist.T
+            # https://pubs.acs.org/doi/10.1021/acsnano.2c09677 equation 2
+            # compute angle between patches
+            va = self.v_angmod(math.acos(dist @ (patch1.a1() @ particle1.rotmatrix()).T))
+            if va == 0:
+                return 0.
+            vb = self.v_angmod(math.acos(-dist @ (patch2.a1() @ particle2.rotmatrix()).T))
+            if vb == 0:
+                return 0.
+            # get angle between a3 vectors
+            vt = self.v_angmod(math.acos((patch1.a3() @ particle1.rotmatrix()) @ (patch2.a3() @ particle2.rotmatrix())))
+            return e * vt * va * vb
+        else:
+            return e
 
+    def v_angmod(self, theta: float) -> float:
+        """
+        computes angle-modifier for patchy interaction
+        in the paper and the c++ implementation the equation (eqns. 4, 5, 6) is restructured as a differentiable
+        piecewise function but for our purposes right now this is unnnessecary
+
+        except i don't actually know the correct equation
+        """
+
+        theta -= self.__theta_0
+        theta = abs(theta)
+
+        # outer limit of acceptable angles is deltaC
+        if theta < self.__delta_c:
+            if theta > self.__delta:
+                # if we're outside the delta range, use the normal quadratic
+                val = self.__b * (self.__delta_c - theta) ** 2
+            else:
+                # if we're within delta range, use the inverted quadratic,
+                val = 1. - self.__a * theta**2
+            return val
+        else:
+            return 0.

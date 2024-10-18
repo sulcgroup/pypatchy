@@ -11,13 +11,13 @@ from ipy_oxdna.oxdna_simulation import BuildSimulation, Simulation
 
 from .patchy_scripts import add_standard_patchy_interaction
 from .pl.plparticleset import PLParticleSet
-from .pl.plpotential import PLFRPatchyPotential, PLFRExclVolPotential
 
 from .ensemble_parameter import MDT_CONVERT_KEY, StageInfoParam, ParameterValue
 from .particle_adders import RandParticleAdder, FromPolycubeAdder, FromConfAdder
 from .pl.plpatchylib import polycube_to_pl
 from ..patchy.simulation_specification import PatchySimulation, NoSuchParamError
 from .pl.plscene import PLPSimulation
+
 
 class Stage(BuildSimulation):
     """
@@ -56,22 +56,20 @@ class Stage(BuildSimulation):
         self._param_info = paraminfo
         self._allow_shortfall = False
 
-        dps_sigma = self.getctxt().sim_get_param(self.spec(), "DPS_sigma_ss") # todo: back-compatibility w/ flavio
-
-        # check that add param info add method is valid
-        if isinstance(self._param_info.add_method, FromPolycubeAdder):
-            # check that the particle set matches up
-            # todo: do this somewhere where i need to run the check fewer times
-            try:
-                mdt_settings = self.getctxt().sim_get_param(self.spec(), MDT_CONVERT_KEY)
-            except NoSuchParamError:
-                mdt_settings = None
-            for pc in self._param_info.add_method.iter_polycubes():
-                sim_particle_set: PLParticleSet = self.getctxt().sim_get_particles_set(sim)
-                pc_particle_set: PLParticleSet = polycube_to_pl(pc.polycube_file_path,
-                               mdt_settings,
-                               pad_cubes=dps_sigma * pc.patch_distance_multiplier).particle_types()
-                assert sim_particle_set == pc_particle_set
+        # # check that add param info add method is valid
+        # if isinstance(self._param_info.add_method, FromPolycubeAdder):
+        #     # check that the particle set matches up
+        #     # todo: do this somewhere where i need to run the check fewer times
+        #     try:
+        #         mdt_settings = self.getctxt().sim_get_param(self.spec(), MDT_CONVERT_KEY)
+        #     except NoSuchParamError:
+        #         mdt_settings = None
+        #     for pc in self._param_info.add_method.iter_polycubes():
+        #         sim_particle_set: PLParticleSet = self.getctxt().sim_get_particles_set(sim)
+        #         pc_particle_set: PLParticleSet = polycube_to_pl(pc.polycube_file_path,
+        #                                                         mdt_settings,
+        #                                                         pad_cubes=dps_sigma * pc.patch_distance_multiplier).particle_types()
+        #         assert sim_particle_set == pc_particle_set
         # self.input_param_dict = {}
 
     def idx(self) -> int:
@@ -120,6 +118,9 @@ class Stage(BuildSimulation):
 
     def num_particles_to_add(self) -> int:
         return len(self.particles_to_add())
+
+    def num_particles(self) -> int:
+        return self.num_particles_to_add() +(self.get_prev().num_particles() if self.get_prev() is not None else 0)
 
     def start_time(self) -> int:
         return self._param_info.start_time
@@ -211,7 +212,6 @@ class Stage(BuildSimulation):
         # with open(self.getctxt().folder_path(self.spec()) / input_json_name, "w+") as f:
         #     json.dump(self.input_param_dict, f)
 
-
         self.sim.input.write_input(production=production)
 
         assert (self.getctxt().folder_path(self.spec(),
@@ -220,23 +220,34 @@ class Stage(BuildSimulation):
                                            self) / "input.json").exists(), "Didn't correctly set up input file!"
 
     def apply(self, scene: PLPSimulation):
-        if scene.num_particles() > 0:
-            assert np.allclose(self.box_size(), scene.box_size())
-        else:
+        """
+        applies stage operations to patchy scene
+        """
+        # first, add patchy interactions
+        # unfortunately i haven't implemented the swap interaction here yet
+        # and even if I had it would have its own issues bc it's a not state function
+        # so while ideally the computed energy should always be less than zero in practice it will sometimes be low
+        # but positive
+        patchy_potentials = self.getctxt().get_interaction_potentials(self.spec())
+        for potential in patchy_potentials:
+            scene.add_potential(potential)
+
+        # if the scene box has no particles, this is stage 0
+        if scene.num_particles() == 0:
             # set box size
             scene.set_box_size(self.box_size())
             scene.compute_cell_size(n_particles=self.num_particles_to_add())
             scene.apportion_cells()
-        # add excluded volume potential
-        dps_sigma = self.getctxt().sim_get_param(self.spec(), "DPS_sigma_ss") # todo: back-compatibility w/ flavio
-        add_standard_patchy_interaction(scene,
-                                        sigma=dps_sigma)
+        # otherwise we need to check if current scene box size is consistant with existing box size
+        # at which point things become. tricky
+        elif not np.allclose(self.box_size(), scene.box_size()):
+            try:
+                scene.alter_box_size(self.box_size(), self.getctxt().sim_get_param(self.getctxt(),
+                                                                                   "cluster_bond_energy"))
+            except NoSuchParamError:
+                # if cluter bond eneregy isn't specified, include all interactions w/ bond energy
+                scene.alter_box_size(self.box_size(), 0)
 
-        # add patchy interaction
-        # unfortunately i haven't implemented the swap interaction here yet
-        # and even if I had it would have its own issues bc it's a state function
-        # so while ideally the computed energy should always be less than zero in practice it will sometimes be low
-        # but positive
         if scene.num_particles() > 0:
             e_start = scene.get_potential_energy()
             assert e_start < 1., f"Scene energy {e_start} too high!!"
@@ -247,7 +258,7 @@ class Stage(BuildSimulation):
 
         if self._param_info.add_method is None:
             assert len(self.particles_to_add()) == 0, "No add method specified but particles still " \
-                                                        "queued to add!"
+                                                      "queued to add!"
         elif isinstance(self._param_info.add_method, RandParticleAdder):
             start_particle_count = scene.num_particles()
             # self.particles_to_add incorporates num_assmblies

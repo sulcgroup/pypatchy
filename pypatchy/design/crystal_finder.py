@@ -61,7 +61,7 @@ def find_crystal_temperature(rule: PolycubesRule,
             params.record_interval  # data point interval
         ),
         params.n_replicas,  # number of replicase
-        int(params.record_interval / 10)  # interval to print energy to console
+        1000  # interval to print energy to console
     )
 
     # convert results to pandas dataframe

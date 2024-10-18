@@ -29,6 +29,8 @@ from ipy_oxdna.oxdna_simulation import SimulationManager, Simulation
 from ipy_oxdna.observable import Observable
 
 from .pl.pljsonrw import PLJSONEncoder
+from .pl.plpotential import PLPotential, PLFRExclVolPotential, PLFRTorsionalPatchyPotential, PLLRPatchyPotential, \
+    PLLRExclVolPotential, PLFRPatchyPotential
 from .simulation_specification import get_param_set
 from ..analpipe.analyzable import Analyzable
 
@@ -544,6 +546,9 @@ class PatchySimulationEnsemble(Analyzable):
         return "parallel" in self.metadata and self.metadata["parallel"]
 
     def n_processes(self) -> int:
+        """
+        Returns: the number of times the patchy simulatinos are allowe to run in parallel
+        """
         return self.metadata["parallel"]
 
     def is_nocache(self) -> bool:
@@ -557,6 +562,9 @@ class PatchySimulationEnsemble(Analyzable):
         self.writer = get_writer(self.server_settings.patchy_format)
 
     def set_nocache(self, bNewVal: bool):
+        """
+        Assigns the simulation to not cache data
+        """
         self.metadata["nocache"] = bNewVal
 
     def append_slurm_log(self, item: SlurmLogEntry):
@@ -576,12 +584,6 @@ class PatchySimulationEnsemble(Analyzable):
         self.metadata[key] = val
         if val != oldVal:
             self.dump_metadata()
-
-    # def get_step_counts(self) -> list[tuple[PatchySimulation, int]]:
-    #     return [
-    #         (sim, self.time_length(sim))
-    #         for sim in self.ensemble()
-    #     ]
 
     def get_stopped_sims(self) -> list[PatchySimulation]:
         """
@@ -825,8 +827,14 @@ class PatchySimulationEnsemble(Analyzable):
             #
             else:
                 # please do not use density or num_assemblies as a staging param. please. please.
-                num_particles = sum(cumulative_type_counts.values()) * self.sim_get_param(sim, "num_assemblies")
-                density = self.sim_get_param(sim, "density")
+                # by default, use the old behavior. compute the box size at final stage concentration and use that
+                if stage.has_var("density"):
+                    density = stage.get_var("density")
+                    # stage.num_particles = number of particles that will be present in this stage's simulation
+                    num_particles = stage.num_particles()
+                else:
+                    num_particles = sum(cumulative_type_counts.values()) * self.sim_get_param(sim, "num_assemblies")
+                    density = self.sim_get_param(sim, "density")
                 box_side = (num_particles / density) ** (1 / 3)
 
                 stage.set_box_size(np.array((box_side, box_side, box_side)))
@@ -923,7 +931,53 @@ class PatchySimulationEnsemble(Analyzable):
                                str(trajpath))
 
     def sim_num_stages(self, sim: PatchySimulation) -> int:
+        """
+        Returns: the number of stages for a provided simulation
+        """
         return len(self.sim_get_stages(sim))
+
+    def get_interaction_potentials(self, sim: PatchySimulation) -> list[PLPotential]:
+        """
+        Contructs and returns a set of interaction potentials for the given simulation
+        Much of this is currently hardcoded because making is more programmatic is not worth my time
+        """
+        # todo: include interaction potential spec in server spec
+        interaction_potential_names: list[str] = self.sim_get_param(sim, "interaction_potentials")
+        potentials: list[PLPotential] = list()
+        for name in interaction_potential_names:
+            if name == "lr_excl_vol":
+                # in Lorenzo's interaction the potential is hardcoded
+                potential = PLLRExclVolPotential(rmax=2.01421)
+            elif name == "fr_excl_vol":
+                potential = PLFRExclVolPotential(rmax=2.01421 * self.sim_get_param(sim, "PATCHY_radius") * 2,
+                                                 rstar=self.sim_get_param(sim, "PATCHY_radius") * 2 ** (1 / 6),
+                                                 b=677.505671539  # from flavio's code
+                )
+
+            elif name == "lr_patchy":
+                potential = PLLRPatchyPotential(rmax=2.01421,
+                                                sigma_ss=self.sim_get_param(sim, "DPS_sigma_ss"),
+                                                interaction_matrix=PLLRPatchyPotential.make_interaction_matrix(
+                                                    self.sim_get_particles_set(sim).patches()
+                                                ))
+            elif name == "fr_patchy":
+                patchy_radius = self.sim_get_param(sim, "PATCHY_radius")
+                if self.sim_get_param(sim, "use_torsion"):
+                    potential = PLFRTorsionalPatchyPotential(
+                        rmax=0.4 * 3 * patchy_radius,
+                        alpha=self.sim_get_param(sim, "PATCHY_alpha"),
+                        narrow_type=self.sim_get_param(sim, "narrow_type")
+                    )
+                else:
+                    potential = PLFRPatchyPotential(
+                        rmax=0.4 * 3 * patchy_radius,
+                        alpha=self.sim_get_param(sim, "PATCHY_alpha")
+                    )
+            else:
+                raise Exception(f"No python-implemented interaction potential called {name}, options are"
+                                f" `lr_excl_vol`, `fr_excl_vol`, `lr_patchy`, `fr_patchy`.")
+            potentials.append(potential)
+        return potentials
 
     def sim_stage_done(self, sim: PatchySimulation, stage: Stage) -> bool:
         """
@@ -938,7 +992,7 @@ class PatchySimulationEnsemble(Analyzable):
 
     def ensemble(self) -> list[PatchySimulation]:
         """
-        Returns a list of all simulations in this ensemble
+        Returns: a list of all simulations in this ensemble
         """
         return [PatchySimulation(e) for e in itertools.product(*self.ensemble_params)]
 

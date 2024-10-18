@@ -33,7 +33,7 @@ class CrystallizationTestParams:
     # simulation step count - I strongly advise against leaving this as default!
     n_steps: int = field(default=int(5e6))
     # historical record interval
-    record_interval: int = field(default=1000)
+    record_interval: int = field(default=5e3)
     density: float = field(default=0.1)
 
     # min, max, interval temperatures
