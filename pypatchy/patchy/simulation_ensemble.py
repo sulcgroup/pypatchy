@@ -839,9 +839,6 @@ class PatchySimulationEnsemble(Analyzable):
 
                 stage.set_box_size(np.array((box_side, box_side, box_side)))
 
-            if stage.idx() > 0:
-                assert (stages[stage.idx() - 1].box_size() <= stage.box_size()).all(), "Shrinking box size not allowed!"
-
         return stages
 
     def sim_get_stages_between(self, sim: PatchySimulation, tstart: int, tend: int) -> list[Stage]:

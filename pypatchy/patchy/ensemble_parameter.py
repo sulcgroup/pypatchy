@@ -270,7 +270,7 @@ class StageInfoParam(Mapping):
 
         # add more params
         self.info = {
-            key: value for key, value in kwargs.items() if key not in ("t", "add_method", "density")
+            key: value for key, value in kwargs.items() if key not in ("t", "add_method")
         }
 
     def set_end_time(self, newval: int):
