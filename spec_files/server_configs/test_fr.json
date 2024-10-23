@@ -1,0 +1,21 @@
+{
+	"slurm_bash_flags": {
+	},
+	"slurm_includes": [
+	],
+	"input_file_params": {
+		"backend": "CPU",
+        "backend_precision": "double",
+		"interaction_type": "PatchyShapeInteraction",
+        "plugin_search_path": "/PATH/TO/OXDNA/TORSION/contrib/romano",
+        "patchy_file": "patches.txt",
+        "particle_file": "particles.txt"
+
+	},
+	"oxdna_path": "/PATH/TO/OXDNA/TORSION/",
+	"is_slurm": false,
+	"patchy_format": "flavio",
+	"cuda_mps": false,
+	"absolute_paths": true
+
+}

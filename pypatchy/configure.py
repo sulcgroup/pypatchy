@@ -39,7 +39,7 @@ def create_default_config():
         with open(config_file, 'w') as f:
             config.write(f)
 
-    spec_files_source_dir = 'spec_files'
+    spec_files_source_dir = str(Path(__file__).parent.parent / "spec_files")
     spec_files_target_dir = pypatchy_dir / 'spec_files'
 
     # Access the package's resources using importlib.resources

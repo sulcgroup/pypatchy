@@ -45,7 +45,7 @@ def get_log_dir() -> Path:
 
 cfg = configparser.ConfigParser()
 if not (get_local_dir() / "settings.cfg").exists():
-    raise ImportError("Missing settings.cfg file! expected to find file in {get_local_dir() / ]settings.cfg'}")
+    raise ImportError("Missing settings.cfg file! expected to find file in {get_local_dir() / settings.cfg'}")
 cfg.read(get_local_dir() / 'settings.cfg')
 
 
