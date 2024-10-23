@@ -12,7 +12,7 @@ import pytest
 # check prereqs are ok
 import test_prerequisites
 from pypatchy.patchy.simulation_ensemble import find_ensemble, PatchySimulationEnsemble
-from pypatchy.server_config import PatchyServerConfig
+from pypatchy.server_config import PatchyServerConfig, load_server_settings
 
 from pypatchy.util import get_input_dir
 from pypatchy.util import cfg
@@ -23,7 +23,7 @@ def temp_dir() -> str:
     # construct temporary directory to run
 
     with tempfile.TemporaryDirectory() as td:
-        cfg.set(cfg['ANALYSIS']['simulation_data_dir'], td)
+        cfg.set('ANALYSIS', 'simulation_data_dir', str(td))
         yield td
 
 
@@ -33,7 +33,7 @@ def ensemble(ensemble_name: str):
     """
     # copy ensemble files
     shutil.copy(
-        Path(__file__).parent.parent / "spec_files" / "server_configs" / "test_files" / "test_ensemble_specs" / (
+        Path(__file__).parent.parent / "spec_files" / "test_files" / "test_ensemble_specs" / (
                 ensemble_name + ".json"),
         get_input_dir())
     return find_ensemble(cfg=ensemble_name)
@@ -44,5 +44,6 @@ def test_example_basic_3DX(temp_dir: str):
     test basic 3d cross
     """
     e = ensemble("example_basic")
+    e.set_server_settings(load_server_settings("test_fr"))
     e.start_simulations()
 

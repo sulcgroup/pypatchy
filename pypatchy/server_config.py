@@ -36,6 +36,7 @@ class PatchyServerConfig:
     absolute_paths: bool = False
     is_slurm: bool = False
     cuda_mps: bool = False
+    no_oxpy_check: bool = False
 
     # post_init function courtesy of chatGPT
     def __post_init__(self):

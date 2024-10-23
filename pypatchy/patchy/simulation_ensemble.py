@@ -366,8 +366,12 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
                                         analysis_file, mdt,
                                         server_settings)
 
-    if "no_oxpy_check" in cfg and cfg["no_oxpy_check"]:
-        ensemble.no_oxpy_check_energies = True
+    if "no_oxpy_check" in cfg:
+        if cfg["no_oxpy_check"]:
+            ensemble.no_oxpy_check_energies = True
+    else:
+        ensemble.no_oxpy_check_energies = server_settings.no_oxpy_check
+
     # TODO: verify presence of required params
     # if "slurm_log" in mdt:
     #     for entry in mdt["slurm_log"]:
@@ -560,6 +564,8 @@ class PatchySimulationEnsemble(Analyzable):
         else:
             self.server_settings = load_server_settings(stgs)
         self.writer = get_writer(self.server_settings.patchy_format)
+        # todo: better?
+        self.no_oxpy_check_energies = self.server_settings.no_oxpy_check
 
     def set_nocache(self, bNewVal: bool):
         """

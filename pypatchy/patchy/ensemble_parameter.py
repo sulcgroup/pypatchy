@@ -234,7 +234,10 @@ class StageInfoParam(Mapping):
         self.start_time = kwargs["t"] if "t" in kwargs else 0
         # if this stage adds particles
         if "add_method" in kwargs:
-            if isinstance(kwargs["add_method"], str):
+            add_method = kwargs["add_method"]
+            if isinstance(add_method, StageParticleAdder):
+                self.add_method = add_method
+            elif isinstance(add_method, str):
                 raise Exception("string-type add methods are no longer supported")
             #     if kwargs["add_method"].upper() == "RANDOM":
             #         self.add_method = RandParticleAdder(kwargs["density"])
@@ -244,22 +247,24 @@ class StageInfoParam(Mapping):
             #     else:
             #         raise TypeError(f"Invalid 'add_method' provided: {kwargs['add_method']}")
             # require type specification
-            if "type" not in kwargs["add_method"]:
-                raise TypeError("No type specified for particle add method! Specify 'polycube', 'patchy', "
-                                "'random', 'fix', or. idk.")
-            add_type = kwargs["add_method"]["type"]
-            del kwargs["add_method"]["type"] # delete type key so we can call constructor w/ arg unpacking
-            if add_type == 'random':
-                self.add_method = RandParticleAdder(**kwargs["add_method"])
-            elif add_type == "polycube":
-                self.add_method = FromPolycubeAdder(**kwargs["add_method"])
-            elif add_type == "patchy":
-                raise Exception("Not implemented yet")
-            elif add_type == "fix":
-                raise Exception("Not only is this not implemented yet I'm not even fully sure what it's"
-                                "supposed to be")
             else:
-                raise TypeError(f"Invalid 'add_method' provided: {kwargs['add_method']}")
+                assert type(add_method) == dict
+                if "type" not in add_method:
+                    raise TypeError("No type specified for particle add method! Specify 'polycube', 'patchy', "
+                                    "'random', 'fix', or. idk.")
+                add_type = add_method["type"]
+                del add_method["type"] # delete type key so we can call constructor w/ arg unpacking
+                if add_type == 'random':
+                    self.add_method = RandParticleAdder(**kwargs["add_method"])
+                elif add_type == "polycube":
+                    self.add_method = FromPolycubeAdder(**kwargs["add_method"])
+                elif add_type == "patchy":
+                    raise Exception("Not implemented yet")
+                elif add_type == "fix":
+                    raise Exception("Not only is this not implemented yet I'm not even fully sure what it's"
+                                    "supposed to be")
+                else:
+                    raise TypeError(f"Invalid 'add_method' provided: {kwargs['add_method']}")
         else:
             self.add_method = None
 
