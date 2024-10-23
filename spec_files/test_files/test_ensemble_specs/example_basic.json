@@ -1,5 +1,6 @@
 {
 	"export_name": "example_3dX",
+	"server_spec": "test_fr",
 	"rule": "1|1|1|1|1|1_-1|||||",
     "const_params": {
         "num_steps": 5e7,
@@ -9,7 +10,8 @@
             "CT1": 6
         },
 		"print_conf_every": 5e6,
-		"print_energy_every": 5e6
+		"print_energy_every": 5e6,
+		"narrow_type": 1
     },
 	"ensemble_params": [
 		[
