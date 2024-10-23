@@ -1,6 +1,7 @@
 """
 Tests basic stuff with loading ensembles
 """
+import os
 import re
 import shutil
 import tempfile
@@ -45,5 +46,38 @@ def test_example_basic_3DX(temp_dir: str):
     """
     e = ensemble("example_basic")
     e.set_server_settings(load_server_settings("test_fr"))
+    print("Performing setup")
+    e.do_setup()
+    print("Running test simulation")
+    e.start_simulations()
+    # del metadata file
+    # is there no pathlib command for ths??
+    os.remove(str(get_input_dir() / e.metadata_file))
+    # todo: del analysis pipeline
+
+def test_multidentate(temp_dir: str):
+    e = ensemble("example_mdt")
+    e.set_server_settings(load_server_settings("test_lr"))
+    print("Performing setup")
+    e.do_setup()
+    print("Starting simulations")
+    e.start_simulations()
+    # del metadata file
+    # is there no pathlib command for ths??
+    os.remove(str(get_input_dir() / e.metadata_file))
+    # todo: del analysis pipeline
+
+def test_multiinit(temp_dir: str):
+    e = ensemble("example_mdt")
+    e.do_setup()
     e.start_simulations()
 
+def test_staged(temp_dir: str):
+    e = ensemble("example_staged")
+    e.do_setup(stage="first_stage")
+    e.start_simulations(stage="first_stage")
+    e.do_setup(stage="second_stage")
+    e.start_simulations(stage="second_stage")
+
+def test_analysis(temp_dir: str):
+    pass
