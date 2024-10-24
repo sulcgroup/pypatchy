@@ -68,7 +68,12 @@ def test_multidentate(temp_dir: str):
     # todo: del analysis pipeline
 
 def test_multiinit(temp_dir: str):
-    e = ensemble("example_mdt")
+    # copy required polycube to scenes dir
+    (get_input_dir() / "scenes").mkdir(exist_ok=True)
+    shutil.copy(Path(__file__).parent.parent / "spec_files" / "test_files" / "test_particle_sets",
+                get_input_dir() / "scenes")
+    e = ensemble("example_multiinit")
+    e.set_server_settings(load_server_settings("test_lr"))
     e.do_setup()
     e.start_simulations()
 

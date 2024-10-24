@@ -18,12 +18,13 @@
 	},
 	"ensemble_params": [
 		[
-			"assembly_method",
+			"staging",
 			[
 				{
 					"name": "denovo",
-					"stages":  [
-						{
+					"type": "staging",
+					"stages":  {
+						"default": {
 							"name": "default",
 							"t": 0,
 							"add_method": "RANDOM",
@@ -37,19 +38,21 @@
 						    },
 							"num_assemblies": 10
 						}
-					]
-
+					}
 				},
 				{
 					"name": "crystal",
-					"stages":  [
-						{
-							"name": "default",
-							"t": 0,
-							"add_method": "from_polycubes=scenes/menger_crystal_small.json",
-							"num_assemblies": 1
+					"stages": {
+						"default": {
+							"add_method": {
+								"type": "polycube",
+								"polycubes": [{
+									"polycube_file_path": "scenes/menger_crystal_small.json",
+									"num_assemblies": 1
+								}]
+							}
 						}
-					]
+					}
 				}
 			]
 		]

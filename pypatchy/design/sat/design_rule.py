@@ -406,7 +406,7 @@ class Polysat:
 
         return self.readSolution(sol)
 
-    def find_solution(self):
+    def find_solution(self) -> SATSolution:
         """
         big method! go go go!
         """
@@ -576,7 +576,7 @@ class Polysat:
         solution_vars = [p if p in sat_solution.raw else -p for p, _ in enumerate(self.problem.variables) ]
 
         try:
-            polycube_data, T = find_crystal_temperature(sat_solution.decRuleOld(),
+            polycube_data, T = find_crystal_temperature(sat_solution.rule,
                                                         sat_solution.type_counts(),
                                                         self.input_params.tlm_params)
             self.logger.info(f"Rule {str(sat_solution.rule)} crystallizes at T={T}, testing particle types...")

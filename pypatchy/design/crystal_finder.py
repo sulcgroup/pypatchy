@@ -45,8 +45,9 @@ def find_crystal_temperature(rule: PolycubesRule,
                              unit_cell_type_counts: list[int],
                              params: CrystallizationTestParams) -> tuple[
     Union[None, list[list[libtlm.TLMHistoryRecord]]], float]:
+    assert isinstance(rule, PolycubesRule)
     assert len(unit_cell_type_counts) == len(rule)
-    T = (params.Tmax + params.Tmax) / 2  # find midpoint
+    T = (params.Tmin + params.Tmax) / 2  # find midpoint
     print(f"------------------------ Testing crystallization at temperature {T} -------------------")
     # run simulations
     polycube_results: list[list[libtlm.TLMHistoryRecord]] = libtlm.runSimulations(
@@ -58,7 +59,7 @@ def find_crystal_temperature(rule: PolycubesRule,
             str(rule),
             params.get_total_type_counts(unit_cell_type_counts),  # type counts
             params.n_steps,  # steps
-            params.record_interval  # data point interval
+            int(params.record_interval)  # data point interval
         ),
         params.n_replicas,  # number of replicase
         1000  # interval to print energy to console

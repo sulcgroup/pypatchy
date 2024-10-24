@@ -89,25 +89,38 @@ class PolycubeSATProblem(SATProblem):
                                                          for s in range(self.nS)
                                                          for p in range(self.nP)])
 
-    def add_constraints_all_patches_except(self,
-                                           forbidden: list[int],
-                                           nonRequired: list[int] = [1]):
-        """
-        Adds constraints which require the solution to include all patches, w/ exceptions
-        Colors in forbidden cannot be used in the solution at all, colors in nonRequired can be used but don't have to be
-        """
+
+    def add_constraints_all_patches_except(self, forbidden: list[int], nonRequired: list[int] = [1]):
         self.add_problem_part(SATProblemPart("^C", ["s", "p", "c"]))
-        # loop colors
+
         for c in range(self.nC):
-            # skip patches that aren't in either "forbidden" or "nonrequired"
             if c not in forbidden and c not in nonRequired:
                 self.sat_problem_parts["^C"].clauses.append([self.C(s, p, c) for s in range(self.nS) for p in range(self.nP)])
             # Do not use forbidden color
-            # for all patches p, species s, nForbidden of our list of forbidden colors
-            for p, s, nForbidden in itertools.product(range(self.nP), range(self.nS), forbidden):
-                self.sat_problem_parts["^C"].clauses.append(
-                    [-self.C(s, p, nForbidden)]
-                )
+            for p in range(self.nP):
+                for s in range(self.nS):
+                    for nForbidden in forbidden:
+                        self.sat_problem_parts["^C"].clauses.append([-self.C(s, p, nForbidden)])
+
+    # def add_constraints_all_patches_except(self,
+    #                                        forbidden: list[int],
+    #                                        nonRequired: list[int] = [1]):
+    #     """
+    #     Adds constraints which require the solution to include all patches, w/ exceptions
+    #     Colors in forbidden cannot be used in the solution at all, colors in nonRequired can be used but don't have to be
+    #     """
+    #     self.add_problem_part(SATProblemPart("^C", ["s", "p", "c"]))
+    #     # loop colors
+    #     for c in range(self.nC):
+    #         # skip patches that aren't in either "forbidden" or "nonrequired"
+    #         if c not in forbidden and c not in nonRequired:
+    #             self.sat_problem_parts["^C"].clauses.append([self.C(s, p, c) for s in range(self.nS) for p in range(self.nP)])
+    #         # Do not use forbidden color
+    #         # for all patches p, species s, nForbidden of our list of forbidden colors
+    #         for p, s, nForbidden in itertools.product(range(self.nP), range(self.nS), forbidden):
+    #             self.sat_problem_parts["^C"].clauses.append(
+    #                 [-self.C(s, p, nForbidden)]
+    #             )
 
     def add_constraints_fixed_blank_orientation(self):
         """
