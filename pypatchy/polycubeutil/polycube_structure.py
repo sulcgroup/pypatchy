@@ -362,10 +362,10 @@ class PolycubeStructure(TypedStructure, Scene):
         """
         Returns: the number of cube-cube connections in this structure
         """
-        return len(self.graph.edges) / 2  # divide by 2 b/c graph is bidirerctional
+        return len(self.graph.edges) // 2  # divide by 2 b/c graph is bidirerctional
 
     def get_particle_types(self) -> dict[int, int]:
-        # TODOOOOO!!!!!
+        # TODO OOOO!!!!!
         pass
 
 

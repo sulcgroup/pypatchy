@@ -34,7 +34,7 @@ def ensemble(ensemble_name: str):
     """
     # copy ensemble files
     shutil.copy(
-        Path(__file__).parent.parent / "spec_files" / "test_files" / "test_ensemble_specs" / (
+        Path(__file__).parent / "test_files" / "test_ensemble_specs" / (
                 ensemble_name + ".json"),
         get_input_dir())
     return find_ensemble(cfg=ensemble_name)
@@ -55,6 +55,7 @@ def test_example_basic_3DX(temp_dir: str):
     os.remove(str(get_input_dir() / e.metadata_file))
     # todo: del analysis pipeline
 
+
 def test_multidentate(temp_dir: str):
     e = ensemble("example_mdt")
     e.set_server_settings(load_server_settings("test_lr"))
@@ -67,15 +68,17 @@ def test_multidentate(temp_dir: str):
     os.remove(str(get_input_dir() / e.metadata_file))
     # todo: del analysis pipeline
 
+
 def test_multiinit(temp_dir: str):
     # copy required polycube to scenes dir
     (get_input_dir() / "scenes").mkdir(exist_ok=True)
-    shutil.copy(Path(__file__).parent.parent / "spec_files" / "test_files" / "test_particle_sets",
+    shutil.copy(Path(__file__).parent / "test_files" / "test_particle_sets",
                 get_input_dir() / "scenes")
     e = ensemble("example_multiinit")
     e.set_server_settings(load_server_settings("test_lr"))
     e.do_setup()
     e.start_simulations()
+
 
 def test_staged(temp_dir: str):
     e = ensemble("example_staged")
@@ -84,5 +87,10 @@ def test_staged(temp_dir: str):
     e.do_setup(stage="second_stage")
     e.start_simulations(stage="second_stage")
 
+
 def test_analysis(temp_dir: str):
+    pass
+
+
+def test_dilute(temp_dir: str):
     pass
