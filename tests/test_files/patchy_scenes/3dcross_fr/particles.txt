@@ -1,0 +1,8 @@
+particle_0 = { 
+ type = 0 
+ patches = 0,1,2,3,4,5 
+ } 
+particle_1 = { 
+ type = 1 
+ patches = 6 
+ } 

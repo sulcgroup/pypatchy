@@ -133,9 +133,9 @@ class PLLRPatchyPotential(PLPotential, InteractionMatrix):
     # used for three-body interaction
     __lambda: float
     
-    def __init__(self, rmax: float, interaction_matrix: dict[tuple[int, int], float],
+    def __init__(self, rmax: float, interaction_matrix: Union[dict[tuple[int, int], float], InteractionMatrix],
                  sigma_ss: float = 0.4):
-        InteractionMatrix.__init__(self, interaction_matrix)
+        InteractionMatrix.__init__(self, interaction_matrix if type(interaction_matrix) == dict else interaction_matrix.intmap())
         PLPotential.__init__(self, rmax)
         self.__sigma_ss = sigma_ss
         self.__rcut_ss = 1.5 * sigma_ss

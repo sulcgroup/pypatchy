@@ -958,10 +958,10 @@ class PatchySimulationEnsemble(Analyzable):
                 )
 
             elif name == "lr_patchy":
+                particle_types: PLParticleSet = self.sim_get_particles_set(sim)
                 potential = PLLRPatchyPotential(rmax=2.01421,
                                                 sigma_ss=self.sim_get_param(sim, "DPS_sigma_ss"),
-                                                interaction_matrix=make_interaction_matrix(
-                                                ))
+                                                interaction_matrix=particle_types.interaction_matrix())
             elif name == "fr_patchy":
                 patchy_radius = self.sim_get_param(sim, "PATCHY_radius")
                 if self.sim_get_param(sim, "use_torsion"):

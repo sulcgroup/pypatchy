@@ -1,0 +1,63 @@
+patch_0 = {
+ 	id = 0
+	color = 21
+	strength = 1.0
+	position = 0,0,-0.5
+	a1 = 0,0,-1
+	a2 = 0,1,0
+
+}
+patch_1 = {
+ 	id = 1
+	color = 21
+	strength = 1.0
+	position = 0,0,0.5
+	a1 = 0,0,1
+	a2 =  0,-1, 0
+
+}
+patch_2 = {
+ 	id = 2
+	color = 21
+	strength = 1.0
+	position = 0,0.5,0
+	a1 = 0,1,0
+	a2 = -1, 0, 0
+
+}
+patch_3 = {
+ 	id = 3
+	color = 21
+	strength = 1.0
+	position = 0,-0.5,0
+	a1 = 0,-1,0
+	a2 = 1,0,0
+
+}
+patch_4 = {
+ 	id = 4
+	color = 21
+	strength = 1.0
+	position = -0.5,0,0
+	a1 = -1,0,0
+	a2 =  0, 0,-1
+
+}
+patch_5 = {
+ 	id = 5
+	color = 21
+	strength = 1.0
+	position = 0.5,0,0
+	a1 = 1,0,0
+	a2 = 0,0,1
+
+}
+patch_6 = {
+ 	id = 6
+	color = -21
+	strength = 1.0
+	position = 0,0,-0.5
+	a1 = 0,0,-1
+	a2 = 0,1,0
+
+}

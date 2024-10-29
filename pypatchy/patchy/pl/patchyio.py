@@ -183,7 +183,7 @@ class FWriter(PLBaseWriter):
                         particles.append(particle)
                 j = j + 1
         particles.sort(key=lambda p: p.get_type())
-        particle_set = PLParticleSet(intmat=particles)
+        particle_set = PLParticleSet(particles)
         if not all([np.abs(p.rotmatrix() - np.identity(3)).sum() < 1e-6 for p in particles]):
             pass
             # particle_set.normalize()
@@ -642,7 +642,7 @@ class LWriter(PLBaseWriter):
                 particle_type = PLPatchyParticle(patches, type_id=pid, index_=pid)
                 particle_types.append(particle_type)
                 particle_type_counts[pid] = nInstances
-        return LWriter.LPatchyTopology(PLParticleSet(intmat=particle_types), particle_type_counts)
+        return LWriter.LPatchyTopology(PLParticleSet(particle_types, intmat=InteractionMatrix()), particle_type_counts)
 
     def get_scene_top(self, s: PLPSimulation) -> LPatchyTopology:
         return LWriter.LPatchyTopology(s.particle_types(), s.particle_type_counts())
@@ -650,7 +650,10 @@ class LWriter(PLBaseWriter):
     def read_particle_types(self, topology: str, DPS_interaction_matrix_file: str) -> PLParticleSet:
         top = self.read_top(topology)
         interaction_matrix = self.read_interaction_matrix(DPS_interaction_matrix_file)
-        assign_colors(interaction_matrix, top.particle_types.patches())
+        interaction_matrix, new_colors = assign_colors(interaction_matrix, top.particle_types.patches())
+        for color, patch in zip(new_colors, top.particle_types.patches()):
+            patch.set_color(color)
+        top.particle_types.set_interactions(interaction_matrix)
         return top.particle_types
 
     def read_interaction_matrix(self, interaction_file: str) -> InteractionMatrix:

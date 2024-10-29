@@ -10,8 +10,8 @@ import numpy as np
 from scipy.spatial.transform import Rotation as R
 
 from .plparticle import PLPatchyParticle
-from .plpatch import PLPatch
-from ...interaction_matrix import InteractionMatrix, make_interaction_matrix
+from .plpatch import PLPatch, make_interaction_matrix
+from ...interaction_matrix import InteractionMatrix
 from ...patchy_base_particle import BaseParticleSet
 from ipy_oxdna.util import rotation_matrix
 
@@ -168,7 +168,7 @@ class PLParticleSet(BaseParticleSet):
         if intmat is not None:
             self.__interaction_matrix = intmat
         else:
-            self.__interaction_matrix = make_interaction_matrix(self.particles())
+            self.__interaction_matrix = make_interaction_matrix(self.patches())
         self.__src_map = source_map
 
     def patch_colors(self):
@@ -182,6 +182,9 @@ class PLParticleSet(BaseParticleSet):
 
     def interaction_matrix(self) -> InteractionMatrix:
         return self.__interaction_matrix
+
+    def set_interactions(self, imat: InteractionMatrix):
+        self.__interaction_matrix = imat
 
     def has_udt_src(self) -> bool:
         return self.get_src_map() is not None and isinstance(self.get_src_map(), PLMultidentateSourceMap)

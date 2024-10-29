@@ -14,7 +14,7 @@ def cross_fr():
     tests flavio-format writer
     """
     writer = get_writer("flavio")
-    writer.set_directory(Path(__file__) / "patchy_scenes" / "3dcross_scene_fr")
+    writer.set_directory(Path(__file__).parent / "test_files" / "patchy_scenes" / "3dcross_fr")
     scene = writer.read_scene("topology.top",
                               "last_conf.dat",
                               writer.read_particle_types(patchy_file="patches.txt",
@@ -24,7 +24,7 @@ def cross_fr():
 @pytest.fixture
 def cross_lr():
     writer = get_writer("lorenzo")
-    writer.set_directory(Path(__file__) / "patchy_scenes" / "3dcross_scene_lr")
+    writer.set_directory(Path(__file__).parent / "test_files"/ "patchy_scenes" / "3dcross_lr")
     scene = writer.read_scene("topology.top", "last_conf.dat", writer.read_particle_types("topology.top", "interactions.txt"))
     return scene
 

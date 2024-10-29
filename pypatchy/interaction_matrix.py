@@ -1,21 +1,11 @@
 from __future__ import annotations
 
-import math
+import copy
+import itertools
 from typing import Union
 
 import numpy as np
 
-from .patchy.pl.plpatch import PLPatch
-
-
-def make_interaction_matrix(patches: list[PLPatch]) -> InteractionMatrix:
-    intmatrix = dict()
-    # we do want these to contain both (i,j) and (j,i)
-    for p1 in patches:
-        for p2 in patches:
-            if p1.color() == -p2.color():
-                intmatrix[(p1.color(), p2.color())] = math.sqrt(p1.strength() * p2.strength())
-    return InteractionMatrix(interactions=intmatrix)
 
 def make_int_mat_for_colors(maxColor: int):
     return InteractionMatrix([((-c, c), 1.) for c in range(1, maxColor+1)])
@@ -34,9 +24,14 @@ class InteractionMatrix:
             for (c1, c2), val in (interactions.items() if type(interactions) == dict else interactions)
         }
 
+    def intmap(self) -> dict[tuple[int,int],float]:
+        return copy.deepcopy(self.__interactions)
+
     def __getitem__(self, item: tuple[int, int]) -> float:
         c1, c2 = item
-        if c1 > c2:
+        if item not in self:
+            return 0.
+        elif c1 > c2:
             return self[(c2, c1)]
         else:
             return self.__interactions[item]
@@ -53,7 +48,7 @@ class InteractionMatrix:
 
     def __contains__(self, item: tuple[int, int]):
         c1, c2 = item
-        assert type(c1) == item and type(c2) == int
+        assert type(c1) == int and type(c2) == int
         if c1 > c2:
             return (c2, c1) in self
         else:
@@ -73,6 +68,7 @@ class InteractionMatrix:
         """
         returns num colors, positive + negative
         """
+        return len(set(itertools.chain.from_iterable(self.__interactions.keys())))
 
     def to_array(self) -> np.ndarray:
         """

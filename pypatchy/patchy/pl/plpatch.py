@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-import itertools
+import math
 from typing import Union
 
 import numpy as np
 
-from pypatchy.interaction_matrix import InteractionMatrix, make_int_mat_for_colors
-from pypatchy.patchy_base_particle import BasePatchType
+from ...interaction_matrix import InteractionMatrix, make_int_mat_for_colors
+from ...patchy_base_particle import BasePatchType
 
 
 class PLPatch(BasePatchType):
@@ -197,5 +197,17 @@ def assign_colors(interaction_matrix: InteractionMatrix, patches: list[PLPatch])
             raise e
     # next: nuclear option. give each patch a totally unique color
     colors = [i for i, _ in enumerate(patches)]
+    # now we need to try to minimize the number of colors required to mimic the provided interaction matrix
+    # i think this might be a graph-coloring problem?
+
+    # finally, return the interaction matrix for our new color set, along with a list of colors for each patch
 
 
+def make_interaction_matrix(patches: list[PLPatch]) -> InteractionMatrix:
+    intmatrix = dict()
+    # we do want these to contain both (i,j) and (j,i)
+    for p1 in patches:
+        for p2 in patches:
+            if p1.color() == -p2.color():
+                intmatrix[(p1.color(), p2.color())] = math.sqrt(p1.strength() * p2.strength())
+    return InteractionMatrix(interactions=intmatrix)
