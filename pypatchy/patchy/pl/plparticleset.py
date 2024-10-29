@@ -160,10 +160,8 @@ class PLParticleSet(BaseParticleSet):
     # # reverse of __patch_map, maps patches in this set to patches in source
     # __patch_src_map: Union[None, dict[int, int]]
 
-    def __init__(self,
-                 intmat:  Union[None, InteractionMatrix] = None,
-                 particles: Union[None, list[PLPatchyParticle]] = None,
-                 source_map: Union[PLSourceMap, None] = None):
+    def __init__(self, particles: Union[None, list[PLPatchyParticle]] = None,
+                 source_map: Union[PLSourceMap, None] = None, intmat: Union[None, InteractionMatrix] = None):
         if particles is None:
             particles = []
         super().__init__(particles)
@@ -255,17 +253,14 @@ class PLParticleSet(BaseParticleSet):
         # and then have some sort of source-map-chaining
         # but i don't cherish THAT cost-benifit analysis
         if self.get_src_map() is not None:
-            return PLParticleSet(
-                intmat=self.interaction_matrix(),
-                particles=[p.normalize() for p in self.particles()],
-                source_map=self.get_src_map().normalize()
-            )
+            return PLParticleSet(particles=[p.normalize() for p in self.particles()],
+                                 source_map=self.get_src_map().normalize(), intmat=self.interaction_matrix())
         # if self.has_udt_src():
         #     return PLParticleSet([p.normalize() for p in self.particles()],
         #                          src=PLMultidentateSourceMap(self.get_src().src_set().normalize(),
         #                                                      src_mapping=copy.deepcopy(self.get_src().patch_map())))
         else:
-            return PLParticleSet(intmat=self.interaction_matrix(), particles=[p.normalize() for p in self.particles()])
+            return PLParticleSet(particles=[p.normalize() for p in self.particles()], intmat=self.interaction_matrix())
 
     def to_multidentate(self,
                         mdt_params: MultidentateConvertSettings) -> PLParticleSet:
@@ -280,7 +275,8 @@ class PLParticleSet(BaseParticleSet):
         id_map: dict[int, set[int]] = dict()
         new_interaction_map = InteractionMatrix()
         assert self.interaction_matrix().is_one_to_one(), "Multidentate conversion not supported for" \
-                                                          " non-one-to-one patch sets, although i figure it can't be that hard"
+                                                          " non-one-to-one patch sets, " \
+                                                          "although i figure it can't be that hard" # counterpoint: yes it can
         # iter particles
         for i_particle, particle in enumerate(self):
             new_particle_patches = []
@@ -289,9 +285,10 @@ class PLParticleSet(BaseParticleSet):
                 teeth = [None for _ in range(mdt_params.n_teeth)]
                 is_color_neg = patch.color() < 0
                 # "normalize" color by making the lowest color 0
-                if abs(
-                        patch.color()) < 21:  assert not mdt_params.torsion, "Torsion cannot be on for same color binding " \
-                                                                             "b/c IDK how that works and IDC enough to figure it out"
+                if abs(patch.color()) < 21:
+                    assert not mdt_params.torsion, "Torsion cannot be on for same color binding " \
+                                                   "b/c IDK how that works and IDC enough to figure it out"
+                                                    # not enough numbers
                 # note that the converse is not true; we can have torsion w/o same color binding
                 colornorm = abs(patch.color()) - 21
                 id_map[patch.type_id()] = set()
@@ -325,10 +322,14 @@ class PLParticleSet(BaseParticleSet):
                             theta *= -1
                             # set color sign
                             c *= -1
+                        new_interaction_map[(c, -c)] = 1. # this will be redundant but that's ok
                     else:
                         # non-torsional patches are VERY EASY because you just use the same color again
                         c = patch.color()
                         # theta doesn't need to be adjusted for parity because it's the sames
+                        # as mentioned before non torsional multidentate patches are assumed to self-interact
+                        # todo: make this not true
+                        new_interaction_map[(c, c)] = 1.
 
                     r = R.identity()
                     if mdt_params.dental_radius > 0:
@@ -364,7 +365,6 @@ class PLParticleSet(BaseParticleSet):
 
                     id_map[patch.type_id()].add(patch_counter)
                     # scaling patch strength alrady happened in mdt_params.scale_energy
-                    new_interaction_map[(c, -c)] = 1.
                     patch_counter += 1
                 # add all teeth
                 new_particle_patches += teeth
@@ -374,7 +374,8 @@ class PLParticleSet(BaseParticleSet):
             new_particles[i_particle].set_patches(new_particle_patches)
             new_particles[i_particle] = new_particles[i_particle].normalize()
             new_patches += new_particle_patches
-        particle_set = PLParticleSet(new_particles, PLMultidentateSourceMap(self, id_map, mdt_params))
+        particle_set = PLParticleSet(new_particles, PLMultidentateSourceMap(self, id_map, mdt_params),
+                                     new_interaction_map)
         return particle_set
 
     def __eq__(self, other: PLParticleSet) -> bool:

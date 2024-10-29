@@ -56,6 +56,9 @@ def to_PL(particle_set: BaseParticleSet,
 
 
 def polycube_rule_to_PL(particle_set: PolycubesRule) -> PLParticleSet:
+    """
+    converts a particle rule to a patchy particle set
+    """
     particles: PLParticleSet = PLParticleSet()
     # iter particles
     for particle in particle_set:
@@ -89,13 +92,18 @@ def polycube_rule_to_PL(particle_set: PolycubesRule) -> PLParticleSet:
         particle.set_patches(particle_patches)
 
         particles.add_particle(particle)
+    # FOR NOW polycubes rules always have opposite-color interactions
+    for c in particle_set.color_set():
+        if c > 0:  # we don't need this line but it will save us from wasted func calls
+            particles.interaction_matrix()[(c, -c)] = 1.0
     return particles
 
 
-def PL_to_rule(particles: list[PLPatchyParticle], ) -> Union[None, PolycubesRule]:
+def PL_to_rule(particles: list[PLPatchyParticle], ) -> PolycubesRule:
     """
     Tries to convert the provided set of particles and patches to a Polycubes Rule.
     TODO: include dynamic effects!!!! somehow.
+    todo: interaction matrix
     Args:
         particles: a list of PLPatchyParticle objects
     Returns:
@@ -252,9 +260,9 @@ def mgl_particles_to_pl(mgl_particles: MGLParticleSet,
         particle_type_colormap[mgl_ptype.color()] = pl_ptype.get_type()
         particle_type_list.append(pl_ptype)
 
-    pset = PLParticleSet(particle_type_list, MGLPLSourceMap(mgl_particles,
-                                                            particle_type_colormap,
-                                                            patch_color_map))
+    pset = PLParticleSet(MGLPLSourceMap(mgl_particles,
+                                        particle_type_colormap,
+                                        patch_color_map), intmat=particle_type_list)
 
     # if we've provided a reference scene, use it to position A2 vectors (so we can convert multidentate later)
     if ref_scene is not None:
@@ -394,6 +402,6 @@ def load_pl_particles(**kwargs) -> PLParticleSet:
             particles_list = [PLPatchyParticle([patches[patch_id] for patch_id in p["patches"]],
                                                type_id=p["type"])
                               for p in particles_list]
-            return PLParticleSet(particles_list)
+            return PLParticleSet(intmat=particles_list)
     except ValueError as e:
         raise ValueError(f"Invalid particle load info! {str(e)}")

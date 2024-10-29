@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import itertools
 from typing import Union
 
 import numpy as np
 
-from pypatchy.interaction_matrix import InteractionMatrix
+from pypatchy.interaction_matrix import InteractionMatrix, make_int_mat_for_colors
 from pypatchy.patchy_base_particle import BasePatchType
 
 
@@ -152,38 +153,49 @@ class PLPatch(BasePatchType):
         return not (self == other)
 
 
-def assign_colors_one_to_one(interaction_matrix: InteractionMatrix, patches: list[PLPatch]):
+def assign_colors_one_to_one(interaction_matrix: InteractionMatrix, patches: list[PLPatch]) -> tuple[InteractionMatrix, list[int]]:
     """
-    assigns patch colors based on interaction matrix, such that
+    given an interaction matrix tuned to patch IDs and a list of patches indexed by IDs, constructs
+    an assignment a color to each patch and an 1:1 opposite-type color interaction matrix
     todo: make this a PLParticleSet class method?
     """
     num_patches = interaction_matrix.num_colors()
+    assert all([patch.get_id() == i for i, patch in enumerate(patches)])
     assert num_patches == len(patches), f"Size of patch interaction matrix {num_patches} is not compatible " \
                                         f"with length of patches array {len(patches)}!"
 
     # colors = np.zeros(num_patches, dtype=int)  # Color 0 means uncolored
-
+    patch_colors: list[int] = [None for _ in patches]
     # depth-first search which assigns colors
-    def dfs(node: int, color: int):
-        if patches[node].color() != 0 and patches[node].color() is not None:
-            return patches[node].color() == color
-        patches[node].set_color(color)
+    def dfs(patch_id: int, color: int):
+        if patch_colors[patch_id] != 0 and patch_colors[patch_id] is not None:
+            return patch_colors[patch_id] == color
+        patch_colors[patch_id] = color
         for neighbor in range(num_patches):
-            if interaction_matrix[node, neighbor] > 0:
+            if interaction_matrix[patch_id, neighbor] > 0:
                 if not dfs(neighbor, -color):
                     return False
         return True
 
     for patch in range(num_patches):
-        if (patches[patch].color() == 0 or patches[patch].color() is None) and not dfs(patch, 1):
+        if (patch_colors[patch] == 0 or patch_colors[patch] is None) and not dfs(patch, 1):
             raise ValueError("Cannot assign colors such that interacting patches add to zero")
+    return make_int_mat_for_colors(max(patch_colors)), patch_colors
 
-def assign_colors(interaction_matrix: InteractionMatrix, patches: list[PLPatch]):
+def assign_colors(interaction_matrix: InteractionMatrix, patches: list[PLPatch]) -> tuple[InteractionMatrix, list[int]]:
     """
     assigns colors, somehow
     the maximum solution for this problem is to give each patch a unique color, but we would ideally
     like to avoid this
     taking suggestions for algorithms
     """
+    # first we try 1:1 color assignments
+    try:
+        return assign_colors_one_to_one(interaction_matrix, patches)
+    except ValueError as e:
+        if not str(e).startswith("Cannot"):
+            raise e
+    # next: nuclear option. give each patch a totally unique color
+    colors = [i for i, _ in enumerate(patches)]
 
 

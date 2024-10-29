@@ -5,7 +5,7 @@ from typing import Union
 
 import numpy as np
 
-from pypatchy.patchy.pl.plpatch import PLPatch
+from .patchy.pl.plpatch import PLPatch
 
 
 def make_interaction_matrix(patches: list[PLPatch]) -> InteractionMatrix:
@@ -17,6 +17,8 @@ def make_interaction_matrix(patches: list[PLPatch]) -> InteractionMatrix:
                 intmatrix[(p1.color(), p2.color())] = math.sqrt(p1.strength() * p2.strength())
     return InteractionMatrix(interactions=intmatrix)
 
+def make_int_mat_for_colors(maxColor: int):
+    return InteractionMatrix([((-c, c), 1.) for c in range(1, maxColor+1)])
 
 class InteractionMatrix:
     """
@@ -26,7 +28,7 @@ class InteractionMatrix:
     __interactions: dict[tuple[int, int], float]
     # todo: cache min & max color?
 
-    def __init__(self, interactions: Union[dict[tuple[int, int], float], list[tuple[int, int], float]] = dict()):
+    def __init__(self, interactions: Union[dict[tuple[int, int], float], list[tuple[tuple[int, int], float]]] = dict()):
         self.__interactions = {
             ((c1, c2) if c2 > c1 else (c2, c1)): val
             for (c1, c2), val in (interactions.items() if type(interactions) == dict else interactions)

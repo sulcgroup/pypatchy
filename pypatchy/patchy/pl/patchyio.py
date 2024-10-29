@@ -11,7 +11,7 @@ from pathlib import Path
 import numpy as np
 import oxDNA_analysis_tools.UTILS.RyeReader as rr
 
-from .plpatch import PLPatch, assign_colors_one_to_one
+from .plpatch import PLPatch, assign_colors_one_to_one, assign_colors
 from .plparticle import PLPatchyParticle
 from .plparticleset import PLParticleSet
 from .plscene import PLPSimulation
@@ -183,7 +183,7 @@ class FWriter(PLBaseWriter):
                         particles.append(particle)
                 j = j + 1
         particles.sort(key=lambda p: p.get_type())
-        particle_set = PLParticleSet(particles)
+        particle_set = PLParticleSet(intmat=particles)
         if not all([np.abs(p.rotmatrix() - np.identity(3)).sum() < 1e-6 for p in particles]):
             pass
             # particle_set.normalize()
@@ -642,7 +642,7 @@ class LWriter(PLBaseWriter):
                 particle_type = PLPatchyParticle(patches, type_id=pid, index_=pid)
                 particle_types.append(particle_type)
                 particle_type_counts[pid] = nInstances
-        return LWriter.LPatchyTopology(PLParticleSet(particle_types), particle_type_counts)
+        return LWriter.LPatchyTopology(PLParticleSet(intmat=particle_types), particle_type_counts)
 
     def get_scene_top(self, s: PLPSimulation) -> LPatchyTopology:
         return LWriter.LPatchyTopology(s.particle_types(), s.particle_type_counts())
@@ -654,6 +654,11 @@ class LWriter(PLBaseWriter):
         return top.particle_types
 
     def read_interaction_matrix(self, interaction_file: str) -> InteractionMatrix:
+        """
+        reads an interactions file and returns an interaction matrix
+        it's important to note that this will return an interaction matrix for
+        PATCH ID PAIRS, NOT COLORS
+        """
         pattern = r"patchy_eps\[(\d+)\]\[(\d+)\] = (\d+\.?\d*)"
         data: list[tuple[tuple[int, int], float]] = list()
         max_index = 0
@@ -951,7 +956,7 @@ class SWriter(PLBaseWriter):
             )
             for particle_id, patch_ids in particle_types_info
         ]
-        ptypes = PLParticleSet(particle_types)
+        ptypes = PLParticleSet(intmat=particle_types)
         top = SWriter.SPatchyTopology(ptypes, type_counts)
         assert top.num_particles() == nparticles, "Didn't load particles correctly, somehow"
         return top
