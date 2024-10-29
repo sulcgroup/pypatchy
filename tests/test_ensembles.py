@@ -37,7 +37,9 @@ def ensemble(ensemble_name: str):
         Path(__file__).parent / "test_files" / "test_ensemble_specs" / (
                 ensemble_name + ".json"),
         get_input_dir())
-    return find_ensemble(cfg=ensemble_name)
+    e = find_ensemble(cfg=ensemble_name)
+    e.info()
+    return e
 
 
 def test_example_basic_3DX(temp_dir: str):
@@ -87,10 +89,10 @@ def test_staged(temp_dir: str):
     e.do_setup(stage="second_stage")
     e.start_simulations(stage="second_stage")
 
-
-def test_analysis(temp_dir: str):
+def test_json_particles(temp_dir: str):
     pass
-
 
 def test_dilute(temp_dir: str):
-    pass
+    e = ensemble("test_dilute")
+    e.do_setup(stage="first_stage")
+

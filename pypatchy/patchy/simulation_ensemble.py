@@ -960,8 +960,7 @@ class PatchySimulationEnsemble(Analyzable):
             elif name == "lr_patchy":
                 potential = PLLRPatchyPotential(rmax=2.01421,
                                                 sigma_ss=self.sim_get_param(sim, "DPS_sigma_ss"),
-                                                interaction_matrix=PLLRPatchyPotential.make_interaction_matrix(
-                                                    self.sim_get_particles_set(sim).patches()
+                                                interaction_matrix=make_interaction_matrix(
                                                 ))
             elif name == "fr_patchy":
                 patchy_radius = self.sim_get_param(sim, "PATCHY_radius")
@@ -1896,40 +1895,29 @@ class PatchySimulationEnsemble(Analyzable):
             # if not, default to false
             return False
 
-    # def get_run_oxdna_sh(self, sim: PatchySimulation) -> Path:
-    #     """
+    # DEPRECATED
+    # def gen_conf(self, sim: PatchySimulation) -> int:
     #
     #     """
-    #     return self.folder_path(sim) / "slurm_script.sh"
-
-    # def get_run_confgen_sh(self, sim: PatchySimulation) -> Path:
-    #     return self.folder_path(sim) / "gen_conf.sh"
-
-    def gen_conf(self, sim: PatchySimulation) -> int:
-
-        """
-        Runs a conf generator. These are run as slurm jobs if you're on a slurm server,
-        or as non-background tasks otherwise
-        """
-        if self.server_settings.is_server_slurm():
-            response = self.bash_exec(f"sbatch --chdir={self.folder_path(sim)} {self.folder_path(sim)}/gen_conf.sh")
-            jobid = int(re.search(SUBMIT_SLURM_PATTERN, response).group(1))
-            self.append_slurm_log(SlurmLogEntry(
-                pid=jobid,
-                simulation=sim,
-                job_type="confgen",
-                script_path=self.folder_path(sim) / "gen_conf.sh",
-                log_path=self.folder_path(sim) / f"run{jobid}.out"
-            ))
-            return jobid
-        else:
-            self.bash_exec(f"bash gen_conf.sh > confgenlog.out", cwd=self.folder_path(sim))
-            # jobid = re.search(r'\[\d+\]\s+(\d+)', response).group(1)
-            # slurm logs aren't valid when not on a slurm server
-            return -1
-
-    # def get_conf_file(self, sim: PatchySimulation) -> Path:
-    #     return self.folder_path(sim) / self.sim_get_param(sim, "conf_file")
+    #     Runs a conf generator. These are run as slurm jobs if you're on a slurm server,
+    #     or as non-background tasks otherwise
+    #     """
+    #     if self.server_settings.is_server_slurm():
+    #         response = self.bash_exec(f"sbatch --chdir={self.folder_path(sim)} {self.folder_path(sim)}/gen_conf.sh")
+    #         jobid = int(re.search(SUBMIT_SLURM_PATTERN, response).group(1))
+    #         self.append_slurm_log(SlurmLogEntry(
+    #             pid=jobid,
+    #             simulation=sim,
+    #             job_type="confgen",
+    #             script_path=self.folder_path(sim) / "gen_conf.sh",
+    #             log_path=self.folder_path(sim) / f"run{jobid}.out"
+    #         ))
+    #         return jobid
+    #     else:
+    #         self.bash_exec(f"bash gen_conf.sh > confgenlog.out", cwd=self.folder_path(sim))
+    #         # jobid = re.search(r'\[\d+\]\s+(\d+)', response).group(1)
+    #         # slurm logs aren't valid when not on a slurm server
+    #         return -1
 
     # ------------- ANALYSIS FUNCTIONS --------------------- #
 

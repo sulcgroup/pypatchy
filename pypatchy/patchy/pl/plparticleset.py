@@ -11,6 +11,7 @@ from scipy.spatial.transform import Rotation as R
 
 from .plparticle import PLPatchyParticle
 from .plpatch import PLPatch
+from ...interaction_matrix import InteractionMatrix, make_interaction_matrix
 from ...patchy_base_particle import BaseParticleSet
 from ipy_oxdna.util import rotation_matrix
 
@@ -151,6 +152,7 @@ class PLParticleSet(BaseParticleSet):
     """
 
     __src_map: PLSourceMap
+    __interaction_matrix: InteractionMatrix
 
     # __udt_source: Union[None, BaseParticleSet]
     # # maps patch in source to patches in this set
@@ -159,12 +161,16 @@ class PLParticleSet(BaseParticleSet):
     # __patch_src_map: Union[None, dict[int, int]]
 
     def __init__(self,
+                 intmat:  Union[None, InteractionMatrix] = None,
                  particles: Union[None, list[PLPatchyParticle]] = None,
-                 source_map: Union[PLSourceMap, None] = None
-                 ):
+                 source_map: Union[PLSourceMap, None] = None):
         if particles is None:
             particles = []
         super().__init__(particles)
+        if intmat is not None:
+            self.__interaction_matrix = intmat
+        else:
+            self.__interaction_matrix = make_interaction_matrix(self.particles())
         self.__src_map = source_map
 
     def patch_colors(self):
@@ -175,6 +181,9 @@ class PLParticleSet(BaseParticleSet):
 
     def get_src(self) -> PLParticleSet:
         return self.get_src_map().src_set()
+
+    def interaction_matrix(self) -> InteractionMatrix:
+        return self.__interaction_matrix
 
     def has_udt_src(self) -> bool:
         return self.get_src_map() is not None and isinstance(self.get_src_map(), PLMultidentateSourceMap)
@@ -246,14 +255,17 @@ class PLParticleSet(BaseParticleSet):
         # and then have some sort of source-map-chaining
         # but i don't cherish THAT cost-benifit analysis
         if self.get_src_map() is not None:
-            return PLParticleSet([p.normalize() for p in self.particles()],
-                                 source_map=self.get_src_map().normalize())
+            return PLParticleSet(
+                intmat=self.interaction_matrix(),
+                particles=[p.normalize() for p in self.particles()],
+                source_map=self.get_src_map().normalize()
+            )
         # if self.has_udt_src():
         #     return PLParticleSet([p.normalize() for p in self.particles()],
         #                          src=PLMultidentateSourceMap(self.get_src().src_set().normalize(),
         #                                                      src_mapping=copy.deepcopy(self.get_src().patch_map())))
         else:
-            return PLParticleSet([p.normalize() for p in self.particles()])
+            return PLParticleSet(intmat=self.interaction_matrix(), particles=[p.normalize() for p in self.particles()])
 
     def to_multidentate(self,
                         mdt_params: MultidentateConvertSettings) -> PLParticleSet:
@@ -266,6 +278,9 @@ class PLParticleSet(BaseParticleSet):
         patch_counter = 0
         new_patches = []
         id_map: dict[int, set[int]] = dict()
+        new_interaction_map = InteractionMatrix()
+        assert self.interaction_matrix().is_one_to_one(), "Multidentate conversion not supported for" \
+                                                          " non-one-to-one patch sets, although i figure it can't be that hard"
         # iter particles
         for i_particle, particle in enumerate(self):
             new_particle_patches = []
@@ -348,6 +363,8 @@ class PLParticleSet(BaseParticleSet):
                                                strength=mdt_params.scale_energy(patch.strength()))
 
                     id_map[patch.type_id()].add(patch_counter)
+                    # scaling patch strength alrady happened in mdt_params.scale_energy
+                    new_interaction_map[(c, -c)] = 1.
                     patch_counter += 1
                 # add all teeth
                 new_particle_patches += teeth

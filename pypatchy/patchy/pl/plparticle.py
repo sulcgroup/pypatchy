@@ -16,7 +16,8 @@ PATCHY_NULL_A3: np.ndarray = np.array([1, 0, 0])
 
 MGL_PARTICLE_COLORS = ['blue','green','red','black','yellow','cyan','magenta','orange','violet']
 MGL_PATCH_COLORS = [
-    'green','violet','pink','brown','orange','red','black']
+    'green','violet','pink','brown','orange','red','black'
+]
 
 class PLPatchyParticle(PatchyBaseParticleType, PatchyBaseParticle):
     # HATE making the particle type and the particle the same class but refactoring is objectively not the

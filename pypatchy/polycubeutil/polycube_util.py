@@ -40,53 +40,6 @@ def make_colors_consecutive(rule: PolycubesRule) -> PolycubesRule:
 
 
 def get_fully_addressable_rule(structure: FiniteLatticeStructure) -> PolycubeStructure:
-    # Find out which dimension has the fewest connectors
-
-    # ok so this thing i'm about to comment out is joakim's algorithm. i like your code except it sucks so let me
-    # write the code and maybe it will be really good
-
-    # loop vertices in structure
-    # for p_idx in range(structure.num_vertices()):
-    #     p = structure.cube(p_idx)
-    #     # loop directions
-    #     for d in RULE_ORDER:
-    #         # if vertex is connected to neigbor
-    #         if structure.positions_connected(p, p + d):
-    #             # loop dimensions?
-    #             for i in range(3):
-    #                 if np.array_equal(np.abs(d), dims[i]):
-    #                     # increment
-    #                     dimCount[i] += 1
-    #                     break
-
-    # compute dimension with..... fewest connections?
-    # minDim = dims[dimCount.index(min(dimCount))]
-
-    # loop edges in structure
-    # this will technically loop all edges twice but for the purposes of computing the min dimension that's fine
-    # for edge in structure.graph.edges:
-    #     d = structure.graph.get_edge_data(*edge)["dirIdx"]
-    #     dimension_idx = int(d / 2)  # rule order: dimension is idx / 2 rounded down
-    #     dimCount[dimension_idx] += 1
-    #
-    # minDim = np.array([0, 0, 0])
-    # minDim[dimCount.index(min(dimCount))] = 1
-
-    # further problem. this code also sucks. not only is it badly written but i can tell without even running it
-    # that it's very buggy
-    # Initialise empty species
-    # rule = []
-    # cubePosMap = {}
-    # for iCube, p in enumerate(coords):
-    #     cubeType = []
-    #     for i, d in enumerate(utils.getFaceRotations()):
-    #         alignDir = d
-    #         if not np.array_equal(utils.getRuleOrder()[i], minDim):
-    #             alignDir = minDim
-    #         cubeType.append({'color': 0, 'alignDir': alignDir})
-    #     rule.append(cubeType)
-    #     cubePosMap[posToString(p)] = iCube
-
     # construct empty rule
     rule = PolycubesRule()
     # construct position map
@@ -135,36 +88,6 @@ def get_fully_addressable_rule(structure: FiniteLatticeStructure) -> PolycubeStr
 
     return PolycubeStructure(rule=rule, cubes=cubePosMap.values())
 
-    # # Set colors and alignment direcitons
-    # colorCounter = 1
-    # for iCube, p in enumerate(coords):
-    #     found = False
-    #     for iFace, d in enumerate(utils.getRuleOrder()):
-    #         neigbourPos = p + d
-    #         if bindingStr(p, neigbourPos) in connectors:
-    #             found = True
-    #             invDir = -d
-    #             iFaceNeigh = list(np.array_equal(invDir, v) for v in utils.getRuleOrder()).index(True)
-    #             iCubeNeigh = cubePosMap[posToString(neigbourPos)]
-    #
-    #             rule[iCube][iFace]['color'] = colorCounter
-    #             rule[iCubeNeigh][iFaceNeigh]['color'] = -colorCounter
-    #             rule[iCubeNeigh][iFaceNeigh]['alignDir'] = rule[iCube][iFace]['alignDir']
-    #
-    #             colorCounter += 1
-    #     if not found:
-    #         print("{} not found in connections".format(posToString(p)))
-    #
-    # rule = [[{
-    #     'color': face['color'],
-    #     'orientation': round(utils.getSignedAngle(
-    #         utils.getFaceRotations()[i],
-    #         face['alignDir'],
-    #         utils.getRuleOrder()[i]
-    #     ) * (2 / np.pi) + 4) % 4
-    # } for i, face in enumerate(s)] for s in rule]
-
-    # return rule
 
 def coord_equal(a1: np.ndarray, a2: np.ndarray) -> bool:
     """

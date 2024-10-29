@@ -4,6 +4,7 @@ from typing import Union
 
 import numpy as np
 
+from pypatchy.interaction_matrix import InteractionMatrix
 from pypatchy.patchy_base_particle import BasePatchType
 
 
@@ -149,3 +150,40 @@ class PLPatch(BasePatchType):
 
     def __ne__(self, other: PLPatch):
         return not (self == other)
+
+
+def assign_colors_one_to_one(interaction_matrix: InteractionMatrix, patches: list[PLPatch]):
+    """
+    assigns patch colors based on interaction matrix, such that
+    todo: make this a PLParticleSet class method?
+    """
+    num_patches = interaction_matrix.num_colors()
+    assert num_patches == len(patches), f"Size of patch interaction matrix {num_patches} is not compatible " \
+                                        f"with length of patches array {len(patches)}!"
+
+    # colors = np.zeros(num_patches, dtype=int)  # Color 0 means uncolored
+
+    # depth-first search which assigns colors
+    def dfs(node: int, color: int):
+        if patches[node].color() != 0 and patches[node].color() is not None:
+            return patches[node].color() == color
+        patches[node].set_color(color)
+        for neighbor in range(num_patches):
+            if interaction_matrix[node, neighbor] > 0:
+                if not dfs(neighbor, -color):
+                    return False
+        return True
+
+    for patch in range(num_patches):
+        if (patches[patch].color() == 0 or patches[patch].color() is None) and not dfs(patch, 1):
+            raise ValueError("Cannot assign colors such that interacting patches add to zero")
+
+def assign_colors(interaction_matrix: InteractionMatrix, patches: list[PLPatch]):
+    """
+    assigns colors, somehow
+    the maximum solution for this problem is to give each patch a unique color, but we would ideally
+    like to avoid this
+    taking suggestions for algorithms
+    """
+
+

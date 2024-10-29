@@ -3,6 +3,7 @@ from __future__ import annotations
 import copy
 import itertools
 import re
+from math import sqrt
 from typing import Union, IO, Iterable
 from abc import ABC, abstractmethod
 from pathlib import Path
@@ -10,10 +11,11 @@ from pathlib import Path
 import numpy as np
 import oxDNA_analysis_tools.UTILS.RyeReader as rr
 
-from .plpatch import PLPatch
+from .plpatch import PLPatch, assign_colors_one_to_one
 from .plparticle import PLPatchyParticle
 from .plparticleset import PLParticleSet
 from .plscene import PLPSimulation
+from ...interaction_matrix import InteractionMatrix
 from ...polycubeutil.polycubesRule import PolycubeRuleCubeType
 from ...util import normalize, DENTAL_RADIUS_KEY, NUM_TEETH_KEY
 from ...server_config import PatchyServerConfig, get_server_config
@@ -648,12 +650,12 @@ class LWriter(PLBaseWriter):
     def read_particle_types(self, topology: str, DPS_interaction_matrix_file: str) -> PLParticleSet:
         top = self.read_top(topology)
         interaction_matrix = self.read_interaction_matrix(DPS_interaction_matrix_file)
-        self.assign_colors(interaction_matrix, top.particle_types.patches())
+        assign_colors(interaction_matrix, top.particle_types.patches())
         return top.particle_types
 
-    def read_interaction_matrix(self, interaction_file: str) -> np.ndarray:
+    def read_interaction_matrix(self, interaction_file: str) -> InteractionMatrix:
         pattern = r"patchy_eps\[(\d+)\]\[(\d+)\] = (\d+\.?\d*)"
-        data = []
+        data: list[tuple[tuple[int, int], float]] = list()
         max_index = 0
         with self.file(interaction_file, "r") as f:
             for line in f:
@@ -662,39 +664,11 @@ class LWriter(PLBaseWriter):
                 extracted = tuple(map(int, match.groups()[:-1])), float(match.group(3))
                 indices, value = extracted
                 max_index = max(max_index, *indices)
-                if indices[0] == indices[1]:
-                    # TOOD: support
-                    raise ValueError(f"Patch in line {line} interacts with itself, not currently supported!")
+                # if indices[0] == indices[1]:
+                #     # TOOD: support
+                #     raise ValueError(f"Patch in line {line} interacts with itself, not currently supported!")
                 data.append((indices, value))
-
-        # Create an array with dimensions based on the maximum index
-        array = np.zeros((max_index + 1, max_index + 1))  # +1 because indices are zero-based
-        for (i, j), value in data:
-            array[i, j] = array[j, i] = value
-
-        return array
-
-    def assign_colors(self, interaction_matrix: np.ndarray, patches: list[PLPatch]):
-        num_patches = interaction_matrix.shape[0]
-        assert num_patches == len(patches), f"Size of patch interaction matrix {num_patches} is not compatible " \
-                                            f"with length of patches array {len(patches)}!"
-
-        # colors = np.zeros(num_patches, dtype=int)  # Color 0 means uncolored
-
-        # depth-first search which assigns colors
-        def dfs(node: int, color: int):
-            if patches[node].color() != 0 and patches[node].color() is not None:
-                return patches[node].color() == color
-            patches[node].set_color(color)
-            for neighbor in range(num_patches):
-                if interaction_matrix[node, neighbor] > 0:
-                    if not dfs(neighbor, -color):
-                        return False
-            return True
-
-        for patch in range(num_patches):
-            if (patches[patch].color() == 0 or patches[patch].color() is None) and not dfs(patch, 1):
-                raise ValueError("Cannot assign colors such that interacting patches add to zero")
+        return InteractionMatrix(data)
 
     def write_top(self, topology: LPatchyTopology, top_file: str):
         with self.file(top_file) as f:
@@ -759,7 +733,7 @@ class LWriter(PLBaseWriter):
         init_conf = kwargs["conf_file"]
 
         interactions_file = kwargs["DPS_interaction_matrix_file"]
-        self.export_interaction_matrix(particles.patches(), interactions_file)
+        self.export_interaction_matrix(particles.interaction_matrix(), particles.patches(), interactions_file)
 
         self.write_conf(scene, init_conf)
         self.write_top(self.get_scene_top(scene), init_top)
@@ -775,15 +749,26 @@ class LWriter(PLBaseWriter):
             "DPS_interaction_matrix_file": str(interactions_file)
         }
 
-    def export_interaction_matrix(self, patches: list[PLPatch], filename: str):
+    def export_interaction_matrix(self, mat: InteractionMatrix, patches: list[PLPatch], filename: str):
         with self.file(filename, "w") as f:
             f.writelines(
                 [
-                    f"patchy_eps[{p1.type_id()}][{p2.type_id()}] = {p1.strength()}\n"
+                    # use geometric mean of patch strengths, best for backwards compatibility
+                    f"patchy_eps[{p1.type_id()}][{p2.type_id()}] = {sqrt(p1.strength() * p2.strength()) * mat[p1.color(), p2.color()]}\n"
                     for p1, p2 in itertools.combinations(patches, 2)
-                    if p1.color() == -p2.color()
+                    if mat[p1.color(), p2.color()]
                 ]
             )
+
+    # def export_interaction_matrix(self, patches: list[PLPatch], filename: str):
+    #     with self.file(filename, "w") as f:
+    #         f.writelines(
+    #             [
+    #                 f"patchy_eps[{p1.type_id()}][{p2.type_id()}] = {p1.strength()}\n"
+    #                 for p1, p2 in itertools.combinations(patches, 2)
+    #                 if p1.color() == -p2.color()
+    #             ]
+    #         )
 
     class LPatchyTopology(PLBaseWriter.PatchyTopology):
         """

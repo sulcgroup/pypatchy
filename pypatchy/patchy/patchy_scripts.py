@@ -137,7 +137,7 @@ def add_standard_patchy_interaction(scene: PLPSimulation,
      rovigatti/Interaction/PatchySwapInteraction
     """
     if interaction_matrix is None:
-        interaction_matrix = PLLRPatchyPotential.make_interaction_matrix(scene.particle_types().patches())
+        interaction_matrix = make_interaction_matrix()
     elif isinstance(interaction_matrix, np.ndarray):
         interaction_matrix = int_mat_to_keywise(interaction_matrix, scene.particle_types())
     scene.add_potential(PLLRExclVolPotential(

@@ -9,6 +9,7 @@ import numpy as np
 
 from .plparticle import PLPatchyParticle
 from .plpatch import PLPatch
+from ...interaction_matrix import InteractionMatrix
 
 
 # TODO: forces
@@ -69,7 +70,7 @@ class PLLRExclVolPotential(PLPotential):
         self.__sqr_spherical_rcut = sqr_spherical_rcut
         self.__particle_radius = particle_radius
         # for default particle radius=0.5, the repulsive r cutoff = 2 ** (1./6.)
-        self.__rep_rcut = 2 * particle_radius * 2 ** (1./6.)
+        self.__rep_rcut = 2 * particle_radius * 2 ** (1. / 6.)
         self.__rep_sqr_rcut = self.__rep_rcut ** 2
 
     def rep_sqr_rcut(self, particle_radius_sum: float):
@@ -83,6 +84,7 @@ class PLLRExclVolPotential(PLPotential):
     """
     direct copy of DetailedPatchySwapInteraction::_spherical_patchy_two_body in oxDNA
     """
+
     def energy(self,
                box: np.ndarray,  # for periodic boundry conditions
                p1: PLPatchyParticle,
@@ -114,7 +116,7 @@ class PLLRExclVolPotential(PLPotential):
         return energy
 
 
-class PLLRPatchyPotential(PLPotential):
+class PLLRPatchyPotential(PLPotential, InteractionMatrix):
     # it's extremly unclear what this is
     __sigma_ss: float
     __rcut_ss: float
@@ -130,11 +132,11 @@ class PLLRPatchyPotential(PLPotential):
     __no_three_body: bool
     # used for three-body interaction
     __lambda: float
-
+    
     def __init__(self, rmax: float, interaction_matrix: dict[tuple[int, int], float],
                  sigma_ss: float = 0.4):
-        super().__init__(rmax)
-        self.__interaction_matrix = interaction_matrix
+        InteractionMatrix.__init__(self, interaction_matrix)
+        PLPotential.__init__(self, rmax)
         self.__sigma_ss = sigma_ss
         self.__rcut_ss = 1.5 * sigma_ss
         self.__sqr_patch_rcut = self.__rcut_ss ** 2
@@ -156,22 +158,13 @@ class PLLRPatchyPotential(PLPotential):
         return self.__A_part
 
     def B_part(self) -> float:
-        return self.__B_part;
+        return self.__B_part
 
     def sqr_patch_rcut(self):
         return self.__sqr_patch_rcut
 
     def is_three_body(self):
         return not self.__no_three_body
-
-    def color_pair_interaction(self, c1: int, c2: int):
-        if c1 > c2:
-            return self.color_pair_interaction(c2, c1)
-        else:
-            if (c1, c2) in self.__interaction_matrix:
-                return self.__interaction_matrix[(c1, c2)]
-            else:
-                return 0
 
     def energy(self,
                box: np.ndarray,  # for periodic boundry conditions
@@ -185,7 +178,7 @@ class PLLRPatchyPotential(PLPotential):
         # TODO: compute patch pairs more efficiently, like i did in the FR version?
         energy = 0.0
         for (p_patch, q_patch) in itertools.product(p.patches(), q.patches()):
-            epsilon = self.color_pair_interaction(p_patch.color(), q_patch.color())
+            epsilon = self[p_patch.color(), q_patch.color()]
 
             # interaction energy calculates much faster so check it first
             if epsilon != 0.0:
@@ -193,7 +186,6 @@ class PLLRPatchyPotential(PLPotential):
                                                  p.patch_position(p_patch),
                                                  q.patch_position(q_patch))
                 if r_patch_sqr < self.sqr_patch_rcut():
-
                     # compute actual distance between patches
                     r_p = r_patch_sqr ** 0.5
                     # compute
@@ -213,15 +205,7 @@ class PLLRPatchyPotential(PLPotential):
 
         return energy
 
-    @staticmethod
-    def make_interaction_matrix(patches: list[PLPatch]) -> dict[tuple[int, int], float]:
-        intmatrix = dict()
-        # we do want these to contain both (i,j) and (j,i)
-        for p1 in patches:
-            for p2 in patches:
-                if p1.color() == -p2.color():
-                    intmatrix[(p1.color(), p2.color())] = math.sqrt(p1.strength() * p2.strength())
-        return intmatrix
+
 
 
 class PLFRExclVolPotential(PLPotential):
@@ -290,6 +274,7 @@ class PLFRExclVolPotential(PLPotential):
 class PLFRPatchyPotential(PLPotential):
     """
     non-torsional potential from https://pubs.acs.org/doi/10.1021/acsnano.2c09677
+    todo: incorporate plinteractionmatrix
     """
     __alpha: float  # patchy alpha potential
     __alpha_sqr: float
@@ -345,7 +330,6 @@ class PLFRPatchyPotential(PLPotential):
         for i, j, rsqrd in patch_pairs:
             e += self.fr_energy_2_patch(box, p1, p1.patch(i), p2, p2.patch(j))
         return e
-
 
     def fr_energy_2_patch(self,
                           box: np.ndarray,  # for periodic boundry conditions
@@ -414,7 +398,7 @@ def narrow_type(nt: int) -> dict[str, float]:
             "delta": 0.2555,
             "delta_c": 1.304631,
             "a": 3,
-            "b":0.730694
+            "b": 0.730694
         }
     elif nt == 2:
         return {
@@ -442,8 +426,6 @@ def narrow_type(nt: int) -> dict[str, float]:
         }
     else:
         raise Exception(f"No narrow type {nt}")
-
-
 
 
 class PLFRTorsionalPatchyPotential(PLFRPatchyPotential):
@@ -522,7 +504,7 @@ class PLFRTorsionalPatchyPotential(PLFRPatchyPotential):
                 val = self.__b * (self.__delta_c - theta) ** 2
             else:
                 # if we're within delta range, use the inverted quadratic,
-                val = 1. - self.__a * theta**2
+                val = 1. - self.__a * theta ** 2
             return val
         else:
             return 0.
