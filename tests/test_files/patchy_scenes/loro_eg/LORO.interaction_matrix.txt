@@ -1,0 +1,8 @@
+patchy_eps[0][7] = 1.0
+patchy_eps[1][1] = 1.0
+patchy_eps[2][2] = 1.0
+patchy_eps[3][5] = 1.0
+patchy_eps[4][6] = 1.0
+patchy_eps[5][3] = 1.0
+patchy_eps[6][4] = 1.0
+patchy_eps[7][0] = 1.0

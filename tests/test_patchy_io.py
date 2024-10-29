@@ -47,3 +47,14 @@ def test_lwriter_read(cross_lr):
     tests lorenzo-format writer
     """
 
+def test_read_loro_test():
+    """
+    tests the files included by micha with his ppview program
+    https://github.com/zoombya/ppview/tree/main/public/LORO_patch_example
+    """
+    writer = get_writer("lorenzo")
+    writer.set_directory(Path(__file__).parent / "test_files" / "patchy_scenes" / "loro_eg")
+    scene = writer.read_scene("LORO.lorenzo.topology.top",
+                              "last_conf.dat",
+                              writer.read_particle_types("LORO.lorenzo.topology.top",
+                                                         "LORO.interaction_matrix.txt"))
