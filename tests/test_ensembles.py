@@ -84,6 +84,7 @@ def test_multiinit(temp_dir: str):
 
 def test_staged(temp_dir: str):
     e = ensemble("example_staged")
+    e.set_server_settings(load_server_settings("test_fr"))
     e.do_setup(stage="first_stage")
     e.start_simulations(stage="first_stage")
     e.do_setup(stage="second_stage")
@@ -94,5 +95,6 @@ def test_json_particles(temp_dir: str):
 
 def test_dilute(temp_dir: str):
     e = ensemble("test_dilute")
+    e.set_server_settings(load_server_settings("test_fr"))
     e.do_setup(stage="first_stage")
 

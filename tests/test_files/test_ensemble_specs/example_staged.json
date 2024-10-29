@@ -74,7 +74,7 @@
 							}
 						},
 						"second_stage": {
-							"t:": 5e6,
+							"t": 5e6,
 							"T": 0.1,
 							"add_method": {
 								"type": "random",
@@ -85,7 +85,7 @@
 						}
 					}
 				}
+			]
 		]
-	]
 	]
 }
