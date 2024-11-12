@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import itertools
 import math
 from typing import Union
 
@@ -93,7 +94,8 @@ def polycube_rule_to_PL(particle_set: PolycubesRule) -> PLParticleSet:
 
         particles.add_particle(particle)
     # FOR NOW polycubes rules always have opposite-color interactions
-    for c in particle_set.color_set():
+    for patch in particles.patches():
+        c = patch.color()
         if c > 0:  # we don't need this line but it will save us from wasted func calls
             particles.interaction_matrix()[(c, -c)] = 1.0
     return particles

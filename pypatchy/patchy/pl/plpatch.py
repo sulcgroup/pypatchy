@@ -158,6 +158,9 @@ def assign_colors_one_to_one(interaction_matrix: InteractionMatrix, patches: lis
     given an interaction matrix tuned to patch IDs and a list of patches indexed by IDs, constructs
     an assignment a color to each patch and an 1:1 opposite-type color interaction matrix
     todo: make this a PLParticleSet class method?
+    Returns:
+        a tuple where the first element is an interaction matrix for the new color set, and the second element is
+        a list of colors to assign to the patches
     """
     num_patches = interaction_matrix.num_colors()
     assert all([patch.get_id() == i for i, patch in enumerate(patches)])
@@ -195,13 +198,15 @@ def assign_colors(interaction_matrix: InteractionMatrix, patches: list[PLPatch])
     except ValueError as e:
         if not str(e).startswith("Cannot"):
             raise e
+    # TEMPORARY SOLUTION: give each patch type a unique color
+    return interaction_matrix, list(range(len(patches)))
+
     # next: nuclear option. give each patch a totally unique color
     colors = [i for i, _ in enumerate(patches)]
     # now we need to try to minimize the number of colors required to mimic the provided interaction matrix
     # i think this might be a graph-coloring problem?
 
     # finally, return the interaction matrix for our new color set, along with a list of colors for each patch
-
 
 def make_interaction_matrix(patches: list[PLPatch]) -> InteractionMatrix:
     intmatrix = dict()
