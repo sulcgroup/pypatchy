@@ -1,3 +1,4 @@
+from pypatchy.server_config import load_server_settings
 from test_ensembles_basic import ensemble
 
 def test_clustering():

@@ -460,6 +460,10 @@ class PLPSimulation(Scene, CellLists):
         mdt_scene = PLPSimulation()
         # assign scene particle types
         mdt_scene.set_particle_types(mdt_particle_set)
+        # need to set box  size & set cell size beefore you add particles
+        mdt_scene.set_box_size(self.box_size())
+        mdt_scene.cell_size = self.cell_size
+        mdt_scene.apportion_cells()
         # loop particles in scene
         for particle in self.particles():
             # clone type particle from particle set
@@ -471,40 +475,46 @@ class PLPSimulation(Scene, CellLists):
             # for some reason
 
             # 3x3 rotation matrices
+            # TODO: why would a type particle ever have a rotation matrix other than identity. why.
             original_type_rot: np.ndarray = self.particle_types().particle(particle.get_type()).rotmatrix()
             mdt_type_rot: np.ndarray = mdt_particle_set.particle(particle.get_type()).rotmatrix()
+            assert np.allclose(original_type_rot.T @ original_type_rot, np.identity(3)) and abs(np.linalg.det(original_type_rot) - 1) < 1e6,\
+                "Original particle type rotation matrix invalid!"
             mdt_particle_rot: np.ndarray = mdt_particle.rotmatrix()
             particle_rot: np.ndarray = particle.rotmatrix()
 
-            # now construct a rotation matrix to rotate mdt_type_rot such that the rotation from mdt_type_rot to new_rot
+            # now construct a rotation matrix to rotate mdt_type_rot
+            # such that the rotation from mdt_type_rot to new_rot
             # is the same as the rotation from original_type_rot to particle_rot
 
             # here's what chatGPT says:
-            # Calculate the inverse (or transpose, since it's a rotation matrix) of original_type_rot
-            inverse_original_type_rot = np.linalg.inv(original_type_rot)
-
             # Calculate the relative rotation from original_type_rot to particle_rot
-            relative_rot = np.dot(inverse_original_type_rot, particle_rot)
+            # aka the matrix which transforms the rotation of the UDT particle type to the rotation of the UDT particle instance
+            relative_rot_original_type = original_type_rot @ particle_rot.T
 
             # Apply the relative rotation to mdt_type_rot to get new_rot
-            new_rot = np.dot(mdt_type_rot, relative_rot)
+            new_rot = mdt_type_rot @ relative_rot_original_type
+
+            # ---------------- okay, now we need to do checks --------------------------
 
             # Pre-compute the target rotation for comparison
-            target_rot = np.dot(particle_rot, original_type_rot)
+            target_rot = particle_rot @ original_type_rot
 
             # Apply new_rot to mdt_type_rot to get the resulting rotation
-            resulting_rot = np.dot(mdt_type_rot, new_rot)
+            resulting_rot = mdt_type_rot @ new_rot.T
 
             # Use np.allclose to compare the resulting_rot and target_rot matrices within a tolerance
-            assert np.allclose(resulting_rot, target_rot, atol=1e-6), "The new rotation does not align as expected."
+            assert np.allclose(resulting_rot, target_rot, atol=1e-6),\
+                "The new rotation does not align as expected! resulting_rot:\n" \
+                + str(resulting_rot) + "\ntarget_rot:\n" + str(target_rot)
+            # checks out! ------------------------------------------------------------
 
             mdt_particle.rotate(new_rot)
 
             # assign UID
-            mdt_particle.set_uid(particle.get_id())
+            mdt_particle.set_uid(particle.get_uid())
             # add particle to scene
             mdt_scene.add_particle(mdt_particle)
-        mdt_scene.set_box_size(self.box_size())
         return mdt_scene
 
     def compute_scene_graph(self, bond_energy: float = 0) -> nx.Graph:

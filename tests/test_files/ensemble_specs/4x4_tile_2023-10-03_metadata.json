@@ -9,7 +9,7 @@
         },
         "ensemble_params": [
             [
-                "rule",
+                "staging",
                 [
                     {
                         "name": "wt",
@@ -95,9 +95,10 @@
             ]
         ],
         "observables": [
+            {
+                
+            }
             "plclustertopology"
         ]
-    },
-    "slurm_log": [],
-    "analysis_file": "4x4_tile_analysis_pipeline.pickle"
+    }
 }

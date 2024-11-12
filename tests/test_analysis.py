@@ -3,7 +3,7 @@ import tempfile
 
 import pytest
 
-from pypatchy.patchy.simulation_ensemble import find_ensemble, build_ensemble
+from pypatchy.patchy.simulation_ensemble import find_ensemble, build_ensemble, PatchySimulationEnsemble
 from pypatchy.patchy.vis_lib import plot_energy
 from pypatchy.server_config import load_server_settings
 from pypatchy.util import cfg, get_input_dir, simulation_run_dir
@@ -33,6 +33,13 @@ def test_split_cluster_fr():
     tests that we can split a flavio style conf by clusters
     """
     pass
+
+@pytest.fixture
+def tile4x4():
+    """
+    downloads 4x4 tile test data. this can take a bit so avoid unnessecary calls
+    """
+    return ensemble("4x4_tile", "2023-10-03", True)
 
 
 def test_split_cluster_lr(temp_dir: str):
@@ -88,16 +95,16 @@ def test_split_cluster_lr(temp_dir: str):
         # scene_dataframe.to_csv(clusters_dir / "cluster_data.csv", index=False)
 
 
-def test_analysis(temp_dir: str):
+def test_analysis(temp_dir: str, tile4x4: PatchySimulationEnsemble):
     """
-    todo: provide raws data and analyze properly
     """
 
-    e = ensemble("tile_4x4")
+    e = ensemble("4x4_tile", "2023-10-03", True)
     # CODE: download files from remote file server to path returned by `e.tld()`
     assert e.all_folders_exist()
     assert all([e.sim_stage_done(sim, e.sim_most_recent_stage(sim)) for sim in e.ensemble()])
     # more tests
+    pass
 
 
 def test_plot_energy(temp_dir: str):

@@ -221,9 +221,9 @@ class PLParticleSet(BaseParticleSet):
                     return p
             raise IndexError(f"No particle in this set with name {identifier}")
 
-    def mdt_rep(self, udt_id: int) -> set[PLPatch]:
+    def mdt_rep(self, udt_id: int) -> list[PLPatch]:
         assert self.has_udt_src()
-        return {self.patch(i) for i in self.get_src_map().map_patch(udt_id)}
+        return [self.patch(i) for i in self.get_src_map().map_patch(udt_id)]
 
     def __contains__(self, item: Union[PLPatch, PLPatchyParticle]) -> bool:
         """
@@ -289,6 +289,7 @@ class PLParticleSet(BaseParticleSet):
                 is_color_neg = patch.color() < 0
                 # "normalize" color by making the lowest color 0
                 if abs(patch.color()) < 21:
+                    assert not patch.has_torsion()
                     assert not mdt_params.torsion, "Torsion cannot be on for same color binding " \
                                                    "b/c IDK how that works and IDC enough to figure it out"
                                                     # not enough numbers
@@ -401,5 +402,12 @@ class PLParticleSet(BaseParticleSet):
                     return False
 
         return True
+
+    def to_romano_colors(self) -> PLParticleSet:
+        """
+
+        """
+        cpy = copy.deepcopy(self)
+
 
 

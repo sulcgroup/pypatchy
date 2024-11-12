@@ -66,3 +66,5 @@ def test_read_loro_test():
                               "last_conf.dat",
                               writer.read_particle_types("LORO.lorenzo.topology.top",
                                                          "LORO.interaction_matrix.txt"))
+    scene.to_multidentate(n_teeth=3, dental_radius=0.05)
+    pass
