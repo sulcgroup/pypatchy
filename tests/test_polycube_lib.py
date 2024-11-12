@@ -20,7 +20,7 @@ def test_load_polycube_json():
     """
     test that we can load a polycube from a json file
     """
-    polycube_file = Path(__file__).parent / "test_files" / "test_cube_structures" / "duck_polycube.json"
+    polycube_file = Path(__file__).parent / "test_files" / "cube_structures" / "duck_polycube.json"
     polycube = load_polycube(polycube_file)
     assert polycube.rule == PolycubesRule(rule_str="1:3|3:3||3|3|3_|||3:1|-2:2|_-1||||2:1|_-3:1|||||")
     assert polycube.num_vertices() == 8

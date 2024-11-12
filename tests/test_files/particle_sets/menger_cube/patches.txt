@@ -1,0 +1,450 @@
+patch_0 = {
+ 	id = 0
+	color = 21
+	strength = 1.1
+	position = -0.5,0,0
+	a1 = -1,0,0
+	a2 = 0,1,0
+
+}
+patch_1 = {
+ 	id = 1
+	color = 21
+	strength = 1.1
+	position = 0,-0.5,0
+	a1 = 0,-1,0
+	a2 = 0,0,1
+
+}
+patch_2 = {
+ 	id = 2
+	color = 21
+	strength = 1.1
+	position = 0,0,-0.5
+	a1 = 0,0,-1
+	a2 = 1,0,0
+
+}
+patch_3 = {
+ 	id = 3
+	color = -21
+	strength = 1.1
+	position = -0.5,0,0
+	a1 = -1,0,0
+	a2 =  0, 0,-1
+
+}
+patch_4 = {
+ 	id = 4
+	color = 22
+	strength = 1.1
+	position = 0.5,0,0
+	a1 = 1,0,0
+	a2 = 0,1,0
+
+}
+patch_5 = {
+ 	id = 5
+	color = 29
+	strength = 0.75
+	position = 0,-0.5,0
+	a1 = 0,-1,0
+	a2 =  0, 0,-1
+
+}
+patch_6 = {
+ 	id = 6
+	color = -22
+	strength = 1.1
+	position = -0.5,0,0
+	a1 = -1,0,0
+	a2 =  0,-1, 0
+
+}
+patch_7 = {
+ 	id = 7
+	color = 23
+	strength = 1.1
+	position = 0,-0.5,0
+	a1 = 0,-1,0
+	a2 =  0, 0,-1
+
+}
+patch_8 = {
+ 	id = 8
+	color = 25
+	strength = 1.1
+	position = 0,0,-0.5
+	a1 = 0,0,-1
+	a2 = -1, 0, 0
+
+}
+patch_9 = {
+ 	id = 9
+	color = -23
+	strength = 1.1
+	position = -0.5,0,0
+	a1 = -1,0,0
+	a2 =  0,-1, 0
+
+}
+patch_10 = {
+ 	id = 10
+	color = 24
+	strength = 1.1
+	position = 0.5,0,0
+	a1 = 1,0,0
+	a2 = 0,0,1
+
+}
+patch_11 = {
+ 	id = 11
+	color = -54
+	strength = 0.75
+	position = 0,0.5,0
+	a1 = 0,1,0
+	a2 =  0, 0,-1
+
+}
+patch_12 = {
+ 	id = 12
+	color = -24
+	strength = 1.1
+	position = -0.5,0,0
+	a1 = -1,0,0
+	a2 =  0,-1, 0
+
+}
+patch_13 = {
+ 	id = 13
+	color = -26
+	strength = 1.1
+	position = 0,-0.5,0
+	a1 = 0,-1,0
+	a2 = 0,0,1
+
+}
+patch_14 = {
+ 	id = 14
+	color = -27
+	strength = 1.1
+	position = 0,0,-0.5
+	a1 = 0,0,-1
+	a2 = -1, 0, 0
+
+}
+patch_15 = {
+ 	id = 15
+	color = -25
+	strength = 1.1
+	position = -0.5,0,0
+	a1 = -1,0,0
+	a2 = 0,0,1
+
+}
+patch_16 = {
+ 	id = 16
+	color = 26
+	strength = 1.1
+	position = 0.5,0,0
+	a1 = 1,0,0
+	a2 =  0,-1, 0
+
+}
+patch_17 = {
+ 	id = 17
+	color = 27
+	strength = 1.1
+	position = -0.5,0,0
+	a1 = -1,0,0
+	a2 =  0,-1, 0
+
+}
+patch_18 = {
+ 	id = 18
+	color = 28
+	strength = 1.1
+	position = 0.5,0,0
+	a1 = 1,0,0
+	a2 = 0,0,1
+
+}
+patch_19 = {
+ 	id = 19
+	color = -28
+	strength = 1.1
+	position = -0.5,0,0
+	a1 = -1,0,0
+	a2 =  0,-1, 0
+
+}
+patch_20 = {
+ 	id = 20
+	color = -28
+	strength = 1.1
+	position = 0,-0.5,0
+	a1 = 0,-1,0
+	a2 =  0, 0,-1
+
+}
+patch_21 = {
+ 	id = 21
+	color = -28
+	strength = 1.1
+	position = 0,0,-0.5
+	a1 = 0,0,-1
+	a2 = -1, 0, 0
+
+}
+patch_22 = {
+ 	id = 22
+	color = -40
+	strength = 1.1
+	position = -0.5,0,0
+	a1 = -1,0,0
+	a2 =  0, 0,-1
+
+}
+patch_23 = {
+ 	id = 23
+	color = -41
+	strength = 1.1
+	position = 0,-0.5,0
+	a1 = 0,-1,0
+	a2 = 1,0,0
+
+}
+patch_24 = {
+ 	id = 24
+	color = 48
+	strength = 1.1
+	position = 0,0,-0.5
+	a1 = 0,0,-1
+	a2 = -1, 0, 0
+
+}
+patch_25 = {
+ 	id = 25
+	color = 40
+	strength = 1.1
+	position = -0.5,0,0
+	a1 = -1,0,0
+	a2 =  0,-1, 0
+
+}
+patch_26 = {
+ 	id = 26
+	color = 42
+	strength = 1.1
+	position = 0.5,0,0
+	a1 = 1,0,0
+	a2 = 0,0,1
+
+}
+patch_27 = {
+ 	id = 27
+	color = 54
+	strength = 0.75
+	position = 0,0.5,0
+	a1 = 0,1,0
+	a2 = 0,0,1
+
+}
+patch_28 = {
+ 	id = 28
+	color = -42
+	strength = 1.1
+	position = -0.5,0,0
+	a1 = -1,0,0
+	a2 = 0,1,0
+
+}
+patch_29 = {
+ 	id = 29
+	color = 43
+	strength = 1.1
+	position = 0,-0.5,0
+	a1 = 0,-1,0
+	a2 = -1, 0, 0
+
+}
+patch_30 = {
+ 	id = 30
+	color = 49
+	strength = 1.1
+	position = 0,0,0.5
+	a1 = 0,0,1
+	a2 =  0,-1, 0
+
+}
+patch_31 = {
+ 	id = 31
+	color = -43
+	strength = 1.1
+	position = -0.5,0,0
+	a1 = -1,0,0
+	a2 =  0,-1, 0
+
+}
+patch_32 = {
+ 	id = 32
+	color = 44
+	strength = 1.1
+	position = 0.5,0,0
+	a1 = 1,0,0
+	a2 = 0,1,0
+
+}
+patch_33 = {
+ 	id = 33
+	color = -44
+	strength = 1.1
+	position = -0.5,0,0
+	a1 = -1,0,0
+	a2 = 0,1,0
+
+}
+patch_34 = {
+ 	id = 34
+	color = 45
+	strength = 1.1
+	position = 0,-0.5,0
+	a1 = 0,-1,0
+	a2 =  0, 0,-1
+
+}
+patch_35 = {
+ 	id = 35
+	color = 50
+	strength = 1.1
+	position = 0,0,0.5
+	a1 = 0,0,1
+	a2 =  0,-1, 0
+
+}
+patch_36 = {
+ 	id = 36
+	color = -45
+	strength = 1.1
+	position = -0.5,0,0
+	a1 = -1,0,0
+	a2 =  0,-1, 0
+
+}
+patch_37 = {
+ 	id = 37
+	color = 46
+	strength = 1.1
+	position = 0.5,0,0
+	a1 = 1,0,0
+	a2 = 0,1,0
+
+}
+patch_38 = {
+ 	id = 38
+	color = -29
+	strength = 0.75
+	position = 0,-0.5,0
+	a1 = 0,-1,0
+	a2 =  0, 0,-1
+
+}
+patch_39 = {
+ 	id = 39
+	color = -46
+	strength = 1.1
+	position = -0.5,0,0
+	a1 = -1,0,0
+	a2 = 0,0,1
+
+}
+patch_40 = {
+ 	id = 40
+	color = 47
+	strength = 1.1
+	position = 0,-0.5,0
+	a1 = 0,-1,0
+	a2 = -1, 0, 0
+
+}
+patch_41 = {
+ 	id = 41
+	color = 52
+	strength = 1.1
+	position = 0,0,0.5
+	a1 = 0,0,1
+	a2 = -1, 0, 0
+
+}
+patch_42 = {
+ 	id = 42
+	color = -47
+	strength = 1.1
+	position = -0.5,0,0
+	a1 = -1,0,0
+	a2 =  0,-1, 0
+
+}
+patch_43 = {
+ 	id = 43
+	color = 41
+	strength = 1.1
+	position = 0.5,0,0
+	a1 = 1,0,0
+	a2 = 0,1,0
+
+}
+patch_44 = {
+ 	id = 44
+	color = -48
+	strength = 1.1
+	position = -0.5,0,0
+	a1 = -1,0,0
+	a2 =  0,-1, 0
+
+}
+patch_45 = {
+ 	id = 45
+	color = -50
+	strength = 1.1
+	position = 0.5,0,0
+	a1 = 1,0,0
+	a2 = 0,0,1
+
+}
+patch_46 = {
+ 	id = 46
+	color = -49
+	strength = 1.1
+	position = -0.5,0,0
+	a1 = -1,0,0
+	a2 =  0,-1, 0
+
+}
+patch_47 = {
+ 	id = 47
+	color = -49
+	strength = 1.1
+	position = 0.5,0,0
+	a1 = 1,0,0
+	a2 = 0,0,1
+
+}
+patch_48 = {
+ 	id = 48
+	color = -52
+	strength = 1.1
+	position = -0.5,0,0
+	a1 = -1,0,0
+	a2 =  0,-1, 0
+
+}
+patch_49 = {
+ 	id = 49
+	color = -52
+	strength = 1.1
+	position = 0.5,0,0
+	a1 = 1,0,0
+	a2 =  0, 0,-1
+
+}

@@ -44,7 +44,7 @@ def create_default_config():
 
     # Access the package's resources using importlib.resources
     try:
-        with resources.path('pypatchy', spec_files_source_dir) as path:
+        with resources.files(spec_files_source_dir) as path:
             sub_dirs = [d for d in os.listdir(path) if (path / d).is_dir()]
             for sub_dir in sub_dirs:
                 if sub_dir != "test_files": # skip test_files

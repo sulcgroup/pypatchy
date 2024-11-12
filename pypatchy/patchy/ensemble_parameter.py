@@ -250,21 +250,24 @@ class StageInfoParam(Mapping):
             else:
                 assert type(add_method) == dict
                 if "type" not in add_method:
-                    raise TypeError("No type specified for particle add method! Specify 'polycube', 'patchy', "
-                                    "'random', 'fix', or. idk.")
-                add_type = add_method["type"]
-                del add_method["type"] # delete type key so we can call constructor w/ arg unpacking
-                if add_type == 'random':
                     self.add_method = RandParticleAdder(**kwargs["add_method"])
-                elif add_type == "polycube":
-                    self.add_method = FromPolycubeAdder(**kwargs["add_method"])
-                elif add_type == "patchy":
-                    raise Exception("Not implemented yet")
-                elif add_type == "fix":
-                    raise Exception("Not only is this not implemented yet I'm not even fully sure what it's"
-                                    "supposed to be")
+                    # change in behavior: if add method type is not specified, assume random
+                #     raise TypeError("No type specified for particle add method! Specify 'polycube', 'patchy', "
+                #                     "'random', 'fix', or. idk.")
                 else:
-                    raise TypeError(f"Invalid 'add_method' provided: {kwargs['add_method']}")
+                    add_type = add_method["type"]
+                    del add_method["type"] # delete type key so we can call constructor w/ arg unpacking
+                    if add_type == 'random':
+                        self.add_method = RandParticleAdder(**kwargs["add_method"])
+                    elif add_type == "polycube":
+                        self.add_method = FromPolycubeAdder(**kwargs["add_method"])
+                    elif add_type == "patchy":
+                        raise Exception("Not implemented yet")
+                    elif add_type == "fix":
+                        raise Exception("Not only is this not implemented yet I'm not even fully sure what it's"
+                                        "supposed to be")
+                    else:
+                        raise TypeError(f"Invalid 'add_method' provided: {kwargs['add_method']}")
         else:
             self.add_method = None
 

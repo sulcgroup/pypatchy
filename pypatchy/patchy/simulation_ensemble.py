@@ -327,9 +327,16 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
 
     if OBSERABLES_KEY in cfg:
         # iter observables in cfg
-        for obs in cfg[OBSERABLES_KEY]:
-            obs_name = obs[0]
-            observables[obs_name] = Observable(*obs)
+        if all([type(obs) == dict for obs in cfg[OBSERABLES_KEY]]):
+            for obs in cfg[OBSERABLES_KEY]:
+                obs_name = obs[0]
+                observables[obs_name] = Observable(*obs)
+        else:
+            # oh no
+            # backwards compatibility
+            for obs in cfg[OBSERABLES_KEY]:
+                if isinstance(obs, str):
+                    observables[obs] = observable_from_file(obs)
         # for obserable in cfg[OBSERABLES_KEY]:
         #     # legacy: string-expression of observable
         #     if isinstance(obserable, str):
@@ -388,6 +395,7 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
 class PatchySimulationEnsemble(Analyzable):
     """
     Stores data for a group of related simulations
+    This class is... enormous
     """
 
     # --------------- GENERAL MEMBER VARS -------------- #
@@ -446,10 +454,10 @@ class PatchySimulationEnsemble(Analyzable):
             self.writer = get_writer()
 
         # configure logging ASAP
-        # File handler with a higher level (ERROR)
+        # File handler with a higher level (DEBUG)
         logger: logging.Logger = logging.getLogger(self.export_name)
-        logger.setLevel(logging.DEBUG)
-
+        logger.setLevel(logging.INFO)
+        # setup logger file handler
         file_handler = logging.FileHandler(
             get_log_dir() / f"log_{self.export_name}_{self.datestr()}_at{datetime.datetime.now().strftime('%Y-%m-%d-%H-%M')}.log",
             mode="a")
@@ -465,13 +473,8 @@ class PatchySimulationEnsemble(Analyzable):
         stream_handler.setFormatter(stream_formatter)
         logger.addHandler(stream_handler)
 
-        # logger: logging.Logger = logging.getLogger(self.export_name)
-        # logger.setLevel(logging.INFO)
-        # logger.addHandler(logging.FileHandler(get_log_dir() /
-        #                                       f"log_{self.export_name}_{self.datestr()}.log", mode="a"))
-        # logger.addHandler(logging.StreamHandler(sys.stdout))
-
         self.metadata = metadata_dict
+        # slurm log stuff currently deprecated
         self.slurm_log = SlurmLog()
 
         self.metadata_file = metadata_file_name
@@ -484,13 +487,17 @@ class PatchySimulationEnsemble(Analyzable):
 
     # --------------- Accessors and Mutators -------------------------- #
     def get_simulation(self, *args: Union[tuple[str, Any], ParameterValue], **kwargs) -> Union[
-        PatchySimulation,
-        list[PatchySimulation]]:
+                                                                                                PatchySimulation,
+                                                                                                list[PatchySimulation]]:
         """
         This is a very flexable method for returning PatchySimulation objects
         but is also very complex, due to the range of inputs accepted
 
         given a list of parameter values, returns a PatchySimulation object
+
+        Parameters:
+           args
+           kwargs key-value pairs where each key is a parameter name in self.ensemble_params
         """
         # sim_params = args
         sim_params: list[Union[list[ParameterValue], EnsembleParameter]] = []
@@ -531,7 +538,7 @@ class PatchySimulationEnsemble(Analyzable):
     def long_name(self) -> str:
         """
         Returns:
-             the full name of the simulation
+             the full name of the simulation, including the date
         """
         return f"{self.export_name}_{self.datestr()}"
 
@@ -559,6 +566,9 @@ class PatchySimulationEnsemble(Analyzable):
         return "nocache" in self.metadata and self.metadata["nocache"]
 
     def set_server_settings(self, stgs: Union[PatchyServerConfig, str]):
+        """
+        sets the server settings that will be used to run simulations
+        """
         if isinstance(stgs, PatchyServerConfig):
             self.server_settings = stgs
         else:
@@ -569,7 +579,7 @@ class PatchySimulationEnsemble(Analyzable):
 
     def set_nocache(self, bNewVal: bool):
         """
-        Assigns the simulation to not cache data
+        Assigns the analysis system to not cache analysis data
         """
         self.metadata["nocache"] = bNewVal
 
@@ -583,8 +593,7 @@ class PatchySimulationEnsemble(Analyzable):
 
     def set_metadata_attr(self, key: str, val: Any):
         """
-        Sets a metadata value, and
-        saves the metadata file if a change has been made
+        Sets a metadata value, and saves the metadata file if a change has been made
         """
         oldVal = self.metadata[val]
         self.metadata[key] = val
@@ -631,12 +640,18 @@ class PatchySimulationEnsemble(Analyzable):
             raise e
 
     def sim_stage_get_param(self, sim: PatchySimulation, stage: Stage, param_name: str) -> Any:
+        """
+        Returns the value of the provided parameter for the given simulation and stage
+        """
         if stage is not None and stage.has_var(param_name):
             return stage.get_var(param_name)
         else:
             return self.sim_get_param(sim, param_name)
 
     def sim_get_particles_set(self, sim: PatchySimulation) -> PLParticleSet:
+        """
+        Returns the particle set used by the simulation passed as a parameter, with multidentate conversion if appropriate
+        """
         particles: PLParticleSet = self.sim_get_param(sim, PARTICLE_TYPES_KEY)
         try:
             mdt_convert: MultidentateConvertSettings = self.sim_get_param(sim, MDT_CONVERT_KEY)
@@ -770,7 +785,8 @@ class PatchySimulationEnsemble(Analyzable):
                     # if the stage is the final stage, last step will be end of simulation
                     stage_info.set_end_time(self.sim_get_param(sim, "steps"))
                 # construct stage objects
-                cumulative_type_counts.update(stage_info.add_method.get_particle_counts())
+                if stage_info.add_method is not None:
+                    cumulative_type_counts.update(stage_info.add_method.get_particle_counts())
                 stages.append(Stage(sim,
                                     stages[i - 1] if i else None,
                                     self,
@@ -807,30 +823,6 @@ class PatchySimulationEnsemble(Analyzable):
             # i've never used this and don't know why anyone ever would
             if stage.has_var("box_size"):
                 stage.set_box_size(stage.get_var("box_size"))
-            # if box size is specified relative to number of particles
-            # REMOvED. I AM ONCE AGAIN ASKING YOU NOT TO BE FUCKING CLEVER
-            # else:
-            #     # if we are to use all particles (not changing volume)
-            #     # default to no calc fwd
-            #     if "calc_fwd" not in stage_info or stage_info["calc_fwd"]:
-            #         # make sure there are stages after this one
-            #         num_particles = sum([len(s.particles_to_add()) for s in stages])
-            #     else:
-            #         # only consider particles in past stages (incl. this one)
-            #         num_particles = sum([len(s.particles_to_add()) for s in stages[:stage.idx()]])
-            #
-            #     # do NOT incorporate num assemblies - already did above!
-            #
-            #     if "rel_volume" in stage_info:
-            #         relvol = stage_info["rel_volume"]
-            #         box_side = (relvol * num_particles) ** (1 / 3)
-            #
-            #     # if density format
-            #     elif "density" in stage_info:
-            #         # box side length = cube root of n / density
-            #         density = stage_info["density"]
-            #         box_side = (num_particles / density) ** (1 / 3)
-            #
             else:
                 # please do not use density or num_assemblies as a staging param. please. please.
                 # by default, use the old behavior. compute the box size at final stage concentration and use that
@@ -871,12 +863,21 @@ class PatchySimulationEnsemble(Analyzable):
         )
 
     def sim_get_stage_top(self, sim: PatchySimulation, stage: Union[str, int, Stage]) -> Path:
+        """
+        Returns a path to the topology file for the given simulation and stage
+        """
         return self.folder_path(sim, stage) / self.sim_stage_get_param(sim, stage, "topology")
 
     def sim_get_stage_last_conf(self, sim: PatchySimulation, stage: Union[str, int, Stage]):
+        """
+        Returns a path to the last_conf file for the given simulation and stage
+        """
         return self.folder_path(sim, stage) / self.sim_stage_get_param(sim, stage, "lastconf_file")
 
     def sim_get_stage_last_step(self, sim: PatchySimulation, stage: Union[str, int, Stage]) -> int:
+        """
+
+        """
         lastconf_file = self.sim_get_stage_last_conf(sim, stage)
         if not lastconf_file.is_file():
             raise NoStageTrajError(stage, sim, str(lastconf_file))
@@ -1014,8 +1015,7 @@ class PatchySimulationEnsemble(Analyzable):
 
     def tld(self) -> Path:
         """
-        Returns:
-            ensemble root directory
+        Returns: The top-level directory for simulation files for this ensemble
         """
         return simulation_run_dir() / self.long_name()
 
@@ -1152,19 +1152,26 @@ class PatchySimulationEnsemble(Analyzable):
         if isinstance(stage, str):
             stage = self.sim_get_stage(sim, stage)
         self.writer.set_directory(self.folder_path(sim, stage))
-        top_file, traj_file = self.sim_get_stage_top(sim, stage), self.sim_get_stage_last_conf(sim, stage)
+        top_file, traj_file = self.sim_get_stage_top_traj(sim, stage)
+        # top_file, traj_file = self.sim_get_stage_top(sim, stage), self.sim_get_stage_last_conf(sim, stage)
         if traj_file.exists() and os.stat(traj_file).st_size > 0:
             if step is None:
                 step = self.time_length(sim)
             conf_interval = self.sim_stage_get_param(sim, stage, "print_conf_interval")
             assert step % conf_interval == 0
-            return self.writer.read_scene(top_file.name, traj_file.name,
+            scene: PLPSimulation = self.writer.read_scene(top_file.name, traj_file.name,
                                           self.sim_get_particles_set(sim),
-                                          int(step / conf_interval) - 1)
+                                          step // conf_interval - 1)
         else:
             assert step is None
             conf_file = self.sim_stage_get_param(sim, stage, "conf_file")
-            return self.writer.read_scene(top_file.name, conf_file, self.sim_get_particles_set(sim), None)
+            scene: PLPSimulation = self.writer.read_scene(top_file.name,
+                                                          conf_file,
+                                                          self.sim_get_particles_set(sim))
+        scene.set_temperature(self.sim_stage_get_param(sim, stage, "T"))
+        for potential in self.get_interaction_potentials(sim):
+            scene.add_potential(potential)
+        return scene
         # scene: PLPSimulation()
 
     def is_traj_valid(self, sim: PatchySimulation, stage: Union[Stage, None] = None) -> bool:

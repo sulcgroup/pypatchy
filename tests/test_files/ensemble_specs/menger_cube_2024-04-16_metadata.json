@@ -1,0 +1,70 @@
+{
+    "setup_date": "2024-04-16",
+    "ensemble_config": {
+        "export_name": "menger_cube",
+        "particle_types": {
+            "format": "flavio",
+            "patchy_file": "particle_sets/menger_cube/patches.txt",
+            "particle_file": "particle_sets/menger_cube/particles.txt"
+        },
+        "const_params": {
+            "num_assemblies": 20,
+            "steps": 5000000000.0,
+            "particle_type_levels": {
+                "particletype_0": 8,
+                "particletype_1": 24,
+                "particletype_2": 24,
+                "particletype_3": 24,
+                "particletype_4": 24,
+                "particletype_5": 24,
+                "particletype_6": 24,
+                "particletype_7": 8,
+                "particletype_8": 24,
+                "particletype_9": 24,
+                "particletype_10": 24,
+                "particletype_11": 24,
+                "particletype_12": 24,
+                "particletype_13": 24,
+                "particletype_14": 24,
+                "particletype_15": 24,
+                "particletype_16": 24,
+                "particletype_17": 12,
+                "particletype_18": 12
+            },
+            "PATCHY_alpha": 0.138,
+            "mdt_convert": {
+                "type": "mdt_convert",
+                "name": "simple",
+                "n_teeth": 4,
+                "dental_radius": 0.5,
+                "energy_scale_method": "linear"
+            },
+            "use_torsion": false,
+            "staging": {
+                "name": "default",
+                "type": "staging",
+                "stages": {
+                    "initial": {
+                        "density": 0.06,
+                        "T": 0.06
+                    },
+                    "secondary": {
+                        "t": 2500000000.0,
+                        "T": 0.04
+                    }
+                }
+            }
+        },
+        "ensemble_params": [
+            [
+                "duplicate",
+                [
+                    0,
+                    1
+                ]
+            ]
+        ]
+    },
+    "slurm_log": [],
+    "analysis_file": "menger_cube_analysis_pipeline.pickle"
+}

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import IO, Union, Any
 
+from ipy_oxdna.observable import Observable, ObservableColumn
+
 from .stage import Stage
 from ..util import get_spec_json
 
@@ -128,7 +130,7 @@ class PatchySimObservable:
         # TODO TODO TODO!!! MAKE ABS PATHS WORK HERE
 
 
-def observable_from_file(obs_file_name: str) -> PatchySimObservable:
+def observable_from_file(obs_file_name: str) -> Observable:
     """
     Constructs a new PatchySimObservable object from a json file, assumed to be located in
     ~/.pypatchy/spec_files/observables
@@ -143,4 +145,8 @@ def observable_from_file(obs_file_name: str) -> PatchySimObservable:
     # standardize input
     if obs_file_name.endswith(".json"):
         obs_file_name = obs_file_name[:obs_file_name.rfind(".")]
-    return PatchySimObservable(observable_name=obs_file_name, **get_spec_json(obs_file_name, "observables"))
+    obs_json = get_spec_json(obs_file_name, "observables")
+    return Observable(obs_json["name"],
+                      obs_json["print_every"],
+                      # we should be able to pass list as-is but apparently this is a bug in the python interpreter
+                      *[ObservableColumn(**oc) for oc in obs_json["cols"]])

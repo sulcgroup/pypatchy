@@ -2,11 +2,10 @@
 Tests basic stuff with loading ensembles
 """
 import os
-import re
 import shutil
 import tempfile
-from importlib import resources
 from pathlib import Path
+from typing import Union
 
 import pytest
 
@@ -17,6 +16,7 @@ from pypatchy.server_config import PatchyServerConfig, load_server_settings
 
 from pypatchy.util import get_input_dir
 from pypatchy.util import cfg
+from ptutils import get_data
 
 
 @pytest.fixture
@@ -28,16 +28,30 @@ def temp_dir() -> str:
         yield td
 
 
-def ensemble(ensemble_name: str):
+
+def ensemble(ensemble_name: str, date: Union[str, None] = None, dl: bool=False) -> PatchySimulationEnsemble:
     """
     function to copy a test ensemble to pypatchy input working directory
+    Parameters:
+        ensemble_name name of ensemble to grab
+        date date of simulation ensemble to grab
+        dl if true, will try to download from remote server
     """
     # copy ensemble files
-    shutil.copy(
-        Path(__file__).parent / "test_files" / "test_ensemble_specs" / (
-                ensemble_name + ".json"),
-        get_input_dir())
-    e = find_ensemble(cfg=ensemble_name)
+    if date is None:
+        shutil.copy(
+            Path(__file__).parent / "test_files" / "ensemble_specs" / (
+                    ensemble_name + ".json"),
+            get_input_dir())
+        e = find_ensemble(cfg=ensemble_name)
+    else:
+        shutil.copy(
+            Path(__file__).parent / "test_files" / "ensemble_specs" / (
+                    ensemble_name + "_" + date + "_metadata.json"),
+            get_input_dir())
+        e = find_ensemble(ensemble_name, date)
+    if dl:
+        get_data(e, str(e.tld()))
     e.info()
     return e
 
@@ -74,7 +88,7 @@ def test_multidentate(temp_dir: str):
 def test_multiinit(temp_dir: str):
     # copy required polycube to scenes dir
     (get_input_dir() / "scenes").mkdir(exist_ok=True)
-    shutil.copy(Path(__file__).parent / "test_files" / "test_particle_sets",
+    shutil.copy(Path(__file__).parent / "test_files" / "particle_sets",
                 get_input_dir() / "scenes")
     e = ensemble("example_multiinit")
     e.set_server_settings(load_server_settings("test_lr"))
@@ -93,8 +107,13 @@ def test_staged(temp_dir: str):
 def test_json_particles(temp_dir: str):
     pass
 
-def test_dilute(temp_dir: str):
-    e = ensemble("test_dilute")
-    e.set_server_settings(load_server_settings("test_fr"))
-    e.do_setup(stage="first_stage")
-
+def test_scene_rw(temp_dir: str):
+    """
+    tests read/write of scene from an ensemble
+    """
+    fmt = "flavio"
+    # extract and copy 3x3 wireframe cube data to temp directory
+    test_data_date = ""
+    e = ensemble("4x4_tile", "2023-10-03", True)
+    assert e.all_folders_exist(), "Did not successfully copy test data!"
+    pass

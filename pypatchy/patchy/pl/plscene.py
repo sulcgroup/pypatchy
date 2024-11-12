@@ -338,7 +338,7 @@ class PLPSimulation(Scene, CellLists):
             p.a1 = conf.a1s[i, :]
             p.a3 = conf.a3s[i, :]
 
-    def alter_box_size(self, new_box_size: Union[np.ndarray, float], cluster_energy_threshold: float):
+    def alter_box_size(self, new_box_size: Union[np.ndarray, float], cluster_energy_threshold: float=0):
         """
         This is VERY different from set_box_size
         """
@@ -352,6 +352,7 @@ class PLPSimulation(Scene, CellLists):
         free_particles_types = self.particle_type_counts()
         # iter clusters
         for cluster in clusters:
+            assert np.all(cluster.box_size() <= new_box_size)
             for type_id, count in cluster.particle_type_counts().items():
                 # mark particles of type type_id as accounted for
                 free_particles_types[type_id] -= count

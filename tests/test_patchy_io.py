@@ -8,6 +8,7 @@ import pytest
 
 from pypatchy.patchy.pl.patchyio import get_writer
 
+
 @pytest.fixture
 def cross_fr():
     """
@@ -21,16 +22,20 @@ def cross_fr():
                                                          particle_file="particles.txt"))
     return scene
 
+
 @pytest.fixture
 def cross_lr():
     writer = get_writer("lorenzo")
-    writer.set_directory(Path(__file__).parent / "test_files"/ "patchy_scenes" / "3dcross_lr")
-    scene = writer.read_scene("topology.top", "last_conf.dat", writer.read_particle_types("topology.top", "interactions.txt"))
+    writer.set_directory(Path(__file__).parent / "test_files" / "patchy_scenes" / "3dcross_lr")
+    scene = writer.read_scene("topology.top", "last_conf.dat",
+                              writer.read_particle_types("topology.top", "interactions.txt"))
     return scene
+
 
 @pytest.fixture
 def cross_mgl():
-    pass # TODO
+    pass  # TODO
+
 
 @pytest.fixture
 def cross_sr():
@@ -42,10 +47,13 @@ def cross_sr():
 def test_fwriter_read(cross_fr):
     pass
 
+
 def test_lwriter_read(cross_lr):
     """
     tests lorenzo-format writer
     """
+    pass
+
 
 def test_read_loro_test():
     """
