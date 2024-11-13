@@ -82,3 +82,9 @@ class InteractionMatrix:
             array[i, j] = array[j, i] = value
 
         return array
+
+    def self_interacts(self, color: int) -> bool:
+        """
+        checks if a color can interact with itself according to this interaction matrix
+        """
+        return self[(color, color)] != 0.

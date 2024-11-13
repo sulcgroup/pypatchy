@@ -16,7 +16,7 @@ from pypatchy.cell_lists import CellLists
 from .plparticle import PLPatchyParticle
 from .plparticleset import PLParticleSet, MultidentateConvertSettings
 from .plpatch import PLPatch
-from .plpotential import PLPotential
+from .plpotential import PLPotential, PLPatchyPotential
 from ...scene import Scene
 from ...util import dist, pairwise, random_unit_vector
 
@@ -396,6 +396,26 @@ class PLPSimulation(Scene, CellLists):
             e += potential_function.energy(self.box_size(), p1, p2)
         return e
 
+    def iter_bound_particles(self) -> Generator[tuple[PLPatchyParticle, PLPatchyParticle]]:
+        """
+        iterates all unordered pairs of bound particles in the simulation
+        """
+        # if no interaction potentials are provided, use shitty superclass method
+        if len(self.potentials) == 0:
+            yield from Scene.iter_bound_particles(self)
+        else:
+            pairs: set[set[int]] = set()
+            # iter particles
+            for p in self.particles():
+                # for each particle, iter particles interacting
+                for p2 in self.interaction_particles(p):
+                    # if we haven't already yielded this pair
+                    if {p.get_uid(), p2.get_uid()} not in pairs:
+                        # yield it
+                        yield p, p2
+                        # add to set to avoid duplicates
+                        pairs.add({p.get_uid(), p2.get_uid()})
+
     def particles_bound(self,
                         p1: Union[PLPatchyParticle, int],
                         p2: Union[PLPatchyParticle, int]) -> bool:
@@ -529,6 +549,32 @@ class PLPSimulation(Scene, CellLists):
                 e = self.interaction_energy(p1, p2)
                 if e < bond_energy:
                     G.add_edge(p1.get_uid(), p2.get_uid(), e=e)
+        return G
+
+    def compute_scene_multigraph(self, bond_energy: float=0) -> nx.MultiGraph:
+        """
+        should produuce multigraph of scene
+        """
+        G = nx.MultiGraph()
+        for p1 in self.particles():
+            for p2 in self.interaction_particles(p1):
+                # unfortunately, this becomes. terrible
+                # let us assume no multipatch, TODO make this adjustable
+                # get interaction energy sans patchy bonds
+                particle_energy = sum(potential.energy(self.box_size(), p1, p2)
+                                      for potential in self.potentials if not isinstance(potential, PLPatchyPotential))
+                # construct data structure to store interactions
+                patch_bond_energies: list[tuple[tuple[int,int], float]] = []
+                for patch1, patch2 in itertools.product(p1.patches(), p2.patches()):
+                    for potential in self.potentials:
+                        if isinstance(potential, PLPatchyPotential):
+                            e_bond = potential.energy_2_patch(self.box_size(), p1, patch1, p2, patch2)
+                            if e_bond:
+                                # should this be a dataclass or smth
+                                patch_bond_energies.append((patch1.get_id(), patch2.get_id()), e_bond)
+                patch_bond_energies.sort(key=lambda x: x[1], reverse=True)
+                for (patch1, patch2), bond_energy in patch_bond_energies:
+                    G.add_edge(p1.get_uid(), p2.get_uid(), e=bond_energy - (particle_energy / len(patch_bond_energies)), patch1=patch1, patch2=patch2)
         return G
 
     def compute_scene_clusters(self, bond_energy: float=0, min_cluster_size: int = 1) -> Generator[nx.Graph]:

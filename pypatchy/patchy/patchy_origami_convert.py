@@ -581,7 +581,7 @@ class PatchyOrigamiConverter:
         dna_patch_cmss = dna.get_patch_cmss()
         dna_patch_norms = dna.get_strand_group_norms()
         # lower rms = better so start with inf. rms
-        best_rms = np.Inf
+        best_rms = np.inf
         best_order = None
         best_rot = None
         # compute center of mass of DNA particle
@@ -801,7 +801,7 @@ class PatchyOrigamiConverter:
 
         print("binding particles using 3p patches")
         self.bind_particles3p()
-        assert self.expected_num_edges == -1 or self.bondcount == self.expected_num_edges, \
+        assert self.expected_num_edges is None or self.expected_num_edges == -1 or self.bondcount == self.expected_num_edges, \
             f"Wrong number of bonds created! Expected {self.expected_num_edges} bonds, got {self.bondcount}."
         if self.is_track_conf_stickies() and unbound_stickies:
             self.add_unbound_stickies()

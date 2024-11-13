@@ -277,9 +277,13 @@ class PLParticleSet(BaseParticleSet):
         new_patches = []
         id_map: dict[int, set[int]] = dict()
         new_interaction_map = InteractionMatrix()
+        # TODO TODO TODO
         assert self.interaction_matrix().is_one_to_one(), "Multidentate conversion not supported for" \
                                                           " non-one-to-one patch sets, " \
                                                           "although i figure it can't be that hard" # counterpoint: yes it can
+        # TODO: REPLACE WITH REAL CODE
+        # STOPGAP: WE ONLY HAVE 20 SELF INTERACTING COLORS
+
         # iter particles
         for i_particle, particle in enumerate(self):
             new_particle_patches = []
@@ -303,37 +307,73 @@ class PLParticleSet(BaseParticleSet):
                     a1 = np.copy(patch.a1())
                     a2 = np.copy(patch.a2())
                     # if the particle type doesn't include an a2
-
+                    # or if it include a BS a2 that isn't ortogonal to a1
                     # problem!!!!!
-                    if a2 is None:
+                    if a2 is None or a2 @ a1.T > 1e-6:
                         if mdt_params.torsion:
+                            # helppppp
                             raise Exception("Cannot treat non-torsional particle set as torsional!")
                         else:
-                            if mdt_params.dental_radius > 0:
-                                raise Exception("Even for non-torsional particles, we need an a2 to align teeth "
-                                                "unless teeth are superimposed (dental_radius = 0)")
+                            # helpppp (cont.)
+                            print("No valid a2 vector was provided for a non-torsional multidentate patch! "
+                                  "An arbitrary nonrandom vector orthogonal to a1 will be generated but your alignment is going to be bad")
+                            # if we don't have a usable a2 vector to generate an orthogonal vector, make one up
+                            if a2 is None or a2 @ a1.T:
+                                # make up a vector which is arbirary but (unlike 1,0,0) unlikely to come on its own
+                                if np.allclose(a1, [1, 0, 0]) or np.allclose(a1, [-1, 0, 0]):
+                                    a2 = [0, 1, 0]  # If v is [1, 0, 0], use [0, 1, 0]
+                                else:
+                                    a2 = [1, 0, 0]  # Otherwise, use [1, 0, 0]
+                            # generate a vector normal to the plane formed by (a1, a2, [0,0,0])
+                            u = np.cross(a1, a2)
+                            # assign new a2
+                            a2 = u / np.linalg.norm(u)
+                            assert a1 @ a2.T < 1e-6, "Faied to generate ortogonal a2 vector"
+                            # if mdt_params.dental_radius > 0:
+                            #     raise Exception("Even for non-torsional particles, we need an a2 to align teeth "
+                            #                     "unless teeth are superimposed (dental_radius = 0)")
 
                     # theta is the angle of the tooth within the patch
                     theta = tooth / mdt_params.n_teeth * 2 * math.pi
 
                     # assign colors
                     # torsional patches need to be assigned colors to
+
+                    # there are four cases we need to consider:
+                    # torsion    + self-interact,
+                    # torsion    + no self interact,    CHECK
+                    # no torsion + self interact,       CHECK
+                    # no torsion + no self interact
+                    # for now i'm implicitly assuming that this is common to an entire particle set, which is not a safe assumption
+                    # TODO: address
+
                     if mdt_params.torsion:
-                        c = colornorm * mdt_params.n_teeth + tooth + 21
-                        if is_color_neg:
-                            # opposite-color patches have to be rotated opposite directions
-                            # b/c mirroring
-                            theta *= -1
-                            # set color sign
-                            c *= -1
-                        new_interaction_map[(c, -c)] = 1. # this will be redundant but that's ok
+                        if self.interaction_matrix().self_interacts(patch.color()):
+                            # CASE torsion  + self-interact
+                            # TODO: this will become a problem in the future, suddently and at a time when I have other things I would rather do
+                            raise Exception("i need to implement this feature")
+                        else:
+                            # CASE torsion + no self interact
+                            # this is sorta my default
+                            c = colornorm * mdt_params.n_teeth + tooth + 21
+                            if is_color_neg:
+                                # opposite-color patches have to be rotated opposite directions
+                                # b/c mirroring
+                                theta *= -1
+                                # set color sign
+                                c *= -1
+                            new_interaction_map[(c, -c)] = self.interaction_matrix()[(patch.color(), -patch.color())] / mdt_params.n_teeth
                     else:
-                        # non-torsional patches are VERY EASY because you just use the same color again
                         c = patch.color()
-                        # theta doesn't need to be adjusted for parity because it's the sames
-                        # as mentioned before non torsional multidentate patches are assumed to self-interact
-                        # todo: make this not true
-                        new_interaction_map[(c, c)] = 1.
+                        if self.interaction_matrix().self_interacts(patch.color()):
+                            # CASE: no torsion, yes self-interact
+                            # non-torsional patches are VERY EASY because you just use the same color again
+                            # theta doesn't need to be adjusted for parity because it's the sames
+                            new_interaction_map[(c, c)] = self.interaction_matrix()[(patch.color(), patch.color())] / mdt_params.n_teeth
+                        else:
+                            # CASE: no torsion, no self interact
+                            # simple enouyg
+                            new_interaction_map[(c, -c)] = self.interaction_matrix()[(patch.color(), -patch.color())] / mdt_params.n_teeth
 
                     r = R.identity()
                     if mdt_params.dental_radius > 0:
@@ -402,12 +442,3 @@ class PLParticleSet(BaseParticleSet):
                     return False
 
         return True
-
-    def to_romano_colors(self) -> PLParticleSet:
-        """
-
-        """
-        cpy = copy.deepcopy(self)
-
-
-

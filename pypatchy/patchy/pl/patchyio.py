@@ -163,10 +163,13 @@ class FWriter(PLBaseWriter):
         return FWriter.FPatchyTopology(s.particles())
 
     def read_particle_types(self, patchy_file: str, particle_file: str) -> PLParticleSet:
+        # read patch data from patches.txt or equivalent2
         patches = self.load_patches(patchy_file)
         particles: list[PLPatchyParticle] = []
 
+        # open particles.txt or equivalent
         with self.file(particle_file, "r") as f:
+            # iter lines
             lines = f.readlines()
             j = 0
             for line in lines:
@@ -186,6 +189,7 @@ class FWriter(PLBaseWriter):
         particle_set = PLParticleSet(particles)
         if not all([np.abs(p.rotmatrix() - np.identity(3)).sum() < 1e-6 for p in particles]):
             pass
+            # no idea what is appropriate to do here
             # particle_set.normalize()
 
         return particle_set
