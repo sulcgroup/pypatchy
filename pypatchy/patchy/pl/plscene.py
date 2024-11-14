@@ -404,7 +404,7 @@ class PLPSimulation(Scene, CellLists):
         if len(self.potentials) == 0:
             yield from Scene.iter_bound_particles(self)
         else:
-            pairs: set[set[int]] = set()
+            pairs: set[frozenset[int]] = set()
             # iter particles
             for p in self.particles():
                 # for each particle, iter particles interacting
@@ -414,7 +414,7 @@ class PLPSimulation(Scene, CellLists):
                         # yield it
                         yield p, p2
                         # add to set to avoid duplicates
-                        pairs.add({p.get_uid(), p2.get_uid()})
+                        pairs.add(frozenset({p.get_uid(), p2.get_uid()}))
 
     def particles_bound(self,
                         p1: Union[PLPatchyParticle, int],
@@ -432,6 +432,13 @@ class PLPSimulation(Scene, CellLists):
                 return True
 
         return False
+
+    def iter_binding_patches(self,
+                             particle1: PLPatchyParticle,
+                             particle2: PLPatchyParticle) -> Generator[tuple[PLPatch,
+                                                                             PLPatch], None, None]:
+        for p1_idx, p2_idx, _ in self.compute_scene_multigraph().edges:
+            yield p1_idx, p2_idx
 
     def patches_bound(self,
                       particle1: PLPatchyParticle,
@@ -545,10 +552,12 @@ class PLPSimulation(Scene, CellLists):
         G = nx.Graph()
         # iter particles
         for p1 in self.particles():
+            G.add_node(p1.get_uid())
             for p2 in self.interaction_particles(p1):
-                e = self.interaction_energy(p1, p2)
-                if e < bond_energy:
-                    G.add_edge(p1.get_uid(), p2.get_uid(), e=e)
+                if not G.has_edge(p1.get_uid(), p2.get_uid()):
+                    e = self.interaction_energy(p1, p2)
+                    if e < bond_energy:
+                        G.add_edge(p1.get_uid(), p2.get_uid(), e=e)
         return G
 
     def compute_scene_multigraph(self, bond_energy: float=0) -> nx.MultiGraph:
@@ -556,8 +565,16 @@ class PLPSimulation(Scene, CellLists):
         should produuce multigraph of scene
         """
         G = nx.MultiGraph()
+        checked_interactions: set[frozenset[int]] = set()
+        # loop particles
         for p1 in self.particles():
+            # make sure particle has node in graph
+            G.add_node(p1.get_uid())
+            # loop particles which can interact with this particle
             for p2 in self.interaction_particles(p1):
+                # if this pair has alreaady been checked, do not redo it
+                if frozenset([p1.get_uid(), p2.get_uid()]) in checked_interactions:
+                    continue
                 # unfortunately, this becomes. terrible
                 # let us assume no multipatch, TODO make this adjustable
                 # get interaction energy sans patchy bonds
@@ -569,12 +586,19 @@ class PLPSimulation(Scene, CellLists):
                     for potential in self.potentials:
                         if isinstance(potential, PLPatchyPotential):
                             e_bond = potential.energy_2_patch(self.box_size(), p1, patch1, p2, patch2)
-                            if e_bond:
+                            if e_bond < bond_energy:
                                 # should this be a dataclass or smth
-                                patch_bond_energies.append((patch1.get_id(), patch2.get_id()), e_bond)
-                patch_bond_energies.sort(key=lambda x: x[1], reverse=True)
-                for (patch1, patch2), bond_energy in patch_bond_energies:
-                    G.add_edge(p1.get_uid(), p2.get_uid(), e=bond_energy - (particle_energy / len(patch_bond_energies)), patch1=patch1, patch2=patch2)
+                                patch_bond_energies.append(((patch1.get_id(), patch2.get_id()), e_bond))
+                if len(patch_bond_energies) > 0:
+                    patch_bond_energies.sort(key=lambda x: x[1], reverse=True)
+                    for (patch1, patch2), bond_energy in patch_bond_energies:
+                        G.add_edge(p1.get_uid(),
+                                   p2.get_uid(),
+                                   e=bond_energy + (particle_energy / len(patch_bond_energies)),
+                                   patches=(patch1, patch2) if patch1 < patch2 else (patch2, patch1)
+                                   )
+                checked_interactions.add(frozenset([p1.get_uid(), p2.get_uid()]))
+        assert len(G.nodes) == self.num_particles()
         return G
 
     def compute_scene_clusters(self, bond_energy: float=0, min_cluster_size: int = 1) -> Generator[nx.Graph]:

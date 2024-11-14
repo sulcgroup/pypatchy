@@ -305,7 +305,7 @@ class PLParticleSet(BaseParticleSet):
                     # grab patch position, a1, a2
                     position = np.copy(patch.position())
                     a1 = np.copy(patch.a1())
-                    a2 = np.copy(patch.a2())
+                    a2 = np.copy(patch.a2()) if patch.a2() is not None else None
                     # if the particle type doesn't include an a2
                     # or if it include a BS a2 that isn't ortogonal to a1
                     # problem!!!!!

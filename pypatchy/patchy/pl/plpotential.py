@@ -214,10 +214,11 @@ class PLLRPatchyPotential(PLPatchyPotential, InteractionMatrix):
                        patch2: PLPatch) -> float:
 
         epsilon = -self[patch1.color(), patch2.color()]
-        if epsilon > 0: print(
-            "It's not entirely unphyiscal to have repulsive-default itneractions but IMHO this is probably a mistake")
+
         # interaction energy calculates much faster so check it first
         if epsilon != 0.0:
+            if epsilon > 0: print(
+                "It's not entirely unphyiscal to have repulsive-default itneractions but IMHO this is probably a mistake")
             r_patch_sqr = periodic_dist_sqrd(box,
                                              particle1.patch_position(patch1),
                                              particle2.patch_position(patch2))
@@ -323,18 +324,23 @@ class PLFRPatchyPotential(PLPatchyPotential):
             return e
         # this is harder than i initially thought
         # step one:
+        # construct empty array which stores distances between pairs of patches
         patchy_rsqrds = np.zeros(shape=[p1.num_patches(), p2.num_patches()])
 
+        # for each possible patch pairing on the particles
         for (i, p1patch), (j, p2patch) in itertools.product(enumerate(p1.patches()),
                                                             enumerate(p2.patches())):
+            # compute position of patch 1
             patch1_pos: np.ndarray = p1.patch_position(p1patch)
             patch2_pos: np.ndarray = p2.patch_position(p2patch)
-            dist = patch1_pos - patch2_pos
-            patchy_rsqrds[i, j] = dist @ dist.T
+            # compute position of patch 2
+            patchy_rsqrds[i,j] = periodic_dist_sqrd(box, patch1_pos, patch2_pos)
 
         # this next bit is from chatGPT so it may not be well optimized
+        # or correct!
         # Get indices of the patch pairs with minimum distances
         patch_pairs = []
+        # arr to keep track of which patches are "claimed"
         used_p1_patches = np.zeros(p1.num_patches(), dtype=bool)
         used_p2_patches = np.zeros(p2.num_patches(), dtype=bool)
 
@@ -350,7 +356,7 @@ class PLFRPatchyPotential(PLPatchyPotential):
                     break  # Stop if all patches are used
         assert len(patch_pairs) == min(p1.num_patches(), p2.num_patches())
         for i, j, rsqrd in patch_pairs:
-            e += self.energy_2_patch(box, p1, p1.patch(i), p2, p2.patch(j))
+            e += self.energy_2_patch(box, p1, p1.patch(i), p2, p2.patch(j), rsqrd)
         return e
 
     def energy_2_patch(self,
@@ -389,7 +395,7 @@ def periodic_dist_sqrd(box: np.ndarray, p1: np.ndarray, p2: np.ndarray) -> float
     return dist_sqrd
 
 
-def periodic_dist_sqrt_vec(box: np.ndarray, p1: np.ndarray, p2: np.ndarray):
+def periodic_dist_sqrt_vec(box: np.ndarray, p1: np.ndarray, p2: np.ndarray) -> np.ndarray:
     """
     computes the displacement vector between two particles, accounting for periodic boundry
     conditions
@@ -491,7 +497,7 @@ class PLFRTorsionalPatchyPotential(PLFRPatchyPotential):
             # there's DEFINATELY a way to simplify this
             patch1_pos: np.ndarray = particle1.patch_position(patch1)
             patch2_pos: np.ndarray = particle2.patch_position(patch2)
-            dist: np.ndarray = patch1_pos - patch2_pos
+            dist: np.ndarray = periodic_dist_sqrt_vec(box, patch1_pos, patch2_pos)
             rsqr: float = dist @ dist.T
             # https://pubs.acs.org/doi/10.1021/acsnano.2c09677 equation 2
             # compute angle between patches

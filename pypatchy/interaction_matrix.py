@@ -4,6 +4,7 @@ import copy
 import itertools
 from typing import Union
 
+import networkx as nx
 import numpy as np
 
 
@@ -57,12 +58,21 @@ class InteractionMatrix:
     def num_interactions(self) -> int:
         return len(self.__interactions)
 
+    # def is_one_to_one(self) -> bool:
+    #     """
+    #     an interaction matrix is one-to-one if and only if all patch interactions that have a strength
+    #     value are between colors that add to zero
+    #     """
+    #     return all([c1 + c2 == 0 for (c1, c2), strength in self.__interactions.items() if strength])
     def is_one_to_one(self) -> bool:
         """
-        an interaction matrix is one-to-one if and only if all patch interactions that have a strength
-        value are between colors that add to zero
+        correction: an interaction matrix is one-to-one iff every connected component of the interaction
+        graph has two or fewer nodes
         """
-        return all([c1 + c2 == 0 for (c1, c2), strength in self.__interactions.items() if strength])
+        return all([
+            len(cc) <= 2
+            for cc in nx.connected_components(self.graph())
+        ])
 
     def num_colors(self) -> int:
         """
@@ -88,3 +98,16 @@ class InteractionMatrix:
         checks if a color can interact with itself according to this interaction matrix
         """
         return self[(color, color)] != 0.
+
+    def __iter__(self):
+        yield from self.__interactions.items()
+
+    def graph(self) -> nx.Graph:
+        """
+        expresses the interaction matrix as a graph, where each color is a node
+        and interacting colors are connected by edges.
+        """
+        G = nx.Graph()
+        for (c1, c2), strength in self:
+            G.add_edge(c1, c2, strength=strength)
+        return G

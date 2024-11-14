@@ -3,6 +3,7 @@ from __future__ import annotations
 import math
 from typing import Union
 
+import networkx as nx
 import numpy as np
 
 from ...interaction_matrix import InteractionMatrix, make_int_mat_for_colors
@@ -198,13 +199,24 @@ def assign_colors(interaction_matrix: InteractionMatrix, patches: list[PLPatch])
     except ValueError as e:
         if not str(e).startswith("Cannot"):
             raise e
-    # TEMPORARY SOLUTION: give each patch type a unique color
+    # dump approach: litersally no thought
     return interaction_matrix, list(range(len(patches)))
 
-    # next: nuclear option. give each patch a totally unique color
-    colors = [i for i, _ in enumerate(patches)]
-    # now we need to try to minimize the number of colors required to mimic the provided interaction matrix
-    # i think this might be a graph-coloring problem?
+    # TODO: SMART VERSION
+    # first we get a graph repr of the interaction matrix
+    # G: nx.Graph = interaction_matrix.graph()
+    # # each connected component  in the graph is an orthogonal interaction behavior
+    # for cc in nx.connected_components(G):
+    #     # if connected component is one node
+    #     if len(cc.nodes) == 1:
+    #         # should always be one edge, connecting to itself
+    #         if len(cc.edges) == 1:
+    #
+    #         else:
+    #             # presumably no edges, color does nothing, idk what to actually do here
+
+
+
 
     # finally, return the interaction matrix for our new color set, along with a list of colors for each patch
 
