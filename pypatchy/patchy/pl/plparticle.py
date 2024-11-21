@@ -115,6 +115,13 @@ class PLPatchyParticle(PatchyBaseParticleType, PatchyBaseParticle):
             p.rotate(self.rotmatrix())
         return cpy
 
+    def is_normalized(self) -> bool:
+        """
+        checks if the particle is "normalized"
+        a particle is considered to be "normalized" if it has a rotation matrix that is identitiy
+        """
+        return np.allclose(np.identity(3), self.rotmatrix())
+
     def matches(self, other: PLPatchyParticle) -> bool:
         if self.type_id() != other.type_id():
             return False

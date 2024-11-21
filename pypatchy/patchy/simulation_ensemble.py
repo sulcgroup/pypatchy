@@ -488,8 +488,8 @@ class PatchySimulationEnsemble(Analyzable):
 
     # --------------- Accessors and Mutators -------------------------- #
     def get_simulation(self, *args: Union[tuple[str, Any], ParameterValue], **kwargs) -> Union[
-                                                                                                PatchySimulation,
-                                                                                                list[PatchySimulation]]:
+        PatchySimulation,
+        list[PatchySimulation]]:
         """
         This is a very flexable method for returning PatchySimulation objects
         but is also very complex, due to the range of inputs accepted
@@ -775,7 +775,7 @@ class PatchySimulationEnsemble(Analyzable):
             for i, stage_info in enumerate(stages_info):
                 stage_init_args = {}
                 # compute stage runtime
-                assert stage_info.get_start_time() != 0 or i == 0,\
+                assert stage_info.get_start_time() != 0 or i == 0, \
                     "Stages other than start stage must have specified start time"
                 # if this is not the last stage
                 if i + 1 != len(stages_info):
@@ -957,7 +957,7 @@ class PatchySimulationEnsemble(Analyzable):
                 potential = PLFRExclVolPotential(rmax=2.01421 * self.sim_get_param(sim, "PATCHY_radius") * 2,
                                                  rstar=self.sim_get_param(sim, "PATCHY_radius") * 2 ** (1 / 6),
                                                  b=677.505671539  # from flavio's code
-                )
+                                                 )
 
             elif name == "lr_patchy":
                 particle_types: PLParticleSet = self.sim_get_particles_set(sim)
@@ -1153,6 +1153,14 @@ class PatchySimulationEnsemble(Analyzable):
         if isinstance(stage, str):
             stage = self.sim_get_stage(sim, stage)
         self.writer.set_directory(self.folder_path(sim, stage))
+
+        # check particle files
+        # todo: check that this line works for all writers
+        ptypes_dir = self.writer.read_particle_types(**{key: self.sim_stage_get_param(sim, stage, key)
+                                                        for key in self.writer.reqd_args()
+                                                        })
+
+
         top_file, traj_file = self.sim_get_stage_top_traj(sim, stage)
         # top_file, traj_file = self.sim_get_stage_top(sim, stage), self.sim_get_stage_last_conf(sim, stage)
         if traj_file.exists() and os.stat(traj_file).st_size > 0:
@@ -1161,14 +1169,23 @@ class PatchySimulationEnsemble(Analyzable):
             conf_interval = self.sim_stage_get_param(sim, stage, "print_conf_interval")
             assert step % conf_interval == 0
             scene: PLPSimulation = self.writer.read_scene(top_file.name, traj_file.name,
-                                          self.sim_get_particles_set(sim),
-                                          step // conf_interval - 1)
+                                                          self.sim_get_particles_set(sim),
+                                                          step // conf_interval - 1)
         else:
             assert step is None
             conf_file = self.sim_stage_get_param(sim, stage, "conf_file")
             scene: PLPSimulation = self.writer.read_scene(top_file.name,
                                                           conf_file,
                                                           self.sim_get_particles_set(sim))
+
+        if ptypes_dir != self.sim_get_particles_set(sim):
+            self.get_logger().log(level=logging.WARNING, msg="Mismatch between particle types written in directory "
+                                                             " and particle types specified in setup files!"
+                                                             " Or old data, that is also possible."
+                                                             " Using particle types as written...")
+            # the reason to not do this as default is multidentatae source tracking
+            scene.set_particle_types(ptypes_dir)
+
         scene.set_temperature(self.sim_stage_get_param(sim, stage, "T"))
         for potential in self.get_interaction_potentials(sim):
             scene.add_potential(potential)
@@ -1971,7 +1988,7 @@ class PatchySimulationEnsemble(Analyzable):
             will be calculated automatically
         """
         if type(time_steps) == int:
-            time_steps = range(0, 2*time_steps, time_steps) # 0, time_step
+            time_steps = range(0, 2 * time_steps, time_steps)  # 0, time_step
 
         # preprocessing: MAKE SURE THIS IS A STEP OBJECT
         step = self.get_pipeline_step(step)

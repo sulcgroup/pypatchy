@@ -503,14 +503,21 @@ class PLFRTorsionalPatchyPotential(PLFRPatchyPotential):
             # there's DEFINATELY a way to simplify this
             patch1_pos: np.ndarray = particle1.patch_position(patch1)
             patch2_pos: np.ndarray = particle2.patch_position(patch2)
-            dist: np.ndarray = periodic_dist_sqrt_vec(box, patch1_pos, patch2_pos)
+            # distance vector = particle 1 -> particle 2
+            dist: np.ndarray = periodic_dist_sqrt_vec(box,
+                                                      particle1.position(),
+                                                      particle2.position())
             rsqr: float = dist @ dist.T
+            dist_norm = dist / math.sqrt(rsqr)
             # https://pubs.acs.org/doi/10.1021/acsnano.2c09677 equation 2
+
             # compute angle between patches
-            va = self.v_angmod(math.acos(dist @ (patch1.a1() @ particle1.rotmatrix()).T))
+            # angle from particle 1 to patch 1
+            # compute dot product of particle 1 -> particle 2 . particle 1 -> patch 1
+            va = self.v_angmod(math.acos(dist_norm @ (patch1.a1() @ particle1.rotmatrix())))
             if va == 0:
                 return 0.
-            vb = self.v_angmod(math.acos(-dist @ (patch2.a1() @ particle2.rotmatrix()).T))
+            vb = self.v_angmod(math.acos(dist_norm @ (patch2.a1() @ particle2.rotmatrix())))
             if vb == 0:
                 return 0.
             # get angle between a3 vectors

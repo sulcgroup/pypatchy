@@ -104,6 +104,7 @@ class MultidentateConvertSettings:
 
     def __post_init__(self):
         # handle strings
+        assert self.n_teeth > 1 or self.dental_radius > 0
         # TODO: custom exceptions for invalid params
         if isinstance(self.energy_scale_method, str):
             if self.energy_scale_method.lower() == "none":
@@ -264,6 +265,9 @@ class PLParticleSet(BaseParticleSet):
         #                                                      src_mapping=copy.deepcopy(self.get_src().patch_map())))
         else:
             return PLParticleSet(particles=[p.normalize() for p in self.particles()], intmat=self.interaction_matrix())
+
+    def is_normalized(self) -> bool:
+        return all([p.is_normalized() for p in self.particles()])
 
     def to_multidentate(self,
                         mdt_params: MultidentateConvertSettings) -> PLParticleSet:

@@ -162,7 +162,14 @@ class FWriter(PLBaseWriter):
     def get_scene_top(self, s: PLPSimulation) -> FPatchyTopology:
         return FWriter.FPatchyTopology(s.particles())
 
-    def read_particle_types(self, patchy_file: str, particle_file: str) -> PLParticleSet:
+    def read_particle_types(self, patchy_file: str, particle_file: str, topology=None, conf_file=None) -> PLParticleSet:
+        """
+        Parameters:
+            particle_file file which contains particle type info
+            patchy_file file which conains patch type info
+            topology unused arg, reqd for some handling nonsense
+            conf_file unused arg, reqd for some handling nonsense
+        """
         # read patch data from patches.txt or equivalent2
         patches, interactions = self.load_patches(patchy_file)
         particles: list[PLPatchyParticle] = []
@@ -381,7 +388,7 @@ class FWriter(PLBaseWriter):
 
         if num_patches != 0 and Np != num_patches:
             raise IOError('Loaded %d patches, as opposed to the desired %d types ' % (Np, num_patches))
-        return patches
+        return patches, interactions
 
     def read_scene(self, top_file: Path, traj_file: Path, particle_types: PLParticleSet, conf_idx=None) -> PLPSimulation:
         """
