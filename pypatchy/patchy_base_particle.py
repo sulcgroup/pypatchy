@@ -145,7 +145,7 @@ class BasePatchType(ABC):
         assert r.shape == (3,3), "Invalid rotation matrix!"
         assert abs(np.linalg.det(r) - 1) < 1e-6, "Invalid rotation matrix!"
         # apply rotation to all key points
-        self._key_points = [p @ r for p in self._key_points]
+        self._key_points = [p @ r if p is not None else None for p in self._key_points]
 
     @abstractmethod
     def has_torsion(self):

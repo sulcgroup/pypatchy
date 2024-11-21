@@ -402,6 +402,7 @@ class PatchySimulationEnsemble(Analyzable):
 
     # metadata regarding execution and analysis (TBD)
     metadata: dict[Any]
+    metadata_file: str
 
     # list of parameters that will be varied across this ensemble
     # the set of simulations constituting this ensemble is the cartesian
@@ -1956,8 +1957,9 @@ class PatchySimulationEnsemble(Analyzable):
     def get_data(self,
                  step: PipelineStepDescriptor,
                  sim: Union[PatchySimDescriptor, None] = None,
-                 time_steps: range = None) -> Union[PipelineData, list[PipelineData]]:
+                 time_steps: Union[range, None, int] = None) -> Union[PipelineData, list[PipelineData]]:
         """
+        horrific monster of a class method
         Returns data for a step, doing any/all required calculations
         Parameters:
             :param step an analysis step
@@ -1968,6 +1970,8 @@ class PatchySimulationEnsemble(Analyzable):
             :param time_steps a range of timesteps to get data at. if None, the steps
             will be calculated automatically
         """
+        if type(time_steps) == int:
+            time_steps = range(0, 2*time_steps, time_steps) # 0, time_step
 
         # preprocessing: MAKE SURE THIS IS A STEP OBJECT
         step = self.get_pipeline_step(step)
@@ -2013,6 +2017,7 @@ class PatchySimulationEnsemble(Analyzable):
 
         # TIMESTEPS!!!!
         # if timesteps were not specified
+        # todo: replace with a better descriptor
         if time_steps is None:
             # time steps generally do not start from step 0
             time_steps = range(

@@ -13,7 +13,7 @@ from pypatchy.patchy.analysis_lib import GraphsFromClusterTxt, ClassifyClusters,
 
 from pypatchy.patchy.simulation_specification import PatchySimulation
 
-from ..analpipe.analysis_data import TIMEPOINT_KEY
+from ..analpipe.analysis_data import TIMEPOINT_KEY, PipelineData, PDPipelineData
 from .ensemble_parameter import EnsembleParameter, ParameterValue
 from .simulation_ensemble import PatchySimulationEnsemble, PipelineStepDescriptor, shared_ensemble, PatchySimDescriptor
 
@@ -298,11 +298,18 @@ def plot_compare_analysis_outputs(e: PatchySimulationEnsemble,
                                   data_source_key: str,
                                   orientation="col",
                                   **kwargs):
+    """
+    Parameters:
+        e the ensemble to plot data from
+        sources names of analysis pipeline nodes to plot data from
+
+    """
     plt_args = {
         **DEFAULT_SB_ARGS,
         orientation: "data_source"
     }
 
+    # include info in kwargs, some aliases to make my life easier
     if "col" in kwargs:
         assert orientation != "col", "Trying to specify two different variables for columns!"
         plt_args["col"] = kwargs["col"]
@@ -314,14 +321,23 @@ def plot_compare_analysis_outputs(e: PatchySimulationEnsemble,
     if "stroke" in kwargs:
         plt_args["style"] = kwargs["stroke"]
 
+    # read other specs to select simulations
     other_spec = kwargs["other_spec"] if "other_spec" in kwargs else list()
+    # verify other spec
+    e.get_simulation(*other_spec)
+
     norm = kwargs["norm"] if "norm" in kwargs else None
 
     data_big = []
+    # loop data source nodes
     for analysis_data_source in sources:
-        data_source = e.get_data(analysis_data_source, tuple(other_spec))
-        data = data_source.get().copy()
+        # load data
+        data_source: PipelineData = e.get_data(analysis_data_source, tuple(other_spec))
+        # todo: assertions
+        assert isinstance(data_source, PDPipelineData), f"Analysis pipeline node {analysis_data_source} does not produce data in the form of a Pandas dataframe!"
+        data: pd.DataFrame = data_source.get().copy()
 
+        # if we have specified that the data should be normalized
         if norm:
             def normalize_row(row):
                 sim = row.drop([TIMEPOINT_KEY, data_source_key]).to_dict()
@@ -335,11 +351,14 @@ def plot_compare_analysis_outputs(e: PatchySimulationEnsemble,
         data.rename(mapper={TIMEPOINT_KEY: "steps"}, axis="columns", inplace=True)
         data.insert(1, "data_source", e.get_pipeline_step(analysis_data_source).name)
         data_big.append(data)
+    # merge pandas dataframes
     data = pd.concat(data_big, ignore_index=True, axis=0)
+    # use seaborne (ugh why) to plot data
     fig = sb.relplot(data,
                      x="steps",
                      y=data_source_key,
                      **plt_args)
+    # if the data are normalized, set y axis range to be 0 - 1.0
     if norm:
         fig.set(ylim=(0.0, 1.0))
     fig.fig.suptitle(f"{e.export_name} Data", y=1.0)

@@ -164,7 +164,7 @@ class FWriter(PLBaseWriter):
 
     def read_particle_types(self, patchy_file: str, particle_file: str) -> PLParticleSet:
         # read patch data from patches.txt or equivalent2
-        patches = self.load_patches(patchy_file)
+        patches, interactions = self.load_patches(patchy_file)
         particles: list[PLPatchyParticle] = []
 
         # open particles.txt or equivalent
@@ -176,6 +176,7 @@ class FWriter(PLBaseWriter):
                 line = line.strip()
                 # if line is not blank or a comment
                 if len(line) > 1 and line[0] != '#':
+                    # if the line is the beginning of a particle type block
                     if 'particle_' and '{' in line:
                         strargs = []
                         k = j + 1
@@ -324,23 +325,37 @@ class FWriter(PLBaseWriter):
         outs += "\n}\n"
         return outs
 
-    def load_patches(self, filename: str, num_patches=0) -> list[PLPatch]:
+    def load_patches(self, filename: str, num_patches=0) -> tuple[list[PLPatch], InteractionMatrix]:
+        """
+        loads patches from a patches.txt file and designs an interaction matrix
+        """
         j = 0
         Np = 0
         patches = [PLPatch() for _ in range(num_patches)]
         fpath = self.directory() / filename
         assert fpath, f"No file called {filename}"
-
+        # setup counter for oclors
+        # set up mapping for color read from file -> patches
+        # interaction map
+        interactions = InteractionMatrix()
+        # open pathces.txt file
         with fpath.open("r") as f:
             lines = f.readlines()
+            # iter lines
             for line in lines:
                 line = line.strip()
+                # skip comments and empty lines
                 if len(line) > 1 and line[0] != '#':
+                     # if line is beginning of a patch block
                     if 'patch_' and '{' in line:
+                        # make dict to store patch attributes
                         strargs = dict()
                         k = j + 1
+                        # iter rest of pach block
                         while '}' not in lines[k]:
+                            # skip comments
                             if not lines[k].isspace() and not line.startswith("#"):
+                                # unpack key-value pairs
                                 key, val = lines[k].split("=")
                                 key = key.strip()
                                 strargs[key] = val
@@ -348,6 +363,13 @@ class FWriter(PLBaseWriter):
                         patch = PLPatch()
                         # print 'Loaded patch',strargs
                         patch.init_from_string(strargs)
+                        # we gotta do color stuff
+                        # if patch is self-interacting
+                        if 0 < patch.color() < 21:
+                            # all interaction strengths will be 1, strength here is set by patches
+                            interactions[(patch.color(), patch.color())] = 1.
+                        else:
+                            interactions[(patch.color(), -patch.color())] = 1.
                         index = patch.type_id()
                         # flexable patch indexing
                         # probably not optimized speed wise but optimized for flexibility
@@ -423,21 +445,20 @@ class FWriter(PLBaseWriter):
     class FPatchyTopology(PLBaseWriter.PatchyTopology):
 
         nParticleTypes: int  # number of particle types
-        topology_particles: list[int]  # list of particles, where each value is a type ID
         type_counts: dict[int, int]  # particle type ID -> count
 
         def __init__(self, top_particles: list[Union[PLPatchyParticle, int]]):
-            self.topology_particles = []
+            self.particle_ids = []
             for p in top_particles:
                 if isinstance(p, int):
-                    self.topology_particles.append(p)
+                    self.particle_ids.append(p)
                 elif isinstance(p, PLPatchyParticle):
-                    self.topology_particles.append(p.type_id())
+                    self.particle_ids.append(p.type_id())
                 else:
                     raise Exception()
-            self.nParticleTypes = max(self.topology_particles) + 1
+            self.nParticleTypes = max(self.particle_ids) + 1
             self.type_counts = {i: 0 for i in range(self.nParticleTypes)}
-            for p in self.topology_particles:
+            for p in self.particle_ids:
                 self.type_counts[p] += 1
 
         def num_particle_types(self) -> int:
@@ -447,10 +468,10 @@ class FWriter(PLBaseWriter):
             return self.type_counts
 
         def particles(self) -> Iterable[int]:
-            return self.topology_particles
+            return self.particle_ids
 
         def num_particles(self) -> int:
-            return len(self.topology_particles)
+            return len(self.particle_ids)
 
         def particle_type_count(self, p) -> int:
             return self.type_counts[p]

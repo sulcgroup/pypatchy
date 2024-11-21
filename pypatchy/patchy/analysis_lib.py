@@ -7,6 +7,7 @@ from typing import Union
 import networkx as nx
 import numpy as np
 import pandas as pd
+from ipy_oxdna.observable import Observable
 from oxDNA_analysis_tools.UTILS.RyeReader import get_confs, describe, inbox
 from oxDNA_analysis_tools.UTILS.data_structures import Configuration
 
@@ -79,8 +80,8 @@ class LoadParticlesTraj(AnalysisPipelineHead):
         # iter stages
         staged_data = []
         for stage, top_file, first_conf_file_path, traj_file_path in zip(stages, *args):
-            get_writer().set_directory(traj_file_path.parent)
-            top = get_writer().read_top(top_file)
+            ensemble.writer.set_directory(traj_file_path.parent)
+            top = ensemble.writer.read_top(top_file)
             top_info, init_conf_info = describe(str(top_file), str(first_conf_file_path))
             firstconf = get_confs(traj_info=init_conf_info,
                                   top_info=top_info,
@@ -223,27 +224,36 @@ class GraphsFromClusterTxt(AnalysisPipelineHead):
     values are the list of cluster graphs at each of those timepoints
     """
 
-    source_observable: PatchySimObservable
+    source_observable: Observable
 
     def __init__(self,
                  name: str,
-                 source: PatchySimObservable,
+                 source: Observable,
                  output_tstep: Union[int, None] = None):
+        """
+        constructs a graphs from clusters.txt node
+        """
         super().__init__(name, int(source.print_every), output_tstep)
+        assert (*source.get_cols(),)[0].get_type_name() == "PLClusterTopology"
         self.source_observable = source
 
     load_cached_files = load_cached_object_data
 
     def exec(self, _, __, stages: list[Stage], graphs_files: list[Path]) -> ObjectPipelineData:
+        """
+        executes analysis step
+        """
         graphs = {}
+        # iter stages
         for stage, graph_file in zip(stages, graphs_files):
+            # open stage graph file
             with open(graph_file, "r") as f:
+                # find stage start time
                 stepcounter = stage.start_time()
                 # iterate lines in the graph file
                 for line in f:
                     # skip timepoints that aren't multiples of the specified timestep
                     if stepcounter % self.output_tstep == 0:
-
                         clusterGraphs = []
                         # regex for a single cluster
                         clusters = re.finditer(r'\[.+?\]', line)
