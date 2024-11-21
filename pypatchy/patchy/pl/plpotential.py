@@ -324,44 +324,43 @@ class PLFRPatchyPotential(PLPatchyPotential):
             return e
         # this is harder than i initially thought
         # step one:
-        # # construct empty array which stores distances between pairs of patches
-        # patchy_rsqrds = np.zeros(shape=[p1.num_patches(), p2.num_patches()])
-        #
-        # # for each possible patch pairing on the particles
-        # for (i, p1patch), (j, p2patch) in itertools.product(enumerate(p1.patches()),
-        #                                                     enumerate(p2.patches())):
-        #     # compute position of patch 1
-        #     patch1_pos: np.ndarray = p1.patch_position(p1patch)
-        #     patch2_pos: np.ndarray = p2.patch_position(p2patch)
-        #     # compute position of patch 2
-        #     patchy_rsqrds[i,j] = periodic_dist_sqrd(box, patch1_pos, patch2_pos)
-        #
-        # # this next bit is from chatGPT so it may not be well optimized
-        # # or correct!
-        # # Get indices of the patch pairs with minimum distances
-        # patch_pairs = []
-        # # arr to keep track of which patches are "claimed"
-        # used_p1_patches = np.zeros(p1.num_patches(), dtype=bool)
-        # used_p2_patches = np.zeros(p2.num_patches(), dtype=bool)
-        #
-        # sorted_indices = np.argsort(patchy_rsqrds, axis=None)  # Flatten and sort distances
-        # rsqrds = np.ravel(patchy_rsqrds)
-        # for idx in sorted_indices:
-        #     i, j = np.unravel_index(idx, patchy_rsqrds.shape)
-        #     if not used_p1_patches[i] and not used_p2_patches[j]:
-        #         patch_pairs.append((i, j, rsqrds[idx]))
-        #         used_p1_patches[i] = True
-        #         used_p2_patches[j] = True
-        #         if np.all(used_p1_patches) or np.all(used_p2_patches):
-        #             break  # Stop if all patches are used
-        #
-        #
-        # assert len(patch_pairs) == min(p1.num_patches(), p2.num_patches())
-        # for i, j, rsqrd in patch_pairs:
-        #     e += self.energy_2_patch(box, p1, p1.patch(i), p2, p2.patch(j), rsqrd)
-        for p1patch, p2patch in itertools.product(p1.patches(),
-                                                            p2.patches()):
-            e += self.energy_2_patch(box, p1, p1patch, p2, p2patch)
+        # construct empty array which stores distances between pairs of patches
+        patchy_rsqrds = np.zeros(shape=[p1.num_patches(), p2.num_patches()])
+
+        # for each possible patch pairing on the particles
+        for (i, p1patch), (j, p2patch) in itertools.product(enumerate(p1.patches()),
+                                                            enumerate(p2.patches())):
+            # compute position of patch 1
+            patch1_pos: np.ndarray = p1.patch_position(p1patch)
+            patch2_pos: np.ndarray = p2.patch_position(p2patch)
+            # compute position of patch 2
+            patchy_rsqrds[i,j] = periodic_dist_sqrd(box, patch1_pos, patch2_pos)
+
+        # this next bit is from chatGPT so it may not be well optimized
+        # or correct!
+        # Get indices of the patch pairs with minimum distances
+        patch_pairs = []
+        # arr to keep track of which patches are "claimed"
+        used_p1_patches = np.zeros(p1.num_patches(), dtype=bool)
+        used_p2_patches = np.zeros(p2.num_patches(), dtype=bool)
+
+        sorted_indices = np.argsort(patchy_rsqrds, axis=None)  # Flatten and sort distances
+        rsqrds = np.ravel(patchy_rsqrds)
+        for idx in sorted_indices:
+            i, j = np.unravel_index(idx, patchy_rsqrds.shape)
+            if not used_p1_patches[i] and not used_p2_patches[j]:
+                patch_pairs.append((i, j, rsqrds[idx]))
+                used_p1_patches[i] = True
+                used_p2_patches[j] = True
+                if np.all(used_p1_patches) or np.all(used_p2_patches):
+                    break  # Stop if all patches are used
+
+        assert len(patch_pairs) == min(p1.num_patches(), p2.num_patches())
+        for i, j, rsqrd in patch_pairs:
+            e += self.energy_2_patch(box, p1, p1.patch(i), p2, p2.patch(j), rsqrd)
+        # for p1patch, p2patch in itertools.product(p1.patches(),
+        #                                                     p2.patches()):
+        #     e += self.energy_2_patch(box, p1, p1patch, p2, p2patch)
         return e
 
     def energy_2_patch(self,
@@ -514,14 +513,14 @@ class PLFRTorsionalPatchyPotential(PLFRPatchyPotential):
             # compute angle between patches
             # angle from particle 1 to patch 1
             # compute dot product of particle 1 -> particle 2 . particle 1 -> patch 1
-            va = self.v_angmod(math.acos(dist_norm @ (patch1.a1() @ particle1.rotmatrix())))
+            va = self.v_angmod(math.acos(-dist_norm @ (patch1.a1() @ particle1.rotmatrix())))
             if va == 0:
                 return 0.
             vb = self.v_angmod(math.acos(dist_norm @ (patch2.a1() @ particle2.rotmatrix())))
             if vb == 0:
                 return 0.
             # get angle between a3 vectors
-            vt = self.v_angmod(math.acos((patch1.a3() @ particle1.rotmatrix()) @ (patch2.a3() @ particle2.rotmatrix())))
+            vt = self.v_angmod(math.acos((patch1.a2() @ particle1.rotmatrix()) @ (patch2.a2() @ particle2.rotmatrix())))
             return e * vt * va * vb
         else:
             return e

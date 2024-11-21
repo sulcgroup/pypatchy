@@ -195,10 +195,6 @@ class FWriter(PLBaseWriter):
                 j = j + 1
         particles.sort(key=lambda p: p.get_type())
         particle_set = PLParticleSet(particles)
-        if not all([np.abs(p.rotmatrix() - np.identity(3)).sum() < 1e-6 for p in particles]):
-            pass
-            # no idea what is appropriate to do here
-            # particle_set.normalize()
 
         return particle_set
 
@@ -207,11 +203,15 @@ class FWriter(PLBaseWriter):
                             patches: list[PLPatch]) -> PLPatchyParticle:
         type_id = None
         patch_ids = None
+        # loop lines
         for line in lines:
+            # strip extra spaces
             line = line.strip()
+            # skip comments
             if "=" in line and line[0] != '#':
+                # extract key and value from `key = value`
                 key, vals = line.split("=")
-                key = key.strip()
+                key = key.strip() # remove extra spaces
                 if key == "type":
                     vals = int(line.split('=')[1])
                     type_id = vals
@@ -232,9 +232,8 @@ class FWriter(PLBaseWriter):
         ]
 
     def write_top(self, topology: FWriter.PatchyTopology, top_path: str):
-
+        # open topology file
         with self.file(top_path) as top_file:
-            # write top file
             # first line of file
             top_file.write(f"{topology.num_particles()} {topology.num_particle_types()}\n")
             # second line of file
@@ -394,26 +393,40 @@ class FWriter(PLBaseWriter):
         """
         Reads a patchy particle scene from files
         """
-        top_file = self.directory() / top_file
-        traj_file = self.directory() / traj_file
+        # find topology file path
+        top_file: Path = self.directory() / top_file
+        # find conf file path
+        traj_file: Path = self.directory() / traj_file
+        # rye reader: describe top + dat
         top_info, traj_info = rr.describe(str(top_file), str(traj_file))
         # only retrieve last conf
+        # todo: more error checking
         conf = rr.get_confs(top_info, traj_info, traj_info.nconfs - 1, 1)[0]
+        # inbox conf
         conf = rr.inbox(conf, center=False)
 
+        # construct empty scene object
         scene = PLPSimulation()
+        # set time
         scene.set_time(conf.time)
+        # set particle types
         scene.set_particle_types(particle_types)
+        # set box size
         scene.set_box_size(conf.box)
 
-        with top_file.open("r") as f:
+        # open topology file
+        with self.file(top_file, "r") as f:
+            # first line has # particle types, #particles (we already know this, so skip it)
             f.readline()
+            # second line is list of type IDs
             ptypelist = [int(i) for i in f.readline().split()]
-
+            # compute + apportion cells, before we add partcles
             scene.compute_cell_size(n_particles=len(ptypelist))
             scene.apportion_cells()
             for i, ptype_idx in enumerate(ptypelist):
+                # get particle type
                 ptype: PLPatchyParticle = particle_types.particle(ptype_idx)
+                # instantiate particle instance
                 pp = PLPatchyParticle(
                     patches=ptype.patches(),
                     particle_name=f"{ptype.name()}_{i}",
@@ -421,33 +434,12 @@ class FWriter(PLBaseWriter):
                     index_=i,
                     position=conf.positions[i, :],
                 )
+                # set instance orientation from conf data
                 pp.set_orientation(conf.a1s[i, :], conf.a3s[i, :])
+                # todo: momentum et al?
+                # add particle
                 scene.add_particle(pp)
         return scene
-
-    # def read(self) -> Union[None, PLPSimulation]:
-    #     assert (self.directory() / "input").exists(), "Can't read without input file"  # TODO: custom exception
-    #     input_file = Input(str(self.directory()))
-    #     # can't assume local setup has all values in ensemble json
-    #     # handle absolute vs relative file paths
-    #     patchy_file_path = input_file.input["patchy_file"]
-    #     if Path(patchy_file_path).is_absolute():
-    #         patchy_file_path = Path(patchy_file_path).suffix
-    #     assert (self.directory() / patchy_file_path).exists(), "Missing patchy file!"
-    #     particle_file_path = input_file.input["particle_file"]
-    #     if Path(particle_file_path).is_absolute():
-    #         particle_file_path = Path(particle_file_path).suffix
-    #     assert (self.directory() / particle_file_path).exists(), "Missing particle file!"
-    #     ptypes = self.read_particle_types(patchy_file_path,
-    #                                       particle_file_path)
-    #     # top and conf
-    #     top_file = input_file.input["topology"]
-    #     if Path(top_file).is_absolute():
-    #         top_file = Path(top_file).suffix
-    #     conf_file = input_file.input["conf_file"]
-    #     if Path(conf_file).is_absolute():
-    #         conf_file = Path(conf_file).suffix
-    #     if s
 
     class FPatchyTopology(PLBaseWriter.PatchyTopology):
 

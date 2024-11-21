@@ -19,41 +19,41 @@ from ...polycubeutil.polycube_structure import PolycubeStructure
 from ...polycubeutil.polycubesRule import PolycubesRule
 from ...util import to_xyz, halfway_vector, normalize, get_input_dir
 
-
-def to_PL(particle_set: BaseParticleSet,
-          mdt_convert: Union[MultidentateConvertSettings, None] = None,
-          num_teeth: int = 1,
-          dental_radius: float = 0.) -> PLParticleSet:
-    """
-    I will freely admit I have no idea what "PL" means
-    Whatever it means, this function converts an arbitrary particle set into
-    PL particles and patches, applying multidentate where applicable.
-    """
-    # in the unlikely event this is already a PL particle set
-    if isinstance(particle_set, PLParticleSet):
-        if num_teeth == 1 and dental_radius == 0:
-            return particle_set
-        else:
-            particles = particle_set
-    elif isinstance(particle_set, PolycubesRule):
-        particles = polycube_rule_to_PL(particle_set)
-    elif all([isinstance(p, MGLParticle) for p in particle_set]):
-        particles, _ = mgl_particles_to_pl(particle_set)
-    else:
-        raise Exception("Unrecognized particle types!!")
-
-    # do multidentate convert
-    if mdt_convert is None:
-        mdt_convert = MultidentateConvertSettings(n_teeth=num_teeth, dental_radius=dental_radius)
-
-    if mdt_convert.n_teeth > 1:
-        particles = particles.to_multidentate(mdt_convert)
-
-    assert particles.num_particle_types() == particle_set.num_particle_types(), \
-        f"Bad conversion! Number of particle types produced {particles.num_particle_types()} not equal to number of particles" \
-        f" in input particle set {particle_set.num_particle_types()}!"
-
-    return particles
+#
+# def to_PL(particle_set: BaseParticleSet,
+#           mdt_convert: Union[MultidentateConvertSettings, None] = None,
+#           num_teeth: int = 1,
+#           dental_radius: float = 0.) -> PLParticleSet:
+#     """
+#     I will freely admit I have no idea what "PL" means
+#     Whatever it means, this function converts an arbitrary particle set into
+#     PL particles and patches, applying multidentate where applicable.
+#     """
+#     # in the unlikely event this is already a PL particle set
+#     if isinstance(particle_set, PLParticleSet):
+#         if num_teeth == 1 and dental_radius == 0:
+#             return particle_set
+#         else:
+#             particles = particle_set
+#     elif isinstance(particle_set, PolycubesRule):
+#         particles = polycube_rule_to_PL(particle_set)
+#     elif all([isinstance(p, MGLParticle) for p in particle_set]):
+#         particles, _ = mgl_particles_to_pl(particle_set)
+#     else:
+#         raise Exception("Unrecognized particle types!!")
+#
+#     # do multidentate convert
+#     if mdt_convert is None:
+#         mdt_convert = MultidentateConvertSettings(n_teeth=num_teeth, dental_radius=dental_radius)
+#
+#     if mdt_convert.n_teeth > 1:
+#         particles = particles.to_multidentate(mdt_convert)
+#
+#     assert particles.num_particle_types() == particle_set.num_particle_types(), \
+#         f"Bad conversion! Number of particle types produced {particles.num_particle_types()} not equal to number of particles" \
+#         f" in input particle set {particle_set.num_particle_types()}!"
+#
+#     return particles
 
 
 def polycube_rule_to_PL(particle_set: PolycubesRule) -> PLParticleSet:
@@ -91,6 +91,9 @@ def polycube_rule_to_PL(particle_set: PolycubesRule) -> PLParticleSet:
                                     particle_name=particle.name(),
                                     index_=particle.type_id())
         particle.set_patches(particle_patches)
+
+        # apply starting rotation, for some reason
+        particle.normalize()
 
         particles.add_particle(particle)
     # FOR NOW polycubes rules always have opposite-color interactions
@@ -145,7 +148,6 @@ def polycube_to_pl(polycube: PolycubeStructure,
         # else, mdt convert has already been set
         # convert
         pl_types = pl_types.to_multidentate(mdt_convert)
-    pl_types = pl_types.normalize()
     pl.set_particle_types(pl_types)
     mins = np.full(fill_value=np.inf, shape=3)
     maxs = np.full(fill_value=-np.inf, shape=3)

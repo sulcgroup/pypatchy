@@ -298,7 +298,7 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
                 rule: PolycubesRule = PolycubesRule(rule_str=cfg["rule"])
             else:
                 raise Exception("wtf")
-            particles = polycube_rule_to_PL(rule).normalize()
+            particles = polycube_rule_to_PL(rule)
         params.append(ParticleSetParam(particles))
     else:
         print("Warning: No particle info specified!")

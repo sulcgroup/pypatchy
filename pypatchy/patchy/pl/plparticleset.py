@@ -252,22 +252,22 @@ class PLParticleSet(BaseParticleSet):
         else:
             raise TypeError(f"{str(item)} has invalid type {type(item)} for PLParticleSet::__contains__")
 
-    def normalize(self) -> PLParticleSet:
-        # the correct way to do this would be to make NormedParticleMap a SourceMap
-        # and then have some sort of source-map-chaining
-        # but i don't cherish THAT cost-benifit analysis
-        if self.get_src_map() is not None:
-            return PLParticleSet(particles=[p.normalize() for p in self.particles()],
-                                 source_map=self.get_src_map().normalize(), intmat=self.interaction_matrix())
-        # if self.has_udt_src():
-        #     return PLParticleSet([p.normalize() for p in self.particles()],
-        #                          src=PLMultidentateSourceMap(self.get_src().src_set().normalize(),
-        #                                                      src_mapping=copy.deepcopy(self.get_src().patch_map())))
-        else:
-            return PLParticleSet(particles=[p.normalize() for p in self.particles()], intmat=self.interaction_matrix())
+    # def normalize(self) -> PLParticleSet:
+    #     # the correct way to do this would be to make NormedParticleMap a SourceMap
+    #     # and then have some sort of source-map-chaining
+    #     # but i don't cherish THAT cost-benifit analysis
+    #     if self.get_src_map() is not None:
+    #         return PLParticleSet(particles=[p.normalize() for p in self.particles()],
+    #                              source_map=self.get_src_map().normalize(), intmat=self.interaction_matrix())
+    #     else:
+    #         return PLParticleSet(particles=[p.normalize() for p in self.particles()], intmat=self.interaction_matrix())
 
     def is_normalized(self) -> bool:
-        return all([p.is_normalized() for p in self.particles()])
+        """
+        checks to make sure that all particles in the set are "normalized"
+        aka do not have a rotation matrix
+        """
+        return all([p.a1 is None and p.a3 is None for p in self.particles()])
 
     def to_multidentate(self,
                         mdt_params: MultidentateConvertSettings) -> PLParticleSet:

@@ -1,0 +1,591 @@
+{
+    "cube_types": [
+        {
+            "typeName": "CT0",
+            "type_id": 0,
+            "patches": [
+                {
+                    "color": 3,
+                    "alignDir": {
+                        "x": 0,
+                        "y": 0,
+                        "z": 1
+                    },
+                    "direction": 0,
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": 1,
+                    "alignDir": {
+                        "x": 0,
+                        "y": 0,
+                        "z": 1
+                    },
+                    "direction": 1,
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": -5,
+                    "alignDir": {
+                        "x": 0,
+                        "y": 0,
+                        "z": 1
+                    },
+                    "direction": 2,
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": -3,
+                    "alignDir": {
+                        "x": 0,
+                        "y": 0,
+                        "z": 1
+                    },
+                    "direction": 3,
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": 0,
+                    "alignDir": {
+                        "x": -1,
+                        "y": 0,
+                        "z": 0
+                    },
+                    "direction": 4,
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": 0,
+                    "alignDir": {
+                        "x": 1,
+                        "y": 0,
+                        "z": 0
+                    },
+                    "direction": 5,
+                    "state_var": 0,
+                    "activation_var": 0
+                }
+            ],
+            "_state_size": 1,
+            "effects": []
+        },
+        {
+            "typeName": "CT1",
+            "type_id": 1,
+            "patches": [
+                {
+                    "color": 0,
+                    "alignDir": {
+                        "x": 0,
+                        "y": -1,
+                        "z": 0
+                    },
+                    "direction": 0,
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": -1,
+                    "alignDir": {
+                        "x": 0,
+                        "y": 0,
+                        "z": 1
+                    },
+                    "direction": 1,
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": 4,
+                    "alignDir": {
+                        "x": 0,
+                        "y": 0,
+                        "z": 1
+                    },
+                    "direction": 2,
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": 2,
+                    "alignDir": {
+                        "x": 0,
+                        "y": 0,
+                        "z": 1
+                    },
+                    "direction": 3,
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": 0,
+                    "alignDir": {
+                        "x": -1,
+                        "y": 0,
+                        "z": 0
+                    },
+                    "direction": 4,
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": 0,
+                    "alignDir": {
+                        "x": 1,
+                        "y": 0,
+                        "z": 0
+                    },
+                    "direction": 5,
+                    "state_var": 0,
+                    "activation_var": 0
+                }
+            ],
+            "_state_size": 1,
+            "effects": []
+        },
+        {
+            "typeName": "CT2",
+            "type_id": 2,
+            "patches": [
+                {
+                    "color": 6,
+                    "alignDir": {
+                        "x": 0,
+                        "y": 0,
+                        "z": 1
+                    },
+                    "direction": 0,
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": -4,
+                    "alignDir": {
+                        "x": 0,
+                        "y": 0,
+                        "z": 1
+                    },
+                    "direction": 1,
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": 5,
+                    "alignDir": {
+                        "x": 0,
+                        "y": 0,
+                        "z": 1
+                    },
+                    "direction": 2,
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": 0,
+                    "alignDir": {
+                        "x": 0,
+                        "y": 0,
+                        "z": 1
+                    },
+                    "direction": 3,
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": 0,
+                    "alignDir": {
+                        "x": -1,
+                        "y": 0,
+                        "z": 0
+                    },
+                    "direction": 4,
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": 0,
+                    "alignDir": {
+                        "x": 1,
+                        "y": 0,
+                        "z": 0
+                    },
+                    "direction": 5,
+                    "state_var": 0,
+                    "activation_var": 0
+                }
+            ],
+            "_state_size": 1,
+            "effects": []
+        },
+        {
+            "typeName": "CT3",
+            "type_id": 3,
+            "patches": [
+                {
+                    "color": -2,
+                    "alignDir": {
+                        "x": 0,
+                        "y": 0,
+                        "z": 1
+                    },
+                    "direction": 0,
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": 0,
+                    "alignDir": {
+                        "x": 0,
+                        "y": 1,
+                        "z": 0
+                    },
+                    "direction": 1,
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": -6,
+                    "alignDir": {
+                        "x": 0,
+                        "y": 0,
+                        "z": 1
+                    },
+                    "direction": 2,
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": 0,
+                    "alignDir": {
+                        "x": 0,
+                        "y": 0,
+                        "z": 1
+                    },
+                    "direction": 3,
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": 0,
+                    "alignDir": {
+                        "x": -1,
+                        "y": 0,
+                        "z": 0
+                    },
+                    "direction": 4,
+                    "state_var": 0,
+                    "activation_var": 0
+                },
+                {
+                    "color": 0,
+                    "alignDir": {
+                        "x": 1,
+                        "y": 0,
+                        "z": 0
+                    },
+                    "direction": 5,
+                    "state_var": 0,
+                    "activation_var": 0
+                }
+            ],
+            "_state_size": 1,
+            "effects": []
+        }
+    ],
+    "cubes": [
+        {
+            "position": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": -0.5,
+                "y": 0.5,
+                "z": 0.5
+            },
+            "type": 0,
+            "personal_name": "mbst",
+            "state": [
+                true
+            ]
+        },
+        {
+            "position": {
+                "x": 0,
+                "y": 0,
+                "z": -1
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": -0.4999999999999999,
+                "y": -0.5,
+                "z": -0.4999999999999999
+            },
+            "type": 1,
+            "personal_name": "ffwa",
+            "state": [
+                true
+            ]
+        },
+        {
+            "position": {
+                "x": -1,
+                "y": 0,
+                "z": -1
+            },
+            "rotation": {
+                "w": 0.7071067811865476,
+                "x": -0.7071067811865475,
+                "y": 0,
+                "z": 0
+            },
+            "type": 2,
+            "personal_name": "unob",
+            "state": [
+                true
+            ]
+        },
+        {
+            "position": {
+                "x": 0,
+                "y": 0,
+                "z": 1
+            },
+            "rotation": {
+                "w": 0.7071067811865475,
+                "x": -0.7071067811865475,
+                "y": 0,
+                "z": 0
+            },
+            "type": 0,
+            "personal_name": "tpkn",
+            "state": [
+                true
+            ]
+        },
+        {
+            "position": {
+                "x": -1,
+                "y": 0,
+                "z": 0
+            },
+            "rotation": {
+                "w": 4.329780281177466e-17,
+                "x": 4.329780281177466e-17,
+                "y": 0.7071067811865475,
+                "z": 0.7071067811865475
+            },
+            "type": 0,
+            "personal_name": "jzyx",
+            "state": [
+                true
+            ]
+        },
+        {
+            "position": {
+                "x": -1,
+                "y": 0,
+                "z": 1
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": -0.4999999999999999,
+                "y": -0.5,
+                "z": -0.4999999999999999
+            },
+            "type": 0,
+            "personal_name": "wpmw",
+            "state": [
+                true
+            ]
+        },
+        {
+            "position": {
+                "x": 1,
+                "y": 0,
+                "z": -1
+            },
+            "rotation": {
+                "w": 0.7071067811865476,
+                "x": -0.7071067811865475,
+                "y": 0,
+                "z": 0
+            },
+            "type": 3,
+            "personal_name": "msme",
+            "state": [
+                true
+            ]
+        },
+        {
+            "position": {
+                "x": 1,
+                "y": 0,
+                "z": 0
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": -0.4999999999999999,
+                "y": -0.5,
+                "z": -0.4999999999999999
+            },
+            "type": 2,
+            "personal_name": "ziep",
+            "state": [
+                true
+            ]
+        },
+        {
+            "position": {
+                "x": -2,
+                "y": 0,
+                "z": -1
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": -0.4999999999999999,
+                "y": 0.4999999999999999,
+                "z": 0.5
+            },
+            "type": 3,
+            "personal_name": "pbme",
+            "state": [
+                true
+            ]
+        },
+        {
+            "position": {
+                "x": 1,
+                "y": 0,
+                "z": 1
+            },
+            "rotation": {
+                "w": 0,
+                "x": 0,
+                "y": 0.7071067811865476,
+                "z": 0.7071067811865475
+            },
+            "type": 1,
+            "personal_name": "hmut",
+            "state": [
+                true
+            ]
+        },
+        {
+            "position": {
+                "x": 1,
+                "y": 0,
+                "z": 2
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": -0.4999999999999999,
+                "y": -0.5,
+                "z": -0.4999999999999999
+            },
+            "type": 3,
+            "personal_name": "zrqo",
+            "state": [
+                true
+            ]
+        },
+        {
+            "position": {
+                "x": -2,
+                "y": 0,
+                "z": 0
+            },
+            "rotation": {
+                "w": 0.7071067811865475,
+                "x": -0.7071067811865475,
+                "y": 0,
+                "z": 0
+            },
+            "type": 1,
+            "personal_name": "sizq",
+            "state": [
+                true
+            ]
+        },
+        {
+            "position": {
+                "x": 0,
+                "y": 0,
+                "z": 2
+            },
+            "rotation": {
+                "w": 0,
+                "x": 0,
+                "y": -0.7071067811865476,
+                "z": -0.7071067811865475
+            },
+            "type": 2,
+            "personal_name": "ujui",
+            "state": [
+                true
+            ]
+        },
+        {
+            "position": {
+                "x": -2,
+                "y": 0,
+                "z": 1
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": -0.4999999999999999,
+                "y": 0.4999999999999999,
+                "z": 0.5
+            },
+            "type": 2,
+            "personal_name": "dkls",
+            "state": [
+                true
+            ]
+        },
+        {
+            "position": {
+                "x": -1,
+                "y": 0,
+                "z": 2
+            },
+            "rotation": {
+                "w": 0.5,
+                "x": -0.4999999999999999,
+                "y": 0.5,
+                "z": 0.4999999999999999
+            },
+            "type": 1,
+            "personal_name": "xqbc",
+            "state": [
+                true
+            ]
+        },
+        {
+            "position": {
+                "x": -2,
+                "y": 0,
+                "z": 2
+            },
+            "rotation": {
+                "w": 4.329780281177466e-17,
+                "x": 4.329780281177466e-17,
+                "y": 0.7071067811865475,
+                "z": 0.7071067811865475
+            },
+            "type": 3,
+            "personal_name": "ybsc",
+            "state": [
+                true
+            ]
+        }
+    ],
+    "tstep": 16
+}
