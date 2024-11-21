@@ -24,8 +24,8 @@ class PLPatchyParticle(PatchyBaseParticleType, PatchyBaseParticle):
     # best use of my time
     cm_pos: np.ndarray
     _radius: float
-    v: np.ndarray
-    L: np.ndarray
+    v: Union[None, np.ndarray]
+    L: Union[None, np.ndarray]
     a1: Union[None, np.ndarray]
     a3: Union[None, np.ndarray]
     _name: str
@@ -42,11 +42,23 @@ class PLPatchyParticle(PatchyBaseParticleType, PatchyBaseParticle):
         PatchyBaseParticle.__init__(self, index_, type_id, position)
 
         self._radius = radius
-        self.v = np.array([0., 0., 0.])
-        self.L = np.array([0., 0., 0.])
-        self.a1 = PATCHY_NULL_A1
-        self.a3 = PATCHY_NULL_A3
+        # if the particle is an instance, not a type
+        if self.get_uid():
+            # ok, the "time to ruin my life about this" thing is that the "default" rotation is
+            # [0  0  1]
+            # [0 -1  0]
+            # [1  0  0]
+            # which, you will note, is not an identity matrix
+            self.a1 = PATCHY_NULL_A1
+            self.a3 = PATCHY_NULL_A3
 
+            self.v = np.array([0., 0., 0.])
+            self.L = np.array([0., 0., 0.])
+        else:
+            self.a1 = None
+            self.a3 = None
+            self.v = None
+            self.L = None
         self._name = particle_name
 
     def name(self) -> str:
@@ -104,16 +116,29 @@ class PLPatchyParticle(PatchyBaseParticleType, PatchyBaseParticle):
         self.a3 = rot_matrix @ self.a3
 
     def normalize(self) -> PLPatchyParticle:
+        """
+        "normalize" a particle (type) by applying rotation to all patches and then setting rotation
+        attributes to Null
+        """
         cpy = copy.deepcopy(self)
+        # if particle is already normalized, just return the copy
+        if cpy.is_normd():
+            return cpy
         # rotate particle by the transpose of the rotation matrix so that
         # the particle's rotation matrix = I
         cpy.rotate(self.rotmatrix().T)
-        assert np.abs(cpy.rotmatrix() - np.identity(3)).sum() < 1e-6
+        assert np.allclose(cpy.rotmatrix(), np.identity(3)), "Failed to apply rotation matrix"
         # rotate patches on cpy by original particle rotation to keep them in
         # same relative position
         for p in cpy.patches():
             p.rotate(self.rotmatrix())
+        cpy.a1 = None
+        cpy.a3 = None
         return cpy
+
+    def is_normd(self):
+        # there should never be a situation where self.a1 is None but self.a3 isnt
+        return self.a1 is None
 
     def matches(self, other: PLPatchyParticle) -> bool:
         if self.type_id() != other.type_id():
@@ -135,31 +160,32 @@ class PLPatchyParticle(PatchyBaseParticleType, PatchyBaseParticle):
         self.a3 = x - np.dot(self.a1, x) * self.a1
         self.a3 = self.a3 / np.sqrt(np.dot(self.a3, self.a3))
         if abs(np.dot(self.a1, self.a3)) > 1e-10:
+            # WHY IS IT AN IO ERROR
             raise IOError("Could not generate random orientation?")
 
-    def distance_from(self, particle: PLPatchyParticle, box_size: np.ndarray) -> float:
-        d = self.cm_pos - particle.cm_pos
-        d[0] -= np.rint(d[0] / float(box_size[0])) * box_size[0]
-        d[1] -= np.rint(d[1] / float(box_size[1])) * box_size[1]
-        d[2] -= np.rint(d[2] / float(box_size[2])) * box_size[2]
-        return np.sqrt(np.dot(d, d))
+    # def distance_from(self, particle: PLPatchyParticle, box_size: np.ndarray) -> float:
+    #     d = self.cm_pos - particle.cm_pos
+    #     d[0] -= np.rint(d[0] / float(box_size[0])) * box_size[0]
+    #     d[1] -= np.rint(d[1] / float(box_size[1])) * box_size[1]
+    #     d[2] -= np.rint(d[2] / float(box_size[2])) * box_size[2]
+    #     return np.sqrt(np.dot(d, d))
 
     def add_patch(self, patch: PLPatch):
         if self._patches is None:
             self._patches = []
         self._patches.append(patch)
 
-    def fill_patches(self, patch_array: list[PLPatch]):
-        """
-        Loads patch info from a provided list of patches, based on
-        the patch IDs contained in self._patch_ids
-
-        """
-        if self._patch_ids is not None:
-            self._patches = []
-            # loop preloadad patch IDs
-            for i, patch_id in enumerate(self._patch_ids):
-                self._patches.append(copy.deepcopy(patch_array[patch_id]))
+    # def fill_patches(self, patch_array: list[PLPatch]):
+    #     """
+    #     Loads patch info from a provided list of patches, based on
+    #     the patch IDs contained in self._patch_ids
+    #
+    #     """
+    #     if self._patch_ids is not None:
+    #         self._patches = []
+    #         # loop preloadad patch IDs
+    #         for i, patch_id in enumerate(self._patch_ids):
+    #             self._patches.append(copy.deepcopy(patch_array[patch_id]))
 
     def fill_configuration(self, ls: np.ndarray):
         self.cm_pos = np.array([float(x) for x in ls[0:3]])
@@ -168,19 +194,19 @@ class PLPatchyParticle(PatchyBaseParticleType, PatchyBaseParticle):
         self.v = np.array([float(x) for x in ls[9:12]])
         self.L = np.array([float(x) for x in ls[12:15]])
 
-    def save_conf_to_string(self) -> str:
-        conf_string = '%f %f %f %f %f %f %f %f %f %f %f %f %f %f %f' % (
-            self.cm_pos[0], self.cm_pos[1], self.cm_pos[2], self.a1[0], self.a1[1], self.a1[2], self.a3[0], self.a3[1],
-            self.a3[2], self.v[0], self.v[1], self.v[2], self.L[0], self.L[1], self.L[2])
-        return conf_string + '\n'
+    # def save_conf_to_string(self) -> str:
+    #     conf_string = '%f %f %f %f %f %f %f %f %f %f %f %f %f %f %f' % (
+    #         self.cm_pos[0], self.cm_pos[1], self.cm_pos[2], self.a1[0], self.a1[1], self.a1[2], self.a3[0], self.a3[1],
+    #         self.a3[2], self.v[0], self.v[1], self.v[2], self.L[0], self.L[1], self.L[2])
+    #     return conf_string + '\n'
 
     # def init_from_dps_file(self, ptype: int, patchids: list[int]):
     #     self._uid = ptype
     #     self._patch_ids = patchids
 
-    def print_icosahedron(self, particle_color: str):
-        return f"{np.array2string(self.cm_pos)[1:-1]} @ 0.5 C[{particle_color}] " \
-               f"I {np.array2string(self.a1)[1:-1]} {np.array2string(self.a2)[1:-1]}"
+    # def print_icosahedron(self, particle_color: str):
+    #     return f"{np.array2string(self.cm_pos)[1:-1]} @ 0.5 C[{particle_color}] " \
+    #            f"I {np.array2string(self.a1)[1:-1]} {np.array2string(self.a2)[1:-1]}"
 
     def get_a2(self) -> np.ndarray:
         return np.cross(self.a3, self.a1)
@@ -205,27 +231,27 @@ class PLPatchyParticle(PatchyBaseParticleType, PatchyBaseParticle):
             sout += f"{np.array2string(self.patch_position(p))[1:-1]} @ {patch_width} C[{patch_color}]\n"
         return sout
 
-    def export_to_lorenzian_mgl(self,
-                                patch_colors,
-                                particle_color,
-                                patch_width: float = 0.1,
-                                patch_extension: float = 0.2) -> str:
-        # sout = '%f %f %f @ %f C[%s] ' % (self.cm_pos[0],self.cm_pos[1],self.cm_pos[2],self._radius,particle_color)
-
-        sout = '%f %f %f @ %f C[%s] ' % (self.cm_pos[0], self.cm_pos[1], self.cm_pos[2], 0.4, particle_color)
-        if len(self._patches) > 0:
-            sout = sout + 'M '
-        for i, p in enumerate(self._patches):
-            orientation = np.array([self.a1, self.a2, self.a3])
-            # orientation = np.transpose(orientation)
-            pos = np.dot(orientation,
-                         p.position())  # np.array( np.dot(p._position , self.a1) , np.dot(p._position[1] , self.a2), np.dot( p._position[2] * self.a3
-            pos *= (1.0 + patch_extension)
-            # print 'Critical: ',p._type,patch_colors
-            g = f"{np.array2string(pos)[1:-1]} {patch_width} C[{patch_colors[i]}]"
-            # g = '%f %f %f %f C[%s] ' % (pos[0], pos[1], pos[2], patch_width, patch_colors[i])
-            sout = sout + g
-        return sout
+    # def export_to_lorenzian_mgl(self,
+    #                             patch_colors,
+    #                             particle_color,
+    #                             patch_width: float = 0.1,
+    #                             patch_extension: float = 0.2) -> str:
+    #     # sout = '%f %f %f @ %f C[%s] ' % (self.cm_pos[0],self.cm_pos[1],self.cm_pos[2],self._radius,particle_color)
+    #
+    #     sout = '%f %f %f @ %f C[%s] ' % (self.cm_pos[0], self.cm_pos[1], self.cm_pos[2], 0.4, particle_color)
+    #     if len(self._patches) > 0:
+    #         sout = sout + 'M '
+    #     for i, p in enumerate(self._patches):
+    #         orientation = np.array([self.a1, self.a2, self.a3])
+    #         # orientation = np.transpose(orientation)
+    #         pos = np.dot(orientation,
+    #                      p.position())  # np.array( np.dot(p._position , self.a1) , np.dot(p._position[1] , self.a2), np.dot( p._position[2] * self.a3
+    #         pos *= (1.0 + patch_extension)
+    #         # print 'Critical: ',p._type,patch_colors
+    #         g = f"{np.array2string(pos)[1:-1]} {patch_width} C[{patch_colors[i]}]"
+    #         # g = '%f %f %f %f C[%s] ' % (pos[0], pos[1], pos[2], patch_width, patch_colors[i])
+    #         sout = sout + g
+    #     return sout
 
     def patch_ids(self) -> Generator[int, None, None]:
         for patch in self.patches():

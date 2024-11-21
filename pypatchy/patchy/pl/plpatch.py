@@ -200,7 +200,8 @@ def assign_colors(interaction_matrix: InteractionMatrix, patches: list[PLPatch])
         if not str(e).startswith("Cannot"):
             raise e
     # dump approach: litersally no thought
-    return interaction_matrix, list(range(len(patches)))
+    return InteractionMatrix([((c1+1,c2+1),strength) for (c1,c2), strength in interaction_matrix]), [i+1 for i,_ in enumerate(patches)]
+    # return interaction_matrix, list(range(len(patches)))
 
     # TODO: SMART VERSION
     # first we get a graph repr of the interaction matrix

@@ -162,9 +162,16 @@ class FWriter(PLBaseWriter):
     def get_scene_top(self, s: PLPSimulation) -> FPatchyTopology:
         return FWriter.FPatchyTopology(s.particles())
 
-    def read_particle_types(self, patchy_file: str, particle_file: str) -> PLParticleSet:
+    def read_particle_types(self, patchy_file: str, particle_file: str, topology=None, conf_file=None) -> PLParticleSet:
+        """
+        Parameters:
+            particle_file file which contains particle type info
+            patchy_file file which conains patch type info
+            topology unused arg, reqd for some handling nonsense
+            conf_file unused arg, reqd for some handling nonsense
+        """
         # read patch data from patches.txt or equivalent2
-        patches = self.load_patches(patchy_file)
+        patches, interactions = self.load_patches(patchy_file)
         particles: list[PLPatchyParticle] = []
 
         # open particles.txt or equivalent
@@ -176,6 +183,7 @@ class FWriter(PLBaseWriter):
                 line = line.strip()
                 # if line is not blank or a comment
                 if len(line) > 1 and line[0] != '#':
+                    # if the line is the beginning of a particle type block
                     if 'particle_' and '{' in line:
                         strargs = []
                         k = j + 1
@@ -187,10 +195,6 @@ class FWriter(PLBaseWriter):
                 j = j + 1
         particles.sort(key=lambda p: p.get_type())
         particle_set = PLParticleSet(particles)
-        if not all([np.abs(p.rotmatrix() - np.identity(3)).sum() < 1e-6 for p in particles]):
-            pass
-            # no idea what is appropriate to do here
-            # particle_set.normalize()
 
         return particle_set
 
@@ -199,11 +203,15 @@ class FWriter(PLBaseWriter):
                             patches: list[PLPatch]) -> PLPatchyParticle:
         type_id = None
         patch_ids = None
+        # loop lines
         for line in lines:
+            # strip extra spaces
             line = line.strip()
+            # skip comments
             if "=" in line and line[0] != '#':
+                # extract key and value from `key = value`
                 key, vals = line.split("=")
-                key = key.strip()
+                key = key.strip() # remove extra spaces
                 if key == "type":
                     vals = int(line.split('=')[1])
                     type_id = vals
@@ -224,9 +232,8 @@ class FWriter(PLBaseWriter):
         ]
 
     def write_top(self, topology: FWriter.PatchyTopology, top_path: str):
-
+        # open topology file
         with self.file(top_path) as top_file:
-            # write top file
             # first line of file
             top_file.write(f"{topology.num_particles()} {topology.num_particle_types()}\n")
             # second line of file
@@ -324,23 +331,37 @@ class FWriter(PLBaseWriter):
         outs += "\n}\n"
         return outs
 
-    def load_patches(self, filename: str, num_patches=0) -> list[PLPatch]:
+    def load_patches(self, filename: str, num_patches=0) -> tuple[list[PLPatch], InteractionMatrix]:
+        """
+        loads patches from a patches.txt file and designs an interaction matrix
+        """
         j = 0
         Np = 0
         patches = [PLPatch() for _ in range(num_patches)]
         fpath = self.directory() / filename
         assert fpath, f"No file called {filename}"
-
+        # setup counter for oclors
+        # set up mapping for color read from file -> patches
+        # interaction map
+        interactions = InteractionMatrix()
+        # open pathces.txt file
         with fpath.open("r") as f:
             lines = f.readlines()
+            # iter lines
             for line in lines:
                 line = line.strip()
+                # skip comments and empty lines
                 if len(line) > 1 and line[0] != '#':
+                     # if line is beginning of a patch block
                     if 'patch_' and '{' in line:
+                        # make dict to store patch attributes
                         strargs = dict()
                         k = j + 1
+                        # iter rest of pach block
                         while '}' not in lines[k]:
+                            # skip comments
                             if not lines[k].isspace() and not line.startswith("#"):
+                                # unpack key-value pairs
                                 key, val = lines[k].split("=")
                                 key = key.strip()
                                 strargs[key] = val
@@ -348,6 +369,13 @@ class FWriter(PLBaseWriter):
                         patch = PLPatch()
                         # print 'Loaded patch',strargs
                         patch.init_from_string(strargs)
+                        # we gotta do color stuff
+                        # if patch is self-interacting
+                        if 0 < patch.color() < 21:
+                            # all interaction strengths will be 1, strength here is set by patches
+                            interactions[(patch.color(), patch.color())] = 1.
+                        else:
+                            interactions[(patch.color(), -patch.color())] = 1.
                         index = patch.type_id()
                         # flexable patch indexing
                         # probably not optimized speed wise but optimized for flexibility
@@ -359,32 +387,46 @@ class FWriter(PLBaseWriter):
 
         if num_patches != 0 and Np != num_patches:
             raise IOError('Loaded %d patches, as opposed to the desired %d types ' % (Np, num_patches))
-        return patches
+        return patches, interactions
 
     def read_scene(self, top_file: Path, traj_file: Path, particle_types: PLParticleSet, conf_idx=None) -> PLPSimulation:
         """
         Reads a patchy particle scene from files
         """
-        top_file = self.directory() / top_file
-        traj_file = self.directory() / traj_file
+        # find topology file path
+        top_file: Path = self.directory() / top_file
+        # find conf file path
+        traj_file: Path = self.directory() / traj_file
+        # rye reader: describe top + dat
         top_info, traj_info = rr.describe(str(top_file), str(traj_file))
         # only retrieve last conf
+        # todo: more error checking
         conf = rr.get_confs(top_info, traj_info, traj_info.nconfs - 1, 1)[0]
+        # inbox conf
         conf = rr.inbox(conf, center=False)
 
+        # construct empty scene object
         scene = PLPSimulation()
+        # set time
         scene.set_time(conf.time)
+        # set particle types
         scene.set_particle_types(particle_types)
+        # set box size
         scene.set_box_size(conf.box)
 
-        with top_file.open("r") as f:
+        # open topology file
+        with self.file(top_file, "r") as f:
+            # first line has # particle types, #particles (we already know this, so skip it)
             f.readline()
+            # second line is list of type IDs
             ptypelist = [int(i) for i in f.readline().split()]
-
+            # compute + apportion cells, before we add partcles
             scene.compute_cell_size(n_particles=len(ptypelist))
             scene.apportion_cells()
             for i, ptype_idx in enumerate(ptypelist):
+                # get particle type
                 ptype: PLPatchyParticle = particle_types.particle(ptype_idx)
+                # instantiate particle instance
                 pp = PLPatchyParticle(
                     patches=ptype.patches(),
                     particle_name=f"{ptype.name()}_{i}",
@@ -392,52 +434,30 @@ class FWriter(PLBaseWriter):
                     index_=i,
                     position=conf.positions[i, :],
                 )
+                # set instance orientation from conf data
                 pp.set_orientation(conf.a1s[i, :], conf.a3s[i, :])
+                # todo: momentum et al?
+                # add particle
                 scene.add_particle(pp)
         return scene
-
-    # def read(self) -> Union[None, PLPSimulation]:
-    #     assert (self.directory() / "input").exists(), "Can't read without input file"  # TODO: custom exception
-    #     input_file = Input(str(self.directory()))
-    #     # can't assume local setup has all values in ensemble json
-    #     # handle absolute vs relative file paths
-    #     patchy_file_path = input_file.input["patchy_file"]
-    #     if Path(patchy_file_path).is_absolute():
-    #         patchy_file_path = Path(patchy_file_path).suffix
-    #     assert (self.directory() / patchy_file_path).exists(), "Missing patchy file!"
-    #     particle_file_path = input_file.input["particle_file"]
-    #     if Path(particle_file_path).is_absolute():
-    #         particle_file_path = Path(particle_file_path).suffix
-    #     assert (self.directory() / particle_file_path).exists(), "Missing particle file!"
-    #     ptypes = self.read_particle_types(patchy_file_path,
-    #                                       particle_file_path)
-    #     # top and conf
-    #     top_file = input_file.input["topology"]
-    #     if Path(top_file).is_absolute():
-    #         top_file = Path(top_file).suffix
-    #     conf_file = input_file.input["conf_file"]
-    #     if Path(conf_file).is_absolute():
-    #         conf_file = Path(conf_file).suffix
-    #     if s
 
     class FPatchyTopology(PLBaseWriter.PatchyTopology):
 
         nParticleTypes: int  # number of particle types
-        topology_particles: list[int]  # list of particles, where each value is a type ID
         type_counts: dict[int, int]  # particle type ID -> count
 
         def __init__(self, top_particles: list[Union[PLPatchyParticle, int]]):
-            self.topology_particles = []
+            self.particle_ids = []
             for p in top_particles:
                 if isinstance(p, int):
-                    self.topology_particles.append(p)
+                    self.particle_ids.append(p)
                 elif isinstance(p, PLPatchyParticle):
-                    self.topology_particles.append(p.type_id())
+                    self.particle_ids.append(p.type_id())
                 else:
                     raise Exception()
-            self.nParticleTypes = max(self.topology_particles) + 1
+            self.nParticleTypes = max(self.particle_ids) + 1
             self.type_counts = {i: 0 for i in range(self.nParticleTypes)}
-            for p in self.topology_particles:
+            for p in self.particle_ids:
                 self.type_counts[p] += 1
 
         def num_particle_types(self) -> int:
@@ -447,10 +467,10 @@ class FWriter(PLBaseWriter):
             return self.type_counts
 
         def particles(self) -> Iterable[int]:
-            return self.topology_particles
+            return self.particle_ids
 
         def num_particles(self) -> int:
-            return len(self.topology_particles)
+            return len(self.particle_ids)
 
         def particle_type_count(self, p) -> int:
             return self.type_counts[p]

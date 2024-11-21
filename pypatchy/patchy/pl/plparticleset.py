@@ -104,6 +104,7 @@ class MultidentateConvertSettings:
 
     def __post_init__(self):
         # handle strings
+        assert self.n_teeth > 1 or self.dental_radius > 0
         # TODO: custom exceptions for invalid params
         if isinstance(self.energy_scale_method, str):
             if self.energy_scale_method.lower() == "none":
@@ -251,19 +252,22 @@ class PLParticleSet(BaseParticleSet):
         else:
             raise TypeError(f"{str(item)} has invalid type {type(item)} for PLParticleSet::__contains__")
 
-    def normalize(self) -> PLParticleSet:
-        # the correct way to do this would be to make NormedParticleMap a SourceMap
-        # and then have some sort of source-map-chaining
-        # but i don't cherish THAT cost-benifit analysis
-        if self.get_src_map() is not None:
-            return PLParticleSet(particles=[p.normalize() for p in self.particles()],
-                                 source_map=self.get_src_map().normalize(), intmat=self.interaction_matrix())
-        # if self.has_udt_src():
-        #     return PLParticleSet([p.normalize() for p in self.particles()],
-        #                          src=PLMultidentateSourceMap(self.get_src().src_set().normalize(),
-        #                                                      src_mapping=copy.deepcopy(self.get_src().patch_map())))
-        else:
-            return PLParticleSet(particles=[p.normalize() for p in self.particles()], intmat=self.interaction_matrix())
+    # def normalize(self) -> PLParticleSet:
+    #     # the correct way to do this would be to make NormedParticleMap a SourceMap
+    #     # and then have some sort of source-map-chaining
+    #     # but i don't cherish THAT cost-benifit analysis
+    #     if self.get_src_map() is not None:
+    #         return PLParticleSet(particles=[p.normalize() for p in self.particles()],
+    #                              source_map=self.get_src_map().normalize(), intmat=self.interaction_matrix())
+    #     else:
+    #         return PLParticleSet(particles=[p.normalize() for p in self.particles()], intmat=self.interaction_matrix())
+
+    def is_normalized(self) -> bool:
+        """
+        checks to make sure that all particles in the set are "normalized"
+        aka do not have a rotation matrix
+        """
+        return all([p.a1 is None and p.a3 is None for p in self.particles()])
 
     def to_multidentate(self,
                         mdt_params: MultidentateConvertSettings) -> PLParticleSet:
@@ -281,8 +285,8 @@ class PLParticleSet(BaseParticleSet):
         assert self.interaction_matrix().is_one_to_one(), "Multidentate conversion not supported for" \
                                                           " non-one-to-one patch sets, " \
                                                           "although i figure it can't be that hard" # counterpoint: yes it can
-        # TODO: REPLACE WITH REAL CODE
-        # STOPGAP: WE ONLY HAVE 20 SELF INTERACTING COLORS
+
+        # oh god.
 
         # iter particles
         for i_particle, particle in enumerate(self):
@@ -290,15 +294,13 @@ class PLParticleSet(BaseParticleSet):
             # iter patches in particle
             for patch in particle.get_patches():
                 teeth = [None for _ in range(mdt_params.n_teeth)]
-                is_color_neg = patch.color() < 0
-                # "normalize" color by making the lowest color 0
-                if abs(patch.color()) < 21:
-                    assert not patch.has_torsion()
-                    assert not mdt_params.torsion, "Torsion cannot be on for same color binding " \
-                                                   "b/c IDK how that works and IDC enough to figure it out"
+                # if abs(patch.color()) < 21:
+                #     assert not patch.has_torsion()
+                #     assert not mdt_params.torsion, "Torsion cannot be on for same color binding " \
+                #                                    "b/c IDK how that works and IDC enough to figure it out"
                                                     # not enough numbers
                 # note that the converse is not true; we can have torsion w/o same color binding
-                colornorm = abs(patch.color()) - 21
+                colornorm = abs(patch.color())
                 id_map[patch.type_id()] = set()
                 for tooth in range(mdt_params.n_teeth):
 
@@ -344,9 +346,9 @@ class PLParticleSet(BaseParticleSet):
                     # torsion    + no self interact,    CHECK
                     # no torsion + self interact,       CHECK
                     # no torsion + no self interact
-                    # for now i'm implicitly assuming that this is common to an entire particle set, which is not a safe assumption
-                    # TODO: address
 
+                    # we can assume FOR NOW that all particle sets are either torsional or nontorsional
+                    # but we CANNOT make that asusmption about self-complimentarity
                     if mdt_params.torsion:
                         if self.interaction_matrix().self_interacts(patch.color()):
                             # CASE torsion  + self-interact
@@ -355,25 +357,38 @@ class PLParticleSet(BaseParticleSet):
                         else:
                             # CASE torsion + no self interact
                             # this is sorta my default
-                            c = colornorm * mdt_params.n_teeth + tooth + 21
+                            c = colornorm * mdt_params.n_teeth + tooth
+                            # unfortunately we can't count on "negative" colors in opposite-type pairing
+                            # HOWEVER in any non self compilmentary interaction matrix one color will always have a lower value, we
+                            # can arbitraryily declare this the "negative" one
+                            interacting_colors = [patch.color(), *self.interaction_matrix().get_interacting_colors(patch.color())]
+                            assert len(interacting_colors)==2
+                            interacting_colors.sort()
+                            # if lowest color num in interaction set is this one, it is "negative"
+                            # regardless of whether it is actually like NEGATIVE negative
+                            is_color_neg = interacting_colors[0] == patch.color()
+
                             if is_color_neg:
                                 # opposite-color patches have to be rotated opposite directions
                                 # b/c mirroring
                                 theta *= -1
                                 # set color sign
                                 c *= -1
-                            new_interaction_map[(c, -c)] = self.interaction_matrix()[(patch.color(), -patch.color())] / mdt_params.n_teeth
+                            assert self.interaction_matrix()[tuple(interacting_colors)]
+                            new_interaction_map[(c, -c)] = self.interaction_matrix()[tuple(interacting_colors)] / mdt_params.n_teeth
                     else:
                         c = patch.color()
                         if self.interaction_matrix().self_interacts(patch.color()):
                             # CASE: no torsion, yes self-interact
                             # non-torsional patches are VERY EASY because you just use the same color again
                             # theta doesn't need to be adjusted for parity because it's the sames
-                            new_interaction_map[(c, c)] = self.interaction_matrix()[(patch.color(), patch.color())] / mdt_params.n_teeth
+                            new_interaction_map[(c, c)] = self.interaction_matrix()[patch.color(),patch.color()] / mdt_params.n_teeth
                         else:
+                            assert c != 0
                             # CASE: no torsion, no self interact
                             # simple enouyg
-                            new_interaction_map[(c, -c)] = self.interaction_matrix()[(patch.color(), -patch.color())] / mdt_params.n_teeth
+                            interacting_colors = (patch.color(), *self.interaction_matrix().get_interacting_colors(patch.color()))
+                            new_interaction_map[interacting_colors] = self.interaction_matrix()[interacting_colors] / mdt_params.n_teeth
 
                     r = R.identity()
                     if mdt_params.dental_radius > 0:

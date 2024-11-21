@@ -1,3 +1,31 @@
+from pathlib import Path
+
+import pytest
+from ipy_oxdna.dna_structure import load_dna_structure
+
+from pypatchy.patchy.dna_particle import DNAParticle
+
+
+@pytest.fixture
+def cube() -> DNAParticle:
+    # assign strand IDs for patches
+    # these strands will be 3' extended to produce single-stranded overhands which join the monomers
+    patch_positions = [
+        [128, 131, 130, 136],  # front
+        [151, 155, 152, 160],  # bot
+        [168, 163, 144, 156],  # left
+        [146, 147, 149, 150],  # top
+        [138, 140, 139, 141],  # right
+        [142, 167, 143, 153]  # back
+    ]
+    # load a DNA structure to use as our monomer.
+    # here we will load the files at ~/pypatchy/input/scenes/cube_monomer.top and ~/pypatchy/input/scenes/cube_monomer.
+    # unlike the aforementioned load_polycube function this will NOT automatically prepent ~/.pypatchy/input
+    dna = load_dna_structure(Path(__file__).parent / "dna_confs" / "structure_cube"/"cube_monomer.top",
+                             Path(__file__).parent / "dna_confs" / "structure_cube" / "scenes/cube_monomer.dat")
+    # create DNA monomer from DNA structure and patch positions
+    dna_particle = DNAParticle(dna, patch_positions)
+
 def test_generate_scene_convert():
     # nessecary imports
     from pathlib import Path
@@ -61,23 +89,7 @@ def test_generate_scene_convert():
     from ipy_oxdna.dna_structure import load_dna_structure
     from pypatchy.util import get_input_dir
 
-    # assign strand IDs for patches
-    # these strands will be 3' extended to produce single-stranded overhands which join the monomers
-    patch_positions = [
-        [128, 131, 130, 136],  # front
-        [151, 155, 152, 160],  # bot
-        [168, 163, 144, 156],  # left
-        [146, 147, 149, 150],  # top
-        [138, 140, 139, 141],  # right
-        [142, 167, 143, 153]  # back
-    ]
-    # load a DNA structure to use as our monomer.
-    # here we will load the files at ~/pypatchy/input/scenes/cube_monomer.top and ~/pypatchy/input/scenes/cube_monomer.
-    # unlike the aforementioned load_polycube function this will NOT automatically prepent ~/.pypatchy/input
-    dna = load_dna_structure(get_input_dir() / "scenes/cube_monomer.top",
-                             get_input_dir() / "scenes/cube_monomer.dat")
-    # create DNA monomer from DNA structure and patch positions
-    dna_particle = DNAParticle(dna, patch_positions)
+
 
     writer = get_writer("lorenzo")
     writer.set_directory("/home/josh/git/pypatchy/tests/test_files/patchy_scenes/loro_eg")
@@ -126,6 +138,15 @@ def test_generate_scene_convert():
 
     converter.save_oxview(write_oxview_path="mystructure_dna.oxview",
                           color_by_type=True)
+
+def test_convert_3d_cross_polycube():
+    pass
+
+def test_convert_3d_cross_patchy():
+    pass
+
+def test_convert_tetrastack():
+    pass
 
 def test_subho_convert():
     pass

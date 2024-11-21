@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import copy
 import itertools
-from typing import Union
+from typing import Union, Generator
 
 import networkx as nx
 import numpy as np
@@ -101,6 +101,14 @@ class InteractionMatrix:
 
     def __iter__(self):
         yield from self.__interactions.items()
+
+    def get_interacting_colors(self, c:int)-> Generator[int, None, None]:
+        for (c1,c2), s in self:
+            if not s: continue
+            if c1 == c:
+                yield c2
+            elif c2 == c:
+                yield c1
 
     def graph(self) -> nx.Graph:
         """

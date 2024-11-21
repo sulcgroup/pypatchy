@@ -4,7 +4,6 @@ from typing import Union
 
 import networkx as nx
 import igraph as ig
-from networkx.algorithms import isomorphism
 
 from pypatchy.util import get_input_dir
 

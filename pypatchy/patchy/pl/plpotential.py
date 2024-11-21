@@ -320,7 +320,7 @@ class PLFRPatchyPotential(PLPatchyPotential):
                p2: PLPatchyParticle) -> float:
         e = 0.
         distsqr = periodic_dist_sqrd(box, p1.position(), p2.position())
-        if distsqr > (self.rmax() + p1.radius() + p2.radius()) ** 2:
+        if distsqr > self.rmax_sqr():
             return e
         # this is harder than i initially thought
         # step one:
@@ -354,9 +354,13 @@ class PLFRPatchyPotential(PLPatchyPotential):
                 used_p2_patches[j] = True
                 if np.all(used_p1_patches) or np.all(used_p2_patches):
                     break  # Stop if all patches are used
+
         assert len(patch_pairs) == min(p1.num_patches(), p2.num_patches())
         for i, j, rsqrd in patch_pairs:
             e += self.energy_2_patch(box, p1, p1.patch(i), p2, p2.patch(j), rsqrd)
+        # for p1patch, p2patch in itertools.product(p1.patches(),
+        #                                                     p2.patches()):
+        #     e += self.energy_2_patch(box, p1, p1patch, p2, p2patch)
         return e
 
     def energy_2_patch(self,
@@ -380,7 +384,8 @@ class PLFRPatchyPotential(PLPatchyPotential):
             # check binding geometry
             # (warning: sus)
             # todo: verify that this behavior is correct!
-            e = -1.001 ** ((-rsqr / self.alpha_sqr()) ** 5)  # plus a constant, but constant = 0 i think?
+            e = -1.001 ** math.exp((-rsqr / self.alpha_sqr()) ** 5)
+            # plus a constant, but constant = 0 i think?
             return e
         return 0
 
@@ -497,18 +502,25 @@ class PLFRTorsionalPatchyPotential(PLFRPatchyPotential):
             # there's DEFINATELY a way to simplify this
             patch1_pos: np.ndarray = particle1.patch_position(patch1)
             patch2_pos: np.ndarray = particle2.patch_position(patch2)
-            dist: np.ndarray = periodic_dist_sqrt_vec(box, patch1_pos, patch2_pos)
+            # distance vector = particle 1 -> particle 2
+            dist: np.ndarray = periodic_dist_sqrt_vec(box,
+                                                      particle1.position(),
+                                                      particle2.position())
             rsqr: float = dist @ dist.T
+            dist_norm = dist / math.sqrt(rsqr)
             # https://pubs.acs.org/doi/10.1021/acsnano.2c09677 equation 2
+
             # compute angle between patches
-            va = self.v_angmod(math.acos(dist @ (patch1.a1() @ particle1.rotmatrix()).T))
+            # angle from particle 1 to patch 1
+            # compute dot product of particle 1 -> particle 2 . particle 1 -> patch 1
+            va = self.v_angmod(math.acos(-dist_norm @ (patch1.a1() @ particle1.rotmatrix())))
             if va == 0:
                 return 0.
-            vb = self.v_angmod(math.acos(-dist @ (patch2.a1() @ particle2.rotmatrix()).T))
+            vb = self.v_angmod(math.acos(dist_norm @ (patch2.a1() @ particle2.rotmatrix())))
             if vb == 0:
                 return 0.
             # get angle between a3 vectors
-            vt = self.v_angmod(math.acos((patch1.a3() @ particle1.rotmatrix()) @ (patch2.a3() @ particle2.rotmatrix())))
+            vt = self.v_angmod(math.acos((patch1.a2() @ particle1.rotmatrix()) @ (patch2.a2() @ particle2.rotmatrix())))
             return e * vt * va * vb
         else:
             return e
