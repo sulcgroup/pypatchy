@@ -41,6 +41,64 @@ def tile4x4():
     """
     return ensemble("4x4_tile", "2023-10-03", True)
 
+def test_tile_4x4_clusters_match_pycluster(temp_dir: str, tile4x4: PatchySimulationEnsemble):
+    import networkx as nx
+    from matplotlib import pyplot as plt
+
+    from pypatchy.patchy.pl.patchyio import get_writer
+
+    from pypatchy.patchy.pl.plpotential import PLFRTorsionalPatchyPotential, PLFRPatchyPotential
+    from pypatchy.patchy.simulation_ensemble import find_ensemble
+    from pypatchy.patchy.analysis_lib import GraphsFromClusterTxt, LoadParticlesTraj, ClassifyClusters, \
+        ClassifyPolycubeClusters, ComputeClusterYield
+
+    tile4x4 = find_ensemble("4x4_tile", "2023-10-03")
+
+    # double check we are not accidentally loading an existing anaylsis pipeline
+    tile4x4.clear_pipeline()
+    assert not tile4x4.analysis_pipeline.num_pipeline_steps()
+
+    # build node to load clusters from clusters.txt
+    graphs_from_clusters_node = GraphsFromClusterTxt(
+        "graphs_from_clusters",
+        tile4x4.observables["plclustertopology"]
+    )
+
+    tile4x4.add_analysis_steps(
+        graphs_from_clusters_node
+    )
+    sim = tile4x4.get_simulation(T="0.01",
+                                 narrow_type=1,
+                                 num_assemblies="8",
+                                 duplicate=0,
+                                 staging="wt")
+    print(tile4x4.folder_path(sim))
+    cluster_graph_data = tile4x4.get_data(graphs_from_clusters_node,
+                                          sim,
+                                          time_steps=250000000).get()[250000000.0]
+    cluster_graph_data = nx.union_all(cluster_graph_data)
+    scene = tile4x4.get_scene(sim)
+
+    scene.potentials = [
+        PLFRTorsionalPatchyPotential(
+            rmax=0.4 * 3 * tile4x4.sim_get_param(sim, "PATCHY_radius") * 2,
+            alpha=tile4x4.sim_get_param(sim, "PATCHY_alpha"),
+            narrow_type=tile4x4.sim_get_param(sim, "narrow_type")
+        )
+    ]
+
+    # scene.compute_cell_size(n_cells=1)
+    # scene.apportion_cells()
+
+    # convert to multidentate, see if that makes our confs make any more sense
+    G: nx.Graph = scene.compute_scene_graph()
+
+
+    # Compare edges
+    assert len(set((cluster_graph_data.edges()) - set(G.edges()))) == 0
+    assert len(set(G.edges()) - set(cluster_graph_data.edges())) == 0
+
+
 
 def test_split_cluster_lr(temp_dir: str):
     """

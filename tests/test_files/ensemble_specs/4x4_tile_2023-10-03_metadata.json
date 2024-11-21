@@ -95,9 +95,6 @@
             ]
         ],
         "observables": [
-            {
-                
-            }
             "plclustertopology"
         ]
     }
