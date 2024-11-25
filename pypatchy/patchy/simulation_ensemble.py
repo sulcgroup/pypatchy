@@ -1182,9 +1182,9 @@ class PatchySimulationEnsemble(Analyzable):
             self.get_logger().log(level=logging.WARNING, msg="Mismatch between particle types written in directory "
                                                              " and particle types specified in setup files!"
                                                              " Or old data, that is also possible."
-                                                             " Using particle types as written...")
+                                                             " Using particle types as found in setup fieles...")
             # the reason to not do this as default is multidentatae source tracking
-            scene.set_particle_types(ptypes_dir)
+            # scene.set_particle_types(ptypes_dir)
 
         scene.set_temperature(self.sim_stage_get_param(sim, stage, "T"))
         for potential in self.get_interaction_potentials(sim):

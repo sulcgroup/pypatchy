@@ -245,7 +245,7 @@ class Stage(BuildSimulation):
                 scene.alter_box_size(self.box_size(), self.getctxt().sim_get_param(self.getctxt(),
                                                                                    "cluster_bond_energy"))
             except NoSuchParamError:
-                # if cluter bond eneregy isn't specified, include all interactions w/ bond energy
+                # if cluter bond eneregy isn't specified, include all interactions w/ bond ene  rgy
                 scene.alter_box_size(self.box_size(), 0)
 
         if scene.num_particles() > 0:

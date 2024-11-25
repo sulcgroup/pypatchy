@@ -25,8 +25,62 @@ def cube() -> DNAParticle:
                              Path(__file__).parent / "dna_confs" / "structure_cube" / "scenes/cube_monomer.dat")
     # create DNA monomer from DNA structure and patch positions
     dna_particle = DNAParticle(dna, patch_positions)
+    return dna_particle
 
-def test_generate_scene_convert():
+def test_convert_human_origami(temp_dir: str, cube: DNAParticle):
+    """
+    tests convert a human polycube to dna origami
+    """
+    pass
+
+def test_convert_swan(temp_dir: str, cube: DNAParticle):
+    from pypatchy.patchy.pl.plpatchylib import polycube_to_pl
+
+    from ipy_oxdna.dna_structure import load_dna_structure, rc
+    from pypatchy.patchy.dna_particle import DNAParticle
+    from pypatchy.patchy.patchy_origami_convert import PatchyOrigamiConverter
+    # from pypatchy.patchy.pl.patchio import get_writer
+    from pypatchy.util import get_input_dir
+    from pypatchy.polycubeutil.polycube_structure import load_polycube
+    from pypatchy.util import get_output_dir
+    from pypatchy.patchy.pl.plparticleset import MultidentateConvertSettings
+
+    name = "swan"
+    structure_file_name = f"scenes/{name}.json"
+
+    patch_positions = [
+        [128, 131, 130, 136],  # front
+        [151, 155, 152, 160],  # bot
+        [168, 163, 144, 156],  # left
+        [146, 147, 149, 150],  # top
+        [138, 140, 139, 141],  # right
+        [142, 167, 143, 153]  # back
+    ]
+
+    # load dna particles
+    dna = load_dna_structure(get_input_dir() / "scenes/cube_monomer.top", get_input_dir() / "scenes/cube_monomer.dat")
+    polycube = load_polycube(structure_file_name)
+    # scene = polycube_to_pl(polycube, nteeth=4, dental_radius=0.25)
+    scene = polycube_to_pl(polycube, MultidentateConvertSettings(n_teeth=4, dental_radius=0.25))
+    dna_particle = DNAParticle(dna, patch_positions)
+
+    converter = PatchyOrigamiConverter(scene,
+                                       padding=1.1,
+                                       spacer_length=12,
+                                       expected_num_edges=4 * polycube.num_connections(),
+                                       sticky_length=9,
+                                       rel_rms_tolerance=1
+                                       # flexable_patch_distances=True
+                                       )
+    start_color_code = 21
+    converter.assign_particles(dna_particle)
+    converter.dump_monomers(name)
+    converter.position_particles()
+    converter.convert()
+    converter.save_oxview(write_oxview_path=f"{name}/dna.oxview", color_by_type=True)
+
+
+def test_generate_scene_convert(temp_dir: str, cube: DNAParticle):
     # nessecary imports
     from pathlib import Path
 
@@ -42,7 +96,9 @@ def test_generate_scene_convert():
     pl_set = polycube_rule_to_PL(rule)
     reader = get_writer("lorenzo")
     top = LWriter.LPatchyTopology(pl_set, [1, 1])
-    reader.set_directory("/home/josh/lab_data/test_l_particles")
+    (Path(temp_dir) / "patchy_scene").mkdir()
+
+    reader.set_directory(Path(temp_dir) / "patchy_scene")
     reader.write_top(top, "particles.top")
     reader.export_interaction_matrix(pl_set.interaction_matrix(), pl_set.patches(), "interactions.txt")
 
@@ -122,7 +178,7 @@ def test_generate_scene_convert():
     # set the converter to use our DNA particle from before
     # if you want to have multiple distinct DNA monomers for different particle types,
     # you can assign them here
-    converter.assign_particles(dna_particle)
+    converter.assign_particles(cube)
 
     # position DNA particles
     converter.position_particles()
@@ -138,8 +194,10 @@ def test_generate_scene_convert():
 
     converter.save_oxview(write_oxview_path="mystructure_dna.oxview",
                           color_by_type=True)
+    converter.export_stickys_staples(Path(temp_dir) / "staples.xlsx")
 
-def test_convert_3d_cross_polycube():
+
+def test_convert_3d_cross_polycube(temp_dir: str, cube: DNAParticle):
     pass
 
 def test_convert_3d_cross_patchy():

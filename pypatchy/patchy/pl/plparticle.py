@@ -266,6 +266,8 @@ class PLPatchyParticle(PatchyBaseParticleType, PatchyBaseParticle):
         return sout
 
     def rotation(self) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        assert self.a1 is not None, "Trying to get rotation matrix for a particle " \
+                                    "which is implicitly not rotated (aka a particle type)"
         return self.a1, self.a2, self.a3
 
     def rotmatrix(self) -> np.ndarray:
