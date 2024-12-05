@@ -341,9 +341,13 @@ class PatchyOrigamiConverter:
                 else:
                     ptype = self.patchy_scene.particle_types().particle(a)
                     patchy_types.append(ptype)
+        # for each particle type
         for patchy_type in patchy_types:
+            # make a replica of the dna particle to work on
             dna_cpy = deepcopy(dna)
+            # assign dna particle in to particle type
             self.particle_type_map[patchy_type.get_type()] = dna_cpy
+            # link patches
             self.link_patchy_particle(patchy_type, dna_cpy)
 
     def get_color_match(self, color: Union[int, str]) -> Union[int, str]:

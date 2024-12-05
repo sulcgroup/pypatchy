@@ -62,11 +62,11 @@ def polycube_rule_to_PL(particle_set: PolycubesRule) -> PLParticleSet:
     """
     particles: PLParticleSet = PLParticleSet()
     # iter particles
-    for particle in particle_set:
+    for cube_type in particle_set:
         particle_patches = []
         # convert to pl patch
-        for patch in particle.patches():
-            relPosition = patch.position() / particle.radius()
+        for patch in cube_type.patches():
+            relPosition = patch.position() / cube_type.radius()
             pl_color = patch.colornum() - 20 if patch.colornum() < 0 else patch.colornum() + 20
             assert patch.get_id() == particles.num_patches() + len(particle_patches)
             a1 = relPosition / np.linalg.norm(relPosition)
@@ -87,9 +87,9 @@ def polycube_rule_to_PL(particle_set: PolycubesRule) -> PLParticleSet:
 
         # convert to pl particle
         # reuse type ids here, unfortunately
-        particle = PLPatchyParticle(type_id=particle.type_id(),
-                                    particle_name=particle.name(),
-                                    index_=particle.type_id())
+        particle = PLPatchyParticle(type_id=cube_type.type_id(),
+                                    particle_name=cube_type.name(),
+                                    index_=cube_type.type_id())
         particle.set_patches(particle_patches)
 
         # apply starting rotation, for some reason

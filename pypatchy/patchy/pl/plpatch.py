@@ -153,6 +153,11 @@ class PLPatch(BasePatchType):
     def __ne__(self, other: PLPatch):
         return not (self == other)
 
+class ColorSetNotOneToOneException(BaseException):
+    msg:str
+    def __init__(self, msg:str):
+        self.msg=msg
+    def __str__(self): return self.msg
 
 def assign_colors_one_to_one(interaction_matrix: InteractionMatrix, patches: list[PLPatch]) -> tuple[InteractionMatrix, list[int]]:
     """
@@ -165,8 +170,9 @@ def assign_colors_one_to_one(interaction_matrix: InteractionMatrix, patches: lis
     """
     num_patches = interaction_matrix.num_colors()
     assert all([patch.get_id() == i for i, patch in enumerate(patches)])
-    assert num_patches == len(patches), f"Size of patch interaction matrix {num_patches} is not compatible " \
-                                        f"with length of patches array {len(patches)}!"
+    if num_patches != len(patches):
+        raise ColorSetNotOneToOneException(f"Size of patch interaction matrix {num_patches} is not compatible " \
+                                        f"with length of patches array {len(patches)}!")
 
     # colors = np.zeros(num_patches, dtype=int)  # Color 0 means uncolored
     patch_colors: list[int] = [None for _ in patches]
@@ -183,7 +189,7 @@ def assign_colors_one_to_one(interaction_matrix: InteractionMatrix, patches: lis
 
     for patch in range(num_patches):
         if (patch_colors[patch] == 0 or patch_colors[patch] is None) and not dfs(patch, 1):
-            raise ValueError("Cannot assign colors such that interacting patches add to zero")
+            raise ColorSetNotOneToOneException("Cannot assign colors such that interacting patches add to zero")
     return make_int_mat_for_colors(max(patch_colors)), patch_colors
 
 def assign_colors(interaction_matrix: InteractionMatrix, patches: list[PLPatch]) -> tuple[InteractionMatrix, list[int]]:
@@ -196,11 +202,9 @@ def assign_colors(interaction_matrix: InteractionMatrix, patches: list[PLPatch])
     # first we try 1:1 color assignments
     try:
         return assign_colors_one_to_one(interaction_matrix, patches)
-    except ValueError as e:
-        if not str(e).startswith("Cannot"):
-            raise e
-    # dump approach: litersally no thought
-    return InteractionMatrix([((c1+1,c2+1),strength) for (c1,c2), strength in interaction_matrix]), [i+1 for i,_ in enumerate(patches)]
+    except ColorSetNotOneToOneException as e:
+        # dump approach: litersally no thought
+        return InteractionMatrix([((c1+1,c2+1),strength) for (c1,c2), strength in interaction_matrix]), [i+1 for i,_ in enumerate(patches)]
     # return interaction_matrix, list(range(len(patches)))
 
     # TODO: SMART VERSION

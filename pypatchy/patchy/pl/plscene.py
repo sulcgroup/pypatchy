@@ -437,8 +437,23 @@ class PLPSimulation(Scene, CellLists):
                              particle1: PLPatchyParticle,
                              particle2: PLPatchyParticle) -> Generator[tuple[PLPatch,
                                                                              PLPatch], None, None]:
-        for p1_idx, p2_idx, _ in self.compute_scene_multigraph().edges:
-            yield p1_idx, p2_idx
+        # TODO: cache this?
+        # compute scene multigraph
+        G: nx.MultiGraph = self.compute_scene_multigraph()
+        # find patch type IDs of patches that connect particle1 and particle2
+
+        patch_pairs = [(p1_idx, p2_idx) for ptype1, ptype2, (p1_idx, p2_idx) in G.edges(data="patches") if
+                            frozenset([ptype1, ptype2]) == frozenset([particle1.get_uid(), particle2.get_uid()])]
+        # loop pairs
+        for patch_1_type_id, patch_2_type_id in patch_pairs:
+            # if particles 1 and 2 don't match patches 1 and 2, swap
+            if not particle1.has_patch_with_id(patch_1_type_id):
+                assert particle2.has_patch_with_id(patch_1_type_id)
+                tempvar = patch_1_type_id
+                patch_1_type_id = patch_2_type_id
+                patch_2_type_id = tempvar
+
+            yield particle1.patch_by_id(patch_1_type_id), particle2.patch_by_id(patch_2_type_id)
 
     def patches_bound(self,
                       particle1: PLPatchyParticle,

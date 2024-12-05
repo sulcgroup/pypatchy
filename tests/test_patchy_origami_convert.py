@@ -74,9 +74,9 @@ def test_convert_swan(temp_dir: str, multidentate_patchy_ducky: PLPSimulation, c
     dna_particle = DNAParticle(dna, patch_positions)
 
     converter = PatchyOrigamiConverter(multidentate_patchy_ducky,
-                                       padding=1.1,
+                                       padding=1.5,
                                        spacer_length=12,
-                                       expected_num_edges=4*14,
+                                       expected_num_edges=4*7,
                                        sticky_length=9,
                                        rel_rms_tolerance=1
                                        # flexable_patch_distances=True
@@ -87,6 +87,7 @@ def test_convert_swan(temp_dir: str, multidentate_patchy_ducky: PLPSimulation, c
     converter.position_particles()
     converter.convert()
     converter.save_oxview(write_oxview_path=f"{temp_dir}/ducky_dna.oxview", color_by_type=True)
+    pass
 
 
 def test_generate_scene_convert(temp_dir: str, cube: DNAParticle):

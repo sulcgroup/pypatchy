@@ -43,22 +43,22 @@ class PLPatchyParticle(PatchyBaseParticleType, PatchyBaseParticle):
 
         self._radius = radius
         # if the particle is an instance, not a type
-        if self.get_uid():
-            # ok, the "time to ruin my life about this" thing is that the "default" rotation is
-            # [0  0  1]
-            # [0 -1  0]
-            # [1  0  0]
-            # which, you will note, is not an identity matrix
-            self.a1 = PATCHY_NULL_A1
-            self.a3 = PATCHY_NULL_A3
-
-            self.v = np.array([0., 0., 0.])
-            self.L = np.array([0., 0., 0.])
-        else:
-            self.a1 = None
-            self.a3 = None
-            self.v = None
-            self.L = None
+        # if self.get_uid():
+        #     # ok, the "time to ruin my life about this" thing is that the "default" rotation is
+        #     # [0  0  1]
+        #     # [0 -1  0]
+        #     # [1  0  0]
+        #     # which, you will note, is not an identity matrix
+        #     self.a1 = PATCHY_NULL_A1
+        #     self.a3 = PATCHY_NULL_A3
+        #
+        #     self.v = np.array([0., 0., 0.])
+        #     self.L = np.array([0., 0., 0.])
+        # else:
+        self.a1 = None
+        self.a3 = None
+        self.v = None
+        self.L = None
         self._name = particle_name
 
     def name(self) -> str:
@@ -100,6 +100,10 @@ class PLPatchyParticle(PatchyBaseParticleType, PatchyBaseParticle):
         patches = [p for p in self.patches() if p.type_id() == patch_id]
         assert len(patches) == 1
         return patches[0]
+
+    def has_patch_with_id(self, patch_id: int) -> bool:
+        patches = [p for p in self.patches() if p.type_id() == patch_id]
+        return len(patches) == 1
 
     def set_orientation(self, a1: np.ndarray, a3: np.ndarray):
         assert np.dot(a1, a3) < 1e-6
