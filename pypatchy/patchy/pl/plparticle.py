@@ -106,12 +106,21 @@ class PLPatchyParticle(PatchyBaseParticleType, PatchyBaseParticle):
         self.a1 = a1
         self.a3 = a3
 
+    def set_rot_identity(self):
+        """
+        sets the rotation to identity rotation
+        """
+        self.a1 = np.array([1,0,0])
+        self.a3 = np.array([0,0,1])
+        assert np.allclose(self.rotmatrix(), np.identity(3))
+
     def rotate(self, rot_matrix: np.ndarray):
         """
         Rotates particle in-place, applying rotation matrix to self.a1, self.a3, and all patches
         """
         assert rot_matrix.shape == (3, 3)
         assert abs(np.linalg.det(rot_matrix) - 1) < 1e-6
+        assert self.a1 is not None
         self.a1 = rot_matrix @ self.a1
         self.a3 = rot_matrix @ self.a3
 

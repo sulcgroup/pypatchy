@@ -484,9 +484,7 @@ class JWriter(PLBaseWriter, ABC):
     """
 
     def reqd_args(self) -> list[str]:
-        return [NUM_TEETH_KEY,
-                DENTAL_RADIUS_KEY,
-                "patchy_file",
+        return ["patchy_file",
                 "particle_file",
                 "topology",
                 "conf_file",
@@ -749,7 +747,7 @@ class LWriter(PLBaseWriter):
         return [("DPS_interaction_matrix_file", "interactions.txt")]
 
     def reqd_args(self) -> list[str]:
-        return [NUM_TEETH_KEY, DENTAL_RADIUS_KEY, "topology", "conf_file", "DPS_interaction_matrix_file"]
+        return ["topology", "conf_file", "DPS_interaction_matrix_file"]
 
     def write(self,
               scene: PLPSimulation,

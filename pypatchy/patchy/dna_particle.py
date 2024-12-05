@@ -223,7 +223,7 @@ class DNAParticle (DNAStructure):
         to a specific patchy particle instance
         """
         assert particle.type_id() == self.linked_particle.get_type(), "Trying to instance align type no compatible!"
-        assert abs(self.linked_particle.rotation() - np.identity(3)).sum() < 1e-6, "Trying to align instance where " \
+        assert self.linked_particle.is_normd(), "Trying to align instance where " \
                                                                                    "currently matches particle isn't " \
                                                                                    "identity rotation!"
         # set origami rotation to match particle instance rotation

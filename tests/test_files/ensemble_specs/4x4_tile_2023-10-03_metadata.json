@@ -2,6 +2,7 @@
     "setup_date": "2023-10-03",
     "ensemble_config": {
         "export_name": "4x4_tile",
+    	"server_settings": "test_fr",
         "rule": "3:1:0:0#1:1:0:0#-5:2:0:0#-3:0:0:0##_#-1:1:0:0#4:2:0:0#2:0:0:0##_6:1:0:0#-4:1:0:0#5:2:0:0###_-2:1:0:0##-6:2:0:0###_6:1:3:-1#-4:1:4:-1#5:2:5:-1#-1:1:6:-2#4:2:7:-2#2:0:8:-2@[3]>2;[4]>2;[5]>2;[6]>1;[7]>1;[8]>1",
         "const_params": {
             "density": 0.1,
@@ -13,11 +14,11 @@
                 [
                     {
                         "name": "wt",
+                        "type": "staging",
                         "value": {
                             "stages": {
                                 "first_stage": {
                                     "t": 0,
-                                    "add_method": "random",
                                     "particles": {
                                         "CT0": 4,
                                         "CT1": 4,
@@ -27,20 +28,18 @@
                                     }
                                 },
                                 "continued": {
-                                    "t": 250000000.0,
-                                    "add_method": "random",
-                                    "particles": {}
+                                    "t": 250000000.0
                                 }
                             }
                         }
                     },
                     {
                         "name": "reduced",
+                        "type": "staging",
                         "value": {
                             "stages": {
                                 "first_stage": {
                                     "t": 0,
-                                    "add_method": "random",
                                     "particles": {
                                         "CT0": 4,
                                         "CT1": 0,
@@ -50,9 +49,7 @@
                                     }
                                 },
                                 "continued": {
-                                    "t": 250000000.0,
-                                    "add_method": "random",
-                                    "particles": {}
+                                    "t": 250000000.0
                                 }
                             }
                         }

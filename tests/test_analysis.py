@@ -42,6 +42,9 @@ def tile4x4():
     return ensemble("4x4_tile", "2023-10-03", True)
 
 def test_tile_4x4_clusters_match_pycluster(temp_dir: str, tile4x4: PatchySimulationEnsemble):
+    """
+    test that the clusters.txt file for
+    """
     import networkx as nx
     from matplotlib import pyplot as plt
 
@@ -92,7 +95,6 @@ def test_tile_4x4_clusters_match_pycluster(temp_dir: str, tile4x4: PatchySimulat
 
     # convert to multidentate, see if that makes our confs make any more sense
     G: nx.Graph = scene.compute_scene_graph()
-
 
     # Compare edges
     assert len(set((cluster_graph_data.edges()) - set(G.edges()))) == 0

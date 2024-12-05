@@ -385,7 +385,8 @@ class PatchyOrigamiConverter:
             a dataclass instance describing the relationship between the patchy particle
             and the dna origami
         """
-        assert (p.rotmatrix() == np.identity(3)).all(), "Cannot perform match on rotated patchy particle!"
+        # assert (p.rotmatrix() == np.identity(3)).all(), "Cannot perform match on rotated patchy particle!"
+        assert p.is_normd()
 
         if self.patchy_scene.particle_types().has_udt_src():
             n_patches_udt = self.patchy_scene.particle_types().get_src().particle(p.type_id()).num_patches()
@@ -827,9 +828,9 @@ class PatchyOrigamiConverter:
 
     def dump_monomer(self, ptype: DNAParticle, fp: Path):
         assert ptype.has_linked(), "Cannot dump monomer for unlinked DNA particle"
-        if np.abs(ptype.linked_particle.rotation() - np.identity(3)).sum() > 1e-6:
-            print("Warning: Particle has non-identity rotation! "
-                  "Patch a1s are going to be messed up! But you can technically proceed")
+        # if np.abs(ptype.linked_particle.rotation() - np.identity(3)).sum() > 1e-6:
+        #     print("Warning: Particle has non-identity rotation! "
+        #           "Patch a1s are going to be messed up! But you can technically proceed")
         cpy = copy.deepcopy(ptype)
         # clone to add strands
         # iter strand id map

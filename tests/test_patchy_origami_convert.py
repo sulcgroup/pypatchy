@@ -1,10 +1,21 @@
+import tempfile
 from pathlib import Path
 
 import pytest
 from ipy_oxdna.dna_structure import load_dna_structure
 
 from pypatchy.patchy.dna_particle import DNAParticle
+from pypatchy.patchy.pl.plscene import PLPSimulation
+from pypatchy.polycubeutil.polycube_structure import PolycubeStructure
+from test_polycube_lib import ducky
+from test_patchy_io import multidentate_patchy_ducky
 
+@pytest.fixture
+def temp_dir() -> str:
+    # construct temporary directory to run
+
+    with tempfile.TemporaryDirectory() as td:
+        yield td
 
 @pytest.fixture
 def cube() -> DNAParticle:
@@ -21,8 +32,8 @@ def cube() -> DNAParticle:
     # load a DNA structure to use as our monomer.
     # here we will load the files at ~/pypatchy/input/scenes/cube_monomer.top and ~/pypatchy/input/scenes/cube_monomer.
     # unlike the aforementioned load_polycube function this will NOT automatically prepent ~/.pypatchy/input
-    dna = load_dna_structure(Path(__file__).parent / "dna_confs" / "structure_cube"/"cube_monomer.top",
-                             Path(__file__).parent / "dna_confs" / "structure_cube" / "scenes/cube_monomer.dat")
+    dna = load_dna_structure(Path(__file__).parent / "test_files" /  "dna_confs" / "structure_cube"/"cube_monomer.top",
+                             Path(__file__).parent / "test_files" / "dna_confs" / "structure_cube" / "cube_monomer.dat")
     # create DNA monomer from DNA structure and patch positions
     dna_particle = DNAParticle(dna, patch_positions)
     return dna_particle
@@ -33,7 +44,7 @@ def test_convert_human_origami(temp_dir: str, cube: DNAParticle):
     """
     pass
 
-def test_convert_swan(temp_dir: str, cube: DNAParticle):
+def test_convert_swan(temp_dir: str, multidentate_patchy_ducky: PLPSimulation, cube: DNAParticle):
     from pypatchy.patchy.pl.plpatchylib import polycube_to_pl
 
     from ipy_oxdna.dna_structure import load_dna_structure, rc
@@ -45,8 +56,7 @@ def test_convert_swan(temp_dir: str, cube: DNAParticle):
     from pypatchy.util import get_output_dir
     from pypatchy.patchy.pl.plparticleset import MultidentateConvertSettings
 
-    name = "swan"
-    structure_file_name = f"scenes/{name}.json"
+    name = "duck"
 
     patch_positions = [
         [128, 131, 130, 136],  # front
@@ -58,16 +68,15 @@ def test_convert_swan(temp_dir: str, cube: DNAParticle):
     ]
 
     # load dna particles
-    dna = load_dna_structure(get_input_dir() / "scenes/cube_monomer.top", get_input_dir() / "scenes/cube_monomer.dat")
-    polycube = load_polycube(structure_file_name)
+    dna = load_dna_structure(get_input_dir() / "scenes/cube_monomer.top",
+                             get_input_dir() / "scenes/cube_monomer.dat")
     # scene = polycube_to_pl(polycube, nteeth=4, dental_radius=0.25)
-    scene = polycube_to_pl(polycube, MultidentateConvertSettings(n_teeth=4, dental_radius=0.25))
     dna_particle = DNAParticle(dna, patch_positions)
 
-    converter = PatchyOrigamiConverter(scene,
+    converter = PatchyOrigamiConverter(multidentate_patchy_ducky,
                                        padding=1.1,
                                        spacer_length=12,
-                                       expected_num_edges=4 * polycube.num_connections(),
+                                       expected_num_edges=4*14,
                                        sticky_length=9,
                                        rel_rms_tolerance=1
                                        # flexable_patch_distances=True
@@ -77,7 +86,7 @@ def test_convert_swan(temp_dir: str, cube: DNAParticle):
     converter.dump_monomers(name)
     converter.position_particles()
     converter.convert()
-    converter.save_oxview(write_oxview_path=f"{name}/dna.oxview", color_by_type=True)
+    converter.save_oxview(write_oxview_path=f"{temp_dir}/ducky_dna.oxview", color_by_type=True)
 
 
 def test_generate_scene_convert(temp_dir: str, cube: DNAParticle):

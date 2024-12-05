@@ -431,7 +431,7 @@ class PLParticleSet(BaseParticleSet):
                                                          radius=particle.radius(),
                                                          particle_name=particle.name())
             new_particles[i_particle].set_patches(new_particle_patches)
-            new_particles[i_particle] = new_particles[i_particle].normalize()
+            # new_particles[i_particle] = new_particles[i_particle].normalize()
             new_patches += new_particle_patches
         particle_set = PLParticleSet(new_particles, PLMultidentateSourceMap(self, id_map, mdt_params),
                                      new_interaction_map)

@@ -14,6 +14,9 @@ reqd_input_file_params = [
 
 
 def test_server_configs():
+    """
+    tests that for all server configs the oxdna executable exists
+    """
     for config in list_server_configs():
         # check if oxDNA executable exists
         test_config(config)

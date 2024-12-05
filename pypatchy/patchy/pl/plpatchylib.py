@@ -9,7 +9,7 @@ import numpy as np
 
 from ..ensemble_parameter import PARTICLE_TYPES_KEY
 from ..mgl import MGLParticle, MGLScene, MGLParticleSet
-from .plparticle import PLPatchyParticle
+from .plparticle import PLPatchyParticle, PATCHY_NULL_A1, PATCHY_NULL_A3
 from .plparticleset import PLParticleSet, PLSourceMap, MultidentateConvertSettings
 from .plpatch import PLPatch
 from .plscene import PLPSimulation
@@ -93,7 +93,7 @@ def polycube_rule_to_PL(particle_set: PolycubesRule) -> PLParticleSet:
         particle.set_patches(particle_patches)
 
         # apply starting rotation, for some reason
-        particle.normalize()
+        # particle.normalize()
 
         particles.add_particle(particle)
     # FOR NOW polycubes rules always have opposite-color interactions
@@ -159,8 +159,10 @@ def polycube_to_pl(polycube: PolycubeStructure,
                                     type_id=pl_type.type_id(),
                                     index_=cube.get_uid(),
                                     position=cube.position())
-        # particle.a1 = POLYCUBE_NULL_A1
-        # particle.a3 = POLYCUBE_NULL_A3
+        particle.set_rot_identity()
+        # for reasons I struggle to comprehend, the "default" pl particle rotation is not identity
+        # particle.a1 = PATCHY_NULL_A1
+        # particle.a3 = PATCHY_NULL_A3
         particle.rotate(cube.rotation().as_matrix())
         particle.set_position(particle.position() * (1+pad_cubes))
         assert pl_type.matches(particle)

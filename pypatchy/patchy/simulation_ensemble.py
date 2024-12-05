@@ -1154,13 +1154,6 @@ class PatchySimulationEnsemble(Analyzable):
             stage = self.sim_get_stage(sim, stage)
         self.writer.set_directory(self.folder_path(sim, stage))
 
-        # check particle files
-        # todo: check that this line works for all writers
-        ptypes_dir = self.writer.read_particle_types(**{key: self.sim_stage_get_param(sim, stage, key)
-                                                        for key in self.writer.reqd_args()
-                                                        })
-
-
         top_file, traj_file = self.sim_get_stage_top_traj(sim, stage)
         # top_file, traj_file = self.sim_get_stage_top(sim, stage), self.sim_get_stage_last_conf(sim, stage)
         if traj_file.exists() and os.stat(traj_file).st_size > 0:
@@ -1172,19 +1165,25 @@ class PatchySimulationEnsemble(Analyzable):
                                                           self.sim_get_particles_set(sim),
                                                           step // conf_interval - 1)
         else:
-            assert step is None
+            assert step is None, f"Could not find trajectory file {str(traj_file)}, " \
+                                 f"but timestep was explicitly specified."
             conf_file = self.sim_stage_get_param(sim, stage, "conf_file")
             scene: PLPSimulation = self.writer.read_scene(top_file.name,
                                                           conf_file,
                                                           self.sim_get_particles_set(sim))
 
-        if ptypes_dir != self.sim_get_particles_set(sim):
-            self.get_logger().log(level=logging.WARNING, msg="Mismatch between particle types written in directory "
-                                                             " and particle types specified in setup files!"
-                                                             " Or old data, that is also possible."
-                                                             " Using particle types as found in setup fieles...")
-            # the reason to not do this as default is multidentatae source tracking
-            # scene.set_particle_types(ptypes_dir)
+        # # check particle files
+        # # todo: check that this line works for all writers
+        # ptypes_dir = self.writer.read_particle_types(**{key: self.sim_stage_get_param(sim, stage, key)
+        #                                                 for key in self.writer.reqd_args()
+        #                                                 })
+        # if ptypes_dir != self.sim_get_particles_set(sim):
+        #     self.get_logger().log(level=logging.WARNING, msg="Mismatch between particle types written in directory "
+        #                                                      " and particle types specified in setup files!"
+        #                                                      " Or old data, that is also possible."
+        #                                                      " Using particle types as found in setup fieles...")
+        #     # the reason to not do this as default is multidentatae source tracking
+        #     # scene.set_particle_types(ptypes_dir)
 
         scene.set_temperature(self.sim_stage_get_param(sim, stage, "T"))
         for potential in self.get_interaction_potentials(sim):

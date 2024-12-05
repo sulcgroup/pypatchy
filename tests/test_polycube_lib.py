@@ -1,7 +1,9 @@
 import shutil
 from pathlib import Path
 
-from pypatchy.polycubeutil.polycube_structure import load_polycube
+import pytest
+
+from pypatchy.polycubeutil.polycube_structure import load_polycube, PolycubeStructure
 from pypatchy.polycubeutil.polycubesRule import PolycubesRule
 
 
@@ -16,7 +18,8 @@ def test_read_string_rule():
     assert rule.num_colors() == 48
     # TODO: more tests?
 
-def test_load_polycube_json():
+@pytest.fixture
+def ducky():
     """
     test that we can load a polycube from a json file
     """
@@ -26,6 +29,10 @@ def test_load_polycube_json():
     assert polycube.num_vertices() == 8
     assert polycube.num_connections() == 14
     # todo: more tests?
+    return polycube
+
+def test_polycube_json(ducky: PolycubeStructure):
+    pass # just run the fixture
 
 def test_make_rule_continuous():
     """
