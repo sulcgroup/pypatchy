@@ -109,7 +109,8 @@ def multidentate_patchy_ducky(ducky: PolycubeStructure) -> PLPSimulation:
     return scene
 
 def test_mdt_ducky(multidentate_patchy_ducky: PLPSimulation):
-    # assert len(multidentate_patchy_ducky.compute_scene_graph().edges) == 14
+    assert len(multidentate_patchy_ducky.compute_scene_graph().edges) == 7 # i counted and it is 7
+    assert len(multidentate_patchy_ducky.compute_scene_multigraph().edges) == 7*4
     # text export (FR patchy)
     with tempfile.TemporaryDirectory() as td:
         writer = get_writer("flavio")

@@ -592,10 +592,10 @@ class PLPSimulation(Scene, CellLists):
                                 patch_bond_energies.append(((patch1.get_id(), patch2.get_id()), e_bond))
                 if len(patch_bond_energies) > 0:
                     patch_bond_energies.sort(key=lambda x: x[1], reverse=True)
-                    for (patch1, patch2), bond_energy in patch_bond_energies:
+                    for (patch1, patch2), e in patch_bond_energies:
                         G.add_edge(p1.get_uid(),
                                    p2.get_uid(),
-                                   e=bond_energy + (particle_energy / len(patch_bond_energies)),
+                                   e=e + (particle_energy / len(patch_bond_energies)),
                                    patches=(patch1, patch2) if patch1 < patch2 else (patch2, patch1)
                                    )
                 checked_interactions.add(frozenset([p1.get_uid(), p2.get_uid()]))

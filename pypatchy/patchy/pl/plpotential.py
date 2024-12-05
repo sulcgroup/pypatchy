@@ -384,7 +384,7 @@ class PLFRPatchyPotential(PLPatchyPotential):
             # check binding geometry
             # (warning: sus)
             # todo: verify that this behavior is correct!
-            e = -1.001 ** math.exp((-rsqr / self.alpha_sqr()) ** 5)
+            e = -1.001 * math.exp((-rsqr / self.alpha_sqr()) ** 5)
             # plus a constant, but constant = 0 i think?
             return e
         return 0
