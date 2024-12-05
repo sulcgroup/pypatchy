@@ -99,7 +99,7 @@ def test_convert_duck(ducky: PolycubeStructure) -> PLPSimulation:
 # todo: put this in a different file
 @pytest.fixture
 def multidentate_patchy_ducky(ducky: PolycubeStructure) -> PLPSimulation:
-    scene = polycube_to_pl(ducky, MultidentateConvertSettings(n_teeth=4, dental_radius=0.25))
+    scene = polycube_to_pl(ducky, MultidentateConvertSettings(n_teeth=4, dental_radius=0.5))
     scene.add_potential(
         PLFRPatchyPotential(
             rmax=0.4 * 3,
@@ -110,7 +110,7 @@ def multidentate_patchy_ducky(ducky: PolycubeStructure) -> PLPSimulation:
 
 def test_mdt_ducky(multidentate_patchy_ducky: PLPSimulation):
     assert len(multidentate_patchy_ducky.compute_scene_graph().edges) == 7 # i counted and it is 7
-    assert len(multidentate_patchy_ducky.compute_scene_multigraph().edges) == 7*4
+    assert len(multidentate_patchy_ducky.scene_multigraph().edges) == 7 * 4
     # text export (FR patchy)
     with tempfile.TemporaryDirectory() as td:
         writer = get_writer("flavio")

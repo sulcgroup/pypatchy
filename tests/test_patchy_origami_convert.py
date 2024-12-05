@@ -5,6 +5,8 @@ import pytest
 from ipy_oxdna.dna_structure import load_dna_structure
 
 from pypatchy.patchy.dna_particle import DNAParticle
+from pypatchy.patchy.pl.patchyio import get_writer
+from pypatchy.patchy.pl.plpotential import PLFRPatchyPotential, PLFRTorsionalPatchyPotential
 from pypatchy.patchy.pl.plscene import PLPSimulation
 from pypatchy.polycubeutil.polycube_structure import PolycubeStructure
 from test_polycube_lib import ducky
@@ -38,11 +40,74 @@ def cube() -> DNAParticle:
     dna_particle = DNAParticle(dna, patch_positions)
     return dna_particle
 
-def test_convert_human_origami(temp_dir: str, cube: DNAParticle):
+def test_convert_wireframe_cube(temp_dir: str, cube:DNAParticle):
+    pass
+
+def test_convert_human(temp_dir: str, cube: DNAParticle):
     """
     tests convert a human polycube to dna origami
     """
+    from pypatchy.patchy.pl.plpatchylib import polycube_to_pl
+
+    from ipy_oxdna.dna_structure import load_dna_structure, rc
+    from pypatchy.patchy.dna_particle import DNAParticle
+    from pypatchy.patchy.patchy_origami_convert import PatchyOrigamiConverter
+    # from pypatchy.patchy.pl.patchio import get_writer
+    from pypatchy.util import get_input_dir
+    from pypatchy.polycubeutil.polycube_structure import load_polycube
+    from pypatchy.util import get_output_dir
+    from pypatchy.patchy.pl.plparticleset import MultidentateConvertSettings
+
+    name = "duck"
+
+    patch_positions = [
+        [128, 131, 130, 136],  # front
+        [151, 155, 152, 160],  # bot
+        [168, 163, 144, 156],  # left
+        [146, 147, 149, 150],  # top
+        [138, 140, 139, 141],  # right
+        [142, 167, 143, 153]  # back
+    ]
+
+    human_polycube = load_polycube(Path(__file__).parent / "test_files" / "cube_structures" / "human.json")
+    human_multidentate = polycube_to_pl(human_polycube, MultidentateConvertSettings(n_teeth=4,
+                                                                                    dental_radius=0.5))
+    human_multidentate.add_potential(
+        PLFRTorsionalPatchyPotential(
+            rmax=0.4 * 3,
+            alpha=0.12,
+            narrow_type=2
+        )
+    )
+
+    get_writer("flavio").set_directory(temp_dir)
+    get_writer("flavio").write(human_multidentate,
+                               topology="topology.top",
+                               conf_file="conformation.dat",
+                               particle_file="particles.txt",
+                               patchy_file="patches.txt")
+
+    # load dna particles
+    dna = load_dna_structure(get_input_dir() / "scenes/cube_monomer.top",
+                             get_input_dir() / "scenes/cube_monomer.dat")
+    # scene = polycube_to_pl(polycube, nteeth=4, dental_radius=0.25)
+    dna_particle = DNAParticle(dna, patch_positions)
+
+    converter = PatchyOrigamiConverter(human_multidentate,
+                                       padding=2,
+                                       spacer_length=12,
+                                       expected_num_edges=4 * 12,
+                                       sticky_length=9,
+                                       rel_rms_tolerance=1
+                                       # flexable_patch_distances=True
+                                       )
+    converter.assign_particles(dna_particle)
+    converter.dump_monomers(name)
+    converter.position_particles()
+    converter.convert()
+    converter.save_oxview(write_oxview_path=f"{temp_dir}/human_dna.oxview", color_by_type=True)
     pass
+
 
 def test_convert_swan(temp_dir: str, multidentate_patchy_ducky: PLPSimulation, cube: DNAParticle):
     from pypatchy.patchy.pl.plpatchylib import polycube_to_pl
@@ -68,10 +133,8 @@ def test_convert_swan(temp_dir: str, multidentate_patchy_ducky: PLPSimulation, c
     ]
 
     # load dna particles
-    dna = load_dna_structure(get_input_dir() / "scenes/cube_monomer.top",
-                             get_input_dir() / "scenes/cube_monomer.dat")
     # scene = polycube_to_pl(polycube, nteeth=4, dental_radius=0.25)
-    dna_particle = DNAParticle(dna, patch_positions)
+    dna_particle = DNAParticle(cube, patch_positions)
 
     converter = PatchyOrigamiConverter(multidentate_patchy_ducky,
                                        padding=1.5,

@@ -39,6 +39,7 @@ class PLPSimulation(Scene, CellLists):
 
     potentials: list[PLPotential]
 
+    scene_multigraphs_cache: dict[str, nx.MultiGraph]
     def __init__(self, seed=69):
         super().__init__()
         CellLists.__init__(self)
@@ -53,6 +54,9 @@ class PLPSimulation(Scene, CellLists):
 
         self._colorbank = []
         self.potentials = []
+
+
+        self.scene_multigraphs_cache = dict()
 
     def add_potential(self, potential: PLPotential):
         self.potentials.append(potential)
@@ -141,6 +145,8 @@ class PLPSimulation(Scene, CellLists):
             # return from reference pt
             p.translate(center)
 
+        # don't clear scene graph since this shouldnt affect topology
+
     def sort_particles_by_type(self):
         """
         sorts particles in ascending order by type, without altering the particle layout
@@ -216,6 +222,9 @@ class PLPSimulation(Scene, CellLists):
         cell = self.get_cell(p.position())
         cell.particles.append(p)
         self.particle_cells[p.get_uid()] = cell
+
+        # clear scene gra[h cache
+        self.scene_multigraphs_cache = dict()
 
     def insert_particle(self,
                         particle: PLPatchyParticle,
@@ -338,6 +347,9 @@ class PLPSimulation(Scene, CellLists):
             p.a1 = conf.a1s[i, :]
             p.a3 = conf.a3s[i, :]
 
+        # clear cache
+        self.scene_multigraphs_cache = dict()
+
     def alter_box_size(self, new_box_size: Union[np.ndarray, float], cluster_energy_threshold: float=0):
         """
         This is VERY different from set_box_size
@@ -439,7 +451,7 @@ class PLPSimulation(Scene, CellLists):
                                                                              PLPatch], None, None]:
         # TODO: cache this?
         # compute scene multigraph
-        G: nx.MultiGraph = self.compute_scene_multigraph()
+        G: nx.MultiGraph = self.scene_multigraph()
         # find patch type IDs of patches that connect particle1 and particle2
 
         patch_pairs = [(p1_idx, p2_idx) for ptype1, ptype2, (p1_idx, p2_idx) in G.edges(data="patches") if
@@ -577,9 +589,6 @@ class PLPSimulation(Scene, CellLists):
         return G
 
     def compute_scene_multigraph(self, bond_energy: float=0) -> nx.MultiGraph:
-        """
-        should produuce multigraph of scene
-        """
         G = nx.MultiGraph()
         checked_interactions: set[frozenset[int]] = set()
         # loop particles
@@ -597,7 +606,7 @@ class PLPSimulation(Scene, CellLists):
                 particle_energy = sum(potential.energy(self.box_size(), p1, p2)
                                       for potential in self.potentials if not isinstance(potential, PLPatchyPotential))
                 # construct data structure to store interactions
-                patch_bond_energies: list[tuple[tuple[int,int], float]] = []
+                patch_bond_energies: list[tuple[tuple[int, int], float]] = []
                 for patch1, patch2 in itertools.product(p1.patches(), p2.patches()):
                     for potential in self.potentials:
                         if isinstance(potential, PLPatchyPotential):
@@ -616,6 +625,14 @@ class PLPSimulation(Scene, CellLists):
                 checked_interactions.add(frozenset([p1.get_uid(), p2.get_uid()]))
         assert len(G.nodes) == self.num_particles()
         return G
+
+    def scene_multigraph(self, bond_energy: float=0) -> nx.MultiGraph:
+        """
+        should produuce multigraph of scene
+        """
+        if f"{bond_energy}" not in self.scene_multigraphs_cache:
+            self.scene_multigraphs_cache[f"{bond_energy}"] = self.compute_scene_multigraph(bond_energy)
+        return self.scene_multigraphs_cache[f"{bond_energy}"]
 
     def compute_scene_clusters(self, bond_energy: float=0, min_cluster_size: int = 1) -> Generator[nx.Graph]:
         G = self.compute_scene_graph(bond_energy=bond_energy)

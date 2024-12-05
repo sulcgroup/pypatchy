@@ -513,14 +513,20 @@ class PLFRTorsionalPatchyPotential(PLFRPatchyPotential):
             # compute angle between patches
             # angle from particle 1 to patch 1
             # compute dot product of particle 1 -> particle 2 . particle 1 -> patch 1
-            va = self.v_angmod(math.acos(-dist_norm @ (patch1.a1() @ particle1.rotmatrix())))
+            n = -dist_norm @ (patch1.a1() @ particle1.rotmatrix())
+            n = max(-1, min(1, n))
+            va = self.v_angmod(math.acos(n))
             if va == 0:
                 return 0.
-            vb = self.v_angmod(math.acos(dist_norm @ (patch2.a1() @ particle2.rotmatrix())))
+            n = dist_norm @ (patch2.a1() @ particle2.rotmatrix())
+            n = max(-1, min(1, n))
+            vb = self.v_angmod(math.acos(n))
             if vb == 0:
                 return 0.
             # get angle between a3 vectors
-            vt = self.v_angmod(math.acos((patch1.a2() @ particle1.rotmatrix()) @ (patch2.a2() @ particle2.rotmatrix())))
+            n = (patch1.a2() @ particle1.rotmatrix()) @ (patch2.a2() @ particle2.rotmatrix())
+            n = max(-1, min(1, n))
+            vt = self.v_angmod(math.acos(n))
             return e * vt * va * vb
         else:
             return e
