@@ -684,7 +684,7 @@ class LWriter(PLBaseWriter):
         it's important to note that this will return an interaction matrix for
         PATCH ID PAIRS, NOT COLORS
         """
-        pattern = r"patchy_eps\[(\d+)\]\[(\d+)\] = (\d+\.?\d*)"
+        pattern = r"patchy_eps\[-?(\d+)\]\[-?(\d+)\] = (\d+\.?\d*)"
         data: list[tuple[tuple[int, int], float]] = list()
         max_index = 0
         with self.file(interaction_file, "r") as f:

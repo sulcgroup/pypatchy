@@ -109,7 +109,7 @@ def test_generate_scene_convert(temp_dir: str, cube: DNAParticle):
 
     reader.set_directory(Path(temp_dir) / "patchy_scene")
     reader.write_top(top, "particles.top")
-    reader.export_interaction_matrix(pl_set.interaction_matrix(), pl_set.patches(), "interactions.txt")
+    reader.export_interaction_matrix(pl_set.interaction_matrix(), "interactions.txt")
 
     # lookup patchy writer object
     # our patchy files are in Lorenzo's format so use the build in Lorenzo-Writer
