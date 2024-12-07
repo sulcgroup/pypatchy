@@ -72,17 +72,23 @@ def polycube_rule_to_PL(particle_set: PolycubesRule) -> PLParticleSet:
             a1 = relPosition / np.linalg.norm(relPosition)
             # torsion
             if patch.has_torsion():
+                # absolutely hate this
                 plpatch = PLPatch(patch.get_id(),
                                   pl_color,
                                   relPosition,
                                   a1,
-                                  patch.alignDir())
+                                  patch.alignDir()) * np.array([PATCHY_NULL_A1,
+                                                                -np.cross(PATCHY_NULL_A1, PATCHY_NULL_A3),
+                                                                PATCHY_NULL_A3])
             # no torsion
             else:
+                # absolutely hate this
                 plpatch = PLPatch(patch.get_id(),
                                   pl_color,
                                   relPosition,
-                                  a1)
+                                  a1) * np.array([PATCHY_NULL_A1,
+                                                                -np.cross(PATCHY_NULL_A1, PATCHY_NULL_A3),
+                                                                PATCHY_NULL_A3])
             particle_patches.append(plpatch)
 
         # convert to pl particle
@@ -91,7 +97,6 @@ def polycube_rule_to_PL(particle_set: PolycubesRule) -> PLParticleSet:
                                     particle_name=cube_type.name(),
                                     index_=cube_type.type_id())
         particle.set_patches(particle_patches)
-
         # apply starting rotation, for some reason
         # particle.normalize()
 
@@ -161,8 +166,10 @@ def polycube_to_pl(polycube: PolycubeStructure,
                                     position=cube.position())
         particle.set_rot_identity()
         # for reasons I struggle to comprehend, the "default" pl particle rotation is not identity
-        # particle.a1 = PATCHY_NULL_A1
-        # particle.a3 = PATCHY_NULL_A3
+        # polycube_rule_to_pl accounts for tis but to make our code work going fwd we need to adjust
+        # again, brb gonna kms
+        particle.a1 = PATCHY_NULL_A1
+        particle.a3 = PATCHY_NULL_A3
         particle.rotate(cube.rotation().as_matrix())
         particle.set_position(particle.position() * (1+pad_cubes))
         assert pl_type.matches(particle)

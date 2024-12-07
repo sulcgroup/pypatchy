@@ -54,11 +54,13 @@ def cross_sr():
 def test_fwriter_read(cross_fr):
     pass
 
+@pytest.fixture
 def icos_mgl() -> PLPSimulation:
     """
     loads a single icosahedron from an mgl file
     """
     p = Path(__file__).parent / "test_files" / "patchy_scenes" / "icos_capsid" / "icosahedron.mgl"
+    # second arg is patch color interactions, decimals  are interation strengths
     scene = read_mgl(p,
                      {
                          ("blue", "darkblue"): 1.,
@@ -67,6 +69,7 @@ def icos_mgl() -> PLPSimulation:
                      }
                      )
 
+    # sigma ss is largely just the number that made this work for me
     scene.add_potential(PLLRPatchyPotential(
         rmax=1.2,
         interaction_matrix=scene.particle_types().interaction_matrix(),
@@ -77,6 +80,7 @@ def icos_mgl() -> PLPSimulation:
     assert scene.particle_types().num_particle_types() == 3
     G = scene.compute_scene_graph()
     assert len(G.edges) == 30
+    return scene
 
 def test_lwriter_read(cross_lr):
     """
@@ -145,3 +149,36 @@ def test_mdt_ducky(multidentate_patchy_ducky: PLPSimulation):
                      patchy_file="patches.txt")
         print(td)
         pass
+
+def test_chain(ducky: PolycubeStructure):
+    scene: PLPSimulation = polycube_to_pl(ducky)
+    scene.add_potential(
+        PLFRPatchyPotential(
+            rmax=0.4 * 3,
+            alpha=0.12
+        )
+    )
+    with tempfile.TemporaryDirectory() as td:
+        writer = get_writer("flavio")
+        writer.set_directory(td)
+        writer.write(scene,
+                     topology="topology.top",
+                     conf_file="last_conf.dat",
+                     particle_file="particles.txt",
+                     patchy_file="patches.txt")
+        print(td)
+        G_old = scene.compute_scene_graph()
+        scene = writer.read_scene(
+            "topology.top",
+            "last_conf.dat",
+            writer.read_particle_types(
+            particle_file="particles.txt",
+            patchy_file="patches.txt"))
+        scene.add_potential(
+            PLFRPatchyPotential(
+                rmax=0.4 * 3,
+                alpha=0.12
+            )
+        )
+        G_new = scene.compute_scene_graph()
+        assert G_new == G_old

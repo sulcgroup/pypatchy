@@ -56,21 +56,21 @@ class Stage(BuildSimulation):
         self._param_info = paraminfo
         self._allow_shortfall = False
 
-        # # check that add param info add method is valid
-        # if isinstance(self._param_info.add_method, FromPolycubeAdder):
-        #     # check that the particle set matches up
-        #     # todo: do this somewhere where i need to run the check fewer times
-        #     try:
-        #         mdt_settings = self.getctxt().sim_get_param(self.spec(), MDT_CONVERT_KEY)
-        #     except NoSuchParamError:
-        #         mdt_settings = None
-        #     for pc in self._param_info.add_method.iter_polycubes():
-        #         sim_particle_set: PLParticleSet = self.getctxt().sim_get_particles_set(sim)
-        #         pc_particle_set: PLParticleSet = polycube_to_pl(pc.polycube_file_path,
-        #                                                         mdt_settings,
-        #                                                         pad_cubes=dps_sigma * pc.patch_distance_multiplier).particle_types()
-        #         assert sim_particle_set == pc_particle_set
-        # self.input_param_dict = {}
+        # check that add param info add method is valid
+        if isinstance(self._param_info.add_method, FromPolycubeAdder):
+            # check that the particle set matches up
+            # todo: do this somewhere where i need to run the check fewer times
+            try:
+                mdt_settings = self.getctxt().sim_get_param(self.spec(), MDT_CONVERT_KEY)
+            except NoSuchParamError:
+                mdt_settings = None
+            for pc in self._param_info.add_method.iter_polycubes():
+                sim_particle_set: PLParticleSet = self.getctxt().sim_get_particles_set(sim)
+                pc_particle_set: PLParticleSet = polycube_to_pl(pc.polycube_file_path,
+                                                                mdt_settings,
+                                                                pad_cubes=dps_sigma * pc.patch_distance_multiplier).particle_types()
+                assert sim_particle_set == pc_particle_set
+        self.input_param_dict = {}
 
     def idx(self) -> int:
         return self._prev_stage.idx() + 1 if self._prev_stage is not None else 0
@@ -280,7 +280,7 @@ class Stage(BuildSimulation):
                 scene.add_conf_clusters([
                     polycube_to_pl(pc.polycube_file_path,
                                    mdt_settings,
-                                   pad_cubes=dps_sigma * pc.patch_distance_multiplier)
+                                   pad_cubes=pc.patch_distance_multiplier)
                     for pc in self._param_info.add_method.iter_polycubes()])
         elif isinstance(self._param_info.add_method, FromConfAdder):
             raise Exception("If you're seeing this, this feature hasn't been implemented yet although it can't be"

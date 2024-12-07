@@ -92,22 +92,28 @@ def read_mgl(file_path: Union[Path, str], color_map: Union[dict[tuple[str,str], 
                     patch.position() for patch in patches
                 ])
                 patch_type_color_order = [patch.color() for patch in type_map[particle_color].patches()]
-                ptype_pos_matrix = np.stack([
+                ptype_pos_matrix = np.stack([np.zeros((3,)), *[
                     patch.position() for patch in
                     type_map[particle_color].patches()
-                    ])
+                    ]])
                 # oh god we need to use a svd superimposer
                 sup = SVDSuperimposer()
                 for order in itertools.permutations(range(len(patches))):
                     # skip orderings that don't align
                     if all([c1 == c2 for c1, c2 in zip(patch_color_orders, [patch_type_color_order[n] for n in order])]):
-                        sup.set( ptype_pos_matrix, particle_patch_posmatrix)
+                        sup.set(
+                            np.stack([
+                                np.zeros((3,)),
+                                *[
+                                patch.position() for patch in patches
+                            ]]),
+                            ptype_pos_matrix)
                         sup.run()
                         rms = sup.get_rms()
                         # sure, this is good rms
                         if rms < 0.01:
                             p_type = type_map[particle_color]
-                            rot = sup.rot
+                            rot = sup.rot.T
                             break
                     raise Exception("Couldn't find correct rotation for particles")
 

@@ -269,13 +269,13 @@ class PLPSimulation(Scene, CellLists):
                 # random position
                 new_pos = np.random.rand(3) * self._box_size
                 p.set_position(new_pos)
+                # randomize orientation
+                p.set_random_orientation()
                 if not self.check_for_particle_overlap(p):
                     break
                 t += 1
             if t == nTries:
                 raise Exception(f"Could not find a position t(o place a particle! nTries={nTries}")
-            # randomize orientation
-            p.set_random_orientation()
             self.add_particle(p)
         # the following assertion is useful for catching energy issues at low particle counts
         # but it's VERY VERY SLOW

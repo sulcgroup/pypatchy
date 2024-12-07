@@ -161,6 +161,13 @@ class PLPatch(BasePatchType):
     def __ne__(self, other: PLPatch):
         return not (self == other)
 
+    def __mul__(self, rotation_matrix: np.ndarray) -> PLPatch:
+        assert isinstance(rotation_matrix, np.ndarray) and rotation_matrix.shape == (3,3) and np.allclose(rotation_matrix @ rotation_matrix.T, np.identity(3)) and abs(1-np.linalg.det(rotation_matrix)) < 1e-5, "your rotation matrix sucks or isn't real or smth, i'm very tired rn"
+        return PLPatch(type_id=self.type_id(),
+                       color=self.color(),
+                       relposition=self.position()@rotation_matrix,
+                       a1=self.a1()@rotation_matrix,
+                       a2=self.a2()@rotation_matrix)
 class ColorSetNotOneToOneException(BaseException):
     msg:str
     def __init__(self, msg:str):

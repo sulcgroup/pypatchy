@@ -1172,18 +1172,17 @@ class PatchySimulationEnsemble(Analyzable):
                                                           conf_file,
                                                           self.sim_get_particles_set(sim))
 
-        # # check particle files
-        # # todo: check that this line works for all writers
-        # ptypes_dir = self.writer.read_particle_types(**{key: self.sim_stage_get_param(sim, stage, key)
-        #                                                 for key in self.writer.reqd_args()
-        #                                                 })
-        # if ptypes_dir != self.sim_get_particles_set(sim):
-        #     self.get_logger().log(level=logging.WARNING, msg="Mismatch between particle types written in directory "
-        #                                                      " and particle types specified in setup files!"
-        #                                                      " Or old data, that is also possible."
-        #                                                      " Using particle types as found in setup fieles...")
-        #     # the reason to not do this as default is multidentatae source tracking
-        #     # scene.set_particle_types(ptypes_dir)
+        # check particle files
+        # todo: check that this line works for all writers
+        ptypes_dir = self.writer.read_particle_types(**{key: self.sim_stage_get_param(sim, stage, key)
+                                                        for key in self.writer.reqd_args()
+                                                        })
+        if ptypes_dir != self.sim_get_particles_set(sim):
+            scene.set_particle_types(ptypes_dir)
+            # todo: custom exception
+            raise Exception("Mismatch between particle types written in directory "
+                                                             " and particle types specified in setup files!"
+                                                             " Or old data, that is also possible.")
 
         scene.set_temperature(self.sim_stage_get_param(sim, stage, "T"))
         for potential in self.get_interaction_potentials(sim):
@@ -1373,7 +1372,7 @@ class PatchySimulationEnsemble(Analyzable):
             # skip writing sbatch script if mps is off
             # write .sh script
             self.get_logger().info("Writing sbatch scripts...")
-            self.write_run_script(sim)
+            self.write_run_script(sim, stage_obj)
 
     def write_setup_files(self,
                           sim: PatchySimulation,
@@ -1485,9 +1484,7 @@ class PatchySimulationEnsemble(Analyzable):
                     print(
                         f"Mismatch between python-computed energy {scene_computed_energy} and oxDNA-computed energy {e}")
 
-    def write_run_script(self, sim: PatchySimulation, input_file="input"):
-        # if no stage name provided use first stage
-        stage = self.check_stage(sim)
+    def write_run_script(self, sim: PatchySimulation, stage: Stage, input_file="input"):
 
         slurm_script_name = "slurm_script.sh"
         slurm_script_name = stage.adjfn(slurm_script_name)
@@ -1807,7 +1804,7 @@ class PatchySimulationEnsemble(Analyzable):
                 pass  # if no stage has a traj error everything is probably fine, just needs to run 1st stage
         return True
 
-    def check_stage(self, sim: PatchySimulation):
+    def check_stage(self, sim: PatchySimulation) -> Stage:
         """
         Checks staging status of this simulation
         """
