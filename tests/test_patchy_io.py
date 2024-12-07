@@ -7,10 +7,10 @@ from pathlib import Path
 
 import pytest
 
-from pypatchy.patchy.pl.patchyio import get_writer
+from pypatchy.patchy.pl.patchyio import get_writer, read_mgl
 from pypatchy.patchy.pl.plparticleset import MultidentateConvertSettings
 from pypatchy.patchy.pl.plpatchylib import polycube_to_pl
-from pypatchy.patchy.pl.plpotential import PLFRPatchyPotential
+from pypatchy.patchy.pl.plpotential import PLFRPatchyPotential, PLLRPatchyPotential
 from pypatchy.patchy.pl.plscene import PLPSimulation
 from pypatchy.polycubeutil.polycube_structure import PolycubeStructure
 
@@ -54,6 +54,29 @@ def cross_sr():
 def test_fwriter_read(cross_fr):
     pass
 
+def icos_mgl() -> PLPSimulation:
+    """
+    loads a single icosahedron from an mgl file
+    """
+    p = Path(__file__).parent / "test_files" / "patchy_scenes" / "icos_capsid" / "icosahedron.mgl"
+    scene = read_mgl(p,
+                     {
+                         ("blue", "darkblue"): 1.,
+                         ("green", "darkgreen"): 1.,
+                         ("red", "darkred"): 1.
+                     }
+                     )
+
+    scene.add_potential(PLLRPatchyPotential(
+        rmax=1.2,
+        interaction_matrix=scene.particle_types().interaction_matrix(),
+        sigma_ss=0.7
+    ))
+
+    # scene.export_to_mgl("icos.mgl", patches_w=0.2)
+    assert scene.particle_types().num_particle_types() == 3
+    G = scene.compute_scene_graph()
+    assert len(G.edges) == 30
 
 def test_lwriter_read(cross_lr):
     """

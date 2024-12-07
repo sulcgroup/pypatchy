@@ -244,28 +244,6 @@ class PLPatchyParticle(PatchyBaseParticleType, PatchyBaseParticle):
             sout += f"{np.array2string(self.patch_position(p))[1:-1]} @ {patch_width} C[{patch_color}]\n"
         return sout
 
-    # def export_to_lorenzian_mgl(self,
-    #                             patch_colors,
-    #                             particle_color,
-    #                             patch_width: float = 0.1,
-    #                             patch_extension: float = 0.2) -> str:
-    #     # sout = '%f %f %f @ %f C[%s] ' % (self.cm_pos[0],self.cm_pos[1],self.cm_pos[2],self._radius,particle_color)
-    #
-    #     sout = '%f %f %f @ %f C[%s] ' % (self.cm_pos[0], self.cm_pos[1], self.cm_pos[2], 0.4, particle_color)
-    #     if len(self._patches) > 0:
-    #         sout = sout + 'M '
-    #     for i, p in enumerate(self._patches):
-    #         orientation = np.array([self.a1, self.a2, self.a3])
-    #         # orientation = np.transpose(orientation)
-    #         pos = np.dot(orientation,
-    #                      p.position())  # np.array( np.dot(p._position , self.a1) , np.dot(p._position[1] , self.a2), np.dot( p._position[2] * self.a3
-    #         pos *= (1.0 + patch_extension)
-    #         # print 'Critical: ',p._type,patch_colors
-    #         g = f"{np.array2string(pos)[1:-1]} {patch_width} C[{patch_colors[i]}]"
-    #         # g = '%f %f %f %f C[%s] ' % (pos[0], pos[1], pos[2], patch_width, patch_colors[i])
-    #         sout = sout + g
-    #     return sout
-
     def patch_ids(self) -> Generator[int, None, None]:
         for patch in self.patches():
             yield patch.get_id()
@@ -309,3 +287,10 @@ class PLPatchyParticle(PatchyBaseParticleType, PatchyBaseParticle):
         p = copy.deepcopy(self)
         p.set_uid(uid)
         return p
+
+    def set_rotation(self, param: np.ndarray):
+        self.a1 = param[:, 0]
+        self.a3 = param[:, 2]
+        assert np.allclose(self.rotmatrix() @ self.rotmatrix().T, np.identity(3), atol=1e-5)
+        assert abs(np.linalg.det(self.rotmatrix()) - 1) < 1e-4
+

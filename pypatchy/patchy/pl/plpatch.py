@@ -140,10 +140,18 @@ class PLPatch(BasePatchType):
         # check torsion (just for fun)
         if self.has_torsion() != other.has_torsion():
             return False
-        if not np.allclose(self.a1(), other.a1()):
-            return False
-        if not np.allclose(self.a3(), other.a3()):
-            return False
+        if self.a1() is not None:
+            if not np.allclose(self.a1(), other.a1()):
+                return False
+        else:
+            if other.a1() is not None:
+                return False
+        if self.a2() is not None:
+            if not np.allclose(self.a2(), other.a2()):
+                return False
+        else:
+            if other.a2() is not None:
+                return False
         if not np.allclose(self.position(), other.position()):
             return False
         if not self.strength() == other.strength():

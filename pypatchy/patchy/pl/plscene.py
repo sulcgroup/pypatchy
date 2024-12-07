@@ -564,7 +564,7 @@ class PLPSimulation(Scene, CellLists):
             #     + str(resulting_rot) + "\ntarget_rot:\n" + str(target_rot)
             # # checks out! ------------------------------------------------------------
 
-            mdt_particle.rotate(particle.rotmatrix())
+            mdt_particle.set_rotation(particle.rotmatrix())
 
             # assign UID
             mdt_particle.set_uid(particle.get_uid())
@@ -614,7 +614,9 @@ class PLPSimulation(Scene, CellLists):
                             if e_bond < bond_energy:
                                 # should this be a dataclass or smth
                                 patch_bond_energies.append(((patch1.get_id(), patch2.get_id()), e_bond))
+                # if we have found any patch-patch interactions
                 if len(patch_bond_energies) > 0:
+                    # sort interactions by energy
                     patch_bond_energies.sort(key=lambda x: x[1], reverse=True)
                     for (patch1, patch2), e in patch_bond_energies:
                         G.add_edge(p1.get_uid(),

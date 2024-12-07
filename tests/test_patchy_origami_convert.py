@@ -34,11 +34,28 @@ def cube() -> DNAParticle:
     # load a DNA structure to use as our monomer.
     # here we will load the files at ~/pypatchy/input/scenes/cube_monomer.top and ~/pypatchy/input/scenes/cube_monomer.
     # unlike the aforementioned load_polycube function this will NOT automatically prepent ~/.pypatchy/input
-    dna = load_dna_structure(Path(__file__).parent / "test_files" /  "dna_confs" / "structure_cube"/"cube_monomer.top",
+    dna = load_dna_structure(Path(__file__).parent / "test_files" / "dna_confs" / "structure_cube"/"cube_monomer.top",
                              Path(__file__).parent / "test_files" / "dna_confs" / "structure_cube" / "cube_monomer.dat")
     # create DNA monomer from DNA structure and patch positions
     dna_particle = DNAParticle(dna, patch_positions)
     return dna_particle
+
+
+def icosahedron() -> DNAParticle:
+    patchPositions = [
+        [40, 21, 46],
+        [28, 9, 32],
+        [60, 75, 74],
+        [146, 161, 160],
+        [127, 132, 109],
+        [138, 153, 175]
+    ]
+
+    # load dna icosahedron
+    dna = load_dna_structure(Path(__file__).parent / "test_file" / "dna_confs" / "icosahedron" / "ico_monomer.top",
+                             Path(__file__).parent / "test_file" / "dna_confs" / "icosahedron" /"ico_monomer.dat")
+    return DNAParticle(dna, patchPositions)
+
 
 def test_convert_wireframe_cube(temp_dir: str, cube:DNAParticle):
     pass

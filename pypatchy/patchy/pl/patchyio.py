@@ -10,6 +10,7 @@ from pathlib import Path
 
 import numpy as np
 import oxDNA_analysis_tools.UTILS.RyeReader as rr
+from Bio.SVDSuperimposer import SVDSuperimposer
 
 from .plpatch import PLPatch, assign_colors_one_to_one, assign_colors
 from .plparticle import PLPatchyParticle
@@ -19,6 +20,115 @@ from ...interaction_matrix import InteractionMatrix
 from ...polycubeutil.polycubesRule import PolycubeRuleCubeType
 from ...util import normalize, DENTAL_RADIUS_KEY, NUM_TEETH_KEY
 from ...server_config import PatchyServerConfig, get_server_config
+
+# no class to read mgls since it isn't an oxdna format
+def read_mgl(file_path: Union[Path, str], color_map: Union[dict[tuple[str,str], float], None]) -> PLPSimulation:
+    assert color_map is not None, "We have not implemented automatic color matching!"
+    if isinstance(file_path, str):
+        file_path = Path(file_path)
+    assert file_path.is_file()
+    with file_path.open("r") as f:
+        # first line of mgl defines box
+        first_line = f.readline()
+        # read box siZe
+        box_size = np.array([float(x) for x in re.findall(r'\d+\.\d+', first_line)])
+        # init mgl scene
+        mgl = PLPSimulation()
+        mgl.set_particle_types(PLParticleSet())
+        # set mgl box size
+        mgl.set_box_size(box_size)
+        mgl.compute_cell_size(n_cells=1)
+        mgl.apportion_cells()
+        # each line after the first is a particle
+        patch_idx = 0
+        type_map: dict[str, PLPatchyParticle] = {}
+        # each remaining line in the mgl is a particle
+
+        color_list: list[str] = []
+
+        for i, line in enumerate(f):
+            # first part of an mgl line is the particle position, second is other info, third is patches
+            particle_position, particle_data, patch_strs = re.split(r"[@M]", line)
+            particle_position = np.array([float(x) for x in particle_position.split()])
+            # radius, color
+            r, particle_color = particle_data.split()
+            r = float(r)
+            assert particle_color.startswith("C")
+            # particle color indicates type
+            # read particle type string
+            particle_color = particle_color[particle_color.find("[") + 1:particle_color.rfind("]")]
+            patch_strs = patch_strs.split()
+            assert len(patch_strs) % 5 == 0
+            patches: list[PLPatch] = []
+            # no delimeter between patches
+            j = 0
+            # read patches
+            while j < len(patch_strs):
+                # each patch is specied by 4 numbers and a string
+                # the first three numbers specify the patch position, the fourth is the patch width,
+                # the string is fifth and is the patch color
+                patch_coords = np.array([float(x) for x in patch_strs[j:j + 3]])
+                # read patch width for completness sake, but ignore it
+                w = float(patch_strs[j + 3])
+                patch_color: str = re.search(r"C\[(\w+)]", patch_strs[j + 4]).group(1)
+                if patch_color not in color_list:
+                    color_list.append(patch_color)
+                color_idx = color_list.index(patch_color)
+                # patch
+                patch = PLPatch(mgl.particle_types().num_patches(),
+                                color_idx,
+                                patch_coords)
+                # "a1" doesn't strictly exist in mgl but it's very useful to have anyway
+                patch.set_a1(normalize(patch.position()))
+                patches.append(patch)
+                patch_idx += 1
+                j += 5
+            # if we have a type for this particle
+            if particle_color in type_map:
+                assert len(patches) == type_map[particle_color].num_patches()
+                # compute matrix of particle positions
+                patch_color_orders = [patch.color() for patch in patches]
+                particle_patch_posmatrix = np.stack([
+                    patch.position() for patch in patches
+                ])
+                patch_type_color_order = [patch.color() for patch in type_map[particle_color].patches()]
+                ptype_pos_matrix = np.stack([
+                    patch.position() for patch in
+                    type_map[particle_color].patches()
+                    ])
+                # oh god we need to use a svd superimposer
+                sup = SVDSuperimposer()
+                for order in itertools.permutations(range(len(patches))):
+                    # skip orderings that don't align
+                    if all([c1 == c2 for c1, c2 in zip(patch_color_orders, [patch_type_color_order[n] for n in order])]):
+                        sup.set( ptype_pos_matrix, particle_patch_posmatrix)
+                        sup.run()
+                        rms = sup.get_rms()
+                        # sure, this is good rms
+                        if rms < 0.01:
+                            p_type = type_map[particle_color]
+                            rot = sup.rot
+                            break
+                    raise Exception("Couldn't find correct rotation for particles")
+
+            else:
+                p_type = PLPatchyParticle(patches,
+                                          radius=r,
+                                          type_id=mgl.particle_types().num_particle_types(),
+                                          particle_name=particle_color)
+                type_map[particle_color] = p_type
+                mgl.particle_types().add_particle(p_type)
+                rot = np.identity(3)
+            p = p_type.instantiate(mgl.num_particles())
+            p.set_rotation(rot)
+            p.set_position(particle_position)
+            mgl.add_particle(p)
+        # set interaction matrix
+        mgl.particle_types().set_interactions(InteractionMatrix({
+            (color_list.index(c1_str), color_list.index(c2_str)): strength
+            for (c1_str, c2_str), strength in color_map.items()
+        }))
+        return mgl
 
 
 # this approach was suggested by chatGPT.

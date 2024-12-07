@@ -384,7 +384,7 @@ class PLParticleSet(BaseParticleSet):
                             # theta doesn't need to be adjusted for parity because it's the sames
                             new_interaction_map[(c, c)] = self.interaction_matrix()[patch.color(),patch.color()] / mdt_params.n_teeth
                         else:
-                            assert c != 0
+                            # assert c != 0
                             # CASE: no torsion, no self interact
                             # simple enouyg
                             interacting_colors = (patch.color(), *self.interaction_matrix().get_interacting_colors(patch.color()))

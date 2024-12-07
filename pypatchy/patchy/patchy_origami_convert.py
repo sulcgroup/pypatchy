@@ -139,7 +139,7 @@ class PatchyOrigamiConverter:
                  particle_delta: float = 1.2,
                  bond_length: float = 0.4,
                  cos_theta_max: float = 0.95,
-                 sticky_length: int = 0,
+                 sticky_length: Union[None,int] = None,
                  padding: float = 1.0,
                  flexable_patch_distances: bool = False,
                  expected_num_edges: int = -1,
@@ -694,7 +694,7 @@ class PatchyOrigamiConverter:
         assert not self.is_track_conf_stickies() or (particle2.linked_particle.get_uid(), patch2.type_id()) not in self.sticky_book
 
         # find nucleotides which will be extended to form patches
-        assert patch1.color() + patch2.color() == 0
+        # assert patch1.color() + patch2.color() == 0
 
         start_position1 = particle1.patch_3p(patch1).pos
         start_position2 = particle2.patch_3p(patch2).pos
@@ -710,8 +710,7 @@ class PatchyOrigamiConverter:
             print(f"Distance between patches = {patch_distance}. "
                   f"Expected distance {self.get_expected_pad_distance()}")
 
-        assert not self.check_strict_rc or self.color_sequence(patch1.color()) == rc(
-            self.color_sequence(patch2.color()))
+        assert not self.check_strict_rc or self.color_sequence(patch1.color()) == rc(self.color_sequence(patch2.color()))
 
         # retrieve sequences from map + add spacers
         patch1_seq = self.spacer_length * "T" + self.color_sequence(patch1.color())
