@@ -933,16 +933,26 @@ class PolycubesRule(BaseParticleSet):
             filename = Path(filename)
         colorcount = 0
         with filename.open("w") as f:
-            colormap: dict[int, int] = dict()
-            for i_particle, particle_type in enumerate(self.particles()):
-                for patch in particle_type.patches():
-                    if patch.color() not in colormap:
-                        colormap[patch.color()] = colorcount
-                        colorcount += 1
-                    f.write(f"C({i_particle},{patch.dirIdx()},{colormap[patch.color()]})\n")
-            for color in self.color_set():
-                if color > 0:
-                    assert -color in colormap
-                    f.write(f"B({colormap[color]},{colormap[-color]})\n")
+            f.write(self.to_SAT_str())
+
+    def to_SAT_str(self) -> str:
+        return "\n".join(self.to_sat_list())
+
+    def to_sat_list(self) -> list[str]:
+        sat_vars = []
+        colorcount = 0
+        colormap: dict[int, int] = dict()
+        for i_particle, particle_type in enumerate(self.particles()):
+            for patch in particle_type.patches():
+                if patch.color() not in colormap:
+                    colormap[patch.color()] = colorcount
+                    colorcount += 1
+                sat_vars.append(f"C({i_particle},{patch.dirIdx()},{colormap[patch.color()]})")
+        for color in self.color_set():
+            if color > 0:
+                assert -color in colormap
+                sat_vars.append( f"B({colormap[color]},{colormap[-color]})")
+        return sat_vars
+
 
 # TODO: integrate with C++ TLM / Polycubes
