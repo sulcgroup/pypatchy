@@ -22,7 +22,7 @@ from pypatchy.scene import Scene
 from pypatchy.polycubeutil.polycubesRule import PolycubesRule, diridx, PolycubeRuleCubeType, RULE_ORDER, PolycubesPatch
 
 from pypatchy.structure import TypedStructure, Structure
-from pypatchy.util import from_xyz, getRotations, get_input_dir
+from pypatchy.util import from_xyz, getRotations, get_input_dir, to_xyz
 
 
 # todo: add cell lists? probably overkill
@@ -89,11 +89,11 @@ class PolycubeStructure(TypedStructure, Scene):
             # structure passed as list of cube objects
             for cube in kwargs["cubes"]:
                 if isinstance(cube, dict):
-                    cube = PolycubesStructureCube()
+                    cube = PolycubesStructureCube(**cube)
                 assert cube.get_type() in [ct.type_id() for ct in self.rule.particles()], "Cube type not found in rule!"
                 self._particles.append(cube)
                 self.cubeMap[cube.position().tobytes()] = cube
-                self.graph.add_node(cube.get_id(), cube=cube)
+                self.graph.add_node(cube.get_uid(), cube=cube)
         else:
             # empty structure
             pass
@@ -308,6 +308,18 @@ class PolycubeStructure(TypedStructure, Scene):
 
         return transformed_structure
 
+    def save_polycube(self, fp: Path):
+        """
+        saves a polycube as a JSON file which can be read by load_polycube or into the web app
+        """
+        with fp.open("w") as f:
+            json.dump({
+                'cube_types': self.rule.toJSON(),
+                'cubes': [
+                    cube.toJSON() for cube in self.particles()
+                ]
+            }, f)
+
     def substructure(self, nodes: tuple[int]) -> Structure:
         """
         Returns:
@@ -446,6 +458,17 @@ class PolycubesStructureCube(PatchyBaseParticle):
         """
         return [p.rotate(self.rot_mat()) for p in self.get_cube_type().patches()]
 
+    def toJSON(self) -> dict:
+        return {
+            "position": to_xyz(self.position()),
+            "rotation": {
+                k: float(v) for k, v in zip(
+                    ["x", "y", "z", "w"], # as_quat uses xyzw format
+                    self.rotation().as_quat())
+            },
+            "state": [True, *([False] * 12)],  # ignore for now TODO come back to
+            "type": self.get_cube_type().type_id()
+        }
 
 
 def load_polycube(file_path: Union[Path, str]) -> PolycubeStructure:
@@ -457,6 +480,7 @@ def load_polycube(file_path: Union[Path, str]) -> PolycubeStructure:
         data = json.load(f)
         rule = PolycubesRule(rule_json=data["cube_types"])
         return PolycubeStructure(rule=rule, structure=data["cubes"])
+
 
 
 # these next two methods were written by chatGPT to help make topologies faster

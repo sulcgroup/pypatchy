@@ -43,6 +43,8 @@ class TLMHistoryRecord:
         self.__num_cubes_insts = sum([len(pc.getCubes()) for pc in self.__polycubes])
         self.__energy = kwargs["bond_energy"]
 
+    def getPolycubes(self) -> list[TLMPolycube]:
+        return self.__polycubes
 
 class TLMPolycube:
     """
