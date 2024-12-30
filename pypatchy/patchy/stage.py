@@ -242,7 +242,7 @@ class Stage(BuildSimulation):
         # at which point things become. tricky
         elif not np.allclose(self.box_size(), scene.box_size()):
             try:
-                scene.alter_box_size(self.box_size(), self.getctxt().sim_get_param(self.getctxt(),
+                scene.alter_box_size(self.box_size(), self.getctxt().sim_get_param(self.spec(),
                                                                                    "cluster_bond_energy"))
             except NoSuchParamError:
                 # if cluter bond eneregy isn't specified, include all interactions w/ bond ene  rgy
