@@ -1,0 +1,1027 @@
+2025-01-02 17:41:31,476 [INFO] (main) 2025-01-02 17:41:31,476 [INFO] (main) Main: STARTING new shooting for 100
+2025-01-02 17:41:31,480 [INFO] (main) 2025-01-02 17:41:31,480 [INFO] (main) Main: Starting processes...
+2025-01-02 17:41:31,483 [INFO] (main) 2025-01-02 17:41:31,483 [INFO] (main) Main: waiting for processes to finish
+2025-01-02 17:41:31,814 [INFO] (timer) 2025-01-02 17:41:31,814 [INFO] (timer) Timer started at Thu Jan  2 17:41:31 2025
+2025-01-02 17:41:32,161 [INFO] (Worker0) 2025-01-02 17:41:32,161 [INFO] (Worker0) equilibration started
+2025-01-02 17:41:34,204 [INFO] (Worker0) 2025-01-02 17:41:34,204 [INFO] (Worker0) equilibrated
+2025-01-02 17:41:34,204 [INFO] (Worker0) 2025-01-02 17:41:34,204 [INFO] (Worker0) Running initial simulation?
+2025-01-02 17:41:34,225 [INFO] (Worker0) 2025-01-02 17:41:34,225 [INFO] (Worker0) reached Q_{-2}...
+2025-01-02 17:41:34,247 [INFO] (Worker0) 2025-01-02 17:41:34,247 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:41:34,415 [INFO] (main) 2025-01-02 17:41:34,415 [INFO] (main) Main: Terminating timer
+2025-01-02 17:41:34,416 [INFO] (main) 2025-01-02 17:41:34,416 [INFO] (main) terminating processes
+2025-01-02 17:41:34,416 [INFO] (main) 2025-01-02 17:41:34,416 [INFO] (main) Main: nsuccesses: 1 in this run
+2025-01-02 17:41:34,418 [INFO] (main) 2025-01-02 17:41:34,418 [INFO] (main) No confs generated!!!
+2025-01-02 17:44:32,555 [INFO] (main) 2025-01-02 17:44:32,555 [INFO] (main) Main: STARTING new shooting for 100
+2025-01-02 17:44:32,564 [INFO] (main) 2025-01-02 17:44:32,564 [INFO] (main) Main: Starting processes...
+2025-01-02 17:44:32,568 [INFO] (main) 2025-01-02 17:44:32,568 [INFO] (main) Main: waiting for processes to finish
+2025-01-02 17:44:32,924 [INFO] (timer) 2025-01-02 17:44:32,924 [INFO] (timer) Timer started at Thu Jan  2 17:44:32 2025
+2025-01-02 17:44:33,312 [INFO] (Worker0) 2025-01-02 17:44:33,312 [INFO] (Worker0) equilibration started
+2025-01-02 17:44:35,278 [INFO] (Worker0) 2025-01-02 17:44:35,278 [INFO] (Worker0) equilibrated
+2025-01-02 17:44:35,278 [INFO] (Worker0) 2025-01-02 17:44:35,278 [INFO] (Worker0) Running initial simulation?
+2025-01-02 17:44:35,299 [INFO] (Worker0) 2025-01-02 17:44:35,299 [INFO] (Worker0) reached Q_{-2}...
+2025-01-02 17:44:35,315 [INFO] (Worker0) 2025-01-02 17:44:35,315 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:44:35,991 [INFO] (main) 2025-01-02 17:44:35,991 [INFO] (main) Main: Terminating timer
+2025-01-02 17:44:35,991 [INFO] (main) 2025-01-02 17:44:35,991 [INFO] (main) terminating processes
+2025-01-02 17:44:35,992 [INFO] (main) 2025-01-02 17:44:35,992 [INFO] (main) Main: nsuccesses: 1 in this run
+2025-01-02 17:44:35,992 [INFO] (main) 2025-01-02 17:44:35,992 [INFO] (main) No confs generated!!!
+2025-01-02 17:46:33,786 [INFO] (main) 2025-01-02 17:46:33,786 [INFO] (main) Main: STARTING new shooting for 100
+2025-01-02 17:46:33,790 [INFO] (main) 2025-01-02 17:46:33,790 [INFO] (main) Main: Starting processes...
+2025-01-02 17:46:33,794 [INFO] (main) 2025-01-02 17:46:33,794 [INFO] (main) Main: waiting for processes to finish
+2025-01-02 17:46:34,122 [INFO] (timer) 2025-01-02 17:46:34,122 [INFO] (timer) Timer started at Thu Jan  2 17:46:34 2025
+2025-01-02 17:46:34,440 [INFO] (Worker0) 2025-01-02 17:46:34,440 [INFO] (Worker0) equilibration started
+2025-01-02 17:46:36,465 [INFO] (Worker0) 2025-01-02 17:46:36,465 [INFO] (Worker0) equilibrated
+2025-01-02 17:46:36,465 [INFO] (Worker0) 2025-01-02 17:46:36,465 [INFO] (Worker0) Running initial simulation?
+2025-01-02 17:46:36,487 [INFO] (Worker0) 2025-01-02 17:46:36,487 [INFO] (Worker0) reached Q_{-2}...
+2025-01-02 17:46:36,503 [INFO] (Worker0) 2025-01-02 17:46:36,503 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:46:36,612 [INFO] (Worker0) 2025-01-02 17:46:36,612 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:46:38,630 [INFO] (Worker0) 2025-01-02 17:46:38,630 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:46:38,651 [INFO] (Worker0) 2025-01-02 17:46:38,651 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:46:38,668 [INFO] (Worker0) 2025-01-02 17:46:38,668 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:46:40,767 [INFO] (Worker0) 2025-01-02 17:46:40,767 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:46:40,784 [INFO] (Worker0) 2025-01-02 17:46:40,784 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:46:40,800 [INFO] (Worker0) 2025-01-02 17:46:40,800 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:46:42,846 [INFO] (Worker0) 2025-01-02 17:46:42,846 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:46:42,863 [INFO] (Worker0) 2025-01-02 17:46:42,863 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:46:42,879 [INFO] (Worker0) 2025-01-02 17:46:42,879 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:46:44,132 [INFO] (timer) 2025-01-02 17:46:44,132 [INFO] (timer) Timer: at Thu Jan  2 17:46:44 2025 (runtime 10.008713722229004s): successes: 4, time per success: 2.502178430557251s
+2025-01-02 17:46:44,979 [INFO] (Worker0) 2025-01-02 17:46:44,979 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:46:44,996 [INFO] (Worker0) 2025-01-02 17:46:44,996 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:46:45,013 [INFO] (Worker0) 2025-01-02 17:46:45,013 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:46:47,056 [INFO] (Worker0) 2025-01-02 17:46:47,056 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:46:47,075 [INFO] (Worker0) 2025-01-02 17:46:47,075 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:46:47,093 [INFO] (Worker0) 2025-01-02 17:46:47,093 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:46:49,247 [INFO] (Worker0) 2025-01-02 17:46:49,247 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:46:49,265 [INFO] (Worker0) 2025-01-02 17:46:49,265 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:46:49,283 [INFO] (Worker0) 2025-01-02 17:46:49,283 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:46:51,453 [INFO] (Worker0) 2025-01-02 17:46:51,453 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:46:51,471 [INFO] (Worker0) 2025-01-02 17:46:51,471 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:46:51,490 [INFO] (Worker0) 2025-01-02 17:46:51,490 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:46:53,615 [INFO] (Worker0) 2025-01-02 17:46:53,615 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:46:53,635 [INFO] (Worker0) 2025-01-02 17:46:53,635 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:46:53,657 [INFO] (Worker0) 2025-01-02 17:46:53,657 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:46:54,142 [INFO] (timer) 2025-01-02 17:46:54,142 [INFO] (timer) Timer: at Thu Jan  2 17:46:54 2025 (runtime 20.018911838531494s): successes: 9, time per success: 2.2243235376146107s
+2025-01-02 17:46:56,014 [INFO] (Worker0) 2025-01-02 17:46:56,014 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:46:56,032 [INFO] (Worker0) 2025-01-02 17:46:56,032 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:46:56,052 [INFO] (Worker0) 2025-01-02 17:46:56,052 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:46:58,124 [INFO] (Worker0) 2025-01-02 17:46:58,124 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:46:58,175 [INFO] (Worker0) 2025-01-02 17:46:58,175 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:46:58,201 [INFO] (Worker0) 2025-01-02 17:46:58,201 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:47:00,262 [INFO] (Worker0) 2025-01-02 17:47:00,262 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:47:00,279 [INFO] (Worker0) 2025-01-02 17:47:00,279 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:47:00,310 [INFO] (Worker0) 2025-01-02 17:47:00,310 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:47:02,370 [INFO] (Worker0) 2025-01-02 17:47:02,370 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:47:02,389 [INFO] (Worker0) 2025-01-02 17:47:02,389 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:47:02,410 [INFO] (Worker0) 2025-01-02 17:47:02,410 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:47:04,152 [INFO] (timer) 2025-01-02 17:47:04,152 [INFO] (timer) Timer: at Thu Jan  2 17:47:04 2025 (runtime 30.028677701950073s): successes: 13, time per success: 2.3098982847653904s
+2025-01-02 17:47:04,473 [INFO] (Worker0) 2025-01-02 17:47:04,473 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:47:04,491 [INFO] (Worker0) 2025-01-02 17:47:04,491 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:47:04,508 [INFO] (Worker0) 2025-01-02 17:47:04,508 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:47:06,560 [INFO] (Worker0) 2025-01-02 17:47:06,560 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:47:06,578 [INFO] (Worker0) 2025-01-02 17:47:06,578 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:47:06,597 [INFO] (Worker0) 2025-01-02 17:47:06,597 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:47:08,726 [INFO] (Worker0) 2025-01-02 17:47:08,726 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:47:08,743 [INFO] (Worker0) 2025-01-02 17:47:08,743 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:47:08,761 [INFO] (Worker0) 2025-01-02 17:47:08,761 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:47:10,824 [INFO] (Worker0) 2025-01-02 17:47:10,824 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:47:10,844 [INFO] (Worker0) 2025-01-02 17:47:10,844 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:47:10,861 [INFO] (Worker0) 2025-01-02 17:47:10,861 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:47:12,959 [INFO] (Worker0) 2025-01-02 17:47:12,959 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:47:12,976 [INFO] (Worker0) 2025-01-02 17:47:12,976 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:47:12,991 [INFO] (Worker0) 2025-01-02 17:47:12,991 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:47:14,160 [INFO] (timer) 2025-01-02 17:47:14,160 [INFO] (timer) Timer: at Thu Jan  2 17:47:14 2025 (runtime 40.03671455383301s): successes: 18, time per success: 2.224261919657389s
+2025-01-02 17:47:15,060 [INFO] (Worker0) 2025-01-02 17:47:15,060 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:47:15,086 [INFO] (Worker0) 2025-01-02 17:47:15,086 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:47:15,113 [INFO] (Worker0) 2025-01-02 17:47:15,113 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:47:17,191 [INFO] (Worker0) 2025-01-02 17:47:17,191 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:47:17,208 [INFO] (Worker0) 2025-01-02 17:47:17,208 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:47:17,254 [INFO] (Worker0) 2025-01-02 17:47:17,254 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:47:19,319 [INFO] (Worker0) 2025-01-02 17:47:19,319 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:47:19,337 [INFO] (Worker0) 2025-01-02 17:47:19,337 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:47:19,353 [INFO] (Worker0) 2025-01-02 17:47:19,353 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:47:21,353 [INFO] (Worker0) 2025-01-02 17:47:21,353 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:47:21,372 [INFO] (Worker0) 2025-01-02 17:47:21,372 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:47:21,390 [INFO] (Worker0) 2025-01-02 17:47:21,390 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:47:23,426 [INFO] (Worker0) 2025-01-02 17:47:23,426 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:47:23,442 [INFO] (Worker0) 2025-01-02 17:47:23,442 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:47:23,462 [INFO] (Worker0) 2025-01-02 17:47:23,462 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:47:24,168 [INFO] (timer) 2025-01-02 17:47:24,168 [INFO] (timer) Timer: at Thu Jan  2 17:47:24 2025 (runtime 50.044703245162964s): successes: 23, time per success: 2.1758566628331724s
+2025-01-02 17:47:25,565 [INFO] (Worker0) 2025-01-02 17:47:25,565 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:47:25,582 [INFO] (Worker0) 2025-01-02 17:47:25,582 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:47:25,600 [INFO] (Worker0) 2025-01-02 17:47:25,600 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:47:27,665 [INFO] (Worker0) 2025-01-02 17:47:27,665 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:47:27,712 [INFO] (Worker0) 2025-01-02 17:47:27,712 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:47:27,729 [INFO] (Worker0) 2025-01-02 17:47:27,729 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:47:29,802 [INFO] (Worker0) 2025-01-02 17:47:29,802 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:47:29,820 [INFO] (Worker0) 2025-01-02 17:47:29,820 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:47:29,837 [INFO] (Worker0) 2025-01-02 17:47:29,837 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:47:31,811 [INFO] (Worker0) 2025-01-02 17:47:31,811 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:47:31,829 [INFO] (Worker0) 2025-01-02 17:47:31,829 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:47:31,848 [INFO] (Worker0) 2025-01-02 17:47:31,848 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:47:33,841 [INFO] (Worker0) 2025-01-02 17:47:33,841 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:47:33,857 [INFO] (Worker0) 2025-01-02 17:47:33,857 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:47:33,876 [INFO] (Worker0) 2025-01-02 17:47:33,876 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:47:34,176 [INFO] (timer) 2025-01-02 17:47:34,176 [INFO] (timer) Timer: at Thu Jan  2 17:47:34 2025 (runtime 60.052703857421875s): successes: 28, time per success: 2.144739423479353s
+2025-01-02 17:47:35,944 [INFO] (Worker0) 2025-01-02 17:47:35,944 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:47:35,961 [INFO] (Worker0) 2025-01-02 17:47:35,961 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:47:35,980 [INFO] (Worker0) 2025-01-02 17:47:35,980 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:47:38,022 [INFO] (Worker0) 2025-01-02 17:47:38,022 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:47:38,038 [INFO] (Worker0) 2025-01-02 17:47:38,038 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:47:38,054 [INFO] (Worker0) 2025-01-02 17:47:38,054 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:47:40,097 [INFO] (Worker0) 2025-01-02 17:47:40,097 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:47:40,115 [INFO] (Worker0) 2025-01-02 17:47:40,115 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:47:40,134 [INFO] (Worker0) 2025-01-02 17:47:40,134 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:47:42,204 [INFO] (Worker0) 2025-01-02 17:47:42,204 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:47:42,252 [INFO] (Worker0) 2025-01-02 17:47:42,252 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:47:42,269 [INFO] (Worker0) 2025-01-02 17:47:42,269 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:47:44,184 [INFO] (timer) 2025-01-02 17:47:44,184 [INFO] (timer) Timer: at Thu Jan  2 17:47:44 2025 (runtime 70.06071615219116s): successes: 32, time per success: 2.189397379755974s
+2025-01-02 17:47:44,357 [INFO] (Worker0) 2025-01-02 17:47:44,357 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:47:44,375 [INFO] (Worker0) 2025-01-02 17:47:44,375 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:47:44,393 [INFO] (Worker0) 2025-01-02 17:47:44,393 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:47:46,512 [INFO] (Worker0) 2025-01-02 17:47:46,512 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:47:46,537 [INFO] (Worker0) 2025-01-02 17:47:46,537 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:47:46,554 [INFO] (Worker0) 2025-01-02 17:47:46,554 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:47:48,620 [INFO] (Worker0) 2025-01-02 17:47:48,620 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:47:48,637 [INFO] (Worker0) 2025-01-02 17:47:48,637 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:47:48,654 [INFO] (Worker0) 2025-01-02 17:47:48,654 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:47:50,679 [INFO] (Worker0) 2025-01-02 17:47:50,679 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:47:50,696 [INFO] (Worker0) 2025-01-02 17:47:50,696 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:47:50,713 [INFO] (Worker0) 2025-01-02 17:47:50,713 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:47:52,822 [INFO] (Worker0) 2025-01-02 17:47:52,822 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:47:52,870 [INFO] (Worker0) 2025-01-02 17:47:52,870 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:47:52,886 [INFO] (Worker0) 2025-01-02 17:47:52,886 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:47:54,192 [INFO] (timer) 2025-01-02 17:47:54,192 [INFO] (timer) Timer: at Thu Jan  2 17:47:54 2025 (runtime 80.06871223449707s): successes: 37, time per success: 2.164019249581002s
+2025-01-02 17:47:54,940 [INFO] (Worker0) 2025-01-02 17:47:54,940 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:47:54,957 [INFO] (Worker0) 2025-01-02 17:47:54,957 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:47:54,974 [INFO] (Worker0) 2025-01-02 17:47:54,974 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:47:57,095 [INFO] (Worker0) 2025-01-02 17:47:57,095 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:47:57,144 [INFO] (Worker0) 2025-01-02 17:47:57,144 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:47:57,161 [INFO] (Worker0) 2025-01-02 17:47:57,161 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:47:59,167 [INFO] (Worker0) 2025-01-02 17:47:59,167 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:47:59,185 [INFO] (Worker0) 2025-01-02 17:47:59,185 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:47:59,213 [INFO] (Worker0) 2025-01-02 17:47:59,213 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:48:01,211 [INFO] (Worker0) 2025-01-02 17:48:01,211 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:48:01,229 [INFO] (Worker0) 2025-01-02 17:48:01,229 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:48:01,247 [INFO] (Worker0) 2025-01-02 17:48:01,247 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:48:03,362 [INFO] (Worker0) 2025-01-02 17:48:03,362 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:48:03,379 [INFO] (Worker0) 2025-01-02 17:48:03,379 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:48:03,396 [INFO] (Worker0) 2025-01-02 17:48:03,396 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:48:04,200 [INFO] (timer) 2025-01-02 17:48:04,200 [INFO] (timer) Timer: at Thu Jan  2 17:48:04 2025 (runtime 90.07666993141174s): successes: 42, time per success: 2.1446826174145652s
+2025-01-02 17:48:05,498 [INFO] (Worker0) 2025-01-02 17:48:05,498 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:48:05,516 [INFO] (Worker0) 2025-01-02 17:48:05,516 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:48:05,533 [INFO] (Worker0) 2025-01-02 17:48:05,533 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:48:07,688 [INFO] (Worker0) 2025-01-02 17:48:07,688 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:48:07,704 [INFO] (Worker0) 2025-01-02 17:48:07,704 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:48:07,721 [INFO] (Worker0) 2025-01-02 17:48:07,721 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:48:09,841 [INFO] (Worker0) 2025-01-02 17:48:09,841 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:48:09,860 [INFO] (Worker0) 2025-01-02 17:48:09,860 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:48:09,878 [INFO] (Worker0) 2025-01-02 17:48:09,878 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:48:12,014 [INFO] (Worker0) 2025-01-02 17:48:12,014 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:48:12,032 [INFO] (Worker0) 2025-01-02 17:48:12,032 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:48:12,048 [INFO] (Worker0) 2025-01-02 17:48:12,048 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:48:14,071 [INFO] (Worker0) 2025-01-02 17:48:14,071 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:48:14,089 [INFO] (Worker0) 2025-01-02 17:48:14,089 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:48:14,105 [INFO] (Worker0) 2025-01-02 17:48:14,105 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:48:14,208 [INFO] (timer) 2025-01-02 17:48:14,208 [INFO] (timer) Timer: at Thu Jan  2 17:48:14 2025 (runtime 100.08467125892639s): successes: 47, time per success: 2.129461090615455s
+2025-01-02 17:48:16,254 [INFO] (Worker0) 2025-01-02 17:48:16,254 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:48:16,271 [INFO] (Worker0) 2025-01-02 17:48:16,271 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:48:16,288 [INFO] (Worker0) 2025-01-02 17:48:16,288 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:48:18,495 [INFO] (Worker0) 2025-01-02 17:48:18,495 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:48:18,514 [INFO] (Worker0) 2025-01-02 17:48:18,514 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:48:18,530 [INFO] (Worker0) 2025-01-02 17:48:18,530 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:48:20,731 [INFO] (Worker0) 2025-01-02 17:48:20,731 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:48:20,748 [INFO] (Worker0) 2025-01-02 17:48:20,748 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:48:20,765 [INFO] (Worker0) 2025-01-02 17:48:20,765 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:48:22,824 [INFO] (Worker0) 2025-01-02 17:48:22,824 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:48:22,878 [INFO] (Worker0) 2025-01-02 17:48:22,878 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:48:22,893 [INFO] (Worker0) 2025-01-02 17:48:22,893 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:48:24,218 [INFO] (timer) 2025-01-02 17:48:24,218 [INFO] (timer) Timer: at Thu Jan  2 17:48:24 2025 (runtime 110.09504413604736s): successes: 51, time per success: 2.158726355608772s
+2025-01-02 17:48:24,919 [INFO] (Worker0) 2025-01-02 17:48:24,919 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:48:24,935 [INFO] (Worker0) 2025-01-02 17:48:24,935 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:48:24,952 [INFO] (Worker0) 2025-01-02 17:48:24,952 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:48:26,991 [INFO] (Worker0) 2025-01-02 17:48:26,991 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:48:27,009 [INFO] (Worker0) 2025-01-02 17:48:27,009 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:48:27,026 [INFO] (Worker0) 2025-01-02 17:48:27,026 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:48:29,094 [INFO] (Worker0) 2025-01-02 17:48:29,094 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:48:29,142 [INFO] (Worker0) 2025-01-02 17:48:29,142 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:48:29,157 [INFO] (Worker0) 2025-01-02 17:48:29,157 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:48:31,244 [INFO] (Worker0) 2025-01-02 17:48:31,244 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:48:31,262 [INFO] (Worker0) 2025-01-02 17:48:31,262 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:48:31,278 [INFO] (Worker0) 2025-01-02 17:48:31,278 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:48:33,317 [INFO] (Worker0) 2025-01-02 17:48:33,317 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:48:33,333 [INFO] (Worker0) 2025-01-02 17:48:33,333 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:48:33,350 [INFO] (Worker0) 2025-01-02 17:48:33,350 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:48:34,228 [INFO] (timer) 2025-01-02 17:48:34,228 [INFO] (timer) Timer: at Thu Jan  2 17:48:34 2025 (runtime 120.10517024993896s): successes: 56, time per success: 2.144735183034624s
+2025-01-02 17:48:35,391 [INFO] (Worker0) 2025-01-02 17:48:35,391 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:48:35,408 [INFO] (Worker0) 2025-01-02 17:48:35,408 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:48:35,424 [INFO] (Worker0) 2025-01-02 17:48:35,424 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:48:37,434 [INFO] (Worker0) 2025-01-02 17:48:37,434 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:48:37,450 [INFO] (Worker0) 2025-01-02 17:48:37,450 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:48:37,466 [INFO] (Worker0) 2025-01-02 17:48:37,466 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:48:39,510 [INFO] (Worker0) 2025-01-02 17:48:39,510 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:48:39,527 [INFO] (Worker0) 2025-01-02 17:48:39,527 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:48:39,545 [INFO] (Worker0) 2025-01-02 17:48:39,545 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:48:41,634 [INFO] (Worker0) 2025-01-02 17:48:41,634 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:48:41,650 [INFO] (Worker0) 2025-01-02 17:48:41,650 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:48:41,666 [INFO] (Worker0) 2025-01-02 17:48:41,666 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:48:43,710 [INFO] (Worker0) 2025-01-02 17:48:43,710 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:48:43,727 [INFO] (Worker0) 2025-01-02 17:48:43,727 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:48:43,742 [INFO] (Worker0) 2025-01-02 17:48:43,742 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:48:44,236 [INFO] (timer) 2025-01-02 17:48:44,236 [INFO] (timer) Timer: at Thu Jan  2 17:48:44 2025 (runtime 130.11278772354126s): successes: 61, time per success: 2.1329965200580534s
+2025-01-02 17:48:45,786 [INFO] (Worker0) 2025-01-02 17:48:45,786 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:48:45,802 [INFO] (Worker0) 2025-01-02 17:48:45,802 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:48:45,819 [INFO] (Worker0) 2025-01-02 17:48:45,819 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:48:47,866 [INFO] (Worker0) 2025-01-02 17:48:47,866 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:48:47,883 [INFO] (Worker0) 2025-01-02 17:48:47,883 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:48:47,900 [INFO] (Worker0) 2025-01-02 17:48:47,900 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:48:49,999 [INFO] (Worker0) 2025-01-02 17:48:49,999 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:48:50,049 [INFO] (Worker0) 2025-01-02 17:48:50,049 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:48:50,065 [INFO] (Worker0) 2025-01-02 17:48:50,065 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:48:52,221 [INFO] (Worker0) 2025-01-02 17:48:52,221 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:48:52,238 [INFO] (Worker0) 2025-01-02 17:48:52,238 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:48:52,254 [INFO] (Worker0) 2025-01-02 17:48:52,254 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:48:54,246 [INFO] (timer) 2025-01-02 17:48:54,246 [INFO] (timer) Timer: at Thu Jan  2 17:48:54 2025 (runtime 140.12278628349304s): successes: 65, time per success: 2.1557351735922006s
+2025-01-02 17:48:54,348 [INFO] (Worker0) 2025-01-02 17:48:54,348 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:48:54,402 [INFO] (Worker0) 2025-01-02 17:48:54,402 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:48:54,418 [INFO] (Worker0) 2025-01-02 17:48:54,418 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:48:56,511 [INFO] (Worker0) 2025-01-02 17:48:56,511 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:48:56,527 [INFO] (Worker0) 2025-01-02 17:48:56,527 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:48:56,545 [INFO] (Worker0) 2025-01-02 17:48:56,545 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:48:58,653 [INFO] (Worker0) 2025-01-02 17:48:58,653 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:48:58,670 [INFO] (Worker0) 2025-01-02 17:48:58,670 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:48:58,687 [INFO] (Worker0) 2025-01-02 17:48:58,687 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:49:00,781 [INFO] (Worker0) 2025-01-02 17:49:00,781 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:49:00,835 [INFO] (Worker0) 2025-01-02 17:49:00,835 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:49:00,851 [INFO] (Worker0) 2025-01-02 17:49:00,851 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:49:02,926 [INFO] (Worker0) 2025-01-02 17:49:02,926 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:49:02,942 [INFO] (Worker0) 2025-01-02 17:49:02,942 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:49:02,958 [INFO] (Worker0) 2025-01-02 17:49:02,958 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:49:04,257 [INFO] (timer) 2025-01-02 17:49:04,257 [INFO] (timer) Timer: at Thu Jan  2 17:49:04 2025 (runtime 150.1334536075592s): successes: 70, time per success: 2.1447636229651317s
+2025-01-02 17:49:05,006 [INFO] (Worker0) 2025-01-02 17:49:05,006 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:49:05,022 [INFO] (Worker0) 2025-01-02 17:49:05,022 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:49:05,038 [INFO] (Worker0) 2025-01-02 17:49:05,038 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:49:06,998 [INFO] (Worker0) 2025-01-02 17:49:06,998 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:49:07,015 [INFO] (Worker0) 2025-01-02 17:49:07,015 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:49:07,032 [INFO] (Worker0) 2025-01-02 17:49:07,032 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:49:08,997 [INFO] (Worker0) 2025-01-02 17:49:08,997 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:49:09,012 [INFO] (Worker0) 2025-01-02 17:49:09,012 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:49:09,029 [INFO] (Worker0) 2025-01-02 17:49:09,029 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:49:10,999 [INFO] (Worker0) 2025-01-02 17:49:10,999 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:49:11,016 [INFO] (Worker0) 2025-01-02 17:49:11,016 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:49:11,032 [INFO] (Worker0) 2025-01-02 17:49:11,032 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:49:13,066 [INFO] (Worker0) 2025-01-02 17:49:13,066 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:49:13,082 [INFO] (Worker0) 2025-01-02 17:49:13,082 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:49:13,098 [INFO] (Worker0) 2025-01-02 17:49:13,098 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:49:14,264 [INFO] (timer) 2025-01-02 17:49:14,264 [INFO] (timer) Timer: at Thu Jan  2 17:49:14 2025 (runtime 160.14078044891357s): successes: 75, time per success: 2.1352104059855144s
+2025-01-02 17:49:15,197 [INFO] (Worker0) 2025-01-02 17:49:15,197 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:49:15,213 [INFO] (Worker0) 2025-01-02 17:49:15,213 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:49:15,254 [INFO] (Worker0) 2025-01-02 17:49:15,254 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:49:17,291 [INFO] (Worker0) 2025-01-02 17:49:17,291 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:49:17,308 [INFO] (Worker0) 2025-01-02 17:49:17,308 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:49:17,325 [INFO] (Worker0) 2025-01-02 17:49:17,325 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:49:19,366 [INFO] (Worker0) 2025-01-02 17:49:19,366 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:49:19,383 [INFO] (Worker0) 2025-01-02 17:49:19,383 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:49:19,400 [INFO] (Worker0) 2025-01-02 17:49:19,400 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:49:21,446 [INFO] (Worker0) 2025-01-02 17:49:21,446 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:49:21,462 [INFO] (Worker0) 2025-01-02 17:49:21,462 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:49:21,479 [INFO] (Worker0) 2025-01-02 17:49:21,479 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:49:23,515 [INFO] (Worker0) 2025-01-02 17:49:23,515 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:49:23,530 [INFO] (Worker0) 2025-01-02 17:49:23,530 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:49:23,547 [INFO] (Worker0) 2025-01-02 17:49:23,547 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:49:24,272 [INFO] (timer) 2025-01-02 17:49:24,272 [INFO] (timer) Timer: at Thu Jan  2 17:49:24 2025 (runtime 170.14866876602173s): successes: 80, time per success: 2.1268583595752717s
+2025-01-02 17:49:25,623 [INFO] (Worker0) 2025-01-02 17:49:25,623 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:49:25,640 [INFO] (Worker0) 2025-01-02 17:49:25,640 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:49:25,657 [INFO] (Worker0) 2025-01-02 17:49:25,657 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:49:27,727 [INFO] (Worker0) 2025-01-02 17:49:27,727 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:49:27,755 [INFO] (Worker0) 2025-01-02 17:49:27,755 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:49:27,775 [INFO] (Worker0) 2025-01-02 17:49:27,775 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:49:29,821 [INFO] (Worker0) 2025-01-02 17:49:29,821 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:49:29,838 [INFO] (Worker0) 2025-01-02 17:49:29,838 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:49:29,854 [INFO] (Worker0) 2025-01-02 17:49:29,854 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:49:31,851 [INFO] (Worker0) 2025-01-02 17:49:31,851 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:49:31,867 [INFO] (Worker0) 2025-01-02 17:49:31,867 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:49:31,883 [INFO] (Worker0) 2025-01-02 17:49:31,883 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:49:33,869 [INFO] (Worker0) 2025-01-02 17:49:33,869 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:49:33,885 [INFO] (Worker0) 2025-01-02 17:49:33,885 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:49:33,901 [INFO] (Worker0) 2025-01-02 17:49:33,901 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:49:34,280 [INFO] (timer) 2025-01-02 17:49:34,280 [INFO] (timer) Timer: at Thu Jan  2 17:49:34 2025 (runtime 180.15680170059204s): successes: 85, time per success: 2.1194917847128476s
+2025-01-02 17:49:35,916 [INFO] (Worker0) 2025-01-02 17:49:35,916 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:49:35,933 [INFO] (Worker0) 2025-01-02 17:49:35,933 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:49:35,948 [INFO] (Worker0) 2025-01-02 17:49:35,948 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:49:38,019 [INFO] (Worker0) 2025-01-02 17:49:38,019 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:49:38,037 [INFO] (Worker0) 2025-01-02 17:49:38,037 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:49:38,054 [INFO] (Worker0) 2025-01-02 17:49:38,054 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:49:40,127 [INFO] (Worker0) 2025-01-02 17:49:40,127 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:49:40,144 [INFO] (Worker0) 2025-01-02 17:49:40,144 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:49:40,160 [INFO] (Worker0) 2025-01-02 17:49:40,160 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:49:42,209 [INFO] (Worker0) 2025-01-02 17:49:42,209 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:49:42,225 [INFO] (Worker0) 2025-01-02 17:49:42,225 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:49:42,242 [INFO] (Worker0) 2025-01-02 17:49:42,242 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:49:44,285 [INFO] (Worker0) 2025-01-02 17:49:44,285 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:49:44,288 [INFO] (timer) 2025-01-02 17:49:44,288 [INFO] (timer) Timer: at Thu Jan  2 17:49:44 2025 (runtime 190.1647174358368s): successes: 89, time per success: 2.1366822183801886s
+2025-01-02 17:49:44,301 [INFO] (Worker0) 2025-01-02 17:49:44,301 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:49:44,319 [INFO] (Worker0) 2025-01-02 17:49:44,319 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:49:46,373 [INFO] (Worker0) 2025-01-02 17:49:46,373 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:49:46,391 [INFO] (Worker0) 2025-01-02 17:49:46,391 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:49:46,420 [INFO] (Worker0) 2025-01-02 17:49:46,420 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:49:48,391 [INFO] (Worker0) 2025-01-02 17:49:48,391 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:49:48,406 [INFO] (Worker0) 2025-01-02 17:49:48,406 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:49:48,423 [INFO] (Worker0) 2025-01-02 17:49:48,423 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:49:50,464 [INFO] (Worker0) 2025-01-02 17:49:50,464 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:49:50,480 [INFO] (Worker0) 2025-01-02 17:49:50,480 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:49:50,496 [INFO] (Worker0) 2025-01-02 17:49:50,496 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:49:52,556 [INFO] (Worker0) 2025-01-02 17:49:52,556 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:49:52,573 [INFO] (Worker0) 2025-01-02 17:49:52,573 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:49:52,589 [INFO] (Worker0) 2025-01-02 17:49:52,589 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:49:54,297 [INFO] (timer) 2025-01-02 17:49:54,297 [INFO] (timer) Timer: at Thu Jan  2 17:49:54 2025 (runtime 200.17418956756592s): successes: 94, time per success: 2.1295126549741057s
+2025-01-02 17:49:54,651 [INFO] (Worker0) 2025-01-02 17:49:54,651 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:49:54,668 [INFO] (Worker0) 2025-01-02 17:49:54,668 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:49:54,685 [INFO] (Worker0) 2025-01-02 17:49:54,685 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:49:56,739 [INFO] (Worker0) 2025-01-02 17:49:56,739 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:49:56,755 [INFO] (Worker0) 2025-01-02 17:49:56,755 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:49:56,772 [INFO] (Worker0) 2025-01-02 17:49:56,772 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:49:58,800 [INFO] (Worker0) 2025-01-02 17:49:58,800 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:49:58,817 [INFO] (Worker0) 2025-01-02 17:49:58,817 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:49:58,833 [INFO] (Worker0) 2025-01-02 17:49:58,833 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:50:00,856 [INFO] (Worker0) 2025-01-02 17:50:00,856 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:50:00,873 [INFO] (Worker0) 2025-01-02 17:50:00,873 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:50:00,889 [INFO] (Worker0) 2025-01-02 17:50:00,889 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:50:02,861 [INFO] (Worker0) 2025-01-02 17:50:02,861 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:50:02,879 [INFO] (Worker0) 2025-01-02 17:50:02,879 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:50:02,897 [INFO] (Worker0) 2025-01-02 17:50:02,897 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:50:04,307 [INFO] (timer) 2025-01-02 17:50:04,307 [INFO] (timer) Timer: at Thu Jan  2 17:50:04 2025 (runtime 210.1833369731903s): successes: 99, time per success: 2.123064009830205s
+2025-01-02 17:50:04,925 [INFO] (Worker0) 2025-01-02 17:50:04,925 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:50:04,942 [INFO] (Worker0) 2025-01-02 17:50:04,942 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:50:04,970 [INFO] (Worker0) 2025-01-02 17:50:04,970 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:50:06,956 [INFO] (Worker0) 2025-01-02 17:50:06,956 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:50:07,677 [INFO] (main) 2025-01-02 17:50:07,677 [INFO] (main) Main: Terminating timer
+2025-01-02 17:50:07,678 [INFO] (main) 2025-01-02 17:50:07,678 [INFO] (main) terminating processes
+2025-01-02 17:50:07,678 [INFO] (main) 2025-01-02 17:50:07,678 [INFO] (main) Main: nsuccesses: 100 in this run
+2025-01-02 17:50:07,690 [INFO] (main) 2025-01-02 17:50:07,690 [INFO] (main) average number of timesteps taken to reach a success (including possibly previous runs with the same pattern) (aka 1./flux): 4716.1
+2025-01-02 17:50:07,690 [INFO] (main) 2025-01-02 17:50:07,690 [INFO] (main) initial flux (includes previous runs if they were there): 0.000212039608998961
+2025-01-02 17:50:59,053 [INFO] (main) 2025-01-02 17:50:59,053 [INFO] (main) Main: STARTING new shooting for 100
+2025-01-02 17:50:59,057 [INFO] (main) 2025-01-02 17:50:59,057 [INFO] (main) Main: Starting processes...
+2025-01-02 17:50:59,061 [INFO] (main) 2025-01-02 17:50:59,061 [INFO] (main) Main: waiting for processes to finish
+2025-01-02 17:50:59,524 [INFO] (timer) 2025-01-02 17:50:59,524 [INFO] (timer) Timer started at Thu Jan  2 17:50:59 2025
+2025-01-02 17:50:59,983 [INFO] (Worker0) 2025-01-02 17:50:59,983 [INFO] (Worker0) equilibration started
+2025-01-02 17:51:02,021 [INFO] (Worker0) 2025-01-02 17:51:02,021 [INFO] (Worker0) equilibrated
+2025-01-02 17:51:02,021 [INFO] (Worker0) 2025-01-02 17:51:02,021 [INFO] (Worker0) Running initial simulation?
+2025-01-02 17:51:02,044 [INFO] (Worker0) 2025-01-02 17:51:02,044 [INFO] (Worker0) reached Q_{-2}...
+2025-01-02 17:51:02,061 [INFO] (Worker0) 2025-01-02 17:51:02,061 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:51:02,077 [INFO] (Worker0) 2025-01-02 17:51:02,077 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:51:04,040 [INFO] (Worker0) 2025-01-02 17:51:04,040 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:51:04,057 [INFO] (Worker0) 2025-01-02 17:51:04,057 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:51:04,073 [INFO] (Worker0) 2025-01-02 17:51:04,073 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:51:06,079 [INFO] (Worker0) 2025-01-02 17:51:06,079 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:51:06,096 [INFO] (Worker0) 2025-01-02 17:51:06,096 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:51:06,112 [INFO] (Worker0) 2025-01-02 17:51:06,112 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:51:08,101 [INFO] (Worker0) 2025-01-02 17:51:08,101 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:51:08,118 [INFO] (Worker0) 2025-01-02 17:51:08,118 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:51:08,135 [INFO] (Worker0) 2025-01-02 17:51:08,135 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:51:09,535 [INFO] (timer) 2025-01-02 17:51:09,535 [INFO] (timer) Timer: at Thu Jan  2 17:51:09 2025 (runtime 10.009830713272095s): successes: 4, time per success: 2.5024576783180237s
+2025-01-02 17:51:10,136 [INFO] (Worker0) 2025-01-02 17:51:10,136 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:51:10,153 [INFO] (Worker0) 2025-01-02 17:51:10,153 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:51:10,169 [INFO] (Worker0) 2025-01-02 17:51:10,169 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:51:12,144 [INFO] (Worker0) 2025-01-02 17:51:12,144 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:51:12,160 [INFO] (Worker0) 2025-01-02 17:51:12,160 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:51:12,176 [INFO] (Worker0) 2025-01-02 17:51:12,176 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:51:14,128 [INFO] (Worker0) 2025-01-02 17:51:14,128 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:51:14,145 [INFO] (Worker0) 2025-01-02 17:51:14,145 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:51:14,161 [INFO] (Worker0) 2025-01-02 17:51:14,161 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:51:16,116 [INFO] (Worker0) 2025-01-02 17:51:16,116 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:51:16,132 [INFO] (Worker0) 2025-01-02 17:51:16,132 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:51:16,148 [INFO] (Worker0) 2025-01-02 17:51:16,148 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:51:18,122 [INFO] (Worker0) 2025-01-02 17:51:18,122 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:51:18,139 [INFO] (Worker0) 2025-01-02 17:51:18,139 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:51:18,157 [INFO] (Worker0) 2025-01-02 17:51:18,157 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:51:19,544 [INFO] (timer) 2025-01-02 17:51:19,544 [INFO] (timer) Timer: at Thu Jan  2 17:51:19 2025 (runtime 20.018611669540405s): successes: 9, time per success: 2.2242901855044894s
+2025-01-02 17:51:20,125 [INFO] (Worker0) 2025-01-02 17:51:20,125 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:51:20,141 [INFO] (Worker0) 2025-01-02 17:51:20,141 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:51:20,157 [INFO] (Worker0) 2025-01-02 17:51:20,157 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:51:22,131 [INFO] (Worker0) 2025-01-02 17:51:22,131 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:51:22,148 [INFO] (Worker0) 2025-01-02 17:51:22,148 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:51:22,166 [INFO] (Worker0) 2025-01-02 17:51:22,166 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:51:24,195 [INFO] (Worker0) 2025-01-02 17:51:24,195 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:51:24,212 [INFO] (Worker0) 2025-01-02 17:51:24,212 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:51:24,228 [INFO] (Worker0) 2025-01-02 17:51:24,228 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:51:26,202 [INFO] (Worker0) 2025-01-02 17:51:26,202 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:51:26,259 [INFO] (Worker0) 2025-01-02 17:51:26,259 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:51:26,276 [INFO] (Worker0) 2025-01-02 17:51:26,276 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:51:28,297 [INFO] (Worker0) 2025-01-02 17:51:28,297 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:51:28,313 [INFO] (Worker0) 2025-01-02 17:51:28,313 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:51:28,329 [INFO] (Worker0) 2025-01-02 17:51:28,329 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:51:29,552 [INFO] (timer) 2025-01-02 17:51:29,552 [INFO] (timer) Timer: at Thu Jan  2 17:51:29 2025 (runtime 30.026597261428833s): successes: 14, time per success: 2.144756947244917s
+2025-01-02 17:51:30,369 [INFO] (Worker0) 2025-01-02 17:51:30,369 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:51:30,386 [INFO] (Worker0) 2025-01-02 17:51:30,386 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:51:30,403 [INFO] (Worker0) 2025-01-02 17:51:30,403 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:51:32,441 [INFO] (Worker0) 2025-01-02 17:51:32,441 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:51:32,459 [INFO] (Worker0) 2025-01-02 17:51:32,459 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:51:32,475 [INFO] (Worker0) 2025-01-02 17:51:32,475 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:51:34,528 [INFO] (Worker0) 2025-01-02 17:51:34,528 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:51:34,545 [INFO] (Worker0) 2025-01-02 17:51:34,545 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:51:34,561 [INFO] (Worker0) 2025-01-02 17:51:34,561 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:51:36,602 [INFO] (Worker0) 2025-01-02 17:51:36,602 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:51:36,620 [INFO] (Worker0) 2025-01-02 17:51:36,620 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:51:36,637 [INFO] (Worker0) 2025-01-02 17:51:36,637 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:51:38,695 [INFO] (Worker0) 2025-01-02 17:51:38,695 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:51:38,712 [INFO] (Worker0) 2025-01-02 17:51:38,712 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:51:38,729 [INFO] (Worker0) 2025-01-02 17:51:38,729 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:51:39,553 [INFO] (timer) 2025-01-02 17:51:39,553 [INFO] (timer) Timer: at Thu Jan  2 17:51:39 2025 (runtime 40.02707648277283s): successes: 19, time per success: 2.1066882359354118s
+2025-01-02 17:51:40,783 [INFO] (Worker0) 2025-01-02 17:51:40,783 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:51:40,801 [INFO] (Worker0) 2025-01-02 17:51:40,801 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:51:40,819 [INFO] (Worker0) 2025-01-02 17:51:40,819 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:51:42,894 [INFO] (Worker0) 2025-01-02 17:51:42,894 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:51:42,942 [INFO] (Worker0) 2025-01-02 17:51:42,942 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:51:42,958 [INFO] (Worker0) 2025-01-02 17:51:42,958 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:51:44,999 [INFO] (Worker0) 2025-01-02 17:51:44,999 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:51:45,017 [INFO] (Worker0) 2025-01-02 17:51:45,017 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:51:45,033 [INFO] (Worker0) 2025-01-02 17:51:45,033 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:51:47,002 [INFO] (Worker0) 2025-01-02 17:51:47,002 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:51:47,019 [INFO] (Worker0) 2025-01-02 17:51:47,019 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:51:47,036 [INFO] (Worker0) 2025-01-02 17:51:47,036 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:51:48,996 [INFO] (Worker0) 2025-01-02 17:51:48,996 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:51:49,013 [INFO] (Worker0) 2025-01-02 17:51:49,013 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:51:49,030 [INFO] (Worker0) 2025-01-02 17:51:49,030 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:51:49,560 [INFO] (timer) 2025-01-02 17:51:49,560 [INFO] (timer) Timer: at Thu Jan  2 17:51:49 2025 (runtime 50.03459143638611s): successes: 24, time per success: 2.0847746431827545s
+2025-01-02 17:51:51,004 [INFO] (Worker0) 2025-01-02 17:51:51,004 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:51:51,020 [INFO] (Worker0) 2025-01-02 17:51:51,020 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:51:51,054 [INFO] (Worker0) 2025-01-02 17:51:51,054 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:51:53,094 [INFO] (Worker0) 2025-01-02 17:51:53,094 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:51:53,111 [INFO] (Worker0) 2025-01-02 17:51:53,111 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:51:53,127 [INFO] (Worker0) 2025-01-02 17:51:53,127 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:51:55,097 [INFO] (Worker0) 2025-01-02 17:51:55,097 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:51:55,113 [INFO] (Worker0) 2025-01-02 17:51:55,113 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:51:55,129 [INFO] (Worker0) 2025-01-02 17:51:55,129 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:51:57,152 [INFO] (Worker0) 2025-01-02 17:51:57,152 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:51:57,170 [INFO] (Worker0) 2025-01-02 17:51:57,170 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:51:57,187 [INFO] (Worker0) 2025-01-02 17:51:57,187 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:51:59,213 [INFO] (Worker0) 2025-01-02 17:51:59,213 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:51:59,230 [INFO] (Worker0) 2025-01-02 17:51:59,230 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:51:59,248 [INFO] (Worker0) 2025-01-02 17:51:59,248 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:51:59,563 [INFO] (timer) 2025-01-02 17:51:59,563 [INFO] (timer) Timer: at Thu Jan  2 17:51:59 2025 (runtime 60.03735065460205s): successes: 29, time per success: 2.0702534708483467s
+2025-01-02 17:52:01,285 [INFO] (Worker0) 2025-01-02 17:52:01,285 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:52:01,302 [INFO] (Worker0) 2025-01-02 17:52:01,302 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:52:01,319 [INFO] (Worker0) 2025-01-02 17:52:01,319 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:52:03,380 [INFO] (Worker0) 2025-01-02 17:52:03,380 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:52:03,396 [INFO] (Worker0) 2025-01-02 17:52:03,396 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:52:03,413 [INFO] (Worker0) 2025-01-02 17:52:03,413 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:52:05,443 [INFO] (Worker0) 2025-01-02 17:52:05,443 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:52:05,460 [INFO] (Worker0) 2025-01-02 17:52:05,460 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:52:05,477 [INFO] (Worker0) 2025-01-02 17:52:05,477 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:52:07,508 [INFO] (Worker0) 2025-01-02 17:52:07,508 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:52:07,524 [INFO] (Worker0) 2025-01-02 17:52:07,524 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:52:07,541 [INFO] (Worker0) 2025-01-02 17:52:07,541 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:52:09,573 [INFO] (timer) 2025-01-02 17:52:09,573 [INFO] (timer) Timer: at Thu Jan  2 17:52:09 2025 (runtime 70.04764366149902s): successes: 33, time per success: 2.1226558685302734s
+2025-01-02 17:52:09,575 [INFO] (Worker0) 2025-01-02 17:52:09,575 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:52:09,590 [INFO] (Worker0) 2025-01-02 17:52:09,590 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:52:09,656 [INFO] (Worker0) 2025-01-02 17:52:09,656 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:52:11,708 [INFO] (Worker0) 2025-01-02 17:52:11,708 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:52:11,725 [INFO] (Worker0) 2025-01-02 17:52:11,725 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:52:11,740 [INFO] (Worker0) 2025-01-02 17:52:11,740 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:52:13,782 [INFO] (Worker0) 2025-01-02 17:52:13,782 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:52:13,799 [INFO] (Worker0) 2025-01-02 17:52:13,799 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:52:13,816 [INFO] (Worker0) 2025-01-02 17:52:13,816 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:52:15,874 [INFO] (Worker0) 2025-01-02 17:52:15,874 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:52:15,891 [INFO] (Worker0) 2025-01-02 17:52:15,891 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:52:15,908 [INFO] (Worker0) 2025-01-02 17:52:15,908 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:52:17,972 [INFO] (Worker0) 2025-01-02 17:52:17,972 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:52:17,988 [INFO] (Worker0) 2025-01-02 17:52:17,988 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:52:18,004 [INFO] (Worker0) 2025-01-02 17:52:18,004 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:52:19,582 [INFO] (timer) 2025-01-02 17:52:19,582 [INFO] (timer) Timer: at Thu Jan  2 17:52:19 2025 (runtime 80.05647134780884s): successes: 38, time per success: 2.1067492459949695s
+2025-01-02 17:52:20,045 [INFO] (Worker0) 2025-01-02 17:52:20,045 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:52:20,061 [INFO] (Worker0) 2025-01-02 17:52:20,061 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:52:20,078 [INFO] (Worker0) 2025-01-02 17:52:20,078 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:52:22,118 [INFO] (Worker0) 2025-01-02 17:52:22,118 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:52:22,135 [INFO] (Worker0) 2025-01-02 17:52:22,135 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:52:22,152 [INFO] (Worker0) 2025-01-02 17:52:22,152 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:52:24,174 [INFO] (Worker0) 2025-01-02 17:52:24,174 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:52:24,189 [INFO] (Worker0) 2025-01-02 17:52:24,189 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:52:24,205 [INFO] (Worker0) 2025-01-02 17:52:24,205 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:52:26,258 [INFO] (Worker0) 2025-01-02 17:52:26,258 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:52:26,275 [INFO] (Worker0) 2025-01-02 17:52:26,275 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:52:26,293 [INFO] (Worker0) 2025-01-02 17:52:26,293 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:52:28,351 [INFO] (Worker0) 2025-01-02 17:52:28,351 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:52:28,367 [INFO] (Worker0) 2025-01-02 17:52:28,367 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:52:28,383 [INFO] (Worker0) 2025-01-02 17:52:28,383 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:52:29,592 [INFO] (timer) 2025-01-02 17:52:29,592 [INFO] (timer) Timer: at Thu Jan  2 17:52:29 2025 (runtime 90.06657075881958s): successes: 43, time per success: 2.0945714129958044s
+2025-01-02 17:52:30,423 [INFO] (Worker0) 2025-01-02 17:52:30,423 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:52:30,438 [INFO] (Worker0) 2025-01-02 17:52:30,438 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:52:30,454 [INFO] (Worker0) 2025-01-02 17:52:30,454 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:52:32,498 [INFO] (Worker0) 2025-01-02 17:52:32,498 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:52:32,514 [INFO] (Worker0) 2025-01-02 17:52:32,514 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:52:32,531 [INFO] (Worker0) 2025-01-02 17:52:32,531 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:52:34,571 [INFO] (Worker0) 2025-01-02 17:52:34,571 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:52:34,588 [INFO] (Worker0) 2025-01-02 17:52:34,588 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:52:34,604 [INFO] (Worker0) 2025-01-02 17:52:34,604 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:52:36,650 [INFO] (Worker0) 2025-01-02 17:52:36,650 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:52:36,667 [INFO] (Worker0) 2025-01-02 17:52:36,667 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:52:36,684 [INFO] (Worker0) 2025-01-02 17:52:36,684 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:52:38,724 [INFO] (Worker0) 2025-01-02 17:52:38,724 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:52:38,742 [INFO] (Worker0) 2025-01-02 17:52:38,742 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:52:38,758 [INFO] (Worker0) 2025-01-02 17:52:38,758 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:52:39,602 [INFO] (timer) 2025-01-02 17:52:39,602 [INFO] (timer) Timer: at Thu Jan  2 17:52:39 2025 (runtime 100.07678127288818s): successes: 48, time per success: 2.0849329431851706s
+2025-01-02 17:52:40,778 [INFO] (Worker0) 2025-01-02 17:52:40,778 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:52:40,807 [INFO] (Worker0) 2025-01-02 17:52:40,807 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:52:40,829 [INFO] (Worker0) 2025-01-02 17:52:40,829 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:52:42,894 [INFO] (Worker0) 2025-01-02 17:52:42,894 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:52:42,946 [INFO] (Worker0) 2025-01-02 17:52:42,946 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:52:42,961 [INFO] (Worker0) 2025-01-02 17:52:42,961 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:52:44,996 [INFO] (Worker0) 2025-01-02 17:52:44,996 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:52:45,012 [INFO] (Worker0) 2025-01-02 17:52:45,012 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:52:45,028 [INFO] (Worker0) 2025-01-02 17:52:45,028 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:52:47,082 [INFO] (Worker0) 2025-01-02 17:52:47,082 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:52:47,098 [INFO] (Worker0) 2025-01-02 17:52:47,098 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:52:47,114 [INFO] (Worker0) 2025-01-02 17:52:47,114 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:52:49,191 [INFO] (Worker0) 2025-01-02 17:52:49,191 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:52:49,208 [INFO] (Worker0) 2025-01-02 17:52:49,208 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:52:49,224 [INFO] (Worker0) 2025-01-02 17:52:49,224 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:52:49,604 [INFO] (timer) 2025-01-02 17:52:49,604 [INFO] (timer) Timer: at Thu Jan  2 17:52:49 2025 (runtime 110.07814002037048s): successes: 53, time per success: 2.0769460381201976s
+2025-01-02 17:52:51,258 [INFO] (Worker0) 2025-01-02 17:52:51,258 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:52:51,275 [INFO] (Worker0) 2025-01-02 17:52:51,275 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:52:51,291 [INFO] (Worker0) 2025-01-02 17:52:51,291 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:52:53,369 [INFO] (Worker0) 2025-01-02 17:52:53,369 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:52:53,424 [INFO] (Worker0) 2025-01-02 17:52:53,424 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:52:53,439 [INFO] (Worker0) 2025-01-02 17:52:53,439 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:52:55,508 [INFO] (Worker0) 2025-01-02 17:52:55,508 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:52:55,525 [INFO] (Worker0) 2025-01-02 17:52:55,525 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:52:55,542 [INFO] (Worker0) 2025-01-02 17:52:55,542 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:52:57,611 [INFO] (Worker0) 2025-01-02 17:52:57,611 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:52:57,628 [INFO] (Worker0) 2025-01-02 17:52:57,628 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:52:57,645 [INFO] (Worker0) 2025-01-02 17:52:57,645 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:52:59,610 [INFO] (timer) 2025-01-02 17:52:59,610 [INFO] (timer) Timer: at Thu Jan  2 17:52:59 2025 (runtime 120.0846266746521s): successes: 57, time per success: 2.106747836397405s
+2025-01-02 17:52:59,769 [INFO] (Worker0) 2025-01-02 17:52:59,769 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:52:59,786 [INFO] (Worker0) 2025-01-02 17:52:59,786 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:52:59,803 [INFO] (Worker0) 2025-01-02 17:52:59,803 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:53:01,836 [INFO] (Worker0) 2025-01-02 17:53:01,836 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:53:01,852 [INFO] (Worker0) 2025-01-02 17:53:01,852 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:53:01,869 [INFO] (Worker0) 2025-01-02 17:53:01,869 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:53:03,916 [INFO] (Worker0) 2025-01-02 17:53:03,916 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:53:03,933 [INFO] (Worker0) 2025-01-02 17:53:03,933 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:53:03,949 [INFO] (Worker0) 2025-01-02 17:53:03,949 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:53:05,987 [INFO] (Worker0) 2025-01-02 17:53:05,987 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:53:06,003 [INFO] (Worker0) 2025-01-02 17:53:06,003 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:53:06,020 [INFO] (Worker0) 2025-01-02 17:53:06,020 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:53:08,059 [INFO] (Worker0) 2025-01-02 17:53:08,059 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:53:08,076 [INFO] (Worker0) 2025-01-02 17:53:08,076 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:53:08,092 [INFO] (Worker0) 2025-01-02 17:53:08,092 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:53:09,620 [INFO] (timer) 2025-01-02 17:53:09,620 [INFO] (timer) Timer: at Thu Jan  2 17:53:09 2025 (runtime 130.0948932170868s): successes: 62, time per success: 2.0983047293078516s
+2025-01-02 17:53:10,136 [INFO] (Worker0) 2025-01-02 17:53:10,136 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:53:10,153 [INFO] (Worker0) 2025-01-02 17:53:10,153 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:53:10,170 [INFO] (Worker0) 2025-01-02 17:53:10,170 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:53:12,219 [INFO] (Worker0) 2025-01-02 17:53:12,219 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:53:12,236 [INFO] (Worker0) 2025-01-02 17:53:12,236 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:53:12,253 [INFO] (Worker0) 2025-01-02 17:53:12,253 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:53:14,307 [INFO] (Worker0) 2025-01-02 17:53:14,307 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:53:14,325 [INFO] (Worker0) 2025-01-02 17:53:14,325 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:53:14,342 [INFO] (Worker0) 2025-01-02 17:53:14,342 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:53:16,402 [INFO] (Worker0) 2025-01-02 17:53:16,402 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:53:16,420 [INFO] (Worker0) 2025-01-02 17:53:16,420 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:53:16,438 [INFO] (Worker0) 2025-01-02 17:53:16,438 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:53:18,512 [INFO] (Worker0) 2025-01-02 17:53:18,512 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:53:18,529 [INFO] (Worker0) 2025-01-02 17:53:18,529 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:53:18,545 [INFO] (Worker0) 2025-01-02 17:53:18,545 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:53:19,631 [INFO] (timer) 2025-01-02 17:53:19,631 [INFO] (timer) Timer: at Thu Jan  2 17:53:19 2025 (runtime 140.1050832271576s): successes: 67, time per success: 2.091120645181457s
+2025-01-02 17:53:20,611 [INFO] (Worker0) 2025-01-02 17:53:20,611 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:53:20,663 [INFO] (Worker0) 2025-01-02 17:53:20,663 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:53:20,679 [INFO] (Worker0) 2025-01-02 17:53:20,679 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:53:22,745 [INFO] (Worker0) 2025-01-02 17:53:22,745 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:53:22,764 [INFO] (Worker0) 2025-01-02 17:53:22,764 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:53:22,781 [INFO] (Worker0) 2025-01-02 17:53:22,781 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:53:24,855 [INFO] (Worker0) 2025-01-02 17:53:24,855 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:53:24,905 [INFO] (Worker0) 2025-01-02 17:53:24,905 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:53:24,922 [INFO] (Worker0) 2025-01-02 17:53:24,922 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:53:26,996 [INFO] (Worker0) 2025-01-02 17:53:26,996 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:53:27,047 [INFO] (Worker0) 2025-01-02 17:53:27,047 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:53:27,064 [INFO] (Worker0) 2025-01-02 17:53:27,064 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:53:29,107 [INFO] (Worker0) 2025-01-02 17:53:29,107 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:53:29,125 [INFO] (Worker0) 2025-01-02 17:53:29,125 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:53:29,141 [INFO] (Worker0) 2025-01-02 17:53:29,141 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:53:29,640 [INFO] (timer) 2025-01-02 17:53:29,640 [INFO] (timer) Timer: at Thu Jan  2 17:53:29 2025 (runtime 150.1145100593567s): successes: 72, time per success: 2.0849237508243985s
+2025-01-02 17:53:31,187 [INFO] (Worker0) 2025-01-02 17:53:31,187 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:53:31,203 [INFO] (Worker0) 2025-01-02 17:53:31,203 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:53:31,221 [INFO] (Worker0) 2025-01-02 17:53:31,221 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:53:33,294 [INFO] (Worker0) 2025-01-02 17:53:33,294 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:53:33,311 [INFO] (Worker0) 2025-01-02 17:53:33,311 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:53:33,327 [INFO] (Worker0) 2025-01-02 17:53:33,327 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:53:35,363 [INFO] (Worker0) 2025-01-02 17:53:35,363 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:53:35,391 [INFO] (Worker0) 2025-01-02 17:53:35,391 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:53:35,415 [INFO] (Worker0) 2025-01-02 17:53:35,415 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:53:37,490 [INFO] (Worker0) 2025-01-02 17:53:37,490 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:53:37,508 [INFO] (Worker0) 2025-01-02 17:53:37,508 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:53:37,523 [INFO] (Worker0) 2025-01-02 17:53:37,523 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:53:39,542 [INFO] (Worker0) 2025-01-02 17:53:39,542 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:53:39,608 [INFO] (Worker0) 2025-01-02 17:53:39,608 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:53:39,624 [INFO] (Worker0) 2025-01-02 17:53:39,624 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:53:39,648 [INFO] (timer) 2025-01-02 17:53:39,648 [INFO] (timer) Timer: at Thu Jan  2 17:53:39 2025 (runtime 160.1225049495697s): successes: 77, time per success: 2.079513051293113s
+2025-01-02 17:53:41,652 [INFO] (Worker0) 2025-01-02 17:53:41,652 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:53:41,670 [INFO] (Worker0) 2025-01-02 17:53:41,670 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:53:41,688 [INFO] (Worker0) 2025-01-02 17:53:41,688 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:53:43,735 [INFO] (Worker0) 2025-01-02 17:53:43,735 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:53:43,757 [INFO] (Worker0) 2025-01-02 17:53:43,757 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:53:43,773 [INFO] (Worker0) 2025-01-02 17:53:43,773 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:53:45,825 [INFO] (Worker0) 2025-01-02 17:53:45,825 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:53:45,843 [INFO] (Worker0) 2025-01-02 17:53:45,843 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:53:45,859 [INFO] (Worker0) 2025-01-02 17:53:45,859 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:53:47,895 [INFO] (Worker0) 2025-01-02 17:53:47,895 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:53:47,912 [INFO] (Worker0) 2025-01-02 17:53:47,912 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:53:47,929 [INFO] (Worker0) 2025-01-02 17:53:47,929 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:53:49,656 [INFO] (timer) 2025-01-02 17:53:49,656 [INFO] (timer) Timer: at Thu Jan  2 17:53:49 2025 (runtime 170.13057923316956s): successes: 81, time per success: 2.100377521397155s
+2025-01-02 17:53:49,979 [INFO] (Worker0) 2025-01-02 17:53:49,979 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:53:49,995 [INFO] (Worker0) 2025-01-02 17:53:49,995 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:53:50,011 [INFO] (Worker0) 2025-01-02 17:53:50,011 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:53:52,047 [INFO] (Worker0) 2025-01-02 17:53:52,047 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:53:52,063 [INFO] (Worker0) 2025-01-02 17:53:52,063 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:53:52,079 [INFO] (Worker0) 2025-01-02 17:53:52,079 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:53:54,123 [INFO] (Worker0) 2025-01-02 17:53:54,123 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:53:54,140 [INFO] (Worker0) 2025-01-02 17:53:54,140 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:53:54,157 [INFO] (Worker0) 2025-01-02 17:53:54,157 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:53:56,207 [INFO] (Worker0) 2025-01-02 17:53:56,207 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:53:56,223 [INFO] (Worker0) 2025-01-02 17:53:56,223 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:53:56,248 [INFO] (Worker0) 2025-01-02 17:53:56,248 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:53:58,323 [INFO] (Worker0) 2025-01-02 17:53:58,323 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:53:58,339 [INFO] (Worker0) 2025-01-02 17:53:58,339 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:53:58,355 [INFO] (Worker0) 2025-01-02 17:53:58,355 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:53:59,664 [INFO] (timer) 2025-01-02 17:53:59,664 [INFO] (timer) Timer: at Thu Jan  2 17:53:59 2025 (runtime 180.13857197761536s): successes: 86, time per success: 2.0946345578792482s
+2025-01-02 17:54:00,417 [INFO] (Worker0) 2025-01-02 17:54:00,417 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:54:00,468 [INFO] (Worker0) 2025-01-02 17:54:00,468 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:54:00,483 [INFO] (Worker0) 2025-01-02 17:54:00,483 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:54:02,459 [INFO] (Worker0) 2025-01-02 17:54:02,459 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:54:02,475 [INFO] (Worker0) 2025-01-02 17:54:02,475 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:54:02,491 [INFO] (Worker0) 2025-01-02 17:54:02,491 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:54:04,454 [INFO] (Worker0) 2025-01-02 17:54:04,454 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:54:04,471 [INFO] (Worker0) 2025-01-02 17:54:04,471 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:54:04,487 [INFO] (Worker0) 2025-01-02 17:54:04,487 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:54:06,469 [INFO] (Worker0) 2025-01-02 17:54:06,469 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:54:06,485 [INFO] (Worker0) 2025-01-02 17:54:06,485 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:54:06,501 [INFO] (Worker0) 2025-01-02 17:54:06,501 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:54:08,478 [INFO] (Worker0) 2025-01-02 17:54:08,478 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:54:08,493 [INFO] (Worker0) 2025-01-02 17:54:08,493 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:54:08,508 [INFO] (Worker0) 2025-01-02 17:54:08,508 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:54:09,672 [INFO] (timer) 2025-01-02 17:54:09,672 [INFO] (timer) Timer: at Thu Jan  2 17:54:09 2025 (runtime 190.1465723514557s): successes: 91, time per success: 2.0895227730929196s
+2025-01-02 17:54:10,517 [INFO] (Worker0) 2025-01-02 17:54:10,517 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:54:10,533 [INFO] (Worker0) 2025-01-02 17:54:10,533 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:54:10,550 [INFO] (Worker0) 2025-01-02 17:54:10,550 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:54:12,569 [INFO] (Worker0) 2025-01-02 17:54:12,569 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:54:12,586 [INFO] (Worker0) 2025-01-02 17:54:12,586 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:54:12,602 [INFO] (Worker0) 2025-01-02 17:54:12,602 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:54:14,608 [INFO] (Worker0) 2025-01-02 17:54:14,608 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:54:14,624 [INFO] (Worker0) 2025-01-02 17:54:14,624 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:54:14,641 [INFO] (Worker0) 2025-01-02 17:54:14,641 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:54:16,637 [INFO] (Worker0) 2025-01-02 17:54:16,637 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:54:16,654 [INFO] (Worker0) 2025-01-02 17:54:16,654 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:54:16,673 [INFO] (Worker0) 2025-01-02 17:54:16,673 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:54:18,715 [INFO] (Worker0) 2025-01-02 17:54:18,715 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:54:18,732 [INFO] (Worker0) 2025-01-02 17:54:18,732 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:54:18,748 [INFO] (Worker0) 2025-01-02 17:54:18,748 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:54:19,680 [INFO] (timer) 2025-01-02 17:54:19,680 [INFO] (timer) Timer: at Thu Jan  2 17:54:19 2025 (runtime 200.1547338962555s): successes: 96, time per success: 2.0849451447526612s
+2025-01-02 17:54:20,727 [INFO] (Worker0) 2025-01-02 17:54:20,727 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:54:20,743 [INFO] (Worker0) 2025-01-02 17:54:20,743 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:54:20,759 [INFO] (Worker0) 2025-01-02 17:54:20,759 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:54:22,746 [INFO] (Worker0) 2025-01-02 17:54:22,746 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:54:22,762 [INFO] (Worker0) 2025-01-02 17:54:22,762 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:54:22,780 [INFO] (Worker0) 2025-01-02 17:54:22,780 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:54:24,767 [INFO] (Worker0) 2025-01-02 17:54:24,767 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:54:24,784 [INFO] (Worker0) 2025-01-02 17:54:24,784 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:54:24,800 [INFO] (Worker0) 2025-01-02 17:54:24,800 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:54:26,853 [INFO] (Worker0) 2025-01-02 17:54:26,853 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:54:26,871 [INFO] (Worker0) 2025-01-02 17:54:26,871 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:54:26,888 [INFO] (Worker0) 2025-01-02 17:54:26,888 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:54:29,003 [INFO] (Worker0) 2025-01-02 17:54:29,003 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:54:29,222 [INFO] (main) 2025-01-02 17:54:29,222 [INFO] (main) Main: Terminating timer
+2025-01-02 17:54:29,223 [INFO] (main) 2025-01-02 17:54:29,223 [INFO] (main) terminating processes
+2025-01-02 17:54:29,224 [INFO] (main) 2025-01-02 17:54:29,224 [INFO] (main) Main: nsuccesses: 100 in this run
+2025-01-02 17:54:29,232 [INFO] (main) 2025-01-02 17:54:29,232 [INFO] (main) average number of timesteps taken to reach a success (including possibly previous runs with the same pattern) (aka 1./flux): 713.04
+2025-01-02 17:54:29,232 [INFO] (main) 2025-01-02 17:54:29,232 [INFO] (main) initial flux (includes previous runs if they were there): 0.0014024458655895883
+2025-01-02 17:56:25,910 [INFO] (main) 2025-01-02 17:56:25,910 [INFO] (main) Main: STARTING new shooting for 100
+2025-01-02 17:56:25,913 [INFO] (main) 2025-01-02 17:56:25,913 [INFO] (main) Main: Starting processes...
+2025-01-02 17:56:25,917 [INFO] (main) 2025-01-02 17:56:25,917 [INFO] (main) Main: waiting for processes to finish
+2025-01-02 17:56:26,223 [INFO] (timer) 2025-01-02 17:56:26,223 [INFO] (timer) Timer started at Thu Jan  2 17:56:26 2025
+2025-01-02 17:56:26,566 [INFO] (Worker0) 2025-01-02 17:56:26,566 [INFO] (Worker0) equilibration started
+2025-01-02 17:56:28,571 [INFO] (Worker0) 2025-01-02 17:56:28,571 [INFO] (Worker0) equilibrated
+2025-01-02 17:56:28,572 [INFO] (Worker0) 2025-01-02 17:56:28,572 [INFO] (Worker0) Running initial simulation?
+2025-01-02 17:56:28,592 [INFO] (Worker0) 2025-01-02 17:56:28,592 [INFO] (Worker0) reached Q_{-2}...
+2025-01-02 17:56:28,608 [INFO] (Worker0) 2025-01-02 17:56:28,608 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:56:28,653 [INFO] (Worker0) 2025-01-02 17:56:28,653 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:56:30,647 [INFO] (Worker0) 2025-01-02 17:56:30,647 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:56:30,663 [INFO] (Worker0) 2025-01-02 17:56:30,663 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:56:30,679 [INFO] (Worker0) 2025-01-02 17:56:30,679 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:56:32,715 [INFO] (Worker0) 2025-01-02 17:56:32,715 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:56:32,743 [INFO] (Worker0) 2025-01-02 17:56:32,743 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:56:32,765 [INFO] (Worker0) 2025-01-02 17:56:32,765 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:56:34,787 [INFO] (Worker0) 2025-01-02 17:56:34,787 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:56:34,803 [INFO] (Worker0) 2025-01-02 17:56:34,803 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:56:34,820 [INFO] (Worker0) 2025-01-02 17:56:34,820 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:56:36,232 [INFO] (timer) 2025-01-02 17:56:36,232 [INFO] (timer) Timer: at Thu Jan  2 17:56:36 2025 (runtime 10.008578300476074s): successes: 4, time per success: 2.5021445751190186s
+2025-01-02 17:56:36,877 [INFO] (Worker0) 2025-01-02 17:56:36,877 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:56:36,892 [INFO] (Worker0) 2025-01-02 17:56:36,892 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:56:36,907 [INFO] (Worker0) 2025-01-02 17:56:36,907 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:56:38,884 [INFO] (Worker0) 2025-01-02 17:56:38,884 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:56:38,900 [INFO] (Worker0) 2025-01-02 17:56:38,900 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:56:38,916 [INFO] (Worker0) 2025-01-02 17:56:38,916 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:56:40,944 [INFO] (Worker0) 2025-01-02 17:56:40,944 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:56:40,961 [INFO] (Worker0) 2025-01-02 17:56:40,961 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:56:40,977 [INFO] (Worker0) 2025-01-02 17:56:40,977 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:56:43,034 [INFO] (Worker0) 2025-01-02 17:56:43,034 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:56:43,051 [INFO] (Worker0) 2025-01-02 17:56:43,051 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:56:43,070 [INFO] (Worker0) 2025-01-02 17:56:43,070 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:56:45,107 [INFO] (Worker0) 2025-01-02 17:56:45,107 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:56:45,123 [INFO] (Worker0) 2025-01-02 17:56:45,123 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:56:45,139 [INFO] (Worker0) 2025-01-02 17:56:45,139 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:56:46,240 [INFO] (timer) 2025-01-02 17:56:46,240 [INFO] (timer) Timer: at Thu Jan  2 17:56:46 2025 (runtime 20.016573667526245s): successes: 9, time per success: 2.2240637408362494s
+2025-01-02 17:56:47,162 [INFO] (Worker0) 2025-01-02 17:56:47,162 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:56:47,178 [INFO] (Worker0) 2025-01-02 17:56:47,178 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:56:47,195 [INFO] (Worker0) 2025-01-02 17:56:47,195 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:56:49,243 [INFO] (Worker0) 2025-01-02 17:56:49,243 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:56:49,259 [INFO] (Worker0) 2025-01-02 17:56:49,259 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:56:49,275 [INFO] (Worker0) 2025-01-02 17:56:49,275 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:56:51,405 [INFO] (Worker0) 2025-01-02 17:56:51,405 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:56:51,422 [INFO] (Worker0) 2025-01-02 17:56:51,422 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:56:51,482 [INFO] (Worker0) 2025-01-02 17:56:51,482 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:56:53,823 [INFO] (Worker0) 2025-01-02 17:56:53,823 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:56:53,857 [INFO] (Worker0) 2025-01-02 17:56:53,857 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:56:53,887 [INFO] (Worker0) 2025-01-02 17:56:53,887 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:56:56,197 [INFO] (Worker0) 2025-01-02 17:56:56,197 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:56:56,214 [INFO] (Worker0) 2025-01-02 17:56:56,214 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:56:56,230 [INFO] (Worker0) 2025-01-02 17:56:56,230 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:56:56,248 [INFO] (timer) 2025-01-02 17:56:56,248 [INFO] (timer) Timer: at Thu Jan  2 17:56:56 2025 (runtime 30.02460527420044s): successes: 14, time per success: 2.1446146624428883s
+2025-01-02 17:56:58,377 [INFO] (Worker0) 2025-01-02 17:56:58,377 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:56:58,395 [INFO] (Worker0) 2025-01-02 17:56:58,395 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:56:58,412 [INFO] (Worker0) 2025-01-02 17:56:58,412 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:57:00,449 [INFO] (Worker0) 2025-01-02 17:57:00,449 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:57:00,466 [INFO] (Worker0) 2025-01-02 17:57:00,466 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:57:00,482 [INFO] (Worker0) 2025-01-02 17:57:00,482 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:57:02,502 [INFO] (Worker0) 2025-01-02 17:57:02,502 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:57:02,517 [INFO] (Worker0) 2025-01-02 17:57:02,517 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:57:02,533 [INFO] (Worker0) 2025-01-02 17:57:02,533 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:57:04,536 [INFO] (Worker0) 2025-01-02 17:57:04,536 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:57:04,552 [INFO] (Worker0) 2025-01-02 17:57:04,552 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:57:04,567 [INFO] (Worker0) 2025-01-02 17:57:04,567 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:57:06,256 [INFO] (timer) 2025-01-02 17:57:06,256 [INFO] (timer) Timer: at Thu Jan  2 17:57:06 2025 (runtime 40.03261923789978s): successes: 18, time per success: 2.224034402105543s
+2025-01-02 17:57:06,594 [INFO] (Worker0) 2025-01-02 17:57:06,594 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:57:06,610 [INFO] (Worker0) 2025-01-02 17:57:06,610 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:57:06,627 [INFO] (Worker0) 2025-01-02 17:57:06,627 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:57:08,612 [INFO] (Worker0) 2025-01-02 17:57:08,612 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:57:08,629 [INFO] (Worker0) 2025-01-02 17:57:08,629 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:57:08,646 [INFO] (Worker0) 2025-01-02 17:57:08,646 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:57:10,638 [INFO] (Worker0) 2025-01-02 17:57:10,638 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:57:10,654 [INFO] (Worker0) 2025-01-02 17:57:10,654 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:57:10,673 [INFO] (Worker0) 2025-01-02 17:57:10,673 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:57:12,698 [INFO] (Worker0) 2025-01-02 17:57:12,698 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:57:12,715 [INFO] (Worker0) 2025-01-02 17:57:12,715 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:57:12,732 [INFO] (Worker0) 2025-01-02 17:57:12,732 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:57:14,833 [INFO] (Worker0) 2025-01-02 17:57:14,833 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:57:14,851 [INFO] (Worker0) 2025-01-02 17:57:14,851 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:57:14,867 [INFO] (Worker0) 2025-01-02 17:57:14,867 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:57:16,264 [INFO] (timer) 2025-01-02 17:57:16,264 [INFO] (timer) Timer: at Thu Jan  2 17:57:16 2025 (runtime 50.04061269760132s): successes: 23, time per success: 2.175678812939188s
+2025-01-02 17:57:17,005 [INFO] (Worker0) 2025-01-02 17:57:17,005 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:57:17,023 [INFO] (Worker0) 2025-01-02 17:57:17,023 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:57:17,040 [INFO] (Worker0) 2025-01-02 17:57:17,040 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:57:19,112 [INFO] (Worker0) 2025-01-02 17:57:19,112 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:57:19,129 [INFO] (Worker0) 2025-01-02 17:57:19,129 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:57:19,146 [INFO] (Worker0) 2025-01-02 17:57:19,146 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:57:21,240 [INFO] (Worker0) 2025-01-02 17:57:21,240 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:57:21,256 [INFO] (Worker0) 2025-01-02 17:57:21,256 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:57:21,272 [INFO] (Worker0) 2025-01-02 17:57:21,272 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:57:23,310 [INFO] (Worker0) 2025-01-02 17:57:23,310 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:57:23,329 [INFO] (Worker0) 2025-01-02 17:57:23,329 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:57:23,346 [INFO] (Worker0) 2025-01-02 17:57:23,346 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:57:25,403 [INFO] (Worker0) 2025-01-02 17:57:25,403 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:57:25,421 [INFO] (Worker0) 2025-01-02 17:57:25,421 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:57:25,438 [INFO] (Worker0) 2025-01-02 17:57:25,438 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:57:26,272 [INFO] (timer) 2025-01-02 17:57:26,272 [INFO] (timer) Timer: at Thu Jan  2 17:57:26 2025 (runtime 60.04857397079468s): successes: 28, time per success: 2.1445919275283813s
+2025-01-02 17:57:27,475 [INFO] (Worker0) 2025-01-02 17:57:27,475 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:57:27,491 [INFO] (Worker0) 2025-01-02 17:57:27,491 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:57:27,506 [INFO] (Worker0) 2025-01-02 17:57:27,506 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:57:29,588 [INFO] (Worker0) 2025-01-02 17:57:29,588 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:57:29,604 [INFO] (Worker0) 2025-01-02 17:57:29,604 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:57:29,621 [INFO] (Worker0) 2025-01-02 17:57:29,621 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:57:31,676 [INFO] (Worker0) 2025-01-02 17:57:31,676 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:57:31,692 [INFO] (Worker0) 2025-01-02 17:57:31,692 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:57:31,707 [INFO] (Worker0) 2025-01-02 17:57:31,707 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:57:33,718 [INFO] (Worker0) 2025-01-02 17:57:33,718 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:57:33,734 [INFO] (Worker0) 2025-01-02 17:57:33,734 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:57:33,750 [INFO] (Worker0) 2025-01-02 17:57:33,750 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:57:35,763 [INFO] (Worker0) 2025-01-02 17:57:35,763 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:57:35,780 [INFO] (Worker0) 2025-01-02 17:57:35,780 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:57:35,796 [INFO] (Worker0) 2025-01-02 17:57:35,796 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:57:36,280 [INFO] (timer) 2025-01-02 17:57:36,280 [INFO] (timer) Timer: at Thu Jan  2 17:57:36 2025 (runtime 70.05660510063171s): successes: 33, time per success: 2.12292742729187s
+2025-01-02 17:57:37,830 [INFO] (Worker0) 2025-01-02 17:57:37,830 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:57:37,845 [INFO] (Worker0) 2025-01-02 17:57:37,845 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:57:37,862 [INFO] (Worker0) 2025-01-02 17:57:37,862 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:57:39,902 [INFO] (Worker0) 2025-01-02 17:57:39,902 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:57:39,918 [INFO] (Worker0) 2025-01-02 17:57:39,918 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:57:39,934 [INFO] (Worker0) 2025-01-02 17:57:39,934 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:57:41,967 [INFO] (Worker0) 2025-01-02 17:57:41,967 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:57:41,984 [INFO] (Worker0) 2025-01-02 17:57:41,984 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:57:42,001 [INFO] (Worker0) 2025-01-02 17:57:42,001 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:57:44,059 [INFO] (Worker0) 2025-01-02 17:57:44,059 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:57:44,076 [INFO] (Worker0) 2025-01-02 17:57:44,076 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:57:44,093 [INFO] (Worker0) 2025-01-02 17:57:44,093 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:57:46,178 [INFO] (Worker0) 2025-01-02 17:57:46,178 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:57:46,231 [INFO] (Worker0) 2025-01-02 17:57:46,231 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:57:46,247 [INFO] (Worker0) 2025-01-02 17:57:46,247 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:57:46,288 [INFO] (timer) 2025-01-02 17:57:46,288 [INFO] (timer) Timer: at Thu Jan  2 17:57:46 2025 (runtime 80.0645911693573s): successes: 38, time per success: 2.1069629255094027s
+2025-01-02 17:57:48,288 [INFO] (Worker0) 2025-01-02 17:57:48,288 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:57:48,305 [INFO] (Worker0) 2025-01-02 17:57:48,305 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:57:48,322 [INFO] (Worker0) 2025-01-02 17:57:48,322 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:57:50,370 [INFO] (Worker0) 2025-01-02 17:57:50,370 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:57:50,388 [INFO] (Worker0) 2025-01-02 17:57:50,388 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:57:50,404 [INFO] (Worker0) 2025-01-02 17:57:50,404 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:57:52,343 [INFO] (Worker0) 2025-01-02 17:57:52,343 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:57:52,360 [INFO] (Worker0) 2025-01-02 17:57:52,360 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:57:52,375 [INFO] (Worker0) 2025-01-02 17:57:52,375 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:57:54,376 [INFO] (Worker0) 2025-01-02 17:57:54,376 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:57:54,393 [INFO] (Worker0) 2025-01-02 17:57:54,393 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:57:54,410 [INFO] (Worker0) 2025-01-02 17:57:54,410 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:57:56,298 [INFO] (timer) 2025-01-02 17:57:56,298 [INFO] (timer) Timer: at Thu Jan  2 17:57:56 2025 (runtime 90.07425832748413s): successes: 42, time per success: 2.144625198273432s
+2025-01-02 17:57:56,414 [INFO] (Worker0) 2025-01-02 17:57:56,414 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:57:56,429 [INFO] (Worker0) 2025-01-02 17:57:56,429 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:57:56,444 [INFO] (Worker0) 2025-01-02 17:57:56,444 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:57:58,462 [INFO] (Worker0) 2025-01-02 17:57:58,462 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:57:58,479 [INFO] (Worker0) 2025-01-02 17:57:58,479 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:57:58,495 [INFO] (Worker0) 2025-01-02 17:57:58,495 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:58:00,579 [INFO] (Worker0) 2025-01-02 17:58:00,579 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:58:00,595 [INFO] (Worker0) 2025-01-02 17:58:00,595 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:58:00,611 [INFO] (Worker0) 2025-01-02 17:58:00,611 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:58:02,668 [INFO] (Worker0) 2025-01-02 17:58:02,668 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:58:02,685 [INFO] (Worker0) 2025-01-02 17:58:02,685 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:58:02,701 [INFO] (Worker0) 2025-01-02 17:58:02,701 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:58:04,774 [INFO] (Worker0) 2025-01-02 17:58:04,774 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:58:04,791 [INFO] (Worker0) 2025-01-02 17:58:04,791 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:58:04,807 [INFO] (Worker0) 2025-01-02 17:58:04,807 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:58:06,304 [INFO] (timer) 2025-01-02 17:58:06,304 [INFO] (timer) Timer: at Thu Jan  2 17:58:06 2025 (runtime 100.08057141304016s): successes: 47, time per success: 2.1293738598519183s
+2025-01-02 17:58:06,881 [INFO] (Worker0) 2025-01-02 17:58:06,881 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:58:06,929 [INFO] (Worker0) 2025-01-02 17:58:06,929 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:58:06,945 [INFO] (Worker0) 2025-01-02 17:58:06,945 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:58:08,996 [INFO] (Worker0) 2025-01-02 17:58:08,996 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:58:09,012 [INFO] (Worker0) 2025-01-02 17:58:09,012 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:58:09,029 [INFO] (Worker0) 2025-01-02 17:58:09,029 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:58:11,085 [INFO] (Worker0) 2025-01-02 17:58:11,085 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:58:11,102 [INFO] (Worker0) 2025-01-02 17:58:11,102 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:58:11,117 [INFO] (Worker0) 2025-01-02 17:58:11,117 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:58:13,186 [INFO] (Worker0) 2025-01-02 17:58:13,186 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:58:13,203 [INFO] (Worker0) 2025-01-02 17:58:13,203 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:58:13,220 [INFO] (Worker0) 2025-01-02 17:58:13,220 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:58:15,267 [INFO] (Worker0) 2025-01-02 17:58:15,267 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:58:15,284 [INFO] (Worker0) 2025-01-02 17:58:15,284 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:58:15,301 [INFO] (Worker0) 2025-01-02 17:58:15,301 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:58:16,306 [INFO] (timer) 2025-01-02 17:58:16,306 [INFO] (timer) Timer: at Thu Jan  2 17:58:16 2025 (runtime 110.08231568336487s): successes: 52, time per success: 2.1169676092954783s
+2025-01-02 17:58:17,341 [INFO] (Worker0) 2025-01-02 17:58:17,341 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:58:17,358 [INFO] (Worker0) 2025-01-02 17:58:17,358 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:58:17,374 [INFO] (Worker0) 2025-01-02 17:58:17,374 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:58:19,341 [INFO] (Worker0) 2025-01-02 17:58:19,341 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:58:19,357 [INFO] (Worker0) 2025-01-02 17:58:19,357 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:58:19,372 [INFO] (Worker0) 2025-01-02 17:58:19,372 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:58:21,424 [INFO] (Worker0) 2025-01-02 17:58:21,424 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:58:21,441 [INFO] (Worker0) 2025-01-02 17:58:21,441 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:58:21,459 [INFO] (Worker0) 2025-01-02 17:58:21,459 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:58:23,569 [INFO] (Worker0) 2025-01-02 17:58:23,569 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:58:23,586 [INFO] (Worker0) 2025-01-02 17:58:23,586 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:58:23,602 [INFO] (Worker0) 2025-01-02 17:58:23,602 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:58:25,677 [INFO] (Worker0) 2025-01-02 17:58:25,677 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:58:25,694 [INFO] (Worker0) 2025-01-02 17:58:25,694 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:58:25,710 [INFO] (Worker0) 2025-01-02 17:58:25,710 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:58:26,307 [INFO] (timer) 2025-01-02 17:58:26,307 [INFO] (timer) Timer: at Thu Jan  2 17:58:26 2025 (runtime 120.08363342285156s): successes: 57, time per success: 2.1067304109272205s
+2025-01-02 17:58:27,807 [INFO] (Worker0) 2025-01-02 17:58:27,807 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:58:27,823 [INFO] (Worker0) 2025-01-02 17:58:27,823 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:58:27,839 [INFO] (Worker0) 2025-01-02 17:58:27,839 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:58:29,878 [INFO] (Worker0) 2025-01-02 17:58:29,878 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:58:29,897 [INFO] (Worker0) 2025-01-02 17:58:29,897 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:58:29,914 [INFO] (Worker0) 2025-01-02 17:58:29,914 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:58:31,946 [INFO] (Worker0) 2025-01-02 17:58:31,946 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:58:31,963 [INFO] (Worker0) 2025-01-02 17:58:31,963 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:58:31,979 [INFO] (Worker0) 2025-01-02 17:58:31,979 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:58:34,129 [INFO] (Worker0) 2025-01-02 17:58:34,129 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:58:34,177 [INFO] (Worker0) 2025-01-02 17:58:34,177 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:58:34,196 [INFO] (Worker0) 2025-01-02 17:58:34,196 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:58:36,271 [INFO] (Worker0) 2025-01-02 17:58:36,271 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:58:36,288 [INFO] (Worker0) 2025-01-02 17:58:36,288 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:58:36,305 [INFO] (Worker0) 2025-01-02 17:58:36,305 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:58:36,316 [INFO] (timer) 2025-01-02 17:58:36,316 [INFO] (timer) Timer: at Thu Jan  2 17:58:36 2025 (runtime 130.0925850868225s): successes: 62, time per success: 2.098267501400363s
+2025-01-02 17:58:38,427 [INFO] (Worker0) 2025-01-02 17:58:38,427 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:58:38,444 [INFO] (Worker0) 2025-01-02 17:58:38,444 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:58:38,462 [INFO] (Worker0) 2025-01-02 17:58:38,462 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:58:40,635 [INFO] (Worker0) 2025-01-02 17:58:40,635 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:58:40,667 [INFO] (Worker0) 2025-01-02 17:58:40,667 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:58:40,700 [INFO] (Worker0) 2025-01-02 17:58:40,700 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:58:43,037 [INFO] (Worker0) 2025-01-02 17:58:43,037 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:58:43,060 [INFO] (Worker0) 2025-01-02 17:58:43,060 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:58:43,081 [INFO] (Worker0) 2025-01-02 17:58:43,081 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:58:45,290 [INFO] (Worker0) 2025-01-02 17:58:45,290 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:58:45,308 [INFO] (Worker0) 2025-01-02 17:58:45,308 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:58:45,326 [INFO] (Worker0) 2025-01-02 17:58:45,326 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:58:46,324 [INFO] (timer) 2025-01-02 17:58:46,324 [INFO] (timer) Timer: at Thu Jan  2 17:58:46 2025 (runtime 140.1005883216858s): successes: 66, time per success: 2.122736186692209s
+2025-01-02 17:58:47,471 [INFO] (Worker0) 2025-01-02 17:58:47,471 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:58:47,521 [INFO] (Worker0) 2025-01-02 17:58:47,521 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:58:47,538 [INFO] (Worker0) 2025-01-02 17:58:47,538 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:58:49,698 [INFO] (Worker0) 2025-01-02 17:58:49,698 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:58:49,717 [INFO] (Worker0) 2025-01-02 17:58:49,717 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:58:49,735 [INFO] (Worker0) 2025-01-02 17:58:49,735 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:58:51,822 [INFO] (Worker0) 2025-01-02 17:58:51,822 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:58:51,846 [INFO] (Worker0) 2025-01-02 17:58:51,846 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:58:51,864 [INFO] (Worker0) 2025-01-02 17:58:51,864 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:58:53,889 [INFO] (Worker0) 2025-01-02 17:58:53,889 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:58:53,905 [INFO] (Worker0) 2025-01-02 17:58:53,905 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:58:53,921 [INFO] (Worker0) 2025-01-02 17:58:53,921 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:58:55,934 [INFO] (Worker0) 2025-01-02 17:58:55,934 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:58:55,955 [INFO] (Worker0) 2025-01-02 17:58:55,955 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:58:55,973 [INFO] (Worker0) 2025-01-02 17:58:55,973 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:58:56,332 [INFO] (timer) 2025-01-02 17:58:56,332 [INFO] (timer) Timer: at Thu Jan  2 17:58:56 2025 (runtime 150.10859894752502s): successes: 71, time per success: 2.1142056189792258s
+2025-01-02 17:58:58,106 [INFO] (Worker0) 2025-01-02 17:58:58,106 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:58:58,153 [INFO] (Worker0) 2025-01-02 17:58:58,153 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:58:58,170 [INFO] (Worker0) 2025-01-02 17:58:58,170 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:59:00,381 [INFO] (Worker0) 2025-01-02 17:59:00,381 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:59:00,401 [INFO] (Worker0) 2025-01-02 17:59:00,401 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:59:00,418 [INFO] (Worker0) 2025-01-02 17:59:00,418 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:59:02,522 [INFO] (Worker0) 2025-01-02 17:59:02,522 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:59:02,539 [INFO] (Worker0) 2025-01-02 17:59:02,539 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:59:02,555 [INFO] (Worker0) 2025-01-02 17:59:02,555 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:59:04,663 [INFO] (Worker0) 2025-01-02 17:59:04,663 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:59:04,681 [INFO] (Worker0) 2025-01-02 17:59:04,681 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:59:04,698 [INFO] (Worker0) 2025-01-02 17:59:04,698 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:59:06,342 [INFO] (timer) 2025-01-02 17:59:06,342 [INFO] (timer) Timer: at Thu Jan  2 17:59:06 2025 (runtime 160.11872601509094s): successes: 75, time per success: 2.1349163468678793s
+2025-01-02 17:59:06,723 [INFO] (Worker0) 2025-01-02 17:59:06,723 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:59:06,742 [INFO] (Worker0) 2025-01-02 17:59:06,742 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:59:06,792 [INFO] (Worker0) 2025-01-02 17:59:06,792 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:59:08,819 [INFO] (Worker0) 2025-01-02 17:59:08,819 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:59:08,835 [INFO] (Worker0) 2025-01-02 17:59:08,835 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:59:08,852 [INFO] (Worker0) 2025-01-02 17:59:08,852 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:59:10,958 [INFO] (Worker0) 2025-01-02 17:59:10,958 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:59:10,975 [INFO] (Worker0) 2025-01-02 17:59:10,975 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:59:10,991 [INFO] (Worker0) 2025-01-02 17:59:10,991 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:59:13,086 [INFO] (Worker0) 2025-01-02 17:59:13,086 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:59:13,134 [INFO] (Worker0) 2025-01-02 17:59:13,134 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:59:13,152 [INFO] (Worker0) 2025-01-02 17:59:13,152 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:59:15,285 [INFO] (Worker0) 2025-01-02 17:59:15,285 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:59:15,303 [INFO] (Worker0) 2025-01-02 17:59:15,303 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:59:15,320 [INFO] (Worker0) 2025-01-02 17:59:15,320 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:59:16,352 [INFO] (timer) 2025-01-02 17:59:16,352 [INFO] (timer) Timer: at Thu Jan  2 17:59:16 2025 (runtime 170.12861132621765s): successes: 80, time per success: 2.1266076415777206s
+2025-01-02 17:59:17,471 [INFO] (Worker0) 2025-01-02 17:59:17,471 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:59:17,488 [INFO] (Worker0) 2025-01-02 17:59:17,488 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:59:17,505 [INFO] (Worker0) 2025-01-02 17:59:17,505 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:59:19,637 [INFO] (Worker0) 2025-01-02 17:59:19,637 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:59:19,686 [INFO] (Worker0) 2025-01-02 17:59:19,686 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:59:19,704 [INFO] (Worker0) 2025-01-02 17:59:19,704 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:59:21,830 [INFO] (Worker0) 2025-01-02 17:59:21,830 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:59:21,847 [INFO] (Worker0) 2025-01-02 17:59:21,847 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:59:21,864 [INFO] (Worker0) 2025-01-02 17:59:21,864 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:59:23,882 [INFO] (Worker0) 2025-01-02 17:59:23,882 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:59:23,901 [INFO] (Worker0) 2025-01-02 17:59:23,901 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:59:23,918 [INFO] (Worker0) 2025-01-02 17:59:23,918 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:59:25,902 [INFO] (Worker0) 2025-01-02 17:59:25,902 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:59:25,918 [INFO] (Worker0) 2025-01-02 17:59:25,918 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:59:25,934 [INFO] (Worker0) 2025-01-02 17:59:25,934 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:59:26,361 [INFO] (timer) 2025-01-02 17:59:26,361 [INFO] (timer) Timer: at Thu Jan  2 17:59:26 2025 (runtime 180.13785219192505s): successes: 85, time per success: 2.1192688493167653s
+2025-01-02 17:59:27,968 [INFO] (Worker0) 2025-01-02 17:59:27,968 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:59:27,986 [INFO] (Worker0) 2025-01-02 17:59:27,986 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:59:28,002 [INFO] (Worker0) 2025-01-02 17:59:28,002 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:59:29,995 [INFO] (Worker0) 2025-01-02 17:59:29,995 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:59:30,011 [INFO] (Worker0) 2025-01-02 17:59:30,011 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:59:30,028 [INFO] (Worker0) 2025-01-02 17:59:30,028 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:59:32,129 [INFO] (Worker0) 2025-01-02 17:59:32,129 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:59:32,147 [INFO] (Worker0) 2025-01-02 17:59:32,147 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:59:32,165 [INFO] (Worker0) 2025-01-02 17:59:32,165 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:59:34,307 [INFO] (Worker0) 2025-01-02 17:59:34,307 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:59:34,359 [INFO] (Worker0) 2025-01-02 17:59:34,359 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:59:34,375 [INFO] (Worker0) 2025-01-02 17:59:34,375 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:59:36,369 [INFO] (timer) 2025-01-02 17:59:36,369 [INFO] (timer) Timer: at Thu Jan  2 17:59:36 2025 (runtime 190.14550256729126s): successes: 89, time per success: 2.1364663209808006s
+2025-01-02 17:59:36,416 [INFO] (Worker0) 2025-01-02 17:59:36,416 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:59:36,432 [INFO] (Worker0) 2025-01-02 17:59:36,432 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:59:36,450 [INFO] (Worker0) 2025-01-02 17:59:36,450 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:59:38,500 [INFO] (Worker0) 2025-01-02 17:59:38,500 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:59:38,517 [INFO] (Worker0) 2025-01-02 17:59:38,517 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:59:38,535 [INFO] (Worker0) 2025-01-02 17:59:38,535 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:59:40,741 [INFO] (Worker0) 2025-01-02 17:59:40,741 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:59:40,790 [INFO] (Worker0) 2025-01-02 17:59:40,790 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:59:40,811 [INFO] (Worker0) 2025-01-02 17:59:40,811 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:59:43,100 [INFO] (Worker0) 2025-01-02 17:59:43,100 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:59:43,117 [INFO] (Worker0) 2025-01-02 17:59:43,117 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:59:43,140 [INFO] (Worker0) 2025-01-02 17:59:43,140 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:59:45,331 [INFO] (Worker0) 2025-01-02 17:59:45,331 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:59:45,348 [INFO] (Worker0) 2025-01-02 17:59:45,348 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:59:45,365 [INFO] (Worker0) 2025-01-02 17:59:45,365 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:59:46,376 [INFO] (timer) 2025-01-02 17:59:46,376 [INFO] (timer) Timer: at Thu Jan  2 17:59:46 2025 (runtime 200.15269827842712s): successes: 94, time per success: 2.1292840242385864s
+2025-01-02 17:59:47,668 [INFO] (Worker0) 2025-01-02 17:59:47,668 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:59:47,687 [INFO] (Worker0) 2025-01-02 17:59:47,687 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:59:47,706 [INFO] (Worker0) 2025-01-02 17:59:47,706 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:59:49,966 [INFO] (Worker0) 2025-01-02 17:59:49,966 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:59:49,986 [INFO] (Worker0) 2025-01-02 17:59:49,986 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:59:50,004 [INFO] (Worker0) 2025-01-02 17:59:50,004 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:59:52,046 [INFO] (Worker0) 2025-01-02 17:59:52,046 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:59:52,066 [INFO] (Worker0) 2025-01-02 17:59:52,066 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:59:52,084 [INFO] (Worker0) 2025-01-02 17:59:52,084 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:59:54,326 [INFO] (Worker0) 2025-01-02 17:59:54,326 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:59:54,344 [INFO] (Worker0) 2025-01-02 17:59:54,344 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:59:54,362 [INFO] (Worker0) 2025-01-02 17:59:54,362 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:59:56,384 [INFO] (timer) 2025-01-02 17:59:56,384 [INFO] (timer) Timer: at Thu Jan  2 17:59:56 2025 (runtime 210.16059184074402s): successes: 98, time per success: 2.144495835109633s
+2025-01-02 17:59:56,751 [INFO] (Worker0) 2025-01-02 17:59:56,751 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:59:56,771 [INFO] (Worker0) 2025-01-02 17:59:56,771 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:59:56,789 [INFO] (Worker0) 2025-01-02 17:59:56,789 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 17:59:59,063 [INFO] (Worker0) 2025-01-02 17:59:59,063 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 17:59:59,082 [INFO] (Worker0) 2025-01-02 17:59:59,082 [INFO] (Worker0) Worker 0: reached lambda_{-1} going forwards
+2025-01-02 17:59:59,100 [INFO] (Worker0) 2025-01-02 17:59:59,100 [INFO] (Worker0) Worker 0: crossed interface lambda_{0} going forwards: SUCCESS
+2025-01-02 18:00:01,340 [INFO] (Worker0) 2025-01-02 18:00:01,340 [INFO] (Worker0) Worker 0: crossed interface lambda_{-1} going backwards after success
+2025-01-02 18:00:02,045 [INFO] (main) 2025-01-02 18:00:02,045 [INFO] (main) Main: Terminating timer
+2025-01-02 18:00:02,045 [INFO] (main) 2025-01-02 18:00:02,045 [INFO] (main) terminating processes
+2025-01-02 18:00:02,045 [INFO] (main) 2025-01-02 18:00:02,045 [INFO] (main) Main: nsuccesses: 100 in this run
+2025-01-02 18:00:02,048 [INFO] (main) 2025-01-02 18:00:02,048 [INFO] (main) average number of timesteps taken to reach a success (including possibly previous runs with the same pattern) (aka 1./flux): 1349.7
+2025-01-02 18:00:02,048 [INFO] (main) 2025-01-02 18:00:02,048 [INFO] (main) initial flux (includes previous runs if they were there): 0.000740905386382159
