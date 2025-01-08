@@ -882,6 +882,7 @@ class PatchyOrigamiConverter:
             write_oxview_path the path at which to write the oxview file
             clusters whether to save each DNA particle in the oxview file as its own cluster (will be slower)
             color_by_type whether to color the DNA particles according to patchy particle type (will be slower)
+                    You can pass a custom dict where keys are particle type numbers and values are int rgb triplets
         """
         if isinstance(write_oxview_path, str):
             write_oxview_path = Path(write_oxview_path)
@@ -896,7 +897,10 @@ class PatchyOrigamiConverter:
                 for monomer in strand['monomers']:
                     particle = self.dna_particles[monomer['cluster']]
                     particle_type = particle.linked_particle.type_id()
-                    color = selectColor(particle_type)  # get hex string code of color
+                    if isinstance(color_by_type, dict):
+                        color = color_by_type[particle_type]
+                    else:
+                        color = selectColor(particle_type)  # get hex string code of color
                     # oxview file format requires we convert the hex code to base 10
                     monomer["color"] = int(color[1:], 16)
         with write_oxview_path.open("w") as f:

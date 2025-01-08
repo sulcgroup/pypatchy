@@ -60,6 +60,7 @@ def get_spec_json(name: str, folder: str) -> dict:
     except IOError as e:
         raise NoSpecJSONError(name, get_local_dir() / 'spec_files' / folder)
 
+
 class NoSpecJSONError(Exception):
     json_name: str
     folder: Path
@@ -85,18 +86,22 @@ class BadSimulationDirException(Exception):
     def __str__(self) -> str:
         return f"Path {self.p} does not have expected format for the patch to a patchy particles trial simulation"
 
+
 def selectColor(number: int, saturation=50, value=65, fmt="hex") -> Union[str, np.ndarray]:
+    # treat hue as an angle on a color wheel
     hue = number * 137.508  # use golden angle approximation
+    hue = int(hue) % 360
     if fmt == "hsv":
         return f"hsv({hue},{saturation}%,{value}%)"
     else:
-        r, g, b = hsv_to_rgb(hue / 255, saturation / 100, value / 100)
+        r, g, b = hsv_to_rgb(hue / 360, saturation / 100, value / 100)
         if fmt == "rgb":
             return f"rgb({r},{g},{b})"
         elif fmt == "hex":
             return f"#{hex(int(255 * r))[-2:]}{hex(int(255 * g))[-2:]}{hex(int(255 * b))[-2:]}"
         else:
             return np.array([r, g, b])
+
 
 def rotAroundAxis(patchPos, axis, angle):
     r = R.from_rotvec(angle * axis)
