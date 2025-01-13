@@ -21,8 +21,9 @@ from ...polycubeutil.polycubesRule import PolycubeRuleCubeType
 from ...util import normalize, DENTAL_RADIUS_KEY, NUM_TEETH_KEY
 from ...server_config import PatchyServerConfig, get_server_config
 
+
 # no class to read mgls since it isn't an oxdna format
-def read_mgl(file_path: Union[Path, str], color_map: Union[dict[tuple[str,str], float], None]) -> PLPSimulation:
+def read_mgl(file_path: Union[Path, str], color_map: Union[dict[tuple[str, str], float], None]) -> PLPSimulation:
     assert color_map is not None, "We have not implemented automatic color matching!"
     if isinstance(file_path, str):
         file_path = Path(file_path)
@@ -95,18 +96,19 @@ def read_mgl(file_path: Union[Path, str], color_map: Union[dict[tuple[str,str], 
                 ptype_pos_matrix = np.stack([np.zeros((3,)), *[
                     patch.position() for patch in
                     type_map[particle_color].patches()
-                    ]])
+                ]])
                 # oh god we need to use a svd superimposer
                 sup = SVDSuperimposer()
                 for order in itertools.permutations(range(len(patches))):
                     # skip orderings that don't align
-                    if all([c1 == c2 for c1, c2 in zip(patch_color_orders, [patch_type_color_order[n] for n in order])]):
+                    if all([c1 == c2 for c1, c2 in
+                            zip(patch_color_orders, [patch_type_color_order[n] for n in order])]):
                         sup.set(
                             np.stack([
                                 np.zeros((3,)),
                                 *[
-                                patch.position() for patch in patches
-                            ]]),
+                                    patch.position() for patch in patches
+                                ]]),
                             ptype_pos_matrix)
                         sup.run()
                         rms = sup.get_rms()
@@ -146,6 +148,7 @@ def custom_formatter(x):
         return str(int(x))
     else:
         return str(x)
+
 
 # TODO: new PatchyBaseWritier class which we can extend to PLBaseWriter, MGLWriter, etc.
 
@@ -327,7 +330,7 @@ class FWriter(PLBaseWriter):
             if "=" in line and line[0] != '#':
                 # extract key and value from `key = value`
                 key, vals = line.split("=")
-                key = key.strip() # remove extra spaces
+                key = key.strip()  # remove extra spaces
                 if key == "type":
                     vals = int(line.split('=')[1])
                     type_id = vals
@@ -468,7 +471,7 @@ class FWriter(PLBaseWriter):
                 line = line.strip()
                 # skip comments and empty lines
                 if len(line) > 1 and line[0] != '#':
-                     # if line is beginning of a patch block
+                    # if line is beginning of a patch block
                     if 'patch_' and '{' in line:
                         # make dict to store patch attributes
                         strargs = dict()
@@ -505,7 +508,8 @@ class FWriter(PLBaseWriter):
             raise IOError('Loaded %d patches, as opposed to the desired %d types ' % (Np, num_patches))
         return patches, interactions
 
-    def read_scene(self, top_file: Path, traj_file: Path, particle_types: PLParticleSet, conf_idx=None) -> PLPSimulation:
+    def read_scene(self, top_file: Path, traj_file: Path, particle_types: PLParticleSet,
+                   conf_idx=None) -> PLPSimulation:
         """
         Reads a patchy particle scene from files
         """
@@ -1145,6 +1149,95 @@ class SWriter(PLBaseWriter):
         def list_particles(self) -> Iterable[int]:
             return itertools.chain.from_iterable([[itype for i in range(n)]
                                                   for itype, n in self._particle_type_counts.items()])
+
+
+class RWriter(PLBaseWriter):
+    """
+    writer for raspberry-type particles
+    """
+
+
+    def get_input_file_data(self, scene: PLPSimulation, **kwargs) -> list[tuple[str, str]]:
+        return []  # no input file info
+
+    def reqd_args(self) -> list[str]:
+        return ["conf_file", "topology"]
+
+    def write(self, scene: PLPSimulation, **kwargs) -> dict[str, str]:
+        pass
+
+    def write_top(self, topology: RPatchyTopology, top_path: Union[str, Path]):
+        with self.file(top_path) as f:
+            f.write("\n# Patch types\n")
+            for i, patch in enumerate(topology.particle_types.patches()):
+                assert i == patch.get_id(), "Patch index does not match patch ID"
+                patch_position = np.array2string(
+                    patch.position(),
+                    separator=",",
+                    suppress_small=True,
+                    formatter={'float_kind': custom_formatter}
+                )[1:-1]
+                a1 = np.array2string(
+                    patch.a1(),
+                    separator=",",
+                    suppress_small=True,
+                    formatter={'float_kind': custom_formatter}
+                )[1:-1]
+                a3 = np.array2string(
+                    patch.a3(),
+                    separator=",",
+                    suppress_small=True,
+                    formatter={'float_kind': custom_formatter}
+                )[1:-1]
+                f.write(f"iP {i} {patch_position} {a1} {patch.color()}\n")
+            f.write("\n# Repulsion points\n")
+            for site_position, r in topology.particle_repulsion_sites:
+                position = np.array2string(
+                    site_position,
+                    separator=",",
+                    suppress_small=True,
+                    formatter={'float_kind': custom_formatter}
+                )
+                f.write(f"iR {position} {r}\n")
+            f.write("\n# Particle Types\n")
+            for particle_type in topology.particle_types.particles():
+                patch_ids_str = ','.join([patch.get_id() for patch in particle_type.patches()])
+                f.write(f"iC {particle_type.type_id()} {topology.particle_type_count(particle_type.type_id())} {patch_ids_str} {','.join(range(len(topology.coords)))}\n")
+
+    def read_top(self, top_file: str) -> RWriter.RPatchyTopology:
+        pass
+
+    def read_particle_types(self, *args):
+        pass
+
+    def read_scene(self, top_file: Union[Path, str], traj_file: Union[Path, str], particle_types: PLParticleSet,
+                   conf_idx=None) -> PLPSimulation:
+        pass
+
+    def get_scene_top(self, s: PLPSimulation) -> RPatchyTopology:
+        return RWriter.RPatchyTopology()
+
+    class RPatchyTopology(PLBaseWriter.PatchyTopology):
+        # todo: better interaction site resolution
+        # todo: actually optimize this for cube
+        particle_repulsion_sites = [
+            (coords, 0.25) for coords in itertools.product([
+                [0.25, -0.25],
+                [0.25, -0.25],
+                [0.25, -0.25]
+            ])
+        ]
+        type_counts: dict[int, int]  # particle type ID -> count
+        particle_types: PLParticleSet
+
+        def particle_type_count(self, p: int) -> int:
+            return self.type_counts[p]
+
+        def num_particle_types(self) -> int:
+            return len(self.type_counts)
+
+        def num_particles(self) -> int:
+            return sum(self.type_counts.values())
 
 
 class MalformedSimulationException(BaseException):

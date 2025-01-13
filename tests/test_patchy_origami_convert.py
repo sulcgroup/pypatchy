@@ -2,7 +2,7 @@ import tempfile
 from pathlib import Path
 
 import pytest
-from ipy_oxdna.dna_structure import load_dna_structure
+from ipy_oxdna.dna_structure import load_dna_structure, rand_seq
 
 from pypatchy.patchy.dna_particle import DNAParticle
 from pypatchy.patchy.pl.patchyio import get_writer
@@ -58,6 +58,69 @@ def icosahedron() -> DNAParticle:
 
 
 def test_convert_wireframe_cube(temp_dir: str, cube:DNAParticle):
+    from pypatchy.patchy.pl.plpatchylib import polycube_to_pl
+
+    from ipy_oxdna.dna_structure import load_dna_structure, rc
+    from pypatchy.patchy.dna_particle import DNAParticle
+    from pypatchy.patchy.patchy_origami_convert import PatchyOrigamiConverter
+    # from pypatchy.patchy.pl.patchio import get_writer
+    from pypatchy.util import get_input_dir
+    from pypatchy.polycubeutil.polycube_structure import load_polycube
+    from pypatchy.util import get_output_dir
+    from pypatchy.patchy.pl.plparticleset import MultidentateConvertSettings
+
+    name = "wireframe"
+
+    patch_positions = [
+        [128, 131, 130, 136],  # front
+        [151, 155, 152, 160],  # bot
+        [168, 163, 144, 156],  # left
+        [146, 147, 149, 150],  # top
+        [138, 140, 139, 141],  # right
+        [142, 167, 143, 153]  # back
+    ]
+
+    wireframe_polycube = load_polycube(Path(__file__).parent / "test_files" / "cube_structures" / "wireframecube.json")
+    wireframe_multidentate = polycube_to_pl(wireframe_polycube,
+                                            MultidentateConvertSettings(n_teeth=4,
+                                            dental_radius=0.5)
+                                            )
+    wireframe_multidentate.add_potential(
+        PLFRPatchyPotential(
+            rmax=0.4 * 3,
+            alpha=0.12,
+        )
+    )
+
+    get_writer("flavio").set_directory(temp_dir)
+    get_writer("flavio").write(wireframe_multidentate,
+                               topology="topology.top",
+                               conf_file="conformation.dat",
+                               particle_file="particles.txt",
+                               patchy_file="patches.txt")
+
+    # load dna particles
+    dna = load_dna_structure(get_input_dir() / "scenes/cube_monomer.top",
+                             get_input_dir() / "scenes/cube_monomer.dat")
+    # scene = polycube_to_pl(polycube, nteeth=4, dental_radius=0.25)
+    dna_particle = DNAParticle(dna, patch_positions)
+
+    converter = PatchyOrigamiConverter(wireframe_multidentate,
+                                       padding=2,
+                                       spacer_length=12,
+                                       expected_num_edges=4 * wireframe_polycube.num_connections(),
+                                       sticky_length=None,
+                                       rel_rms_tolerance=1
+                                       )
+    # assign colors manually
+    for icolor in range(1, 8):
+        converter.assign_color_sequence(icolor * 4 + 20, rand_seq(10))
+
+    converter.assign_particles(dna_particle)
+    converter.dump_monomers(name)
+    converter.position_particles()
+    converter.convert()
+    converter.save_oxview(write_oxview_path=f"{temp_dir}/wireframe.oxview", color_by_type=True)
     pass
 
 def test_convert_human(temp_dir: str, cube: DNAParticle):
@@ -87,6 +150,7 @@ def test_convert_human(temp_dir: str, cube: DNAParticle):
     ]
 
     human_polycube = load_polycube(Path(__file__).parent / "test_files" / "cube_structures" / "human.json")
+    assert human_polycube.num_connections() == 12, f"Did not load polycube corrected! Expected number of cube-cube connections is 12, got {human_polycube.num_connections()}"
     human_multidentate = polycube_to_pl(human_polycube, MultidentateConvertSettings(n_teeth=4,
                                                                                     dental_radius=0.5))
     human_multidentate.add_potential(
@@ -113,7 +177,7 @@ def test_convert_human(temp_dir: str, cube: DNAParticle):
     converter = PatchyOrigamiConverter(human_multidentate,
                                        padding=2,
                                        spacer_length=12,
-                                       expected_num_edges=4 * 12,
+                                       expected_num_edges=4 * human_polycube.num_connections(),
                                        sticky_length=9,
                                        rel_rms_tolerance=1
                                        # flexable_patch_distances=True

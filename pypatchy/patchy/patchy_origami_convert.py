@@ -802,7 +802,7 @@ class PatchyOrigamiConverter:
         Converts a scene containing joined MGL particles to an oxDNA model consisting of
         DNA origamis joined by sticky end handles.
         """
-
+        assert len(self.patchy_scene.potentials) > 0, "You need to provide a patchy potential to use to identify patchy bonds"
         print("binding particles using 3p patches")
         self.bind_particles3p()
         assert self.expected_num_edges is None or self.expected_num_edges == -1 or self.bondcount == self.expected_num_edges, \
@@ -823,10 +823,14 @@ class PatchyOrigamiConverter:
             fp = Path(fp)
             if not fp.is_absolute():
                 fp = get_output_dir() / fp
+        # make output directory if it doesn't already exist
         if not fp.exists():
             os.makedirs(fp)
+        # for each monomer
         for ptype in self.particle_type_map.values():
+            # check that it actually exists in the scene, or that we've forced to dump all
             if not only_present or self.patchy_scene.particle_type_counts()[ptype.linked_particle.get_type()] > 0:
+                # save monomer top and conf to file path
                 self.dump_monomer(ptype, fp)
 
     def dump_monomer(self, ptype: DNAParticle, fp: Path):
@@ -924,9 +928,6 @@ class PatchyOrigamiConverter:
             print(f"Particle {pl_type}")
             ptype = self.particle_type_map[pl_type]
             assert ptype.has_linked(), "Cannot save stickies for unliked particle"
-            if np.abs(ptype.linked_particle.rotation() - np.identity(3)).sum() > 1e-6:
-                print("Warning: Particle has non-identity rotation! "
-                      "Patch a1s are going to be messed up! But you can technically proceed")
             # clone to add strands
             # iter strand id map
             for strand_id in ptype.flat_strand_ids:

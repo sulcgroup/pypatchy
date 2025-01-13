@@ -287,7 +287,7 @@ class PLParticleSet(BaseParticleSet):
                                                           "although i figure it can't be that hard" # counterpoint: yes it can
 
         # oh god.
-
+        # let's break some more code
         # iter particles
         for i_particle, particle in enumerate(self):
             new_particle_patches = []
@@ -303,7 +303,6 @@ class PLParticleSet(BaseParticleSet):
                 colornorm = abs(patch.color())
                 id_map[patch.type_id()] = set()
                 for tooth in range(mdt_params.n_teeth):
-
                     # grab patch position, a1, a2
                     position = np.copy(patch.position())
                     a1 = np.copy(patch.a1())
@@ -357,12 +356,12 @@ class PLParticleSet(BaseParticleSet):
                         else:
                             # CASE torsion + no self interact
                             # this is sorta my default
-                            c = colornorm * mdt_params.n_teeth + tooth
+                            c = (colornorm - 20) * mdt_params.n_teeth + tooth
                             # unfortunately we can't count on "negative" colors in opposite-type pairing
                             # HOWEVER in any non self compilmentary interaction matrix one color will always have a lower value, we
                             # can arbitraryily declare this the "negative" one
                             interacting_colors = [patch.color(), *self.interaction_matrix().get_interacting_colors(patch.color())]
-                            assert len(interacting_colors)==2
+                            assert len(interacting_colors) == 2, "Cannot convert multidentate if color set interactions are not one-to-one!"
                             interacting_colors.sort()
                             # if lowest color num in interaction set is this one, it is "negative"
                             # regardless of whether it is actually like NEGATIVE negative
@@ -374,8 +373,8 @@ class PLParticleSet(BaseParticleSet):
                                 theta *= -1
                                 # set color sign
                                 c *= -1
-                            assert self.interaction_matrix()[tuple(interacting_colors)]
-                            new_interaction_map[(c, -c)] = self.interaction_matrix()[tuple(interacting_colors)] / mdt_params.n_teeth
+                            assert self.interaction_matrix()[tuple(interacting_colors)], "Interacting color missing from interaction matrix!"
+                            new_interaction_map[(20 + c, -(20 + c) )] = self.interaction_matrix()[tuple(interacting_colors)] / mdt_params.n_teeth
                     else:
                         c = patch.color()
                         if self.interaction_matrix().self_interacts(patch.color()):

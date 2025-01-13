@@ -121,7 +121,7 @@ class PolycubeStructure(TypedStructure, Scene):
                                     if (align1 == align2).all():
                                         if cube1.state(p1.state_var()) and cube2.state(p2.state_var()):
                                             self.graph.add_edge(cube1.get_uid(), cube2.get_uid(), dirIdx=diridx(d1))
-                                            self.graph.add_edge(cube2.get_uid(), cube1.get_uid(), dirIdx=diridx(d2))
+                                            # self.graph.add_edge(cube2.get_uid(), cube1.get_uid(), dirIdx=diridx(d2))
                                             self.bindings_list.add((
                                                 cube1.get_uid(), diridx(d1),
                                                 cube2.get_uid(), diridx(d2)
