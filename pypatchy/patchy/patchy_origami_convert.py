@@ -320,7 +320,9 @@ class PatchyOrigamiConverter:
         assert self.sticky_length is None or len(seq) == self.sticky_length, "Incompatible sequence length"
         self.color_sequences[color] = seq
         if update_rc:
+            assert self.patchy_scene.particle_types().interaction_matrix()[(color, -color)], "Color is not set to interact with its negative pairing in the interaction matrix!!"
             self.color_sequences[-color] = rc(seq)
+
 
     def assign_particles(self,
                          dna: DNAParticle,
@@ -958,7 +960,7 @@ class PatchyOrigamiConverter:
         for dna, strand_id, patch_id, strand in self.iter_sticky_staples(pl_type, incl_no_sticky, incl_absent):
             sz = f"Strand {strand_id} : 5' {strand.seq(True)} 3'"
             if patch_id is not None:
-                print(f"Patch {patch_id} : " + sz)
+                print(f"Patch {patch_id} (Color {self.patchy_scene.particle_types().patch(patch_id).color()}) : " + sz)
             else:
                 print(sz)
 
