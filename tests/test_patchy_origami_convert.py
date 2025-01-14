@@ -6,6 +6,7 @@ from ipy_oxdna.dna_structure import load_dna_structure, rand_seq
 
 from pypatchy.patchy.dna_particle import DNAParticle
 from pypatchy.patchy.pl.patchyio import get_writer
+from pypatchy.patchy.pl.plparticle import PLPatchyParticle
 from pypatchy.patchy.pl.plpotential import PLFRPatchyPotential, PLFRTorsionalPatchyPotential
 from pypatchy.patchy.pl.plscene import PLPSimulation
 from pypatchy.polycubeutil.polycube_structure import PolycubeStructure
@@ -92,6 +93,21 @@ def test_convert_wireframe_cube(temp_dir: str, cube:DNAParticle):
         )
     )
 
+    # validate converstion
+    for cube1, cube2 in wireframe_polycube.iter_bound_particles():
+        assert wireframe_multidentate.particles_bound(cube1.get_uid(), cube2.get_uid()), f"Cubes {cube1.get_uid()} and {cube2.get_uid()} are bound in the polycube but not in the patchy scene"
+        # count polycube bindings between cube 1 and cube 2
+        cube_bindngs_count = len(list(wireframe_polycube.iter_binding_patches(cube1, cube2)))
+        # find corresponding patychy particles
+        p1: PLPatchyParticle = wireframe_multidentate.get_particle(cube1.get_uid())
+        p2: PLPatchyParticle = wireframe_multidentate.get_particle(cube2.get_uid())
+        # count bindings between them
+        pl_bindings = list(wireframe_multidentate.iter_binding_patches(p1, p2))
+        assert len(pl_bindings) > 0, f"Particles {cube2.get_uid()} amd {cube2.get_uid()} are bound but no patch bond found!"
+        assert 4 * cube_bindngs_count ==  len(pl_bindings),\
+            f"Mismatch between number bonds between {cube1.get_uid()} and {cube2.get_uid()} " \
+            f"from polycube to patchy."
+
     get_writer("flavio").set_directory(temp_dir)
     get_writer("flavio").write(wireframe_multidentate,
                                topology="topology.top",
@@ -113,8 +129,9 @@ def test_convert_wireframe_cube(temp_dir: str, cube:DNAParticle):
                                        rel_rms_tolerance=1
                                        )
     # assign colors manually
-    for icolor in range(1, 8):
-        converter.assign_color_sequence(icolor * 4 + 20, rand_seq(10))
+    for icolor in converter.patchy_scene.particle_types().patch_colors():
+        if icolor > 0:
+            converter.assign_color_sequence(icolor, rand_seq(10))
 
     converter.assign_particles(dna_particle)
     converter.dump_monomers(name)

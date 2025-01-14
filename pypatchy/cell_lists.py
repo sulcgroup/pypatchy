@@ -78,7 +78,7 @@ class CellLists:
                 if isinstance(p, np.ndarray) or particle.get_uid() != p.get_uid():
                     yield particle
             i += 1
-        assert i == 27
+        assert i == 27, f"Somehow failed to search correct number of cells. Number searched {i}, should be 27 (3x3x3)"
 
     def box_size(self) -> np.ndarray:
         return self._box_size

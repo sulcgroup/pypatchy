@@ -367,14 +367,19 @@ class PLParticleSet(BaseParticleSet):
                             # regardless of whether it is actually like NEGATIVE negative
                             is_color_neg = interacting_colors[0] == patch.color()
 
+                            # NOTE: Even when not using the LR format, we still need to offset colors by 20 for
+                            # annoying backwards compatibility reasons
                             if is_color_neg:
                                 # opposite-color patches have to be rotated opposite directions
                                 # b/c mirroring
                                 theta *= -1
                                 # set color sign
                                 c *= -1
+                                c -= 20
+                            else:
+                                c += 20
                             assert self.interaction_matrix()[tuple(interacting_colors)], "Interacting color missing from interaction matrix!"
-                            new_interaction_map[(20 + c, -(20 + c) )] = self.interaction_matrix()[tuple(interacting_colors)] / mdt_params.n_teeth
+                            new_interaction_map[(c, -c )] = self.interaction_matrix()[tuple(interacting_colors)] / mdt_params.n_teeth
                     else:
                         c = patch.color()
                         if self.interaction_matrix().self_interacts(patch.color()):

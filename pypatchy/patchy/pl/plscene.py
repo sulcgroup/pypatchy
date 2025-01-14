@@ -419,14 +419,16 @@ class PLPSimulation(Scene, CellLists):
             pairs: set[frozenset[int]] = set()
             # iter particles
             for p in self.particles():
-                # for each particle, iter particles interacting
+                # for each particle, iter particles that can interact
                 for p2 in self.interaction_particles(p):
                     # if we haven't already yielded this pair
                     if {p.get_uid(), p2.get_uid()} not in pairs:
-                        # yield it
-                        yield p, p2
-                        # add to set to avoid duplicates
-                        pairs.add(frozenset({p.get_uid(), p2.get_uid()}))
+                        # if the particles are actually bound
+                        if self.particles_bound(p, p2):
+                            # yield it
+                            yield p, p2
+                            # add to set to avoid duplicates
+                            pairs.add(frozenset({p.get_uid(), p2.get_uid()}))
 
     def particles_bound(self,
                         p1: Union[PLPatchyParticle, int],
@@ -632,6 +634,7 @@ class PLPSimulation(Scene, CellLists):
         """
         should produuce multigraph of scene
         """
+        assert len(self.potentials) > 0, "Cannot compute a multigraph of the patchy scene without at least one interaction potential!"
         if f"{bond_energy}" not in self.scene_multigraphs_cache:
             self.scene_multigraphs_cache[f"{bond_energy}"] = self.compute_scene_multigraph(bond_energy)
         return self.scene_multigraphs_cache[f"{bond_energy}"]

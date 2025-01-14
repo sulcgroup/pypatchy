@@ -1169,27 +1169,24 @@ class RWriter(PLBaseWriter):
     def write_top(self, topology: RPatchyTopology, top_path: Union[str, Path]):
         with self.file(top_path) as f:
             f.write("\n# Patch types\n")
+            # iter patches
             for i, patch in enumerate(topology.particle_types.patches()):
                 assert i == patch.get_id(), "Patch index does not match patch ID"
+                # convert patch position to string
                 patch_position = np.array2string(
                     patch.position(),
                     separator=",",
                     suppress_small=True,
                     formatter={'float_kind': custom_formatter}
                 )[1:-1]
+                # convert patch a1 to string
                 a1 = np.array2string(
                     patch.a1(),
                     separator=",",
                     suppress_small=True,
                     formatter={'float_kind': custom_formatter}
                 )[1:-1]
-                a3 = np.array2string(
-                    patch.a3(),
-                    separator=",",
-                    suppress_small=True,
-                    formatter={'float_kind': custom_formatter}
-                )[1:-1]
-                f.write(f"iP {i} {patch_position} {a1} {patch.color()}\n")
+                f.write(f"iP {i} {patch.strength()} {patch.color()} {patch_position} {a1}\n")
             f.write("\n# Repulsion points\n")
             for site_position, r in topology.particle_repulsion_sites:
                 position = np.array2string(

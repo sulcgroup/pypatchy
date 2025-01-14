@@ -669,12 +669,15 @@ class PatchyOrigamiConverter:
         for p1, p2 in self.patchy_scene.iter_bound_particles():
             p1_dna = self.get_dna_particle(p1)
             p2_dna = self.get_dna_particle(p2)
+            found_bind_patch = False
             # iter pairs of patches that connect p1 to p2
             for patch1, patch2 in self.patchy_scene.iter_binding_patches(p1, p2):
                 self.bind_patches_3p(p1_dna,
                                      patch1,
                                      p2_dna,
                                      patch2)
+                found_bind_patch = True
+            assert found_bind_patch, f"Particles {p1.get_uid()} and {p2.get_uid()} are identified as bound but have no binding patches!!"
 
     def bind_patches_3p(self,
                         particle1: DNAParticle,

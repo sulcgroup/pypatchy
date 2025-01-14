@@ -187,15 +187,22 @@ def polycube_to_pl(polycube: PolycubeStructure,
         particle.set_position(particle.position() - mins)
     pl.add_particles(cube_particles)
 
-
-    # verify (actually please don't, this blows up the comptuer for large structures)
+    # # verify (actually please don't, this blows up the comptuer for large structures)
+    # also it won't work bc we don't have any interaction potentials
     # for cube1, cube2 in polycube.iter_bound_particles():
-    #     assert pl.particles_bound(cube1.get_id(), cube2.get_id())
+    #     assert pl.particles_bound(cube1.get_uid(), cube2.get_uid()), f"Cubes {cube1.get_uid()} and {cube2.get_uid()} are bound in the polycube but not in the patchy scene"
     #     cube_bindngs_count = len(list(polycube.iter_binding_patches(cube1, cube2)))
     #     pl_bindings_count = len(
-    #         list(pl.iter_binding_patches(pl.get_particle(cube1.get_id()), pl.get_particle(cube2.get_id()))))
-    #     # assert nteeth * cube_bindngs_count == pl_bindings_count
-
+    #         list(pl.iter_binding_patches(pl.get_particle(cube1.get_uid()), pl.get_particle(cube2.get_uid()))))
+    #     assert pl_bindings_count > 0, f"Particles {cube2.get_uid()} amd {cube2.get_uid()} are bound but no patch bond found!"
+    #     if nteeth is not None:
+    #         assert nteeth * cube_bindngs_count == pl_bindings_count,\
+    #             f"Mismatch between number bonds between {cube1.get_uid()} and {cube2.get_uid()} " \
+    #             f"from polycube to patchy."
+    #     elif mdt_convert is not None:
+    #         assert mdt_convert.n_teeth * cube_bindngs_count == pl_bindings_count,\
+    #             f"Mismatch between number bonds between {cube1.get_uid()} and {cube2.get_uid()} " \
+    #             f"from polycube to patchy."
     return pl
 
 
