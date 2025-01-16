@@ -1164,7 +1164,14 @@ class RWriter(PLBaseWriter):
         return ["conf_file", "topology"]
 
     def write(self, scene: PLPSimulation, **kwargs) -> dict[str, str]:
-        pass
+        init_top = kwargs["topology"]
+        init_conf = kwargs["conf_file"]
+        self.write_top(self.get_scene_top(scene), top_path=init_top)
+        self.write_conf(scene, init_conf)
+        return {
+            "topology": init_top,
+            "conf_file": init_conf
+        }
 
     def write_top(self, topology: RPatchyTopology, top_path: Union[str, Path]):
         with self.file(top_path) as f:
@@ -1190,42 +1197,46 @@ class RWriter(PLBaseWriter):
             f.write("\n# Repulsion points\n")
             for site_position, r in topology.particle_repulsion_sites:
                 position = np.array2string(
-                    site_position,
+                    np.array(site_position),
                     separator=",",
                     suppress_small=True,
                     formatter={'float_kind': custom_formatter}
-                )
+                )[1:-1]
                 f.write(f"iR {position} {r}\n")
             f.write("\n# Particle Types\n")
             for particle_type in topology.particle_types.particles():
-                patch_ids_str = ','.join([patch.get_id() for patch in particle_type.patches()])
-                f.write(f"iC {particle_type.type_id()} {topology.particle_type_count(particle_type.type_id())} {patch_ids_str} {','.join(range(len(topology.coords)))}\n")
+                patch_ids_str = ','.join([str(patch.get_id()) for patch in particle_type.patches()])
+                f.write(f"iC {particle_type.type_id()} {topology.particle_type_count(particle_type.type_id())} {patch_ids_str} {','.join([str(i) for i in range(len(topology.particle_repulsion_sites))])}\n")
 
     def read_top(self, top_file: str) -> RWriter.RPatchyTopology:
-        pass
+        raise # TODO
 
     def read_particle_types(self, *args):
-        pass
+        raise # TODO
 
     def read_scene(self, top_file: Union[Path, str], traj_file: Union[Path, str], particle_types: PLParticleSet,
                    conf_idx=None) -> PLPSimulation:
-        pass
+        raise # TODO
 
     def get_scene_top(self, s: PLPSimulation) -> RPatchyTopology:
-        return RWriter.RPatchyTopology()
+        return RWriter.RPatchyTopology(s.particle_types(), s.particle_type_counts())
 
     class RPatchyTopology(PLBaseWriter.PatchyTopology):
         # todo: better interaction site resolution
         # todo: actually optimize this for cube
         particle_repulsion_sites = [
-            (coords, 0.25) for coords in itertools.product([
+            (coords, 0.25) for coords in itertools.product(
                 [0.25, -0.25],
                 [0.25, -0.25],
                 [0.25, -0.25]
-            ])
+            )
         ]
         type_counts: dict[int, int]  # particle type ID -> count
         particle_types: PLParticleSet
+
+        def __init__(self, particles: PLParticleSet, type_counts: dict[int, int]):
+            self.type_counts = type_counts
+            self.particle_types = particles
 
         def particle_type_count(self, p: int) -> int:
             return self.type_counts[p]
@@ -1246,7 +1257,8 @@ __writers = {
     "josh_flavio": JFWriter(),
     # "josh_lorenzo": JLWriter(),
     "lorenzo": LWriter(),
-    "subhajit": SWriter()
+    "subhajit": SWriter(),
+    "raspberry": RWriter()
 }
 
 
