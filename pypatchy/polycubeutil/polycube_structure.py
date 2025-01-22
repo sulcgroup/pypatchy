@@ -133,7 +133,7 @@ class PolycubeStructure(TypedStructure, Scene):
     def get_cube(self, uid: int) -> PolycubesStructureCube:
         # assert -1 < uid < len(self.cubeList)
         for cube in self._particles:
-            if cube.get_id() == uid:
+            if cube.get_uid() == uid:
                 return cube
         raise Exception(f"No cube with ID {uid}")
 
