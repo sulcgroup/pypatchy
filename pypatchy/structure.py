@@ -54,6 +54,7 @@ class Structure:
                 self.graph.add_edge(n1, n2, dirIdx=d1)
                 self.graph.add_edge(n2, n1, dirIdx=d2)
                 self.bindings_list.add((n1, d1, n2, d2))
+            assert len(self.graph.edges) == 2 * len(self.bindings_list)
         # if we have passed a graph object
         if "graph" in kwargs:
             # TODO: test!
