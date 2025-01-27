@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import copy
-import itertools
 import json
 from collections import defaultdict
 from pathlib import Path
@@ -12,17 +11,17 @@ import networkx as nx
 import numpy as np
 
 from oxDNA_analysis_tools.UTILS.data_structures import Configuration
-from pypatchy.cell_lists import CellLists
-from scipy.spatial.transform import Rotation
+from ..cell_lists import CellLists
 
-from pypatchy.vis_util import get_particle_color
+from .cube import PolycubesStructureCube
+from ..vis_util import get_particle_color
 
-from pypatchy.patchy_base_particle import PatchyBaseParticle, BaseParticleSet
-from pypatchy.scene import Scene
-from pypatchy.polycubeutil.polycubesRule import PolycubesRule, diridx, PolycubeRuleCubeType, RULE_ORDER, PolycubesPatch
+from ..patchy_base_particle import PatchyBaseParticle, BaseParticleSet
+from ..scene import Scene
+from .polycubesRule import PolycubesRule, diridx, PolycubesPatch, RULE_ORDER
 
-from pypatchy.structure import TypedStructure, Structure
-from pypatchy.util import from_xyz, getRotations, get_input_dir, to_xyz
+from ..structure import TypedStructure, Structure
+from ..util import from_xyz, get_input_dir
 
 
 # todo: add cell lists? probably overkill
@@ -300,6 +299,7 @@ class PolycubeStructure(TypedStructure, Scene):
         # assert transformation.shape == (4, 4), "Wrong shape for transformation"
         assert rot.shape == (3, 3)
         assert tran.shape[0] == 3
+        # todo: check transform is legal
         transformed_structure = copy.deepcopy(self)
         transformed_structure.cubeMap = {}
         for cube in transformed_structure._particles:
@@ -380,95 +380,22 @@ class PolycubeStructure(TypedStructure, Scene):
         # TODO OOOO!!!!!
         pass
 
+    def centroid(self):
+        return np.round(super().centroid())
 
-class PolycubesStructureCube(PatchyBaseParticle):
-    _type_cube: PolycubeRuleCubeType
-    _rot: Rotation
-    _state: list[bool]
-
-    def __init__(self,
-                 uid: int,
-                 cube_position: np.ndarray,
-                 cube_rotation: Union[np.ndarray, int],
-                 cube_type: PolycubeRuleCubeType,
-                 state: list[bool] = [True]):
+    def tile(self, tiling_structure: TypedStructure) -> PolycubeStructure:
         """
-        Parameters:
-            uid (int): a unique identifier for this cube
-            cube_position (np.ndarray): the position of the particle, as a 3-length integer vector
-            cube_rotation (np.ndarray, int): a quaternion or integer represtation of cube rotation
+        Tries to fill the space of self with instances of tilingStructure
+        Returns true if it's possible to entirely cover self with tilingStructure,
+        false if the structure doesn't match tiling_structure
+        todo: return tiled structure?
+        todo: what if structure is mishapen?
         """
-        super(PolycubesStructureCube, self).__init__(uid, cube_type.type_id(), cube_position)
-        if isinstance(cube_rotation, np.ndarray) and len(cube_rotation) == 4:
-            # if rotation hsa been passed as a quaternion
-            self._rot = Rotation.from_quat(cube_rotation)
-        elif isinstance(cube_rotation, int):
-            # if rotation is a an integer, representing an index in rotation enumeration
-            self._rot = Rotation.from_matrix(getRotations()[cube_rotation])
-        else:
-            raise TypeError("Rotation matrices or whatever not supported yet.")
-        self._state = state
-        self._type_cube = cube_type
+        # step 1: find point in self to start looking for core
+        centerpoint: np.ndarray = self.centroid()
+        # step 2: find box size of unit cell. this is harder than expected
+        unit_cell = tiling_structure.dimension_sizes()
 
-    def get_cube_type(self) -> PolycubeRuleCubeType:
-        return self._type_cube
-
-    def rotation(self) -> Rotation:
-        return self._rot
-
-    def rot_mat(self) -> np.ndarray:
-        return self.rotation().as_matrix()
-
-    def rotate(self, rotation: Rotation):
-        """
-        todo: more param options
-        """
-        self._rot = self._rot * rotation
-
-    def typedir(self, direction: Union[int, np.ndarray]) -> np.ndarray:
-        """
-        Converts the global-space direction into a local-space direction
-        """
-        if isinstance(direction, int):  # if the arguement is provided as an index in RULE_ORDER
-            direction = RULE_ORDER[direction]
-        return self.rotation().inv().apply(direction).round()
-
-    def has_patch(self, direction: Union[int, np.ndarray]) -> bool:
-        return self.get_cube_type().has_patch(self.typedir(direction))
-
-    def patch(self, direction: Union[int, np.ndarray]) -> PolycubesPatch:
-        return self.get_cube_type().patch(self.typedir(direction))
-
-    def num_patches(self) -> int:
-        return self.get_cube_type().num_patches()
-
-    def state(self, i=None):
-        if i is None:
-            return self._state
-        else:
-            assert abs(i) < len(self._state)
-            if i < 0:
-                return not self._state[-i]
-            else:
-                return self._state[i]
-
-    def patches(self) -> list[PolycubesPatch]:
-        """
-        Returns the patches on this polycube, rotated correctly
-        """
-        return [p.rotate(self.rot_mat()) for p in self.get_cube_type().patches()]
-
-    def toJSON(self) -> dict:
-        return {
-            "position": to_xyz(self.position()),
-            "rotation": {
-                k: float(v) for k, v in zip(
-                    ["x", "y", "z", "w"], # as_quat uses xyzw format
-                    self.rotation().as_quat())
-            },
-            "state": [True, *([False] * 12)],  # ignore for now TODO come back to
-            "type": self.get_cube_type().type_id()
-        }
 
 
 def load_polycube(file_path: Union[Path, str]) -> PolycubeStructure:

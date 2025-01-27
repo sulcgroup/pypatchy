@@ -4,6 +4,7 @@ import itertools
 from abc import ABC, abstractmethod
 from typing import Iterable, Generator
 
+import numpy as np
 from oxDNA_analysis_tools.UTILS.data_structures import Configuration
 
 from pypatchy.patchy_base_particle import PatchyBaseParticle, BaseParticleSet, BasePatchType
@@ -79,3 +80,23 @@ class Scene(ABC):
                       particle2: PatchyBaseParticle,
                       p2: BasePatchType) -> bool:
         pass
+
+    def centroid(self):
+        """
+        computes average position of particles
+        """
+        return np.average([p.position() for p in self.particles()])
+
+    def minmaxs(self):
+        """
+
+        """
+        coords = self.particle_coords()
+        maxs = coords.max(initial=-np.inf, axis=0)
+        mins = coords.min(initial=np.inf, axis=1)
+        return np.array(zip(mins, maxs))
+
+    def particle_coords(self) -> np.ndarray:
+        return np.stack([
+            p.position() for p in self.particles()
+        ])

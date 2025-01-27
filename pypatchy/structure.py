@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import warnings
 from abc import ABC, abstractmethod
-from typing import Generator, Iterable
+from typing import Generator, Iterable, Callable
 
 import networkx as nx
 from Bio.SVDSuperimposer import SVDSuperimposer
@@ -38,7 +38,10 @@ class Structure:
     https://paper.dropbox.com/doc/Computational-Design-of-Allostery-ddFV7iLkKaua1tnDZOQFu#:uid=923787386309510691921072&h2=Empirical-Definition-of-a-Comp
     so go read that
     """
+
+    # graph
     graph: nx.MultiDiGraph
+
     # TODO: deprecated bindings_list and just use graph instead since it contains the same data
     bindings_list: set[tuple[int, int, int, int]]
 
@@ -62,16 +65,16 @@ class Structure:
             self.graph = kwargs["graph"]
             handled_set = set()
             # iter edges
-            for u, v in self.graph.edges:
-                if (v, u) not in handled_set:
-                    u_diridx = self.graph.get_edge_data(u, v)["dirIdx"]
+            for u, v, k in self.graph.edges:
+                if (v, u, k) not in handled_set:
+                    u_diridx = self.graph.get_edge_data(u, v, k)["dirIdx"]
                     assert (v, u) in self.graph.edges
-                    v_diridx = self.graph.get_edge_data(v, u)["dirIdx"]
+                    v_diridx = self.graph.get_edge_data(v, u, k)["dirIdx"]
                     self.bindings_list.add((
                         u, u_diridx,
                         v, v_diridx
                     ))
-                    handled_set.add((u, v))  # only add each edge once
+                    handled_set.add((u, v, k))  # only add each edge once
 
         # if bindings aren't provided, the object is initialized empty
         # (useful for calls from subconstructor, see below)
@@ -79,9 +82,44 @@ class Structure:
     def vertices(self) -> list[int]:
         return [int(n) for n in self.graph.nodes]
 
+    def filter_edges(self, f: Callable[[Structure, int, int, int, int], bool]) -> list[tuple[int, int, int]]:
+        """
+        returns a list containing all edges in the structure that satisfy the function passed
+        """
+        edges: list[tuple[int, int, int]] = []
+        for u, v, k in self.graph.edges:
+            dirIdx = self.graph.edges[u, v, k]["dirIdx"]
+            if f(self, u, v, k, dirIdx):
+                edges.append((u, v, k))
+        return edges
+
+    def num_dimensions(self) -> int:
+        return 3  # todo: dynamic?
+
+    def dimension_sizes(self) -> tuple[int, ...]:
+        """
+        returns a list of ints that is the max length along each dimension
+        most useful for periodic structures
+        """
+        assert self.is_connected(), "Cannot compute dimension sizes of a multifarious structure"
+        sizes = [0 for _ in range(self.num_dimensions())]
+        for d in range(self.num_dimensions()):
+            slices = self.substructure(self.vertices())
+
+            def dimension_filter(s, u, v, k, dirIdx) -> bool:
+                return dirIdx != 2*d
+
+            edges_to_remove: list[tuple[int, int, int]] = slices.filter_edges(dimension_filter)
+            for e in edges_to_remove:
+                slices.graph.remove_edge(*e)
+            sizes[d] = max([len(c) for c in nx.simple_cycles(slices.graph)])
+
+        return tuple(sizes)
+
     def get_empties(self) -> list[tuple[int, int]]:
         """
         calcEmptyFromTop has... issues
+        todo: make this versitile for non-cubic-lattice structures
         """
         empties = []
         # return calcEmptyFromTop(self.bindings_list)
@@ -90,7 +128,6 @@ class Structure:
                 if not self.bi_edge_exists(vert_id, di):
                     empties.append((vert_id, di))
         return empties
-
 
     def draw(self, pos=None):
         """
@@ -122,7 +159,6 @@ class Structure:
         # Display the graph
         plt.show()
 
-
     def substructures(self) -> Generator[Structure]:
         # iterate possible sets of nodes in this graph
         # a subgraph of 1 node isn't a graph for our purposes; a subgraph of all nodes is self
@@ -134,7 +170,7 @@ class Structure:
                 if nx.algorithms.components.is_strongly_connected(subgraph):
                     yield self.substructure(subset)
 
-    def substructure(self, nodes: tuple[int]) -> Structure:
+    def substructure(self, nodes: Iterable[int]) -> Structure:
         """
         Returns:
              a Structre object that's a substructure of this
@@ -430,7 +466,6 @@ class StructuralHomomorphism:
             src_coords[i, :] = mat[sorted(self.source.graph.nodes).index(k), :]
             targ_coords[i, :] = targ[sorted(self.target.graph.nodes).index(v), :]
 
-
         # a few ways to proceed from here, most of which i hate
         # going with the "reinvent wheel" method
         svd = SVDSuperimposer()
@@ -451,7 +486,6 @@ class StructuralHomomorphism:
     def target_contains_edge(self, v: int, delta: int) -> bool:
         return self.target.edge_exists(self.map_location(v),
                                        self.map_direction(delta))
-
 
     # def reverse_map_direction(self, d):
     #     if isinstance(d, int):
@@ -474,10 +508,16 @@ class TypedStructure(Structure, ABC):
 
     @abstractmethod
     def particle_type(self, particle_id: int) -> int:
+        """
+        returns the type of the particle with the provided id
+        """
         pass
 
     @abstractmethod
     def get_particle_types(self) -> dict[int, int]:
+        """
+        returns the type
+        """
         pass
 
     def draw(self, pos=None):
@@ -521,6 +561,44 @@ class TypedStructure(Structure, ABC):
 
         # Display the graph
         plt.show()
+
+
+class GenericTypedStructure(TypedStructure):
+    """
+    minimal implementation of TypedStructure
+    """
+
+    particle_types: dict[int, int]
+
+    def __init__(self, **kwargs):
+        super(GenericTypedStructure, self).__init__(**kwargs)
+        if "types" in kwargs:
+            self.particle_types = kwargs["types"]
+        else:
+            self.particle_types = dict()
+        assert all([
+            n in self.particle_types for n in self.vertices()
+        ]), "Missing types for some particles!"
+
+    def particle_type(self, particle_id: int) -> int:
+        return self.particle_types[particle_id]
+
+    def get_particle_types(self) -> dict[int, int]:
+        return self.particle_types
+
+    def substructures(self) -> Generator[GenericTypedStructure]:
+        for sub in super(GenericTypedStructure, self).substructures():
+            yield GenericTypedStructure(graph=sub.graph, types={
+                k: v for k, v in self.particle_types.items() if k in sub.vertices()
+            })
+
+    def substructure(self, nodes: tuple[int]) -> GenericTypedStructure:
+        sub = super(GenericTypedStructure, self).substructure(nodes)
+        sub = GenericTypedStructure(graph=sub.graph, types={
+            k: v for k, v in self.particle_types.items() if k in sub.vertices()
+        })
+        return sub
+
 
 def calcEmptyFromTop(top: Iterable[tuple[int, int, int, int]]) -> list[tuple[int, int]]:
     """
