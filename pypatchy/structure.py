@@ -5,6 +5,7 @@ from abc import ABC, abstractmethod
 from typing import Generator, Iterable, Callable
 
 import networkx as nx
+import numpy as np
 from Bio.SVDSuperimposer import SVDSuperimposer
 from matplotlib import pyplot as plt
 import matplotlib.colors as mcolors
@@ -293,6 +294,17 @@ class Structure:
         Strictly speaking this should be a method for `FiniteLatticeStructure` but
         it's kept here for backwards compatibility purposes
         """
+        cubes_coords = self._get_cubes_coords()
+        a = np.array([position for _, position in sorted(cubes_coords.items(), key=lambda x: x[0])])
+        # a = np.array([*cubes_coords.values()])
+        assert a.shape == (len(self), 3)
+        return a
+
+    def _get_cubes_coords(self) -> dict[int, np.ndarray]:
+        """
+        component method of Structure::matrix() (see above)
+        extractracted here for use in subclass overrides of matrix()
+        """
         # TODO: compute this on init? idk
         assert self.is_connected(), "Please don't try to get a matrix for a non connected structure. " \
                                     "It's not invalid I just hate it."
@@ -318,10 +330,7 @@ class Structure:
                     processed_coords.add(destination)
             loopcount += 1
             assert loopcount < 1e7
-        a = np.array([position for _, position in sorted(cubes_coords.items(), key=lambda x: x[0])])
-        # a = np.array([*cubes_coords.values()])
-        assert a.shape == (len(self), 3)
-        return a
+            return cubes_coords
 
     def __contains__(self, item: Union[int]) -> bool:
         if isinstance(item, int):
@@ -562,6 +571,22 @@ class TypedStructure(Structure, ABC):
         # Display the graph
         plt.show()
 
+    def matrix_etc(self) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """
+        returns the result of Structure::matrix + other stuff
+        """
+
+        cubes_coords: dict[int, np.ndarray] = self._get_cubes_coords()
+        data: list[tuple[np.ndarray, int, int]] = sorted([
+            (position, uid, self.particle_type(uid))
+            for (uid, position) in cubes_coords.items()
+        ], key=lambda position, uid, ptype: position[0])
+        a, uids, ptypes = zip(*data)
+        a = np.stack(a)
+        # a = np.array([*cubes_coords.values()])
+        assert a.shape == (len(self), 3)
+        return a, np.array(uids), np.array(ptypes)
+
 
 class GenericTypedStructure(TypedStructure):
     """
@@ -598,6 +623,14 @@ class GenericTypedStructure(TypedStructure):
             k: v for k, v in self.particle_types.items() if k in sub.vertices()
         })
         return sub
+
+    def tile(self):  # todo: return type??
+        """
+        assumption: self is a cyclic structure
+        tiles self. kinda.
+        """
+
+
 
 
 def calcEmptyFromTop(top: Iterable[tuple[int, int, int, int]]) -> list[tuple[int, int]]:

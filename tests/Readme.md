@@ -24,5 +24,5 @@ i think? this means you need to be on campus or on the ASU VPN for these to work
 anyway required data will be downloaded automatically
 
 ## List of Remote Datasets ##
-- 4x4 tile
+- 4x4 tile_onto
 - 
