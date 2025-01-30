@@ -10,14 +10,17 @@ from typing import Union
 import drawsvg
 import networkx as nx
 import numpy as np
+import re
+
+
+from ipy_oxdna.util import rotation_matrix
+
 
 from .effect import Effect, StringConditionalEffect, DynamicEffect, EnvironmentalEffect, EFFECT_CLASSES
 from ..util import rotAroundAxis, selectColor, powerset
-import re
 
-from ipy_oxdna.util import rotation_matrix
 from ..util import from_xyz, to_xyz, getSignedAngle
-from pypatchy.patchy_base_particle import PatchyBaseParticleType, BasePatchType, BaseParticleSet
+from ..patchy_base_particle import PatchyBaseParticleType, BasePatchType, BaseParticleSet
 
 import drawsvg as draw
 

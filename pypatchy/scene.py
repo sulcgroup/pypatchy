@@ -85,7 +85,7 @@ class Scene(ABC):
         """
         computes average position of particles
         """
-        return np.average([p.position() for p in self.particles()])
+        return np.average([p.position() for p in self.particles()], axis=0)
 
     def minmaxs(self):
         """

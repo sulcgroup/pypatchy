@@ -580,7 +580,7 @@ class TypedStructure(Structure, ABC):
         data: list[tuple[np.ndarray, int, int]] = sorted([
             (position, uid, self.particle_type(uid))
             for (uid, position) in cubes_coords.items()
-        ], key=lambda position, uid, ptype: position[0])
+        ], key=lambda item: item[0][0])
         a, uids, ptypes = zip(*data)
         a = np.stack(a)
         # a = np.array([*cubes_coords.values()])
@@ -623,14 +623,6 @@ class GenericTypedStructure(TypedStructure):
             k: v for k, v in self.particle_types.items() if k in sub.vertices()
         })
         return sub
-
-    def tile(self):  # todo: return type??
-        """
-        assumption: self is a cyclic structure
-        tiles self. kinda.
-        """
-
-
 
 
 def calcEmptyFromTop(top: Iterable[tuple[int, int, int, int]]) -> list[tuple[int, int]]:

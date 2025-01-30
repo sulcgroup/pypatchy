@@ -3,6 +3,7 @@ from __future__ import annotations
 import copy
 import itertools
 import json
+import random
 from collections import defaultdict
 from pathlib import Path
 from typing import Union
@@ -13,7 +14,6 @@ import numpy as np
 
 from oxDNA_analysis_tools.UTILS.data_structures import Configuration
 
-from .polycube_util import rotation_mapping_to_matrix
 from ..cell_lists import CellLists
 
 from .cube import PolycubesStructureCube
@@ -315,10 +315,12 @@ class PolycubeStructure(TypedStructure, Scene):
 
         return transformed_structure
 
-    def save_polycube(self, fp: Path):
+    def save_polycube(self, fp: Union[Path, str]):
         """
         saves a polycube as a JSON file which can be read by load_polycube or into the web app
         """
+        if isinstance(fp, str):
+            fp = Path(fp)
         with fp.open("w") as f:
             json.dump({
                 'cube_types': self.rule.toJSON(),
@@ -333,7 +335,7 @@ class PolycubeStructure(TypedStructure, Scene):
              a Structre object that's a substructure of this
         """
         assert nx.algorithms.components.is_strongly_connected(self.graph.subgraph(nodes))
-        return PolycubeStructure(cubes=[c for i, c in enumerate(self._particles) if i in nodes], rule=self.rule)
+        return PolycubeStructure(cubes=[c for i, c in enumerate(self._particles) if c.get_uid() in nodes], rule=self.rule)
 
     def num_particle_types(self) -> int:
         return self.rule.num_particle_types()
@@ -389,90 +391,6 @@ class PolycubeStructure(TypedStructure, Scene):
 
     def centroid(self):
         return np.round(super().centroid())
-
-    def tile_onto(self, tiling_structure: TypedStructure) -> Union[TypedStructure, False]:
-        """
-        Tries to fill the space of self with instances of tilingStructure
-        Returns true if it's possible to entirely cover self with tilingStructure,
-        false if the structure doesn't match tiling_structure
-        todo: return tiled structure?
-        todo: what if structure is mishapen?
-        """
-        tiled_core = self._find_tiling_core(tiling_structure)
-        # above will be a tuple or false, tuples are Truey?
-        if tiled_core:
-            # find "core" from which to propegate out
-            rot_idx, pos_matrix, uids, ptypes, type_map = tiled_core
-            # now actually propegate out
-            # oh god how to do this best
-
-            done_tiling = False
-
-            faces: dict[list[set[int]]] = {
-                i: [] for i in range(len(RULE_ORDER))
-            }
-            while not done_tiling:
-
-
-        else:
-            return False
-
-
-    def _find_tiling_core(self, tiling_structure: TypedStructure) -> Union[tuple[int, np.ndarray, np.array, np.array, dict[int: int]], False]:
-        # step 1: find point in self to start looking for core
-        centerpoint: np.ndarray = self.centroid()
-        # step 2: find box size of unit cell. this is harder than expected
-        tiling_structure_dimensions = tiling_structure.dimension_sizes()
-
-        # step 3: construct coordinate matrix + particle unique ids + particle types
-        coord_matrix, uids, ptypes = tiling_structure.matrix_etc()
-
-        # step 3.5: generate all possible mappings of polycube type ids onto tile type ids
-        # todo: error if we have too many particle types!
-        pc_type_ids: list[int] = [ct.type_id() for ct in self.rule if self.num_cubes_of_type(ct.type_id()) > 0]
-        tile_type_ids: list[int] = list(tiling_structure.get_particle_types().values())
-        # chatGPT code
-        # Ensure there are not more tile types than polycube types
-        if len(tile_type_ids) > len(pc_type_ids):
-            raise ValueError("Too many tile types! Cannot map fewer polycube types to more tile types.")
-
-        # Generate mappings
-        if len(pc_type_ids) > len(tile_type_ids):
-            # Allow multiple polycube type IDs to map to the same tile type ID
-            type_maps: list[dict[int: int]] = [dict(zip(pc_type_ids, mapping))
-                         for mapping in itertools.product(tile_type_ids, repeat=len(pc_type_ids))]
-        else:
-            # Ensure one-to-one mapping
-            type_maps :  list[dict[int: int]] = [dict(zip(pc_type_ids, mapping))
-                         for mapping in itertools.permutations(tile_type_ids, len(pc_type_ids))]
-        is_type_map_good = False
-        # step 5: find rotran to map
-        # at some point
-        # we loop through rotations, which are defined as mappings [6]->[6] (dir idxs mapped to other dir idxs)
-        is_type_map_good = False
-        for rot_idx, rmap in enumerateRotations().items():
-            # compute rotation matrix from mapping
-            rotmat = rotation_mapping_to_matrix(rmap)
-            # apply transformation to coordinate matrix
-            cm = (coord_matrix @ rotmat) - (np.array(tiling_structure_dimensions) // 2 + centerpoint)[:, np.newaxis]
-            # if the polycube has a cube at every position which maps to the tiling structure
-            if all([self.cubeAtPosition(pos) for pos in cm]):
-                # now we need to test that it's possible to create a type-mapping from tiling_structure onto self
-                # for type map:
-                for type_map in type_maps:
-                    # for each particle in the tile
-                    for (pos, tile_vert_type_id) in zip(cm, ptypes):
-                        cube = self.cubeAtPosition(pos)
-                        if type_map[cube.get_cube_type().type_id()] != tile_vert_type_id:
-                            is_type_map_good = True
-                            break
-                    # if all particle types mapped properly, we found a good one!
-                    if is_type_map_good:
-                        # this return is such a mess i'm almost tempted to make it a real class
-                        return rot_idx, cm, uids, ptypes, type_map
-            # otherwise continue
-            return False
-
 
 
 def load_polycube(file_path: Union[Path, str]) -> PolycubeStructure:

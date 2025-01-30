@@ -1,15 +1,19 @@
 # utility functions for polyccubes that don't require a polycubes binary
+# this module requires PolycubesStructure, PolycubeSStructureCube, and PolycubesRule,
+# so don't import it fro those!
+from __future__ import annotations
+
 import copy
 import itertools
 
 import numpy as np
 
-from pypatchy.polycubeutil.polycube_structure import PolycubeStructure
-from pypatchy.polycubeutil.cube import PolycubesStructureCube
-from pypatchy.polycubeutil.polycubesRule import PolycubesRule, PolycubeRuleCubeType, PolycubesPatch, rdir, \
+from .polycube_structure import PolycubeStructure
+from .cube import PolycubesStructureCube
+from .polycubesRule import PolycubesRule, PolycubeRuleCubeType, PolycubesPatch, rdir, \
     get_orientation, RULE_ORDER
-from pypatchy.structure import FiniteLatticeStructure
-from pypatchy.util import getRotations
+from ..structure import FiniteLatticeStructure
+from ..util import getRotations
 
 
 def make_colors_consecutive(rule: PolycubesRule) -> PolycubesRule:

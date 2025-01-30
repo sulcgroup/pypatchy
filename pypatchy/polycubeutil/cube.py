@@ -95,6 +95,7 @@ class PolycubesStructureCube(PatchyBaseParticle):
                     ["x", "y", "z", "w"], # as_quat uses xyzw format
                     self.rotation().as_quat())
             },
-            "state": [True, *([False] * 12)],  # ignore for now TODO come back to
-            "type": self.get_cube_type().type_id()
+            "state": [True],  # ignore for now TODO come back to
+            "type": self.get_cube_type().type_id(),
+            "name": f"Cube_{self.get_uid()}"
         }
