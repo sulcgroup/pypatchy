@@ -4,13 +4,14 @@ import copy
 import itertools
 import re
 from math import sqrt
-from typing import Union, IO, Iterable
+from typing import Union, IO, Iterable, Generator
 from abc import ABC, abstractmethod
 from pathlib import Path
 
 import numpy as np
 import oxDNA_analysis_tools.UTILS.RyeReader as rr
 from Bio.SVDSuperimposer import SVDSuperimposer
+from oxDNA_analysis_tools.UTILS.data_structures import Configuration, TrajInfo, TopInfo
 
 from .plpatch import PLPatch, assign_colors_one_to_one, assign_colors
 from .plparticle import PLPatchyParticle
@@ -18,7 +19,7 @@ from .plparticleset import PLParticleSet
 from .plscene import PLPSimulation
 from ...interaction_matrix import InteractionMatrix
 from ...polycubeutil.polycubesRule import PolycubeRuleCubeType
-from ...util import normalize, DENTAL_RADIUS_KEY, NUM_TEETH_KEY
+from ...util import normalize, DENTAL_RADIUS_KEY, NUM_TEETH_KEY, selectColor
 from ...server_config import PatchyServerConfig, get_server_config
 
 
@@ -1156,7 +1157,6 @@ class RWriter(PLBaseWriter):
     writer for raspberry-type particles
     """
 
-
     def get_input_file_data(self, scene: PLPSimulation, **kwargs) -> list[tuple[str, str]]:
         return []  # no input file info
 
@@ -1166,8 +1166,11 @@ class RWriter(PLBaseWriter):
     def write(self, scene: PLPSimulation, **kwargs) -> dict[str, str]:
         init_top = kwargs["topology"]
         init_conf = kwargs["conf_file"]
-        self.write_top(self.get_scene_top(scene), top_path=init_top)
-        self.write_conf(scene, init_conf)
+        # raspberry format requires that particles be sorted by type
+        scene_sorted = copy.deepcopy(scene)
+        scene_sorted.sort_particles_by_type()
+        self.write_top(self.get_scene_top(scene_sorted), top_path=init_top)
+        self.write_conf(scene_sorted, init_conf)
         return {
             "topology": init_top,
             "conf_file": init_conf
@@ -1175,7 +1178,9 @@ class RWriter(PLBaseWriter):
 
     def write_top(self, topology: RPatchyTopology, top_path: Union[str, Path]):
         with self.file(top_path) as f:
-            f.write("\n# Patch types\n")
+            # required for oxDNA topolgy standard: this header
+            f.write(f"{topology.num_particles()} {topology.num_particle_types()}")
+            f.write("# Patch types\n")
             # iter patches
             for i, patch in enumerate(topology.particle_types.patches()):
                 assert i == patch.get_id(), "Patch index does not match patch ID"
@@ -1209,14 +1214,81 @@ class RWriter(PLBaseWriter):
                 f.write(f"iC {particle_type.type_id()} {topology.particle_type_count(particle_type.type_id())} {patch_ids_str} {','.join([str(i) for i in range(len(topology.particle_repulsion_sites))])}\n")
 
     def read_top(self, top_file: str) -> RWriter.RPatchyTopology:
-        raise # TODO
+        particle_types = self.read_particle_types(top_file)
+        repulsion_sites = []
+        type_counts = dict()
+        with self.file(top_file, 'r') as f:
+            for line in f:
+                if line.startswith("iC"):
+                    _, type_id, count, _, _ = line.split()
+                    type_counts[int(type_id)] = int(count)
+                if line.startswith("iR"):
+                    # read repulsion site info
+                    _, position, radius = line.split()
+                    position = np.array([float(i) for i in position.split(",")])
+                    assert len(position) == 3
+                    repulsion_sites.append((position, float(radius)))
 
-    def read_particle_types(self, *args):
-        raise # TODO
+        top = RWriter.RPatchyTopology(particle_types, type_counts)
+        top.particle_repulsion_sites = repulsion_sites
+        return top
+
+    def read_particle_types(self, particle_type_file: str) -> PLParticleSet:
+        particle_type_info = []
+        patches = dict()
+        with self.file(particle_type_file, 'r') as f:
+            for line in f:
+                if line.startswith("iC"):
+                    # read particle ("corpsicule") type
+                    _, type_id, _, patches_list, repulsion_sites = line.split()
+                    type_id = int(type_id)
+                    patches_list = [int(i) for i in patches_list.split(",")]
+                    repulsion_sites = [int(i) for i in repulsion_sites.split(",")]
+                    particle_type_info.append((type_id, patches_list, repulsion_sites))
+
+
+                elif line.startswith("iP"):
+                    # read patch info
+                    _, type_id, strength, color, position, a1 = line.split()
+                    type_id = int(type_id)
+                    strength = float(strength)
+                    color = int(color)
+                    position = np.array([float(i) for i in position.split(",")])
+                    assert len(position) == 3
+                    a1 = np.array([float(i) for i in a1.split(",")])
+                    assert len(a1) == 3
+                    patches[type_id] = PLPatch(type_id,
+                                           color,
+                                           position,
+                                           a1,
+                                           strength=strength)
+        # todo: read interaction matrix
+        # assert all particle types have same repulsion sites
+        # todo: impl different shapes?
+        assert all([tuple(rss) == tuple(particle_type_info[0][2]) for _, _, rss in particle_type_info])
+        return PLParticleSet(particles=[
+            PLPatchyParticle([patches[i] for i in patches_list],
+                             type_id=type_id)
+            for type_id, patches_list, repulsion_sites in particle_type_info
+        ])
 
     def read_scene(self, top_file: Union[Path, str], traj_file: Union[Path, str], particle_types: PLParticleSet,
                    conf_idx=None) -> PLPSimulation:
-        raise # TODO
+        topology = self.read_top(top_file)
+        particle_positions = []
+
+        # Read trajectory file
+        with open(traj_file, 'r') as f:
+            for line in f:
+                particle_positions.append(np.fromstring(line.strip(), sep=","))
+
+        if conf_idx is not None:
+            particle_positions = particle_positions[conf_idx]
+
+        sim = PLPSimulation()
+
+
+        return PLPSimulation(topology, particle_positions, particle_types)
 
     def get_scene_top(self, s: PLPSimulation) -> RPatchyTopology:
         return RWriter.RPatchyTopology(s.particle_types(), s.particle_type_counts())
@@ -1238,6 +1310,18 @@ class RWriter(PLBaseWriter):
             self.type_counts = type_counts
             self.particle_types = particles
 
+        def info(self, fp: str="") -> TopInfo:
+            # can use dummy fp if it doesn't matter
+            return TopInfo(fp, self.num_particles())
+
+        def iter_particles(self) -> Generator[PLPatchyParticle, None, None]:
+            """
+            iterates particle TYPES by count
+            """
+            for particle_type in self.particle_types:
+                for i in range(self.type_counts[particle_type.type_id()]):
+                    yield particle_type
+
         def particle_type_count(self, p: int) -> int:
             return self.type_counts[p]
 
@@ -1246,6 +1330,44 @@ class RWriter(PLBaseWriter):
 
         def num_particles(self) -> int:
             return sum(self.type_counts.values())
+
+    def write_as_mgl(self, fp: str, top: RPatchyTopology, traj: TrajInfo, interval: int):
+        """
+        writes the particle system as a mgl file
+        this version writes repulsion sites as spheres, as opposed to the MGLParticle class
+        methods
+        """
+        with self.file(fp) as f:
+            for i in range(0, traj.nconfs, interval):
+                # to prevent memory explosion read confs seperately
+                conf = rr.get_confs(top.info(), traj, i, 1)[0]
+                self.write_mgl(f, top, conf)
+
+    def write_mgl(self, file: IO, top: RWriter.RPatchyTopology, conf: Configuration):
+        file.write(f".Box:{np.array2string(conf.box, precision=2, separator=',')}\n")
+        for i, particle_type in enumerate(top.iter_particles()):
+            p = copy.deepcopy(particle_type)
+            p.set_position(conf.positions[i])
+            p.a1 = conf.a1s[i]
+            p.a3 = conf.a3s[i]
+
+            # choose color
+            particle_color = selectColor(particle_type.type_id(), fmt='arr')
+            particle_color = ",".join([str(i) for i in particle_color])
+            # write repulsion sites
+            for (repulsion_pt_position, r) in top.particle_repulsion_sites:
+                repulsion_pt_position = p.position() + repulsion_pt_position @ p.rotmatrix()
+                file.write(f"{np.array2string(repulsion_pt_position, suppress_small=True, precision=4, formatter={'float_kind': custom_formatter})[1:-1].strip()} @ {r} C[{particle_color}]\n")
+            # write patches
+            # mgl doens't like conic patches w/o mgl a central sphere, so we will have each patch have a dummy particle
+            for i, patch in enumerate(particle_type.patches()):
+                patch_color = selectColor(abs(patch.color()), saturation=65 if patch.color() > 0 else 25, fmt="arr")
+                patch_color = ",".join([str(round(i, 1)) for i in patch_color])
+                patch_width = 0.12 # todo: settable
+                # best way to write patches is to make each patch a particle *ugh*
+                file.write(f"{np.array2string(p.position(), suppress_small=True, precision=4, formatter={'float_kind': custom_formatter})[1:-1]} @ 0 C[0,0,0] M "
+                           f"{np.array2string(p.patch_a1(patch), suppress_small=True, precision=4, formatter={'float_kind': custom_formatter})[1:-1]} "
+                           f"{patch_width} C[{patch_color}]\n")
 
 
 class MalformedSimulationException(BaseException):
