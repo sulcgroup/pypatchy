@@ -377,7 +377,7 @@ class PLPSimulation(Scene, CellLists):
         # in this operation, we lose uids, which is HOPEFULLY OKAY??
         self.add_conf_clusters(clusters)
         # add free particles
-        for type_id, count in free_particles_types:
+        for type_id, count in free_particles_types.items():
             self.add_particle_rand_positions([
                 self.particle_types().particle(type_id).instantiate(self.num_particles()+i)
                 for i in range(count)

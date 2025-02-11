@@ -1179,7 +1179,7 @@ class RWriter(PLBaseWriter):
     def write_top(self, topology: RPatchyTopology, top_path: Union[str, Path]):
         with self.file(top_path) as f:
             # required for oxDNA topolgy standard: this header
-            f.write(f"{topology.num_particles()} {topology.num_particle_types()}")
+            f.write(f"{topology.num_particles()} {topology.num_particle_types()}\n")
             f.write("# Patch types\n")
             # iter patches
             for i, patch in enumerate(topology.particle_types.patches()):
@@ -1331,7 +1331,7 @@ class RWriter(PLBaseWriter):
         def num_particles(self) -> int:
             return sum(self.type_counts.values())
 
-    def write_as_mgl(self, fp: str, top: RPatchyTopology, traj: TrajInfo, interval: int):
+    def write_as_mgl(self, fp: str, top: RPatchyTopology, traj: TrajInfo, interval: int=1):
         """
         writes the particle system as a mgl file
         this version writes repulsion sites as spheres, as opposed to the MGLParticle class
@@ -1341,6 +1341,7 @@ class RWriter(PLBaseWriter):
             for i in range(0, traj.nconfs, interval):
                 # to prevent memory explosion read confs seperately
                 conf = rr.get_confs(top.info(), traj, i, 1)[0]
+                conf = rr.inbox(conf)
                 self.write_mgl(f, top, conf)
 
     def write_mgl(self, file: IO, top: RWriter.RPatchyTopology, conf: Configuration):
