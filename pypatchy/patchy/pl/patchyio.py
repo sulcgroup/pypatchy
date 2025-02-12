@@ -1274,21 +1274,27 @@ class RWriter(PLBaseWriter):
 
     def read_scene(self, top_file: Union[Path, str], traj_file: Union[Path, str], particle_types: PLParticleSet,
                    conf_idx=None) -> PLPSimulation:
+        if conf_idx is None:
+            conf_idx = 0 # ?
         topology = self.read_top(top_file)
-        particle_positions = []
 
-        # Read trajectory file
-        with open(traj_file, 'r') as f:
-            for line in f:
-                particle_positions.append(np.fromstring(line.strip(), sep=","))
+        t, conf = rr.describe(str(self.directory() / top_file),
+                           str(self.directory() / traj_file))
+        conf = rr.get_confs(t, conf, conf_idx,1)[0]
 
-        if conf_idx is not None:
-            particle_positions = particle_positions[conf_idx]
 
         sim = PLPSimulation()
-
-
-        return PLPSimulation(topology, particle_positions, particle_types)
+        sim.set_box_size(conf.box)
+        sim.compute_cell_size(topology.num_particles())
+        sim.apportion_cells()
+        sim.set_particle_types(topology.particle_types)
+        for i, ptype in enumerate(topology.iter_particles()):
+            p = ptype.instantiate(i)
+            sim.add_particle(p)
+            p.set_position(conf.positions[i, :])
+            p.a1 = conf.a1s[i, :]
+            p.a3 = conf.a3s[i, :]
+        return sim
 
     def get_scene_top(self, s: PLPSimulation) -> RPatchyTopology:
         return RWriter.RPatchyTopology(s.particle_types(), s.particle_type_counts())
@@ -1345,7 +1351,7 @@ class RWriter(PLBaseWriter):
                 self.write_mgl(f, top, conf)
 
     def write_mgl(self, file: IO, top: RWriter.RPatchyTopology, conf: Configuration):
-        file.write(f".Box:{np.array2string(conf.box, precision=2, separator=',')}\n")
+        file.write(f".Box:{np.array2string(conf.box, precision=2, separator=',')[1:-1]}\n")
         for i, particle_type in enumerate(top.iter_particles()):
             p = copy.deepcopy(particle_type)
             p.set_position(conf.positions[i])
@@ -1366,8 +1372,8 @@ class RWriter(PLBaseWriter):
                 patch_color = ",".join([str(round(i, 1)) for i in patch_color])
                 patch_width = 0.12 # todo: settable
                 # best way to write patches is to make each patch a particle *ugh*
-                file.write(f"{np.array2string(p.position(), suppress_small=True, precision=4, formatter={'float_kind': custom_formatter})[1:-1]} @ 0 C[0,0,0] M "
-                           f"{np.array2string(p.patch_a1(patch), suppress_small=True, precision=4, formatter={'float_kind': custom_formatter})[1:-1]} "
+                file.write(f"{np.array2string(p.patch_position(patch), suppress_small=True, precision=4, formatter={'float_kind': custom_formatter})[1:-1]} @ 0 C[0,0,0] M "
+                           f"{np.array2string(p.patch_a1(patch) / 2, suppress_small=True, precision=4, formatter={'float_kind': custom_formatter})[1:-1]} "
                            f"{patch_width} C[{patch_color}]\n")
 
 
