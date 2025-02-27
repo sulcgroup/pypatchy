@@ -1487,7 +1487,8 @@ class PatchySimulationEnsemble(Analyzable):
     def write_run_script(self, sim: PatchySimulation, stage: Stage, input_file="input"):
 
         slurm_script_name = "slurm_script.sh"
-        slurm_script_name = stage.adjfn(slurm_script_name)
+        if stage:
+            slurm_script_name = stage.adjfn(slurm_script_name)
 
         # input file is in same directory as slurm script so don't change the file name
 
