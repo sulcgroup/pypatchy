@@ -52,6 +52,11 @@ cfg.read(get_local_dir() / 'settings.cfg')
 def simulation_run_dir() -> Path:
     return Path(cfg['ANALYSIS']['simulation_data_dir'])
 
+def tlm_data_dir() -> Union[None, Path]:
+    if "tlm_data_dir" in cfg["ANALYSIS"]:
+        return Path(cfg["ANALYSIS"]["tlm_data_dir"])
+    else:
+        return None
 
 def get_spec_json(name: str, folder: str) -> dict:
     try:
