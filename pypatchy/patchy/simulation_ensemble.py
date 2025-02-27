@@ -1501,7 +1501,7 @@ class PatchySimulationEnsemble(Analyzable):
             # skip confGenerator call because we will invoke it directly later
             slurm_file.write(f"{self.server_settings.oxdna_path}/build/bin/oxDNA {input_file}\n")
 
-        self.bash_exec(f"chmod u+x {self.folder_path(sim)}/{slurm_script_name}", is_async=False)
+        self.bash_exec(f"chmod u+x {self.folder_path(sim)}/{slurm_script_name}",is_async=False)
 
     def run_simulation(self, sim: PatchySimulation):
         """

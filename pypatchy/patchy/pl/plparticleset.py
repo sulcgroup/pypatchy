@@ -392,6 +392,7 @@ class PLParticleSet(BaseParticleSet):
                             # CASE: no torsion, no self interact
                             # simple enouyg
                             interacting_colors = (patch.color(), *self.interaction_matrix().get_interacting_colors(patch.color()))
+                            assert len(interacting_colors) == 2
                             new_interaction_map[interacting_colors] = self.interaction_matrix()[interacting_colors] / mdt_params.n_teeth
 
                     r = R.identity()

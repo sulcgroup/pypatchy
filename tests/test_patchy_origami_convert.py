@@ -315,9 +315,6 @@ def test_generate_scene_convert(temp_dir: str, cube: DNAParticle):
     # imports
     from ipy_oxdna.dna_structure import load_dna_structure
     from pypatchy.util import get_input_dir
-
-
-
     writer = get_writer("lorenzo")
     writer.set_directory("/home/josh/git/pypatchy/tests/test_files/patchy_scenes/loro_eg")
     scene = writer.read_scene("LORO.lorenzo.topology.top",

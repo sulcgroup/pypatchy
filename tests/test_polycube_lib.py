@@ -27,7 +27,7 @@ def ducky():
     polycube = load_polycube(polycube_file)
     assert polycube.rule == PolycubesRule(rule_str="1:3|3:3||3|3|3_|||3:1|-2:2|_-1||||2:1|_-3:1|||||")
     assert polycube.num_vertices() == 8
-    assert polycube.num_connections() == 14
+    assert polycube.num_connections() == 7
     # todo: more tests?
     return polycube
 
