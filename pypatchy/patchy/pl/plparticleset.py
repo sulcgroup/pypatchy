@@ -391,7 +391,7 @@ class PLParticleSet(BaseParticleSet):
                             # assert c != 0
                             # CASE: no torsion, no self interact
                             # simple enouyg
-                            interacting_colors = (patch.color(), *self.interaction_matrix().get_interacting_colors(patch.color()))
+                            interacting_colors = (c, *self.interaction_matrix().get_interacting_colors(c))
                             assert len(interacting_colors) == 2
                             new_interaction_map[interacting_colors] = self.interaction_matrix()[interacting_colors] / mdt_params.n_teeth
 
@@ -432,7 +432,8 @@ class PLParticleSet(BaseParticleSet):
                     patch_counter += 1
                 # add all teeth
                 new_particle_patches += teeth
-            new_particles[i_particle] = PLPatchyParticle(type_id=particle.type_id(), index_=i_particle,
+            new_particles[i_particle] = PLPatchyParticle(type_id=particle.type_id(),
+                                                         index_=i_particle,
                                                          radius=particle.radius(),
                                                          particle_name=particle.name())
             new_particles[i_particle].set_patches(new_particle_patches)

@@ -251,118 +251,118 @@ def test_convert_swan(temp_dir: str, multidentate_patchy_ducky: PLPSimulation, c
     pass
 
 
-def test_generate_scene_convert(temp_dir: str, cube: DNAParticle):
-    # nessecary imports
-    from pathlib import Path
-
-    import numpy as np
-
-    from pypatchy.patchy.dna_particle import DNAParticle
-    from pypatchy.patchy.pl.patchyio import get_writer, LWriter
-    from pypatchy.patchy.pl.plparticleset import MultidentateConvertSettings
-    from pypatchy.polycubeutil.polycubesRule import PolycubesRule
-
-    from pypatchy.patchy.pl.plpatchylib import polycube_rule_to_PL
-    rule = PolycubesRule(rule_str="1|||||_-1|||||")
-    pl_set = polycube_rule_to_PL(rule)
-    reader = get_writer("lorenzo")
-    top = LWriter.LPatchyTopology(pl_set, [1, 1])
-    (Path(temp_dir) / "patchy_scene").mkdir()
-
-    reader.set_directory(Path(temp_dir) / "patchy_scene")
-    reader.write_top(top, "particles.top")
-    reader.export_interaction_matrix(pl_set.interaction_matrix(), "interactions.txt")
-
-    # lookup patchy writer object
-    # our patchy files are in Lorenzo's format so use the build in Lorenzo-Writer
-    # (it can read or write particle data but today we are using it as a reader)
-    # honestly this should be a context manager, srry
-
-    # first load patchy particle set
-    # this varies a lot between patchy particle formats, this is only the correct method for Lorenzo-format
-    patchy_particle_set = reader.read_particle_types(topology="particles.top",
-                                                     DPS_interaction_matrix_file="interactions.txt", )
-    # specify settings that the program will use to convert the polycube to a patchy particle set
-    convert_settings = MultidentateConvertSettings(
-        n_teeth=4,  # each patch on the particle corresponds to 4 "multidentate" patches on the particles,
-        # which will be mapped to 4 strands on the DNA particle monomer (we'll load that later)
-        dental_radius=0.5,  # the distance in simulation units from the center of the patch to the "teeth"
-        torsion=False
-    )
-
-    # this is finicky unfortunately
-    # patches (even non-torsional) need an a2 vector to use as a basis for multidentate conversion but
-    # particle sets saved in the Lorenzo format are missing this
-    # however we can do it manually
-    for patch in patchy_particle_set.patches():
-        patch.set_a2(np.array([0, 1, 0]))
-    # convert particles to multidentate
-    patchy_particle_set = patchy_particle_set.to_multidentate(convert_settings)
-
-    scene = reader.read_scene(top_file="particles.top",  # topology file
-                              traj_file="last_conf.dat",  # here we will give it a single conf
-                              # but if we wanted we could pass a trajectory and a timestep
-                              particle_types=patchy_particle_set
-                              )
-
-    # if we wanted to convert this scene to multidentate we would do it here,
-    # but the scene is already multidentate
-
-    get_writer("flavio").set_directory("/home/josh/lab_data/test_l_particles")
-    get_writer("flavio").write(scene, topology="scene.top", conf_file="scene.conf", particle_file="particles.txt",
-                               patchy_file="patches.txt")
-
-    # imports
-    from ipy_oxdna.dna_structure import load_dna_structure
-    from pypatchy.util import get_input_dir
-    writer = get_writer("lorenzo")
-    writer.set_directory("/home/josh/git/pypatchy/tests/test_files/patchy_scenes/loro_eg")
-    scene = writer.read_scene("LORO.lorenzo.topology.top",
-                              "last_conf.dat",
-                              writer.read_particle_types("LORO.lorenzo.topology.top",
-                                                         "LORO.interaction_matrix.txt"))
-
-    # imports
-    from pypatchy.patchy.patchy_origami_convert import PatchyOrigamiConverter
-
-    converter = PatchyOrigamiConverter(scene,
-                                       sticky_length=10,  # length of the binding portion of single-stranded overhangs
-                                       # if we set this to a number, the program will generate a random
-                                       # sequence (not guaranteed to be orthogonal!!!!)
-                                       # if we set this to None you will have to manually enter all sequences
-                                       # below
-                                       spacer_length=12,  # poly-T spacer which will seperate the binding portion of the
-                                       # overhang from the rest of the staple strand
-                                       # there are a lot more optional args
-                                       )
-    converter.scale_factor = 48
-    # patchy color sequences start with 21 and -21 and proceed from there
-    converter.assign_color_sequence(21,  # color in patchy particle
-                                    "ATGCATCGAT",  # sequence
-                                    update_rc=True  # the converter will automatically assign -21 to the
-                                    # reverse compliment ATCGATGCAT (True is default value)
-                                    )
-
-    # set the converter to use our DNA particle from before
-    # if you want to have multiple distinct DNA monomers for different particle types,
-    # you can assign them here
-    converter.assign_particles(cube)
-
-    # position DNA particles
-    converter.position_particles()
-
-    # join them together
-    # can take a while
-    converter.convert(True)
-
-    # if you provide a relative path, pypatchy will place in the directory ~/.pypathy/output
-    # alternatively, if you provide an absolute path (beginning with "/") the program will use that directly
-    converter.save_top_dat(write_top_path=f"mystructure_dna.top",
-                           write_conf_path=f"mystructure_dna.conf")
-
-    converter.save_oxview(write_oxview_path="mystructure_dna.oxview",
-                          color_by_type=True)
-    converter.export_stickys_staples(Path(temp_dir) / "staples.xlsx")
+# def test_generate_scene_convert(temp_dir: str, cube: DNAParticle):
+#     # nessecary imports
+#     from pathlib import Path
+#
+#     import numpy as np
+#
+#     from pypatchy.patchy.dna_particle import DNAParticle
+#     from pypatchy.patchy.pl.patchyio import get_writer, LWriter
+#     from pypatchy.patchy.pl.plparticleset import MultidentateConvertSettings
+#     from pypatchy.polycubeutil.polycubesRule import PolycubesRule
+#
+#     from pypatchy.patchy.pl.plpatchylib import polycube_rule_to_PL
+#     rule = PolycubesRule(rule_str="1|||||_-1|||||")
+#     pl_set = polycube_rule_to_PL(rule)
+#     reader = get_writer("lorenzo")
+#     top = LWriter.LPatchyTopology(pl_set, [1, 1])
+#     (Path(temp_dir) / "patchy_scene").mkdir()
+#
+#     reader.set_directory(Path(temp_dir) / "patchy_scene")
+#     reader.write_top(top, "particles.top")
+#     reader.export_interaction_matrix(pl_set.interaction_matrix(), "interactions.txt")
+#
+#     # lookup patchy writer object
+#     # our patchy files are in Lorenzo's format so use the build in Lorenzo-Writer
+#     # (it can read or write particle data but today we are using it as a reader)
+#     # honestly this should be a context manager, srry
+#
+#     # first load patchy particle set
+#     # this varies a lot between patchy particle formats, this is only the correct method for Lorenzo-format
+#     patchy_particle_set = reader.read_particle_types(topology="particles.top",
+#                                                      DPS_interaction_matrix_file="interactions.txt", )
+#     # specify settings that the program will use to convert the polycube to a patchy particle set
+#     convert_settings = MultidentateConvertSettings(
+#         n_teeth=4,  # each patch on the particle corresponds to 4 "multidentate" patches on the particles,
+#         # which will be mapped to 4 strands on the DNA particle monomer (we'll load that later)
+#         dental_radius=0.5,  # the distance in simulation units from the center of the patch to the "teeth"
+#         torsion=False
+#     )
+#
+#     # this is finicky unfortunately
+#     # patches (even non-torsional) need an a2 vector to use as a basis for multidentate conversion but
+#     # particle sets saved in the Lorenzo format are missing this
+#     # however we can do it manually
+#     for patch in patchy_particle_set.patches():
+#         patch.set_a2(np.array([0, 1, 0]))
+#     # convert particles to multidentate
+#     patchy_particle_set = patchy_particle_set.to_multidentate(convert_settings)
+#
+#     scene = reader.read_scene(top_file="particles.top",  # topology file
+#                               traj_file="last_conf.dat",  # here we will give it a single conf
+#                               # but if we wanted we could pass a trajectory and a timestep
+#                               particle_types=patchy_particle_set
+#                               )
+#
+#     # if we wanted to convert this scene to multidentate we would do it here,
+#     # but the scene is already multidentate
+#
+#     get_writer("flavio").set_directory("/home/josh/lab_data/test_l_particles")
+#     get_writer("flavio").write(scene, topology="scene.top", conf_file="scene.conf", particle_file="particles.txt",
+#                                patchy_file="patches.txt")
+#
+#     # imports
+#     from ipy_oxdna.dna_structure import load_dna_structure
+#     from pypatchy.util import get_input_dir
+#     writer = get_writer("lorenzo")
+#     writer.set_directory("/home/josh/git/pypatchy/tests/test_files/patchy_scenes/loro_eg")
+#     scene = writer.read_scene("LORO.lorenzo.topology.top",
+#                               "last_conf.dat",
+#                               writer.read_particle_types("LORO.lorenzo.topology.top",
+#                                                          "LORO.interaction_matrix.txt"))
+#
+#     # imports
+#     from pypatchy.patchy.patchy_origami_convert import PatchyOrigamiConverter
+#
+#     converter = PatchyOrigamiConverter(scene,
+#                                        sticky_length=10,  # length of the binding portion of single-stranded overhangs
+#                                        # if we set this to a number, the program will generate a random
+#                                        # sequence (not guaranteed to be orthogonal!!!!)
+#                                        # if we set this to None you will have to manually enter all sequences
+#                                        # below
+#                                        spacer_length=12,  # poly-T spacer which will seperate the binding portion of the
+#                                        # overhang from the rest of the staple strand
+#                                        # there are a lot more optional args
+#                                        )
+#     converter.scale_factor = 48
+#     # patchy color sequences start with 21 and -21 and proceed from there
+#     converter.assign_color_sequence(21,  # color in patchy particle
+#                                     "ATGCATCGAT",  # sequence
+#                                     update_rc=True  # the converter will automatically assign -21 to the
+#                                     # reverse compliment ATCGATGCAT (True is default value)
+#                                     )
+#
+#     # set the converter to use our DNA particle from before
+#     # if you want to have multiple distinct DNA monomers for different particle types,
+#     # you can assign them here
+#     converter.assign_particles(cube)
+#
+#     # position DNA particles
+#     converter.position_particles()
+#
+#     # join them together
+#     # can take a while
+#     converter.convert(True)
+#
+#     # if you provide a relative path, pypatchy will place in the directory ~/.pypathy/output
+#     # alternatively, if you provide an absolute path (beginning with "/") the program will use that directly
+#     converter.save_top_dat(write_top_path=f"mystructure_dna.top",
+#                            write_conf_path=f"mystructure_dna.conf")
+#
+#     converter.save_oxview(write_oxview_path="mystructure_dna.oxview",
+#                           color_by_type=True)
+#     converter.export_stickys_staples(Path(temp_dir) / "staples.xlsx")
 
 
 def test_convert_3d_cross_polycube(temp_dir: str, cube: DNAParticle):

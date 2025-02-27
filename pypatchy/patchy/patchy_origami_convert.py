@@ -980,6 +980,7 @@ class PatchyOrigamiConverter:
         """
         if isinstance(fp, str):
             fp = Path(fp)
+        fp = fp.expanduser()
         assert fp.parent.exists(), f"No such location as {str(fp.parent)}"
         wb = openpyxl.Workbook()
         ws = wb.active
@@ -1024,8 +1025,7 @@ class PatchyOrigamiConverter:
             plate_col = plate_cell % 12 + 1
 
             ws[f"A{idx}"] = f"{plate_row}{plate_col}"
-            seq_string_descriptor = f"ParticleType{dna.linked_particle.get_type()}"
-            seq_string_descriptor += f"_Strand{strand_id}"
+            seq_string_descriptor = f"{dna.linked_particle.name()}_Strand{strand_id}"
 
             if patch_id is not None:
                 seq_string_descriptor += f"_Patch{patch_id}"
