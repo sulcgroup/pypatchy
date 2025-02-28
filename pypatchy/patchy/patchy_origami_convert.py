@@ -320,8 +320,10 @@ class PatchyOrigamiConverter:
         assert self.sticky_length is None or len(seq) == self.sticky_length, "Incompatible sequence length"
         self.color_sequences[color] = seq
         if update_rc:
-            assert self.patchy_scene.particle_types().interaction_matrix()[(color, -color)], "Color is not set to interact with its negative pairing in the interaction matrix!!"
-            self.color_sequences[-color] = rc(seq)
+            interacting_colors = list(self.patchy_scene.particle_types().interaction_matrix().get_interacting_colors(color))
+            assert len(interacting_colors) == 1
+            # assert self.patchy_scene.particle_types().interaction_matrix()[(color, -color)], "Color is not set to interact with its negative pairing in the interaction matrix!!"
+            self.color_sequences[-interacting_colors[0]] = rc(seq)
 
 
     def assign_particles(self,

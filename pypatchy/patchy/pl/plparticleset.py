@@ -356,7 +356,8 @@ class PLParticleSet(BaseParticleSet):
                         else:
                             # CASE torsion + no self interact
                             # this is sorta my default
-                            c = (colornorm - 20) * mdt_params.n_teeth + tooth
+                            # we want color 1 to to 0 * n_teeth
+                            c = (colornorm - 21) * mdt_params.n_teeth + tooth
                             # unfortunately we can't count on "negative" colors in opposite-type pairing
                             # HOWEVER in any non self compilmentary interaction matrix one color will always have a lower value, we
                             # can arbitraryily declare this the "negative" one
@@ -441,6 +442,8 @@ class PLParticleSet(BaseParticleSet):
             new_patches += new_particle_patches
         particle_set = PLParticleSet(new_particles, PLMultidentateSourceMap(self, id_map, mdt_params),
                                      new_interaction_map)
+        assert all([patch.color() in particle_set.interaction_matrix() for patch in particle_set.patches()])
+
         return particle_set
 
     def __eq__(self, other: PLParticleSet) -> bool:

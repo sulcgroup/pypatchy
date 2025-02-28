@@ -48,12 +48,19 @@ class InteractionMatrix:
             self.__interactions[(c1, c2)] = strength
 
     def __contains__(self, item: tuple[int, int]):
-        c1, c2 = item
-        assert type(c1) == int and type(c2) == int
-        if c1 > c2:
-            return (c2, c1) in self
-        else:
-            return (c1, c2) in self.__interactions
+        if isinstance(item, tuple):
+            c1, c2 = item
+            assert type(c1) == int and type(c2) == int
+            if c1 > c2:
+                return (c2, c1) in self
+            else:
+                return (c1, c2) in self.__interactions
+        elif isinstance(item, int):
+            for _ in self.get_interacting_colors(item):
+                # if get_interacting_colors yields any items, return True
+                return True
+            return False
+
 
     def num_interactions(self) -> int:
         return len(self.__interactions)

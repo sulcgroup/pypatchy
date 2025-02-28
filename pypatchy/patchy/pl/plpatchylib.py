@@ -106,6 +106,7 @@ def polycube_rule_to_PL(particle_set: PolycubesRule) -> PLParticleSet:
         c = patch.color()
         if c > 0:  # we don't need this line but it will save us from wasted func calls
             particles.interaction_matrix()[(c, -c)] = 1.0
+    assert all([patch.color() in particles.interaction_matrix() for patch in particles.patches()])
     return particles
 
 

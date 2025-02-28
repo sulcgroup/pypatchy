@@ -199,6 +199,8 @@ def test_convert_human(temp_dir: str, cube: DNAParticle):
                                        rel_rms_tolerance=1
                                        # flexable_patch_distances=True
                                        )
+    converter.assign_color_sequence(22, "ATGCATCG")
+
     converter.assign_particles(dna_particle)
     converter.dump_monomers(name)
     converter.position_particles()
