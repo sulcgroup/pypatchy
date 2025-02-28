@@ -317,13 +317,16 @@ class PatchyOrigamiConverter:
         Assigns the color given by colorstr the specific sequence sequence specified
         Automatically assigns the corresponding color the reverse compliment
         """
-        assert self.sticky_length is None or len(seq) == self.sticky_length, "Incompatible sequence length"
-        self.color_sequences[color] = seq
-        if update_rc:
-            interacting_colors = list(self.patchy_scene.particle_types().interaction_matrix().get_interacting_colors(color))
-            assert len(interacting_colors) == 1
-            # assert self.patchy_scene.particle_types().interaction_matrix()[(color, -color)], "Color is not set to interact with its negative pairing in the interaction matrix!!"
-            self.color_sequences[-interacting_colors[0]] = rc(seq)
+        if color not in self.patchy_scene.particle_types().interaction_matrix():
+            print(f"Color {color} not in scene particle types interaction matrix. Ignoring...")
+        else:
+            assert self.sticky_length is None or len(seq) == self.sticky_length, "Incompatible sequence length"
+            self.color_sequences[color] = seq
+            if update_rc:
+                interacting_colors = list(self.patchy_scene.particle_types().interaction_matrix().get_interacting_colors(color))
+                assert len(interacting_colors) == 1
+                # assert self.patchy_scene.particle_types().interaction_matrix()[(color, -color)], "Color is not set to interact with its negative pairing in the interaction matrix!!"
+                self.color_sequences[-interacting_colors[0]] = rc(seq)
 
 
     def assign_particles(self,
