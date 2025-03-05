@@ -119,7 +119,7 @@ class PLPatch(BasePatchType):
                 self.set_strength(float(val))
 
     def can_bind(self, other: BasePatchType) -> bool:
-        if abs(self.color()) > 20:
+        if abs(self.color()) >= 20:
             return self.color() == -other.color()
         else:
             return self.color() == other.color()

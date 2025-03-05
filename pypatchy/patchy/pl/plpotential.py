@@ -380,6 +380,7 @@ class PLFRPatchyPotential(PLPatchyPotential):
         if rsqr > self.rmax_sqr():
             return 0
         # check if patches are complimentary
+        # TODO: replace with an interaction matrix?
         if patch1.can_bind(patch2):
             # check binding geometry
             # (warning: sus)

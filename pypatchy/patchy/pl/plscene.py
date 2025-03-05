@@ -604,7 +604,7 @@ class PLPSimulation(Scene, CellLists):
                     continue
                 # unfortunately, this becomes. terrible
                 # let us assume no multipatch, TODO make this adjustable
-                # get interaction energy sans patchy bonds
+                # get interaction energy sans patchy bonds (basically this is excvol)
                 particle_energy = sum(potential.energy(self.box_size(), p1, p2)
                                       for potential in self.potentials if not isinstance(potential, PLPatchyPotential))
                 # construct data structure to store interactions
