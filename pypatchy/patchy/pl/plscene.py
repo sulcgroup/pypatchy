@@ -459,13 +459,13 @@ class PLPSimulation(Scene, CellLists):
         patch_pairs = [(p1_idx, p2_idx) for ptype1, ptype2, (p1_idx, p2_idx) in G.edges(data="patches") if
                             frozenset([ptype1, ptype2]) == frozenset([particle1.get_uid(), particle2.get_uid()])]
         # loop pairs
-        for patch_1_type_id, patch_2_type_id in patch_pairs:
+        for (particle_1_uid, patch_1_type_id), (particle_2_uid, patch_2_type_id) in patch_pairs:
             # if particles 1 and 2 don't match patches 1 and 2, swap
-            if not particle1.has_patch_with_id(patch_1_type_id):
-                assert particle2.has_patch_with_id(patch_1_type_id)
-                tempvar = patch_1_type_id
-                patch_1_type_id = patch_2_type_id
-                patch_2_type_id = tempvar
+            # if not particle1.has_patch_with_id(patch_1_type_id):
+            #     assert particle2.has_patch_with_id(patch_1_type_id)
+            #     tempvar = patch_1_type_id
+            #     patch_1_type_id = patch_2_type_id
+            #     patch_2_type_id = tempvar/
 
             yield particle1.patch_by_id(patch_1_type_id), particle2.patch_by_id(patch_2_type_id)
 
@@ -592,7 +592,12 @@ class PLPSimulation(Scene, CellLists):
 
     def compute_scene_multigraph(self, bond_energy: float=0) -> nx.MultiGraph:
         G = nx.MultiGraph()
+        # keep track of pairs of interacting particles we have already checked
         checked_interactions: set[frozenset[int]] = set()
+
+        # set of patches which bind. tuples are (particle uid, patch type id)
+        binding_patches: set[tuple[int,int]] = set()
+
         # loop particles
         for p1 in self.particles():
             # make sure particle has node in graph
@@ -609,8 +614,8 @@ class PLPSimulation(Scene, CellLists):
                                       for potential in self.potentials if not isinstance(potential, PLPatchyPotential))
                 # construct data structure to store interactions
                 patch_bond_energies: list[tuple[tuple[int, int], float]] = []
-                for patch1, patch2 in itertools.product(p1.patches(), p2.patches()):
-                    for potential in self.potentials:
+                for potential in self.potentials:
+                    for patch1, patch2 in itertools.product(p1.patches(), p2.patches()):
                         if isinstance(potential, PLPatchyPotential):
                             e_bond = potential.energy_2_patch(self.box_size(), p1, patch1, p2, patch2)
                             if e_bond < bond_energy:
@@ -621,11 +626,16 @@ class PLPSimulation(Scene, CellLists):
                     # sort interactions by energy
                     patch_bond_energies.sort(key=lambda x: x[1], reverse=True)
                     for (patch1, patch2), e in patch_bond_energies:
+                        assert (p1.get_uid(), patch1) not in binding_patches
+                        assert (p2.get_uid(), patch2) not in binding_patches
                         G.add_edge(p1.get_uid(),
                                    p2.get_uid(),
                                    e=e + (particle_energy / len(patch_bond_energies)),
-                                   patches=(patch1, patch2) if patch1 < patch2 else (patch2, patch1)
-                                   )
+                                   patches=((p1.get_uid(), patch1),
+                                             (p2.get_uid(), patch2)
+                                   ))
+                        binding_patches.add((p1.get_uid(), patch1))
+                        binding_patches.add((p2.get_uid(), patch2))
                 checked_interactions.add(frozenset([p1.get_uid(), p2.get_uid()]))
         assert len(G.nodes) == self.num_particles()
         return G

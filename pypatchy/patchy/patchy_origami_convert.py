@@ -6,8 +6,10 @@ from copy import deepcopy
 from pathlib import Path
 from typing import Iterable, Union, Generator
 
+import networkx as nx
 import numpy as np
 import openpyxl
+from matplotlib import pyplot as plt
 from oxDNA_analysis_tools.UTILS.RyeReader import Configuration
 from Bio.SVDSuperimposer import SVDSuperimposer
 from scipy.optimize import linear_sum_assignment
@@ -676,6 +678,8 @@ class PatchyOrigamiConverter:
         for p1, p2 in self.patchy_scene.iter_bound_particles():
             p1_dna = self.get_dna_particle(p1)
             p2_dna = self.get_dna_particle(p2)
+            assert p1_dna.linked_particle.get_uid() == p1.get_uid()
+            assert p2_dna.linked_particle.get_uid() == p2.get_uid()
             found_bind_patch = False
             # iter pairs of patches that connect p1 to p2
             for patch1, patch2 in self.patchy_scene.iter_binding_patches(p1, p2):
@@ -700,8 +704,13 @@ class PatchyOrigamiConverter:
             patch2 (MGLPatch): mgl patch object?
         """
         # chcek that patchs are free
-        assert not self.is_track_conf_stickies() or (particle1.linked_particle.get_uid(), patch1.type_id()) not in self.sticky_book
-        assert not self.is_track_conf_stickies() or (particle2.linked_particle.get_uid(), patch2.type_id()) not in self.sticky_book
+        assert not self.is_track_conf_stickies() \
+               or (particle1.linked_particle.get_uid(), patch1.type_id()) not in self.sticky_book,\
+            f"already bound something to patch type {patch1.type_id()} on particle {particle1.linked_particle.get_uid()}"
+        assert not self.is_track_conf_stickies() or\
+               (particle2.linked_particle.get_uid(), patch2.type_id()) not in self.sticky_book,\
+            f"already bound something to patch type {patch2.type_id()} on particle {particle2.linked_particle.get_uid()}"
+
 
         # find nucleotides which will be extended to form patches
         # assert patch1.color() + patch2.color() == 0
@@ -1049,3 +1058,47 @@ class PatchyOrigamiConverter:
             idx += 1
 
         wb.save(fp)
+
+def show_scene_multigraph(scene: PLPSimulation):
+    G = scene.compute_scene_multigraph(0)
+
+    # Position nodes
+    pos = nx.spring_layout(G)
+
+    # Draw nodes
+    plt.figure(figsize=(8, 6))
+    # Draw nodes
+    nx.draw_networkx_nodes(G, pos, node_color="lightblue", node_size=700)
+    nx.draw_networkx_labels(G, pos, font_size=10)
+
+    # Draw multiple edges separately
+    for (u, v) in G.edges():
+        edges = G.get_edge_data(u, v)
+        num_edges = len(edges)
+        for i, (key, data) in enumerate(edges.items()):
+            e_value = data.get("e", 0)
+            patches = data.get("patches", ())
+
+            # Offset edges slightly to make them visible
+            offset = (i - num_edges / 2) * 0.1
+
+            # Compute edge position
+            edge_pos = {
+                u: (pos[u][0] + offset, pos[u][1] + offset),
+                v: (pos[v][0] + offset, pos[v][1] + offset),
+            }
+
+            # Draw edges with different colors based on `e`
+            color = plt.cm.coolwarm((e_value + 1) / 2)  # Normalize `e` to [0,1]
+            nx.draw_networkx_edges(G, edge_pos, edgelist=[(u, v)], edge_color=[color], width=2)
+
+            # Compute midpoint for edge label
+            mid_x, mid_y = (edge_pos[u][0] + edge_pos[v][0]) / 2, (edge_pos[u][1] + edge_pos[v][1]) / 2
+
+            # Edge label
+            label_text = f"e: {e_value:.2f}\nP: {patches}"
+            plt.text(mid_x, mid_y, label_text, fontsize=8, ha='center', va='center',
+                     bbox=dict(facecolor='white', alpha=0.7, edgecolor='none'))
+
+    plt.title("MultiGraph with Edge Attributes")
+    plt.show()
