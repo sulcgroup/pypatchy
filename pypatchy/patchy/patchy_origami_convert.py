@@ -898,7 +898,11 @@ class PatchyOrigamiConverter:
 
         print(f"Wrote conf file to {str(write_conf_path)}")
 
-    def save_oxview(self, write_oxview_path: Union[Path, str], clusters=False, color_by_type=False):
+    def save_oxview(self,
+                    write_oxview_path: Union[Path, str],
+                    clusters=False,
+                    color_by_type=False,
+                    prettyprint_json=False):
         """
         Saves the converted structure as an .oxview file
         Parameters:
@@ -927,7 +931,7 @@ class PatchyOrigamiConverter:
                     # oxview file format requires we convert the hex code to base 10
                     monomer["color"] = int(color[1:], 16)
         with write_oxview_path.open("w") as f:
-            json.dump(oxview_json, f, indent=4)
+            json.dump(oxview_json, f, indent=4 if not prettyprint_json else None)
         print(f"Wrote OxView file to {str(write_oxview_path)}")
 
     def iter_sticky_staples(self,
