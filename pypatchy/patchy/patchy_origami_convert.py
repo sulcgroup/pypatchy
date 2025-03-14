@@ -902,7 +902,8 @@ class PatchyOrigamiConverter:
                     write_oxview_path: Union[Path, str],
                     clusters=False,
                     color_by_type=False,
-                    prettyprint_json=False):
+                    prettyprint_json=False,
+                    seperate: bool = False):
         """
         Saves the converted structure as an .oxview file
         Parameters:
@@ -915,24 +916,39 @@ class PatchyOrigamiConverter:
             write_oxview_path = Path(write_oxview_path)
         if not write_oxview_path.is_absolute():
             write_oxview_path = get_output_dir() / write_oxview_path
+        if not seperate:
+            merged_conf = self.get_full_conf(clusters=clusters or color_by_type)
+            oxview_json = merged_conf.get_oxview_json()
+            # colorcode particles by type
+            if color_by_type:
+                for strand in oxview_json['systems'][0]['strands']:
+                    for monomer in strand['monomers']:
+                        particle = self.dna_particles[monomer['cluster']]
+                        particle_type = particle.linked_particle.type_id()
+                        if isinstance(color_by_type, dict):
+                            color = color_by_type[particle_type]
+                        else:
+                            color = selectColor(particle_type)  # get hex string code of color
+                        # oxview file format requires we convert the hex code to base 10
+                        monomer["color"] = int(color[1:], 16)
+            with write_oxview_path.open("w") as f:
+                json.dump(oxview_json, f, indent=4 if not prettyprint_json else None)
+            print(f"Wrote OxView file to {str(write_oxview_path)}")
+        else:
+            particles = self.get_particles()
+            if clusters or color_by_type:
+                for p in particles:
+                    p.clear_clusters()
+                    for b in p.iter_bases():
+                        p.assign_base_to_cluster(b.uid, 0)
+            for i, particle in enumerate(particles):
+                if not write_oxview_path.exists():
+                    write_oxview_path.mkdir()
+                with (write_oxview_path / f"p{i}").open("w") as f:
+                    json.dump(particle.get_oxview_json(), f,
+                              indent=4 if not prettyprint_json else None)
 
-        merged_conf = self.get_full_conf(clusters=clusters or color_by_type)
-        oxview_json = merged_conf.get_oxview_json()
-        # colorcode particles by type
-        if color_by_type:
-            for strand in oxview_json['systems'][0]['strands']:
-                for monomer in strand['monomers']:
-                    particle = self.dna_particles[monomer['cluster']]
-                    particle_type = particle.linked_particle.type_id()
-                    if isinstance(color_by_type, dict):
-                        color = color_by_type[particle_type]
-                    else:
-                        color = selectColor(particle_type)  # get hex string code of color
-                    # oxview file format requires we convert the hex code to base 10
-                    monomer["color"] = int(color[1:], 16)
-        with write_oxview_path.open("w") as f:
-            json.dump(oxview_json, f, indent=4 if not prettyprint_json else None)
-        print(f"Wrote OxView file to {str(write_oxview_path)}")
+
 
     def iter_sticky_staples(self,
                             pl_type: Union[int, PLPatchyParticle, None] = None,
