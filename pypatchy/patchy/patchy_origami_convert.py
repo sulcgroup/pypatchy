@@ -936,15 +936,21 @@ class PatchyOrigamiConverter:
             print(f"Wrote OxView file to {str(write_oxview_path)}")
         else:
             particles = self.get_particles()
-            if clusters or color_by_type:
-                for p in particles:
-                    p.clear_clusters()
-                    for b in p.iter_bases():
-                        p.assign_base_to_cluster(b.uid, 0)
+            particle_posss = np.concatenate([p.poss() for p in particles], axis=0)
+            poss_mins = particle_posss.min(axis=0)
+            poss_maxs = particle_posss.max(axis=0)
+            assert poss_mins.shape == (3,)
             for i, particle in enumerate(particles):
+                particle.transform(tran=-poss_mins)
+                particle.box = poss_maxs - poss_mins
+
+                if clusters or color_by_type:
+                    particle.clear_clusters()
+                    for b in particle.iter_bases():
+                        particle.assign_base_to_cluster(b.uid, 0)
                 if not write_oxview_path.exists():
                     write_oxview_path.mkdir()
-                with (write_oxview_path / f"p{i}").open("w") as f:
+                with (write_oxview_path / f"p{i}.oxview").open("w") as f:
                     json.dump(particle.get_oxview_json(), f,
                               indent=4 if not prettyprint_json else None)
 
