@@ -943,15 +943,21 @@ class PatchyOrigamiConverter:
             for i, particle in enumerate(particles):
                 particle.transform(tran=-poss_mins)
                 particle.box = poss_maxs - poss_mins
-
+                oxview_json = particle.get_oxview_json()
                 if clusters or color_by_type:
-                    particle.clear_clusters()
-                    for b in particle.iter_bases():
-                        particle.assign_base_to_cluster(b.uid, 0)
+                    for strand in oxview_json['systems'][0]['strands']:
+                        for monomer in strand['monomers']:
+                            particle_type = particle.linked_particle.type_id()
+                            if isinstance(color_by_type, dict):
+                                color = color_by_type[particle_type]
+                            else:
+                                color = selectColor(particle_type)  # get hex string code of color
+                            # oxview file format requires we convert the hex code to base 10
+                            monomer["color"] = int(color[1:], 16)
                 if not write_oxview_path.exists():
                     write_oxview_path.mkdir()
                 with (write_oxview_path / f"p{i}.oxview").open("w") as f:
-                    json.dump(particle.get_oxview_json(), f,
+                    json.dump(oxview_json, f,
                               indent=4 if not prettyprint_json else None)
 
 
