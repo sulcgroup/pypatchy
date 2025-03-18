@@ -821,6 +821,9 @@ class PatchyOrigamiConverter:
         Converts a scene containing joined MGL particles to an oxDNA model consisting of
         DNA origamis joined by sticky end handles.
         """
+        if self.is_track_conf_stickies() and len(self.sticky_book) > 0:
+            print("WARNING: attempting call of convert() on a system where some sticky ends have already been assigned! "
+                  "Program is probably about to crash.")
         assert len(self.patchy_scene.potentials) > 0, "You need to provide a patchy potential to use to identify patchy bonds"
         print("binding particles using 3p patches")
         self.bind_particles3p()
@@ -829,6 +832,9 @@ class PatchyOrigamiConverter:
         if self.is_track_conf_stickies() and unbound_stickies:
             self.add_unbound_stickies()
         print("Done!")
+
+    # "convert" is actually a terrible name
+    add_handle_linkings = convert
 
     def dump_monomers(self, fp: Union[None, Path, str] = None, only_present=False):
         """

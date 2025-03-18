@@ -285,6 +285,10 @@ class Structure:
     def is_multifarious(self) -> bool:
         return not self.is_connected()
 
+    def iter_components(self) -> Generator[Structure, None, None]:
+        for cc in nx.connected_components(self.graph):
+            yield Structure(graph=cc)
+
     def num_vertices(self) -> int:
         return len(self.graph.nodes)
 
