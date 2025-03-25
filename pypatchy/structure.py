@@ -628,6 +628,10 @@ class GenericTypedStructure(TypedStructure):
         })
         return sub
 
+    def iter_components(self) -> Generator[Structure, None, None]:
+        for cc in nx.connected_components(self.graph.to_undirected()):
+            yield GenericTypedStructure(graph=self.graph.subgraph(cc), types={v: t for v, t in self.particle_types.items() if v in cc})
+
 
 def calcEmptyFromTop(top: Iterable[tuple[int, int, int, int]]) -> list[tuple[int, int]]:
     """

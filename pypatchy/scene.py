@@ -93,8 +93,8 @@ class Scene(ABC):
         """
         coords = self.particle_coords()
         maxs = coords.max(initial=-np.inf, axis=0)
-        mins = coords.min(initial=np.inf, axis=1)
-        return np.array(zip(mins, maxs))
+        mins = coords.min(initial=np.inf, axis=0)
+        return np.array(list(zip(mins, maxs)))
 
     def particle_coords(self) -> np.ndarray:
         return np.stack([
