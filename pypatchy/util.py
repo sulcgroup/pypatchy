@@ -45,7 +45,7 @@ def get_log_dir() -> Path:
 
 cfg = configparser.ConfigParser()
 if not (get_local_dir() / "settings.cfg").exists():
-    raise ImportError("Missing settings.cfg file! expected to find file in {get_local_dir() / settings.cfg'}")
+    raise ImportError(f"Missing settings.cfg file! expected to find file in {Path(get_local_dir() / 'settings.cfg')}")
 cfg.read(get_local_dir() / 'settings.cfg')
 
 
@@ -56,7 +56,7 @@ def tlm_data_dir() -> Union[None, Path]:
     if "tlm_data_dir" in cfg["ANALYSIS"]:
         return Path(cfg["ANALYSIS"]["tlm_data_dir"])
     else:
-        return None
+        raise ValueError("No data storage directory specifid in ~/.pypatchy/settings.cfg! Set with tlm_data_dir=path/to/my/directory")
 
 def get_spec_json(name: str, folder: str) -> dict:
     try:
