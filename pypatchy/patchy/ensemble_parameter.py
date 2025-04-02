@@ -329,6 +329,6 @@ def parameter_value(key: str, val: Union[dict, str, int, float, bool]) -> Parame
         else:
             # if no type is specified this is a parameter group
             return ParamValueGroup(param_name=key, param_value={pkey: parameter_value(pkey, pval)
-                                                                for pkey, pval in val.items()}, valname=param_name)
+                                                                for pkey, pval in val.items() if pkey != "name"}, valname=param_name)
     else:
         return ParameterValue(key, val)
