@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import itertools
 import warnings
 from abc import ABC, abstractmethod
 from typing import Generator, Iterable, Callable
@@ -529,8 +530,12 @@ class TypedStructure(Structure, ABC):
     @abstractmethod
     def get_particle_types(self) -> dict[int, int]:
         """
-        returns the type
+        returns the map
         """
+        pass
+
+    @abstractmethod
+    def num_particle_types(self) -> int:
         pass
 
     def draw(self, pos=None):
@@ -597,6 +602,7 @@ class GenericTypedStructure(TypedStructure):
     minimal implementation of TypedStructure
     """
 
+    # keys are vertex (location) IDs, variables are particle type IDs
     particle_types: dict[int, int]
 
     def __init__(self, **kwargs):
@@ -615,6 +621,9 @@ class GenericTypedStructure(TypedStructure):
     def get_particle_types(self) -> dict[int, int]:
         return self.particle_types
 
+    def num_particle_types(self) -> int:
+        return len(set(self.particle_types.values()))
+
     def substructures(self) -> Generator[GenericTypedStructure]:
         for sub in super(GenericTypedStructure, self).substructures():
             yield GenericTypedStructure(graph=sub.graph, types={
@@ -632,6 +641,8 @@ class GenericTypedStructure(TypedStructure):
         for cc in nx.connected_components(self.graph.to_undirected()):
             yield GenericTypedStructure(graph=self.graph.subgraph(cc), types={v: t for v, t in self.particle_types.items() if v in cc})
 
+    def __str__(self) -> str:
+        return f"{self.bindings_list}\nParticle Typing: {self.get_particle_types()}"
 
 def calcEmptyFromTop(top: Iterable[tuple[int, int, int, int]]) -> list[tuple[int, int]]:
     """

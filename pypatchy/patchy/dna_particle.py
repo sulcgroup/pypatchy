@@ -1,19 +1,17 @@
 from __future__ import annotations
 
-import copy
 import itertools
 import math
 from dataclasses import dataclass
 from typing import Union
 
 import numpy as np
-from typing_extensions import override
 
 from .pl.plparticle import PLPatchyParticle
 from .pl.plpatch import PLPatch
 from ..patchy_base_particle import PatchyBaseParticle
 
-from ipy_oxdna.dna_structure import DNAStructure, DNABase, DNAStructureStrand, GEN_UIDS
+from ipy_oxdna.dna_structure import DNAStructure, DNABase, DNAStructureStrand
 
 
 class DNAParticle (DNAStructure):

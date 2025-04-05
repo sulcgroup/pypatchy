@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import copy
-import itertools
+import functools
 import math
-import typing
+from collections import Counter
 from pathlib import Path
 from typing import Union
 
@@ -12,17 +12,16 @@ import networkx as nx
 import numpy as np
 import re
 
+from scipy.spatial.transform import Rotation as R
 
 from ipy_oxdna.util import rotation_matrix
 
-
-from .effect import Effect, StringConditionalEffect, DynamicEffect, EnvironmentalEffect, EFFECT_CLASSES
-from ..util import rotAroundAxis, selectColor, powerset
+from .effect import Effect, StringConditionalEffect, DynamicEffect, EFFECT_CLASSES
+from ..util import rotAroundAxis, powerset
 
 from ..util import from_xyz, to_xyz, getSignedAngle
 from ..patchy_base_particle import PatchyBaseParticleType, BasePatchType, BaseParticleSet
 
-import drawsvg as draw
 
 FACE_NAMES = ("left", "right", "bottom", "top", "back", "front")
 RULE_ORDER = (
@@ -830,7 +829,7 @@ class PolycubesRule(BaseParticleSet):
         self.add_patch(patch)
         particle.add_patch(patch)
 
-    def add_patch(self, patch):
+    def add_patch(self, patch: PolycubesPatch):
         if patch.get_id() is not None and patch.get_id() != -1:
             assert patch.get_id() == self.num_patches()
         else:
@@ -957,5 +956,69 @@ class PolycubesRule(BaseParticleSet):
                 sat_vars.append( f"B({colormap[color]},{colormap[-color]})")
         return sat_vars
 
+    def __hash__(self) -> int:
+        return hash(str(self))
+
+    @functools.cache
+    def to_canonical(self) -> PolycubesRule:
+        """
+        converts the rule to a standardized "canonoical" form by rotating cube types, changing cube type order,
+        and color ordering
+        This is useful for comparing rules that have the same pattern of interactions expressed in different color
+        enumerations and cube type rotations
+        function written in part by catGPT but I had to refise heavily
+        """
+
+        # Step 1: Count all color occurrences
+        color_counts = Counter()
+        for patch in self.patches():
+            c = patch.color()
+            if c != 0:
+                color_counts[c] += 1
+
+        # Step 2: Build deterministic color map based on frequency then value
+        sorted_colors = sorted(color_counts.items(), key=lambda x: (-x[1], x[0]))
+        color_map = {}
+        next_color = 1
+        for original_color, _ in sorted_colors:
+            if original_color > 0 and original_color not in color_map:
+                color_map[original_color] = next_color
+                color_map[-original_color] = -next_color
+                next_color += 1
+
+        # Step 3: Apply color remapping to a copy of the rule
+        recolored = copy.deepcopy(self)
+        for patch in recolored.patches():
+            c = patch.color()
+            if c != 0:
+                patch.set_color(color_map[c])
+
+        # Step 4: Canonicalize cube orientation by finding minimal string over all rotations
+        cube_rotations = [np.round(r).astype(int) for r in R.create_group('O').as_matrix()]
+        canonical_cubes = []
+        for cube in recolored.particles():
+            best_str = None
+            best_cube = None
+            for r in cube_rotations:
+                cpy = copy.deepcopy(cube)
+                cpy.rotate(r)
+                s = cpy.to_string(force_static=False)
+                if best_str is None or s < best_str:
+                    best_str = s
+                    best_cube = cpy
+            canonical_cubes.append(best_cube)
+
+        # Step 5: Sort canonical cubes by string representation
+        canonical_cubes.sort(key=lambda c: c.to_string(force_static=False))
+
+        # Step 6: Build the final canonical rule
+        canonical_rule = PolycubesRule(nS=0)
+        for cube in canonical_cubes:
+            canonical_rule.add_particle(cube)
+            for patch in cube.patches():
+                patch.set_type_id(len(canonical_rule.patches()))
+                canonical_rule.add_patch(patch)
+
+        return canonical_rule
 
 # TODO: integrate with C++ TLM / Polycubes
