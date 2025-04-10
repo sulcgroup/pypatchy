@@ -538,6 +538,23 @@ class TypedStructure(Structure, ABC):
     def num_particle_types(self) -> int:
         pass
 
+    def homomorphisms(self, structure: TypedStructure) -> Generator[bool, StructuralHomomorphism]:
+        for homomorphism in super().homomorphisms(structure):
+            all_locations_good = True
+            for location in self.vertices():
+                # if the homomorphism doesn't map correctly for particle types at this location
+                if structure.particle_type(homomorphism.map_location(location)) != self.particle_type(location):
+                    all_locations_good = False
+                    break
+            # if did not find any type-mismatch location, yield the homomorphism
+            if all_locations_good:
+                yield homomorphism
+            # keep looking for homomorphisms
+        # yield an end todo use generatorexit?
+        yield False
+
+
+
     def draw(self, pos=None):
         """
         Draws the MultiDiGraph with matplotlib.
