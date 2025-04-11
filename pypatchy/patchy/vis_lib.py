@@ -369,16 +369,18 @@ def plot_energy(e: PatchySimulationEnsemble,
                 data_identifier: PatchySimDescriptor = tuple(),
                 curve_color_param: str = "T",
                 curve_stroke_w_param: Union[str, None] = None,
+                curve_stroke_style_param: Union[str, None] = None,
                 load_energy_step_name: str = "load_energies",
                 e_type: str = "te",
-                t_range: Union[tuple[int, int], None] = None
+                t_range: Union[tuple[int, int], None] = None,
+                log_y: bool = False,
+                curve_alpha: float = 1.
                 ):
     """
     quick function to plot energies
     """
 
     if t_range is not None:
-        # todo: make work
         data = e.get_data(load_energy_step_name, data_identifier, time_steps=range(*t_range))
     else:
         data = e.get_data(load_energy_step_name, data_identifier)
@@ -387,56 +389,70 @@ def plot_energy(e: PatchySimulationEnsemble,
     if t_range is not None:
         df = df[(t_range[0] <= df["timepoint"]) & (df["timepoint"] <= t_range[1])]
 
-    # Assuming df is your DataFrame with the necessary columns
-    if curve_stroke_w_param is not None:
-        sortby = [curve_color_param, curve_stroke_w_param, 'timepoint']
-    elif e.is_multiselect(data_identifier):
+    sortby = ['timepoint']
+    if e.is_multiselect(data_identifier):
         sortby = [curve_color_param, 'timepoint']
-    else:
-        sortby = ['timepoint']
+    if curve_stroke_w_param:
+        sortby.insert(0, curve_stroke_w_param)
+    if curve_stroke_style_param:
+        sortby.insert(0, curve_stroke_style_param)
     df = df.sort_values(by=sortby)
 
-    if curve_stroke_w_param is not None:
-        line_widths = np.linspace(1, 3, len(np.unique(df[curve_stroke_w_param])))
+    if curve_stroke_w_param:
+        unique_w = np.unique(df[curve_stroke_w_param])
+        line_widths = np.linspace(1, 3, len(unique_w))
+        width_map = dict(zip(unique_w, line_widths))
+    if curve_stroke_style_param:
+        unique_styles = np.unique(df[curve_stroke_style_param])
+        style_list = ['-', '--', '-.', ':']  # fallback if >4 styles needed
+        style_map = dict(zip(unique_styles, style_list * ((len(unique_styles) // 4) + 1)))
 
-    # Prepare color map for temperature differentiation
     plt.figure(figsize=(10, 6))
-
     if curve_color_param in df:
         colors = plt.cm.viridis(np.linspace(0, 1, len(np.unique(df[curve_color_param]))))
+        color_map = dict(zip(np.unique(df[curve_color_param]), colors))
 
-        for i, param1 in enumerate(np.unique(df[curve_color_param])):
+        for param1 in np.unique(df[curve_color_param]):
             subset_param1 = df[df[curve_color_param] == param1]
-            if curve_stroke_w_param is not None:
-                for j, param2 in enumerate(np.unique(df[curve_stroke_w_param])):
-                    subset = subset_param1[subset_param1[curve_stroke_w_param] == param2]
-
-                    # Select line width based on PATCHY_alpha index
-                    line_width = line_widths[j]
-
-                    plt.plot(subset['timepoint'], subset[e_type],
-                             label=f'{curve_color_param}={param1}, {curve_stroke_w_param}={param2}',
-                             color=colors[i], linewidth=line_width)
-            else:
-                plt.plot(subset_param1['timepoint'], subset_param1[e_type], label=f'{curve_color_param}={param1}',
-                         color=colors[i])
+            for group in subset_param1.groupby([curve_stroke_w_param, curve_stroke_style_param] if curve_stroke_w_param and curve_stroke_style_param else
+                                                [curve_stroke_w_param] if curve_stroke_w_param else
+                                                [curve_stroke_style_param] if curve_stroke_style_param else
+                                                [None]):
+                _, subset = group
+                lw = width_map[subset[curve_stroke_w_param].iloc[0]] if curve_stroke_w_param else 1.5
+                ls = style_map[subset[curve_stroke_style_param].iloc[0]] if curve_stroke_style_param else '-'
+                label_parts = [f'{curve_color_param}={param1}']
+                if curve_stroke_w_param:
+                    label_parts.append(f'{curve_stroke_w_param}={subset[curve_stroke_w_param].iloc[0]}')
+                if curve_stroke_style_param:
+                    label_parts.append(f'{curve_stroke_style_param}={subset[curve_stroke_style_param].iloc[0]}')
+                if log_y:
+                    subset[e_type] = -subset[e_type]
+                plt.plot(subset['timepoint'], subset[e_type], label=', '.join(label_parts),
+                         color=color_map[param1], linewidth=lw, linestyle=ls, alpha=curve_alpha)
     else:
         plt.plot(df["timepoint"], df[e_type])
 
-    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0.)
+    plt.tight_layout(rect=[0, 0, 0.8, 1])  # leave space on right for legend
+    plt.legend(loc='center left', bbox_to_anchor=(1.02, 0.5), borderaxespad=0.)
     plt.title('Energy vs Timepoint')
     plt.xlabel('Timepoint')
     if e_type == "te":
-        plt.ylabel('Total Energy')
+        y_label = 'Total Energy'
     elif e_type == "pe":
-        plt.ylabel('Potential Energy')
+        y_label = 'Potential Energy'
     elif e_type == "ke":
-        plt.ylabel("Kinetic Energy")
+        y_label = "Kinetic Energy"
     else:
-        raise Exception(f"Unregognized energy idenitfier {e_type}")
+        raise Exception(f"Unrecognized energy identifier {e_type}")
+    if log_y:
+        y_label = "-log " + y_label
+        plt.yscale("log")
+    plt.ylabel(y_label)
     plt.grid(True)
     plt.tight_layout()
     plt.show()
+
 
 
 def plot_energies(e: PatchySimulationEnsemble, sim: PatchySimulation,
