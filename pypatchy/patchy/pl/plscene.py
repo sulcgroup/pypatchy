@@ -171,16 +171,21 @@ class PLPSimulation(Scene, CellLists):
         # print 'Adding ', particle.cm_pos
         # please god let this be inboxed
         assert not boltzmann or self.T() > 0
+        e = 0.
         for p2 in self.interaction_particles(particle.position()):
-            e = self.interaction_energy(particle, p2)
-            if boltzmann:  # enable stochastic checking
-                # boltzmann factor = e^(-energy / kT)
+            e += self.interaction_energy(particle, p2)
+        if boltzmann:  # enable stochastic checking
+            # boltzmann factor = e^(-energy / kT)
+            try:
                 boltzmann_factor = math.exp(-e / self.T())
                 # if boltzmann factor is less than rng 0:1.0
                 if boltzmann_factor < random.random():
                     return True
-            elif e > 0:  # TODO: better energy cutoff?
+            except OverflowError:
+                # if we get an overflow error in the boltmann factor, that means e is VERY LARGE
                 return True
+        elif e > 0:  # TODO: better energy cutoff?
+            return True
 
             # dist = self.dist_2particles(particle, p)
             # # print ' Looking at distance from ', p.cm_pos,dist

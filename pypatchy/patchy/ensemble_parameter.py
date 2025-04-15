@@ -70,7 +70,10 @@ class ParamValueGroup(ParameterValue):
             return val.param_name in self.param_value and self.param_value[val.param_name]
 
     def __eq__(self, other: ParameterValue):
-        return isinstance(other, ParamValueGroup) and all([key in self and self[key] == val
+        if self.param_name == other.param_name:
+            return self.value_name() == other.value_name()
+        else:
+            return isinstance(other, ParamValueGroup) and all([key in self and self[key] == val
                                                            for key, val in other.param_value.items()])
 
     def str_verbose(self) -> str:
