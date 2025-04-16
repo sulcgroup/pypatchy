@@ -223,6 +223,9 @@ class PLBaseWriter(ABC):
         pass
 
     def write_conf(self, scene: PLPSimulation, p: Path):
+        """
+        writes a conf
+        """
         assert scene.get_conf() is not None
         conf = scene.get_conf()
         rr.write_conf(str(self.directory() / p), conf)
@@ -884,7 +887,8 @@ class LWriter(PLBaseWriter):
         init_conf = kwargs["conf_file"]
 
         interactions_file = kwargs["DPS_interaction_matrix_file"]
-        self.export_interaction_matrix(particles.interaction_matrix(), interactions_file)
+        # self.export_interaction_matrix(particles.interaction_matrix(), interactions_file)
+        self.export_interaction_matrix(particles.patches(), interactions_file)
 
         self.write_conf(scene, init_conf)
         self.write_top(self.get_scene_top(scene), init_top)
@@ -900,27 +904,27 @@ class LWriter(PLBaseWriter):
             "DPS_interaction_matrix_file": str(interactions_file)
         }
 
-    def export_interaction_matrix(self, mat: InteractionMatrix, filename: str):
-        with self.file(filename, "w") as f:
-            f.writelines(
-                [
-                    f"patchy_eps[{c1}][{c2}] = {strength}\n" for (c1, c2), strength in mat
-                    # use geometric mean of patch strengths, best for backwards compatibility
-                    # f"patchy_eps[{p1.type_id()}][{p2.type_id()}] = {sqrt(p1.strength() * p2.strength()) * mat[p1.color(), p2.color()]}\n"
-                    # for p1, p2 in itertools.combinations(patches, 2)
-                    # if mat[p1.color(), p2.color()]
-                ]
-            )
-
-    # def export_interaction_matrix(self, patches: list[PLPatch], filename: str):
+    # def export_interaction_matrix(self, mat: InteractionMatrix, filename: str):
     #     with self.file(filename, "w") as f:
     #         f.writelines(
     #             [
-    #                 f"patchy_eps[{p1.type_id()}][{p2.type_id()}] = {p1.strength()}\n"
-    #                 for p1, p2 in itertools.combinations(patches, 2)
-    #                 if p1.color() == -p2.color()
+    #                 f"patchy_eps[{c1}][{c2}] = {strength}\n" for (c1, c2), strength in mat
+    #                 # use geometric mean of patch strengths, best for backwards compatibility
+    #                 # f"patchy_eps[{p1.type_id()}][{p2.type_id()}] = {sqrt(p1.strength() * p2.strength()) * mat[p1.color(), p2.color()]}\n"
+    #                 # for p1, p2 in itertools.combinations(patches, 2)
+    #                 # if mat[p1.color(), p2.color()]
     #             ]
     #         )
+
+    def export_interaction_matrix(self, patches: list[PLPatch], filename: str):
+        with self.file(filename, "w") as f:
+            f.writelines(
+                [
+                    f"patchy_eps[{p1.type_id()}][{p2.type_id()}] = {p1.strength()}\n"
+                    for p1, p2 in itertools.combinations(patches, 2)
+                    if p1.color() == -p2.color()
+                ]
+            )
 
     class LPatchyTopology(PLBaseWriter.PatchyTopology):
         """
