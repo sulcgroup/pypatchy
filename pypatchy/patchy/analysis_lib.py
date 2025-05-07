@@ -1,37 +1,32 @@
 import json
-import pickle
 import re
-from pathlib import Path
-from typing import Union
+import warnings
+from typing import TextIO
 
 import networkx as nx
-import numpy as np
-import pandas as pd
+
 from ipy_oxdna.observable import Observable
 from oxDNA_analysis_tools.UTILS.RyeReader import get_confs, describe, inbox
 from oxDNA_analysis_tools.UTILS.data_structures import Configuration
+from pypatchy.patchy.pl.patchyio import PLBaseWriter
+from pypatchy.patchy.pl.plparticle import PLPatchyParticle
+from pypatchy.patchy.pl.plparticleset import PLParticleSet
 
-from pypatchy.patchy.simulation_specification import PatchySimulation
-
-from .ensemble_parameter import EnsembleParameter
 from .simulation_ensemble import PatchySimulationEnsemble
 from .stage import Stage
-from ..analpipe.analysis_pipeline_step import AnalysisPipelineStep, AggregateAnalysisPipelineStep, AnalysisPipelineHead, \
-    PipelineDataType, PipelineData
+from ..analpipe.analysis_pipeline_step import *
 from .patchy_sim_observable import PatchySimObservable
-from pypatchy.analpipe.yield_analysis_target import ClusterCategory
+from ..analpipe.yield_analysis_target import ClusterCategory
 
-from pypatchy.analpipe.yield_analysis_target import YieldAnalysisTarget
+from ..analpipe.yield_analysis_target import YieldAnalysisTarget
 
-from ..analpipe.analysis_data import PDPipelineData, ObjectPipelineData, TIMEPOINT_KEY, load_cached_pd_data, \
-    load_cached_object_data, RawPipelineData, MissingCommonDataError
+from ..analpipe.analysis_data import *
 
-import drawsvg as draw
-
-from pypatchy.patchy.pl.patchyio import get_writer
 from ..polycubeutil.polycubesRule import PolycubesRule
 from ..polycubeutil.polycube_structure import PolycubeStructure
+from ..structure import TypedStructure
 from ..util import get_input_dir
+
 
 # this file contains classes that are useful in analysis, but aren't required by other PyPatchy modules
 # all classes in this document should extend AnalysisPipelineStep
@@ -142,6 +137,7 @@ class LoadEnergies(AnalysisPipelineHead):
     POTENTIAL_ENERGY_KEY = "pe"
     KINETIC_ENERGY_KEY = "ke"
     TOTAL_ENERGY_KEY = "te"
+
     # bad things happen if we try to recompute. i could try to solve or i could Not
 
     def __init__(self, step_name: str, **kwargs):
@@ -153,7 +149,6 @@ class LoadEnergies(AnalysisPipelineHead):
             raise Exception("Input tsteps for energy are hardcoded and cannot be set manually")
         super(LoadEnergies, self).__init__(**kwargs)
         self.force_recompute = True
-
 
     def get_data_in_filenames(self) -> list[str]:
         return ["energy_file"]
@@ -173,7 +168,7 @@ class LoadEnergies(AnalysisPipelineHead):
 
 class BlobsFromClusters(AnalysisPipelineHead):
     """
-    Analysis operation that reads in the text file produced by the observable PLCluster
+    Analysis operation that reads in the text file produced by the observable ?????
     and produces a list of lists of lists of particle types
     """
 
@@ -215,6 +210,104 @@ class BlobsFromClusters(AnalysisPipelineHead):
                  output_tstep: Union[int, None] = None):
         super().__init__(name, int(source.print_every), output_tstep)
         self.source_observable = source
+
+
+class GraphsFromPatchyBonds(AnalysisPipelineHead):
+    source_observable: Observable
+
+    def get_output_data_type(self) -> PipelineDataType:
+        return PipelineDataType.PIPELINE_DATATYPE_GRAPH
+
+    def __init__(self,
+                 name: str,
+                 source: Observable,
+                 output_tstep: Union[int, None] = None):
+        super().__init__(name, int(source.print_every), output_tstep)
+        self.source_observable = source
+
+    def get_data_in_filenames(self) -> list[str]:
+        return [self.source_observable.file_name]
+
+    def load_cached_files(self, f: Path) -> PipelineData:
+        assert f.is_file()
+        with f.open("rb") as datafile:
+            return pickle.load(datafile)
+
+    def exec(self, _, __, stages: list[Stage], graphs_files: list[Path]) -> ObjectPipelineData:
+        """
+        executes analysis step
+        """
+        graphs = {}
+        # iter stages
+        for stage, graph_file in zip(stages, graphs_files):
+            # first read stage topology
+            stage.getctxt().writer.set_directory(stage.getctxt().folder_path(stage.spec(), stage))
+            top: PLBaseWriter.PatchyTopology = stage.getctxt().writer.read_top(
+                stage.getctxt().sim_stage_get_param(stage.spec(),
+                                                    stage,
+                                                    "topology"))
+            particle_types: PLParticleSet = stage.getctxt().sim_get_particles_set(stage.spec())
+
+            # open stage graph file
+            with graph_file.open("r") as f:
+                # find stage start time
+                while True:  # AAARRRGHHH
+                    line = f.readline()
+                    if not line:
+                        # if line is empty, we are done read file
+                        break
+                    assert line.startswith("# step"), f"Expected header line beginning with `# step`, got line `{line}`"
+                    _, _, step_count, _, n_particles = line.split()
+                    step_count = int(step_count)
+                    n_particles = int(n_particles)
+                    assert n_particles == stage.num_particles(), "Mismatch between number of particles in stage vs cluster data fil."
+
+                    if step_count % self.output_tstep == 0:
+                        graphs[step_count] = self.parse_graph(f, n_particles, particle_types, top)
+
+                    else:
+                        f.seek(2 * n_particles + 1,
+                               1)  # if we are not reading    this timepoint, jump ahead to the next one
+        return ObjectPipelineData(graphs)
+
+    def parse_graph(self, f: TextIO, n_particles: int, particle_types: PLParticleSet,
+                    top: PLBaseWriter.PatchyTopology) -> nx.MultiDiGraph:
+        """
+        parses a timepoint of a PatchyBonds input file
+        """
+        # skip timepoints that aren't multiples of the specified timestep
+        G = nx.MultiDiGraph()
+        for n in range(n_particles):
+            G.add_nodes_from(range(n_particles))
+        for p_idx in range(n_particles):
+            particle_type: PLPatchyParticle = particle_types.particle(top.get_particles_types()[p_idx])
+            G.nodes[p_idx]["particle_type"] = particle_type
+            line = f.readline()
+            # counts of number of bonds formed by each patch
+            occupancies = [int(i) for i in line.split()]
+            assert len(occupancies) == particle_type.num_patches(), \
+                "Mismatch between number of patches specificed in particle set and clusters file"
+            line = f.readline()
+            # ids of particles bound to the particle
+            # IT INDEXES FROM 1 FOR SOME REASON!?!?!?!?
+            ids = [int(i) - 1 for i in line.split()]
+            assert len(ids) == sum(occupancies), "Mismatch between bond count and total occupancies!"
+            i = 0
+            # skip particles w/ 0 bonds
+            if sum(occupancies) > 0:
+                # convert bond data to graph edges
+                for patch, n_bonds in zip(particle_type.patches(), occupancies):
+                    for bond in range(n_bonds):
+                        assert -1 < ids[i] < n_particles
+                        G.add_edge(p_idx, ids[i], patch=patch)
+                        i += 1
+                assert i == len(ids)
+        f.readline()
+        # check graph
+        for u, v, k in G.edges(keys=True):
+            if not G.has_edge(v, u):
+                warnings.warn(f"Missing reverse edge ({v}, {u}) for edge ({u}, {v})!")
+        return G
 
 
 class GraphsFromClusterTxt(AnalysisPipelineHead):
@@ -292,6 +385,74 @@ class GraphsFromClusterTxt(AnalysisPipelineHead):
                            y=y + 7))  # TODO: more info?
         y += 10
         g.append(draw.Text("TODO: write description!", font_size=7, x=1, y=y + 7))
+        y += 28
+        return (w, y), g
+
+
+
+class MatchGraphToCrystal(AnalysisPipelineStep):
+    """
+    Compares graphs of clusters to a specified target graph, and
+    produces a Pandas DataFrame of results
+    each row in the dataframe corresponds to a cluster graph at a timepoint
+    The dataframe has four columns:
+        an integer index
+        timepoint (int)
+        size ratio (size of graph / size of target)
+        category (see ClusterCategory enum at the top of this file)
+    """
+
+    target: TypedStructure
+
+    def __init__(self,
+                 name: str,
+                 target: TypedStructure,
+                 input_tstep: Union[int, None] = None,
+                 output_tstep: Union[int, None] = None):
+        super().__init__(name, input_tstep, output_tstep)
+        self.target = target
+
+    CLUSTER_CATEGORY_KEY = "clustercategory"
+    SIZE_RATIO_KEY = "sizeratio"
+
+    load_cached_files = load_cached_pd_data
+
+    def exec(self, input_data: ObjectPipelineData) -> PDPipelineData:
+        cluster_cats_data = {
+            TIMEPOINT_KEY: [],
+            self.CLUSTER_CATEGORY_KEY: [],
+            self.SIZE_RATIO_KEY: []
+        }
+        # loop timepoints in input graph data
+        for timepoint in input_data.get():
+            # check output tstep
+            if timepoint % self.output_tstep == 0:
+                # loop cluster graphs at this timepoint
+                timepoint_data: nx.Graph = input_data.get()[timepoint]
+                for cluster_nodes in nx.connected_components(nx.to_undirected(timepoint_data)):
+                    g = timepoint_data.subgraph(cluster_nodes)
+                    cat, sizeFrac = self.target.compare(g)
+
+                    # assign stuff
+                    cluster_cats_data[TIMEPOINT_KEY].append(timepoint)
+                    cluster_cats_data[self.CLUSTER_CATEGORY_KEY].append(cat)
+                    cluster_cats_data[self.SIZE_RATIO_KEY].append(sizeFrac)
+        return PDPipelineData(pd.DataFrame.from_dict(data=cluster_cats_data),
+                              input_data.trange()[input_data.trange() % self.output_tstep == 0])
+
+    def get_output_data_type(self):
+        return PipelineDataType.PIPELINE_DATATYPE_DATAFRAME
+
+    def draw(self) -> tuple[tuple[int, int], draw.Group]:
+        (w, y), g = super().draw()
+        g.append(draw.Rectangle(0, y, w, 40, stroke="black", stroke_width=1, fill="tan"))
+        g.append(draw.Text(f"Target topology: {self.target.name}", font_size=7, x=1, y=y + 7))
+        y += 12
+        g.append(draw.Text("This step classifies cluster graphs as 'match', 'smaller subset',\n"
+                           "'smaller not subset', or 'non-match'. The step uses igraph's \n"
+                           "`get_subisomorphisms_vf2` function. The step produces a dataframe \n"
+                           "where each row is a cluster with columns for category, size ratio, \n"
+                           "and timepoint.", font_size=7, x=1, y=y + 7))
         y += 28
         return (w, y), g
 

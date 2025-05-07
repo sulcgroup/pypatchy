@@ -1011,6 +1011,8 @@ class PatchySimulationEnsemble(Analyzable):
         for key, value in kwargs.items():
             if isinstance(value, (str, float, bool, int)):
                 self.const_params.append(ParameterValue(key, value))
+            elif isinstance(value, ParameterValue):
+                self.const_params.append(value)
             else:
                 raise Exception(f"invalid data type {type(value)} provided to add_params")
 
@@ -1159,11 +1161,17 @@ class PatchySimulationEnsemble(Analyzable):
         if traj_file.exists() and os.stat(traj_file).st_size > 0:
             if step is None:
                 step = self.time_length(sim)
-            conf_interval = self.sim_stage_get_param(sim, stage, "print_conf_interval")
-            assert step % conf_interval == 0
-            scene: PLPSimulation = self.writer.read_scene(top_file.name, traj_file.name,
-                                                          self.sim_get_particles_set(sim),
-                                                          step // conf_interval - 1)
+            # if we have requested last conf
+            if self.time_length(sim) == step:
+                traj_file = self.sim_get_stage_last_conf(sim, stage)
+                scene: PLPSimulation = self.writer.read_scene(top_file.name, traj_file.name,
+                                                              self.sim_get_particles_set(sim))
+            else:
+                conf_interval = int(self.sim_stage_get_param(sim, stage, "print_conf_interval"))
+                assert step % conf_interval == 0
+                scene: PLPSimulation = self.writer.read_scene(top_file.name, traj_file.name,
+                                                              self.sim_get_particles_set(sim),
+                                                              step // conf_interval - 1)
         else:
             assert step is None, f"Could not find trajectory file {str(traj_file)}, " \
                                  f"but timestep was explicitly specified."
@@ -1177,12 +1185,13 @@ class PatchySimulationEnsemble(Analyzable):
         ptypes_dir = self.writer.read_particle_types(**{key: self.sim_stage_get_param(sim, stage, key)
                                                         for key in self.writer.reqd_args()
                                                         })
-        if ptypes_dir != self.sim_get_particles_set(sim):
-            scene.set_particle_types(ptypes_dir)
-            # todo: custom exception
-            raise Exception("Mismatch between particle types written in directory "
-                                                             " and particle types specified in setup files!"
-                                                             " Or old data, that is also possible.")
+
+        # if ptypes_dir != self.sim_get_particles_set(sim):
+        #     scene.set_particle_types(ptypes_dir)
+        #     # todo: custom exception
+        #     raise Exception("Mismatch between particle types written in directory "
+        #                                                      " and particle types specified in setup files!"
+        #                                                      " Or old data, that is also possible.")
 
         scene.set_temperature(self.sim_stage_get_param(sim, stage, "T"))
         for potential in self.get_interaction_potentials(sim):
@@ -1364,7 +1373,7 @@ class PatchySimulationEnsemble(Analyzable):
 
             # write requisite top, patches, particles files
             self.get_logger().info("Writing .top, .txt, input, etc. files...")
-            self.write_setup_files(sim, stage_obj, gen_conf=gen_conf)
+            self.write_setup_files(sim, stage_obj)
             # write observables.json if applicble
             if EXTERNAL_OBSERVABLES:
                 self.get_logger().info("Writing observable json, as nessecary...")
@@ -1376,11 +1385,7 @@ class PatchySimulationEnsemble(Analyzable):
 
     def write_setup_files(self,
                           sim: PatchySimulation,
-                          stage: Union[str, Stage, None] = None,
-                          replacer_dict: Union[dict, None] = None,
-                          extras: Union[dict, None] = None,
-                          analysis: bool = False,
-                          gen_conf: bool = False):
+                          stage: Union[str, Stage, None] = None):
         """
         Writes any/all nessecary files
         """
@@ -1441,11 +1446,15 @@ class PatchySimulationEnsemble(Analyzable):
         # Todo: cut next line once we have this working
         scene_computed_energy = scene.get_potential_energy()
 
+        # initialize a local writer from ensemble writer
+        # todo: standardize this as the method to get writer object
+        writer = copy.deepcopy(self.writer)
+
         # grab args required by writer
         reqd_extra_args = {
-            a: self.sim_stage_get_param(sim, stage, a) for a in self.writer.reqd_args()
+            a: self.sim_stage_get_param(sim, stage, a) for a in writer.reqd_args()
         }
-        for key, value in self.writer.get_input_file_data(scene):
+        for key, value in writer.get_input_file_data(scene):
             # if we assign to input directly it will update input file, causing its own issues
             stage.sim.input.input_dict[key] = value
 
@@ -1453,11 +1462,11 @@ class PatchySimulationEnsemble(Analyzable):
 
         # write top, conf, and others
         # set writer directory to simulation folder path
-        self.writer.set_directory(self.folder_path(sim, stage))
-        self.writer.set_abs_paths(self.server_settings.absolute_paths)
+        writer.set_directory(self.folder_path(sim, stage))
+        writer.set_abs_paths(self.server_settings.absolute_paths)
         self.folder_path(sim, stage).mkdir(exist_ok=True)
-        files = self.writer.write(scene,
-                                  **reqd_extra_args)
+        files = writer.write(scene,
+                             **reqd_extra_args)
 
         # update top and dat files in replacer dict
         # replacer_dict.update(files)

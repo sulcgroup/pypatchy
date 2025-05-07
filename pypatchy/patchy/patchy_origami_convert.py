@@ -1,8 +1,6 @@
 import copy
 import json
 import math
-import os
-from copy import deepcopy
 from pathlib import Path
 from typing import Iterable, Union, Generator
 
@@ -19,11 +17,12 @@ from .pl.plpatchylib import mgl_to_pl
 from .pl.plparticle import PLPatchyParticle
 from .pl.plpatch import PLPatch
 from .pl.plscene import PLPSimulation
-from ipy_oxdna.dna_structure import construct_strands, BASE_BASE, rc, POS_BASE, DNAStructure, DNAStructureStrand
+from ipy_oxdna.dna_structure import construct_strands, BASE_BASE, rc, POS_BASE, DNAStructureStrand, load_oxview, \
+    load_dna_structure
 
-from random import choice
 import itertools
 
+from ..origami_deabstractor import OrigamiDeabstractor
 from ..patchy.mgl import MGLPatch, MGLScene
 from ..patchy_base_particle import PatchyBaseParticle
 from ..polycubeutil.polycubesRule import diridx, FACE_NAMES
@@ -114,26 +113,15 @@ def patch_idxs_to_bind(patch_id_1: int,
         range(patch_positions2.shape[0]))
 
 
-class PatchyOrigamiConverter:
+class PatchyOrigamiConverter(OrigamiDeabstractor):
     """
     This class facilitates the conversion of a patchy particle model (in MGL format) to
     a set of connected DNA origamis
     """
-    color_sequences: dict[Union[int, str], str]
-    bondcount: int
-    # map where the keys are patchy particle tpye IDs and the values are DNA type particles
-    particle_type_map: dict[int, DNAParticle]
-    patchy_scene: PLPSimulation
-    # mapping where keys are PL particle UIDs and values are DNA particles
-    dna_particles: dict[int, DNAParticle]
+
+    scene: PLPSimulation
     padding: float  # manually-entered extra spacing
     dist_ratio: float
-    sticky_length: Union[int, None]
-    check_strict_rc: bool = True
-    scale_factor: Union[float, None] = None
-    # "book" of sticky ends which have already been added to the scene, used
-    # to find un-added stickies and add them later
-    sticky_book: Union[set[tuple[int, int]], None] = set()
 
     def __init__(self,
                  scene: PLPSimulation,
@@ -141,12 +129,11 @@ class PatchyOrigamiConverter:
                  particle_delta: float = 1.2,
                  bond_length: float = 0.4,
                  cos_theta_max: float = 0.95,
-                 sticky_length: Union[None,int] = None,
+                 sticky_length: Union[None, int] = None,
                  padding: float = 1.0,
                  flexable_patch_distances: bool = False,
                  expected_num_edges: int = -1,
-                 rel_rms_tolerance=0.15
-                 ):
+                 rel_rms_tolerance=0.15):
         """
         Initializes this converter using a few required params and a lot of optional fine-tuning params
         Parameters:
@@ -161,77 +148,24 @@ class PatchyOrigamiConverter:
         """
 
         # set parameters
-        self.spacer_length = spacer_length
+        super().__init__(sticky_length, spacer_length=spacer_length, expected_num_edges=expected_num_edges)
         assert spacer_length is not None, "Cannot skip spacer length! To have no spacers, set spacer_length=0"
         self.particle_delta = particle_delta
         self.bond_length = bond_length
         self.cos_theta_max = cos_theta_max
-        self.sticky_length = sticky_length
 
-        # prep variables to use when building our structure
-        self.color_sequences = {}
-        self.color_match_overrides = {}
-        self.bondcount = 0
         self.padding = padding
         self.dist_ratio = None
-        self.dna_particles = None
 
         # inputs
         if isinstance(scene, MGLScene):
             scene = mgl_to_pl(scene)
-        self.patchy_scene = scene
-
-        self.particle_type_map = dict()
+        self.scene = scene
 
         # optional parameters
         self.flexable_patch_distances = flexable_patch_distances
-        self.expected_num_edges = expected_num_edges
         assert not flexable_patch_distances or expected_num_edges > 0
         self.rel_rms_tolerance = rel_rms_tolerance
-
-    def set_track_conf_stickies(self, bNewVal):
-        if bNewVal:
-            self.sticky_book = set()
-        else:
-            self.sticky_book = None
-    def is_track_conf_stickies(self) ->bool:
-        return self.sticky_book is not None
-
-    def get_dna_origami(self,
-                        particle_type: Union[str, int, PatchyBaseParticle]) -> DNAParticle:
-        if isinstance(particle_type, PatchyBaseParticle):
-            return self.get_dna_origami(particle_type.get_type())
-        else:
-            assert particle_type in self.particle_type_map, f"Particle type {particle_type} not in type map!"
-            return self.particle_type_map[particle_type]
-
-    def get_full_conf(self, clusters=False) -> DNAStructure:
-        """
-        Combines all structures together into a single DNAStructure
-        """
-        print("merging the topologies")
-        particles = self.get_particles()
-        if clusters:
-            for p in particles:
-                p.clear_clusters()
-                for b in p.iter_bases():
-                    p.assign_base_to_cluster(b.uid, 0)
-        merged_conf = sum(particles[1:], start=particles[0])
-        return merged_conf
-
-    def get_sticky_length(self) -> float:
-        """
-        This method is *not* a simple accessor for self.sticky_length!
-        If sticky end length has been hard coded it will simply return self.sticky_length
-        If sticky length is not hardcoded it will return the average sticky length
-        this is important for computing spacing when positioning particles
-        """
-        if self.sticky_length is not None:
-            return self.sticky_length
-        else:
-            assert len(
-                self.color_sequences) > 0, "Can't dynamically calculate sticky end length without assigned sticky ends!"
-            return sum([len(seq) for seq in self.color_sequences.values()]) / len(self.color_sequences)
 
     def check_rms(self, testval: float, dna: DNAParticle) -> float:
         """
@@ -263,7 +197,7 @@ class PatchyOrigamiConverter:
             dna_distance = (2 * self.spacer_length + self.get_sticky_length()) * BASE_BASE
 
             # WARNING! this algorithm could become very intense very quickly for large scenes
-            for p1, p2 in self.patchy_scene.iter_bound_particles():
+            for p1, p2 in self.scene.iter_bound_particles():
                 # compute distance between two particles in the scene (mgl or pl)
                 particles_distance = dist(p1.position(), p2.position())
                 # technically radius() isn't a member of BaseParticle
@@ -294,85 +228,22 @@ class PatchyOrigamiConverter:
         return self.dist_ratio
 
     # TODO: write better?
-    def color_sequence(self, colorstr: str) -> str:
-        # if this color isn't in our color bank
-        if colorstr not in self.color_sequences:
-            # ...but its matching color is
-            if self.get_color_match(colorstr) in self.color_sequences:
-                # use the reverse compliment of the matching color sequenece
-                self.color_sequences[colorstr] = rc(self.color_sequence(self.get_color_match(colorstr)))
-                print(f"Assigning color {colorstr} sequence {self.color_sequences[colorstr]}"
-                      f" (reverse compliment of {self.get_color_match(colorstr)})")
-            else:
-                # if neither our color nor its match is in the color seqs, generate a new sequence
-                # todo: smarter?
-                assert self.sticky_length is not None, f"Auto-generation of sequences is off but you didn't provide a " \
-                                                       f"color sequence for {colorstr}"
-                self.color_sequences[colorstr] = "".join(
-                    choice(["A", "T", "C", "G"]) for _ in range(self.sticky_length))
-                print(f"Assigning color {colorstr} random sequence {self.color_sequences[colorstr]}")
-
-        return self.color_sequences[colorstr]
 
     def assign_color_sequence(self, color: int, seq: str, update_rc=True):
         """
         Assigns the color given by colorstr the specific sequence sequence specified
         Automatically assigns the corresponding color the reverse compliment
         """
-        if color not in self.patchy_scene.particle_types().interaction_matrix():
+        if color not in self.scene.particle_types().interaction_matrix():
             print(f"Color {color} not in scene particle types interaction matrix. Ignoring...")
         else:
             assert self.sticky_length is None or len(seq) == self.sticky_length, "Incompatible sequence length"
             self.color_sequences[color] = seq
             if update_rc:
-                interacting_colors = list(self.patchy_scene.particle_types().interaction_matrix().get_interacting_colors(color))
+                interacting_colors = list(self.scene.particle_types().interaction_matrix().get_interacting_colors(color))
                 assert len(interacting_colors) == 1
                 # assert self.patchy_scene.particle_types().interaction_matrix()[(color, -color)], "Color is not set to interact with its negative pairing in the interaction matrix!!"
                 self.color_sequences[-interacting_colors[0]] = rc(seq)
-
-
-    def assign_particles(self,
-                         dna: DNAParticle,
-                         *args: Union[str, PLPatchyParticle, int]):
-        """
-        Assigns a dna particle to one or more patchy particle types
-        """
-
-        # if no particle was provided, assume we're assigning the same DNA particle to
-        # all patchy particle types.
-        if not len(args):
-            patchy_types: list[PLPatchyParticle] = self.patchy_scene.particle_types().particles()
-        else:
-            patchy_types: list[PLPatchyParticle] = []
-            for a in args:
-                if isinstance(a, PLPatchyParticle):
-                    patchy_types.append(a)
-                else:
-                    ptype = self.patchy_scene.particle_types().particle(a)
-                    patchy_types.append(ptype)
-        # for each particle type
-        for patchy_type in patchy_types:
-            # make a replica of the dna particle to work on
-            dna_cpy = deepcopy(dna)
-            # assign dna particle in to particle type
-            self.particle_type_map[patchy_type.get_type()] = dna_cpy
-            # link patches
-            self.link_patchy_particle(patchy_type, dna_cpy)
-
-    def get_color_match(self, color: Union[int, str]) -> Union[int, str]:
-        if color in self.color_match_overrides:
-            return self.color_match_overrides[color]
-        else:
-            if isinstance(color, str):
-                if color.startswith("dark"):
-                    return color[4:]
-                else:
-                    return f"dark{color}"
-            else:
-                if not isinstance(color, int):
-                    raise TypeError(f"Invalid color type {type(color)}")
-                else:
-                    return -color
 
     def get_expected_pad_distance(self) -> float:
         return (self.get_sticky_length() + 2.0 * self.spacer_length) * POS_BASE
@@ -401,8 +272,8 @@ class PatchyOrigamiConverter:
         # assert (p.rotmatrix() == np.identity(3)).all(), "Cannot perform match on rotated patchy particle!"
         assert p.is_normd()
 
-        if self.patchy_scene.particle_types().has_udt_src():
-            n_patches_udt = self.patchy_scene.particle_types().get_src().particle(p.type_id()).num_patches()
+        if self.scene.particle_types().has_udt_src():
+            n_patches_udt = self.scene.particle_types().get_src().particle(p.type_id()).num_patches()
         else:
             # this is not ideal but we can derive the number of "source patches". badly.
             assert all([len(strand_ids) == len(dna.patch_strand_ids[0]) for strand_ids in dna.patch_strand_ids[1:]])
@@ -458,7 +329,7 @@ class PatchyOrigamiConverter:
                 # get strand IDs
                 strand_group = dna.patch_strand_ids[strand_group_idx]
                 # get the multidentate representation of the patch
-                patch_group = self.patchy_scene.particle_types().mdt_rep(udt_id)
+                patch_group = self.scene.particle_types().mdt_rep(udt_id)
                 assert all([(abs(p.patch_by_id(patch.get_id()).position() - patch.position()) < 1e-6).all() for patch in
                             patch_group])
                 # compute strand mapping
@@ -551,8 +422,8 @@ class PatchyOrigamiConverter:
         # load each patch on the patchy particle
         for patch in p.patches():
             # if patch is multidentate, get src patch id as map key
-            if self.patchy_scene.particle_types().is_multidentate():
-                patch_type_id = self.patchy_scene.particle_types().get_src_map().get_src_patch(patch).type_id()
+            if self.scene.particle_types().is_multidentate():
+                patch_type_id = self.scene.particle_types().get_src_map().get_src_patch(patch).type_id()
             else:
                 # use patch id as map key, will end up with identity mappigng
                 patch_type_id = patch.type_id()
@@ -638,51 +509,20 @@ class PatchyOrigamiConverter:
 
         return PatchyOriRelation(p, dna, best_rot, best_order, best_rms)
 
-    def ready_to_position(self) -> bool:
-        return all([ptype.get_type() in self.particle_type_map
-                    for ptype in self.patchy_scene.particle_types()])
-
-    def position_particles(self):
-        """
-        Positions particles?
-        IDK
-        """
-        assert self.ready_to_position()
-        self.dna_particles = dict()
-        # get scene particles
-        particles: list[PLPatchyParticle] = self.patchy_scene.particles()
-        pl = len(particles)
-        for i, particle in enumerate(particles):
-            # clone dna particle
-            origami: DNAParticle = deepcopy(self.get_dna_origami(particle))
-            # origami: DNAParticle = self.get_dna_origami(particle).clone()
-            print(f"{i}/{pl}", end="\r")
-            assert origami.linked_particle.matches(particle)
-            # align dna particle with patchy
-            origami.instance_align(particle)
-            scale_factor = self.get_scale_factor()
-            # scale factor tells us how to convert MGL distance units into our DNA model distances
-            # transform origami
-            origami.transform(tran=particle.position() * scale_factor)
-
-            # we finished the positioning
-            self.dna_particles[particle.get_uid()] = origami
-        print()
-
     def bind_particles3p(self):
         """
         Creates double-stranded linkers to bind particles together
         """
 
         # use pl function to iter bound particles
-        for p1, p2 in self.patchy_scene.iter_bound_particles():
+        for p1, p2 in self.scene.iter_bound_particles():
             p1_dna = self.get_dna_particle(p1)
             p2_dna = self.get_dna_particle(p2)
             assert p1_dna.linked_particle.get_uid() == p1.get_uid()
             assert p2_dna.linked_particle.get_uid() == p2.get_uid()
             found_bind_patch = False
             # iter pairs of patches that connect p1 to p2
-            for patch1, patch2 in self.patchy_scene.iter_binding_patches(p1, p2):
+            for patch1, patch2 in self.scene.iter_binding_patches(p1, p2):
                 self.bind_patches_3p(p1_dna,
                                      patch1,
                                      p2_dna,
@@ -794,28 +634,6 @@ class PatchyOrigamiConverter:
         if self.is_track_conf_stickies():
             self.sticky_book.add((particle.linked_particle.get_uid(), patch.type_id()))
 
-    def get_particles(self) -> list[DNAParticle]:
-        """
-        Returns DNA structures that correspond to particles
-        """
-        if self.dna_particles is None:
-            print("positioning particles")
-            self.position_particles()
-        return list(self.dna_particles.values())
-
-    def get_dna_particle(self, pl: Union[int, PLPatchyParticle]) -> DNAParticle:
-        """
-        Gets the DNA particle instace (not type) for a PL particle instance
-        """
-        # position particles if missing
-        self.get_particles()
-        if isinstance(pl, PLPatchyParticle):
-            return self.get_dna_particle(pl.get_uid())
-        else:
-            assert isinstance(pl, int)
-            assert pl in self.dna_particles
-            return self.dna_particles[pl]
-
     def convert(self, unbound_stickies: bool = True):
         """
         Converts a scene containing joined MGL particles to an oxDNA model consisting of
@@ -824,7 +642,7 @@ class PatchyOrigamiConverter:
         if self.is_track_conf_stickies() and len(self.sticky_book) > 0:
             print("WARNING: attempting call of convert() on a system where some sticky ends have already been assigned! "
                   "Program is probably about to crash.")
-        assert len(self.patchy_scene.potentials) > 0, "You need to provide a patchy potential to use to identify patchy bonds"
+        assert len(self.scene.potentials) > 0, "You need to provide a patchy potential to use to identify patchy bonds"
         print("binding particles using 3p patches")
         self.bind_particles3p()
         assert self.expected_num_edges is None or self.expected_num_edges == -1 or self.bondcount == self.expected_num_edges, \
@@ -835,51 +653,6 @@ class PatchyOrigamiConverter:
 
     # "convert" is actually a terrible name
     add_handle_linkings = convert
-
-    def dump_monomers(self, fp: Union[None, Path, str] = None, only_present=False):
-        """
-        Saves all dna particle types in their own .top and .dat files
-        """
-        # handle inputs
-        if fp is None:
-            # default to drop files in output dir
-            fp = get_output_dir()
-        elif isinstance(fp, str):
-            fp = Path(fp)
-            if not fp.is_absolute():
-                fp = get_output_dir() / fp
-        # make output directory if it doesn't already exist
-        if not fp.exists():
-            os.makedirs(fp)
-        # for each monomer
-        for ptype in self.particle_type_map.values():
-            # check that it actually exists in the scene, or that we've forced to dump all
-            if not only_present or self.patchy_scene.particle_type_counts()[ptype.linked_particle.get_type()] > 0:
-                # save monomer top and conf to file path
-                self.dump_monomer(ptype, fp)
-
-    def dump_monomer(self, ptype: DNAParticle, fp: Path):
-        assert ptype.has_linked(), "Cannot dump monomer for unlinked DNA particle"
-        # if np.abs(ptype.linked_particle.rotation() - np.identity(3)).sum() > 1e-6:
-        #     print("Warning: Particle has non-identity rotation! "
-        #           "Patch a1s are going to be messed up! But you can technically proceed")
-        cpy = copy.deepcopy(ptype)
-        # clone to add strands
-        # iter strand id map
-        for patch_id in cpy.patch_strand_map:
-            # particle types don't have sticky ends added until they're positioned so we need to add them
-            # here before we export
-            patch = cpy.linked_particle.patch_by_id(patch_id)
-            seq = "T" * self.spacer_length + self.color_sequence(patch.color())
-            # last-base a1 is a really bad method for doing strand vector, compute patch a1 instead
-            strand1, _ = construct_strands(seq,
-                                           start_pos=cpy.patch_strand(patch_id)[0].pos,
-                                           helix_direction=patch.a1())
-
-            cpy.patch_strand(patch_id).prepend(strand1[::-1])
-
-        cpy.export_top_conf(fp / (cpy.linked_particle.name() + ".top"),
-                            fp / (cpy.linked_particle.name() + ".dat"))
 
     def save_top_dat(self, write_top_path: Union[Path, str], write_conf_path: Union[Path, str]):
         if isinstance(write_top_path, str):
@@ -976,8 +749,8 @@ class PatchyOrigamiConverter:
                                                                    None,
                                                                    None]:
         if pl_type is None:
-            for p in self.patchy_scene.particle_types():
-                if incl_absent or self.patchy_scene.particle_type_counts()[p.get_type()] > 0:
+            for p in self.scene.particle_types():
+                if incl_absent or self.scene.particle_type_counts()[p.get_type()] > 0:
                     yield from self.iter_sticky_staples(p.get_type())
         elif isinstance(pl_type, PLPatchyParticle):
             yield from self.iter_sticky_staples(pl_type.get_type())
@@ -1012,7 +785,7 @@ class PatchyOrigamiConverter:
         for dna, strand_id, patch_id, strand in self.iter_sticky_staples(pl_type, incl_no_sticky, incl_absent):
             sz = f"Strand {strand_id} : 5' {strand.seq(True)} 3'"
             if patch_id is not None:
-                print(f"Patch {patch_id} (Color {self.patchy_scene.particle_types().patch(patch_id).color()}) : " + sz)
+                print(f"Patch {patch_id} (Color {self.scene.particle_types().patch(patch_id).color()}) : " + sz)
             else:
                 print(sz)
 
@@ -1082,8 +855,8 @@ class PatchyOrigamiConverter:
             if patch_id is not None:
                 seq_string_descriptor += f"_Patch{patch_id}"
                 if incl_original_patch_nums:
-                    patch_src = self.patchy_scene.particle_types().get_src_map().get_src_patch(
-                        self.patchy_scene.particle_types().patch(patch_id))
+                    patch_src = self.scene.particle_types().get_src_map().get_src_patch(
+                        self.scene.particle_types().patch(patch_id))
                     if is_polycube:
                         # disgusting hack which i hate
                         # todo: burn it with fire
@@ -1097,6 +870,7 @@ class PatchyOrigamiConverter:
 
         wb.save(fp)
 
+
 def show_scene_multigraph(scene: PLPSimulation):
     G = scene.compute_scene_multigraph(0)
 
@@ -1104,39 +878,42 @@ def show_scene_multigraph(scene: PLPSimulation):
     pos = nx.spring_layout(G)
 
     # Draw nodes
-    plt.figure(figsize=(8, 6))
+    fig, ax = plt.subplots()
     # Draw nodes
-    nx.draw_networkx_nodes(G, pos, node_color="lightblue", node_size=700)
-    nx.draw_networkx_labels(G, pos, font_size=10)
+    # nx.draw_networkx_nodes(G, pos, node_color="lightblue", node_size=700)
+    # nx.draw_networkx_labels(G, pos, font_size=10)
 
-    # Draw multiple edges separately
-    for (u, v) in G.edges():
-        edges = G.get_edge_data(u, v)
-        num_edges = len(edges)
-        for i, (key, data) in enumerate(edges.items()):
-            e_value = data.get("e", 0)
-            patches = data.get("patches", ())
+    max_edges = 0
+    for u, v in G.edges():
+        edge_count = G.number_of_edges(u, v)
+        if edge_count > max_edges:
+            max_edges = edge_count
+    connectionstyle = [f"arc3,rad={r}" for r in itertools.accumulate([0.2] * max_edges)]
 
-            # Offset edges slightly to make them visible
-            offset = (i - num_edges / 2) * 0.1
+    # pos = nx.shell_layout(G)
+    nx.draw_networkx_nodes(G, pos, ax=ax)
+    nx.draw_networkx_labels(G, pos, font_size=20, ax=ax)
+    nx.draw_networkx_edges(
+        G, pos, edge_color="grey", connectionstyle=connectionstyle, ax=ax
+    )
 
-            # Compute edge position
-            edge_pos = {
-                u: (pos[u][0] + offset, pos[u][1] + offset),
-                v: (pos[v][0] + offset, pos[v][1] + offset),
-            }
+    labels = {
 
-            # Draw edges with different colors based on `e`
-            color = plt.cm.coolwarm((e_value + 1) / 2)  # Normalize `e` to [0,1]
-            nx.draw_networkx_edges(G, edge_pos, edgelist=[(u, v)], edge_color=[color], width=2)
+        tuple(edge): (f"{G.get_edge_data(*edge).get('e'):.2f}\n"
+                      f"{'<->'.join(str(i) for i in list(zip(*G.get_edge_data(0,1,0).get('patches')))[1])}")
+        for *edge, attrs in G.edges(keys=True, data=True)
+    }
+    nx.draw_networkx_edge_labels(
+        G,
+        pos,
+        labels,
+        connectionstyle=connectionstyle,
+        label_pos=0.3,
+        font_color="blue",
+        bbox={"alpha": 0},
+        ax=ax,
+    )
+    plt.tight_layout()
 
-            # Compute midpoint for edge label
-            mid_x, mid_y = (edge_pos[u][0] + edge_pos[v][0]) / 2, (edge_pos[u][1] + edge_pos[v][1]) / 2
-
-            # Edge label
-            label_text = f"e: {e_value:.2f}\nP: {patches}"
-            plt.text(mid_x, mid_y, label_text, fontsize=8, ha='center', va='center',
-                     bbox=dict(facecolor='white', alpha=0.7, edgecolor='none'))
-
-    plt.title("MultiGraph with Edge Attributes")
+    plt.title("Patchy Conf Topology")
     plt.show()

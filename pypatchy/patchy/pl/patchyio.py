@@ -517,6 +517,7 @@ class FWriter(PLBaseWriter):
         """
         Reads a patchy particle scene from files
         """
+        assert conf_idx is None
         # find topology file path
         top_file: Path = self.directory() / top_file
         # find conf file path
@@ -793,7 +794,7 @@ class LWriter(PLBaseWriter):
     def get_scene_top(self, s: PLPSimulation) -> LPatchyTopology:
         return LWriter.LPatchyTopology(s.particle_types(), s.particle_type_counts())
 
-    def read_particle_types(self, topology: str, DPS_interaction_matrix_file: str) -> PLParticleSet:
+    def read_particle_types(self, topology: str, conf_file, DPS_interaction_matrix_file: str) -> PLParticleSet:
         top = self.read_top(topology)
         interaction_matrix = self.read_interaction_matrix(DPS_interaction_matrix_file)
         interaction_matrix, new_colors = assign_colors(interaction_matrix, top.particle_types.patches())
@@ -833,7 +834,7 @@ class LWriter(PLBaseWriter):
                 f.write(self.particle_type_str(ptype,
                                                topology.particle_type_count(ptype.type_id())) + "\n")
 
-    def read_scene(self, top_file: Union[Path, str], traj_file: Union[Path, str], particle_types: PLParticleSet,
+    def read_scene (self, top_file: Union[Path, str], traj_file: Union[Path, str], particle_types: PLParticleSet,
                    conf_idx: Union[None, int] = None) -> PLPSimulation:
         top: LWriter.PatchyTopology = self.read_top(top_file)
         scene = PLPSimulation()

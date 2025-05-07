@@ -199,58 +199,62 @@ def plot_compare_ensembles(es: list[PatchySimulationEnsemble],
     return fig
 
 
-def show_clusters(e: PatchySimulationEnsemble,
-                  sim: PatchySimulation,
-                  analysis_step: Union[GraphsFromClusterTxt, str],
-                  timepoint: int = -1,
-                  step: int = -1,
-                  figsize=4
-                  ) -> Union[plt.Figure, None]:
-    # load particle id data from top file
-    # todo: automate more?
+def show_clusters(e: PatchySimulationEnsemble, sim: PatchySimulation, analysis_step: Union[GraphsFromClusterTxt, str],
+                  timepoint: int = -1, step: int = -1, figsize=4, min_cluster_size=2) -> Union[plt.Figure, None]:
+    import matplotlib.pyplot as plt
+
     if isinstance(analysis_step, str):
         analysis_step = e.get_analysis_step(analysis_step)
-    with (e.folder_path(sim) / "init.top").open('r') as f:
-        f.readline()  # clear first line
-        particle_types = [int(p) for p in f.readline().split()]
 
-    # default to last step
     if step == -1 and timepoint == -1:
         timepoint = e.get_data(analysis_step, sim).trange()[-1]
-
-    elif timepoint == -1:  # timepoint from step
+    elif timepoint == -1:
         timepoint = step * analysis_step.output_tstep
 
     tr = range(int(timepoint),
                int(timepoint + analysis_step.output_tstep),
                int(analysis_step.output_tstep))
-    graphs: list[nx.Graph] = e.get_data(analysis_step, sim, tr).get()[timepoint]
+    total_graph: nx.Graph = e.get_data(analysis_step, sim, tr).get()[timepoint]
+
+    graphs = [total_graph.subgraph(g) for g in nx.connected_components(nx.to_undirected(total_graph)) if len(g) >= min_cluster_size]
+
     nclusters = len(graphs)
     if nclusters == 0:
         print(f"No clusters at step {timepoint * analysis_step.output_tstep}")
         return None
+
     r = math.ceil(math.sqrt(nclusters))
     fig, axs = plt.subplots(nrows=r, ncols=r, figsize=(r * figsize, r * figsize))
 
+    axs = axs.flatten() if isinstance(axs, np.ndarray) else [axs]
+
     for i, cluster in enumerate(graphs):
-        # axs coords
-        x = i % r
-        y = int(i / r)
+        ax = axs[i]
+        k_val = 2 / np.sqrt(len(cluster))
+        try:
+            pos = nx.planar_layout(cluster)
+        except nx.NetworkXException:
+            pos = nx.kamada_kawai_layout(cluster)
+        node_colors = [get_particle_color(cluster.nodes[j]["particle_type"].type_id()) for j in cluster.nodes]
+        nx.draw_networkx_nodes(cluster, pos=pos, node_color=node_colors, ax=ax)
+        nx.draw_networkx_labels(cluster, pos=pos, ax=ax, font_size=8)
+        # Extract edge colors if available
+        edge_colors = [get_particle_color(abs(cluster.edges[edge].get("patch").color())) for edge in cluster.edges]
 
-        ptypemap = [get_particle_color(particle_types[j]) for j in cluster.nodes]
+        # Draw edges with curved style to show direction and prevent overlap
+        nx.draw_networkx_edges(cluster, pos=pos, ax=ax,
+                               edge_color=edge_colors,
+                               connectionstyle="arc3,rad=0.2",
+                               arrows=True,
+                               arrowsize=10)
 
-        nx.draw(cluster,
-                ax=axs[x, y],
-                with_labels=True,
-                node_color=ptypemap)
-    # clear remaining axes for style reasons
-    for i in range(len(graphs), r ** 2):
-        x = i % r
-        y = int(i / r)
-        axs[x, y].remove()
+        ax.set_axis_off()
+
+    # Remove unused axes
+    for i in range(len(graphs), len(axs)):
+        fig.delaxes(axs[i])
 
     return fig
-
 
 def plot_total_graph(e: PatchySimulationEnsemble,
                      analysis_data_source: PipelineStepDescriptor,
@@ -373,7 +377,7 @@ def plot_energy(e: PatchySimulationEnsemble,
                 load_energy_step_name: str = "load_energies",
                 e_type: str = "te",
                 t_range: Union[tuple[int, int], None] = None,
-                log_y: bool = False,
+                log_x: bool = False,
                 curve_alpha: float = 1.
                 ):
     """
@@ -414,11 +418,16 @@ def plot_energy(e: PatchySimulationEnsemble,
 
         for param1 in np.unique(df[curve_color_param]):
             subset_param1 = df[df[curve_color_param] == param1]
-            for group in subset_param1.groupby([curve_stroke_w_param, curve_stroke_style_param] if curve_stroke_w_param and curve_stroke_style_param else
-                                                [curve_stroke_w_param] if curve_stroke_w_param else
-                                                [curve_stroke_style_param] if curve_stroke_style_param else
-                                                [None]):
-                _, subset = group
+            groupby_keys = []
+            if curve_stroke_w_param:
+                groupby_keys.append(curve_stroke_w_param)
+            if curve_stroke_style_param:
+                groupby_keys.append(curve_stroke_style_param)
+
+            # If no groupby keys, wrap in a list with a dummy key to still iterate once
+            group_iter = subset_param1.groupby(groupby_keys) if groupby_keys else [(None, subset_param1)]
+
+            for _, subset in group_iter:
                 lw = width_map[subset[curve_stroke_w_param].iloc[0]] if curve_stroke_w_param else 1.5
                 ls = style_map[subset[curve_stroke_style_param].iloc[0]] if curve_stroke_style_param else '-'
                 label_parts = [f'{curve_color_param}={param1}']
@@ -426,8 +435,6 @@ def plot_energy(e: PatchySimulationEnsemble,
                     label_parts.append(f'{curve_stroke_w_param}={subset[curve_stroke_w_param].iloc[0]}')
                 if curve_stroke_style_param:
                     label_parts.append(f'{curve_stroke_style_param}={subset[curve_stroke_style_param].iloc[0]}')
-                if log_y:
-                    subset[e_type] = -subset[e_type]
                 plt.plot(subset['timepoint'], subset[e_type], label=', '.join(label_parts),
                          color=color_map[param1], linewidth=lw, linestyle=ls, alpha=curve_alpha)
     else:
@@ -436,7 +443,7 @@ def plot_energy(e: PatchySimulationEnsemble,
     plt.tight_layout(rect=[0, 0, 0.8, 1])  # leave space on right for legend
     plt.legend(loc='center left', bbox_to_anchor=(1.02, 0.5), borderaxespad=0.)
     plt.title('Energy vs Timepoint')
-    plt.xlabel('Timepoint')
+    plt.xlabel(f'Timepoint (x {e.get_pipeline_step(load_energy_step_name).input_tstep * e.get_param("print_energy_every")})')
     if e_type == "te":
         y_label = 'Total Energy'
     elif e_type == "pe":
@@ -445,9 +452,9 @@ def plot_energy(e: PatchySimulationEnsemble,
         y_label = "Kinetic Energy"
     else:
         raise Exception(f"Unrecognized energy identifier {e_type}")
-    if log_y:
-        y_label = "-log " + y_label
-        plt.yscale("log")
+    if log_x:
+        plt.xlabel("log Timepoint")
+        plt.xscale("log")
     plt.ylabel(y_label)
     plt.grid(True)
     plt.tight_layout()

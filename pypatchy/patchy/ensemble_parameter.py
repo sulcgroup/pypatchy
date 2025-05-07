@@ -192,15 +192,21 @@ class StagedAssemblyParam(ParameterValue):
     param_value: dict[str, StageInfoParam]
     staging_type_name: str
 
-    def __init__(self, staging_info: dict[str, dict], staging_val_name: str, staging_params_name: str = STAGES_KEY):
-        ParameterValue.__init__(self, staging_params_name, {
-            stage_name: StageInfoParam(stage_name, **stage_info) for stage_name, stage_info in staging_info.items()
-        })
+    def __init__(self,
+                 staging_info: dict[str, Union[dict, StageInfoParam]],
+                 staging_val_name: str,
+                 staging_params_name: str = STAGES_KEY):
+        ParameterValue.__init__(self,
+                                param_name=staging_params_name,
+                                param_value={
+                                    stage_name: StageInfoParam(stage_name, **stage_info)
+                                    for stage_name, stage_info in staging_info.items()
+                                } if all([isinstance(v, dict) for v in staging_info.values()]) else staging_info)
         # if isinstance(staging_info, dict):
         # else:
         #     if not isinstance(staging_info, list):
-        # # TODO: MORE TYPE CHECKING
-        # if not isinstance(staging_info, dict):
+        # TODO: MORE TYPE CHECKING
+        # if not isinstance(staging_info, dict) or staging_info:
         #     raise TypeError("Incorrect type for stages info")
         # if not all(["t" in stage for stage in staging_info.values()]):
         #     raise TypeError("Missing start-time info for some stages")
@@ -234,7 +240,7 @@ class StageInfoParam(Mapping):
 
     def __init__(self, stage_name, **kwargs):
         self.stage_name = stage_name
-        self.start_time = kwargs["t"] if "t" in kwargs else 0
+        self.start_time = int(kwargs["t"]) if "t" in kwargs else 0
         # if this stage adds particles
         if "add_method" in kwargs:
             add_method = kwargs["add_method"]
@@ -267,6 +273,7 @@ class StageInfoParam(Mapping):
                     elif add_type == "patchy":
                         raise Exception("Not implemented yet")
                     elif add_type == "fix":
+                        # add particles and fix them in place
                         raise Exception("Not only is this not implemented yet I'm not even fully sure what it's"
                                         "supposed to be")
                     else:

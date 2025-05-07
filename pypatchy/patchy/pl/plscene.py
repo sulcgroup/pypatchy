@@ -92,6 +92,11 @@ class PLPSimulation(Scene, CellLists):
         else:
             return self._colorbank[particle_id]
 
+    def validate_particle_uids(self):
+        # could optimize more but it is not worth my time
+        for i, p in enumerate(self.particles()):
+            assert all([i2 == i or p2.get_uid() != p.get_uid() for i2, p2 in enumerate(self.particles())])
+
     def get_potential_energy(self) -> float:
         """
         computes average potential energy of the simulation from scratch
@@ -595,67 +600,89 @@ class PLPSimulation(Scene, CellLists):
                         G.add_edge(p1.get_uid(), p2.get_uid(), e=e)
         return G
 
-    def compute_scene_multigraph(self, bond_energy: float=0) -> nx.MultiGraph:
+    def compute_scene_multigraph(self, bond_energy: float = 0, multipatch=False) -> nx.MultiGraph:
         G = nx.MultiGraph()
-        # keep track of pairs of interacting particles we have already checked
-        checked_interactions: set[frozenset[int]] = set()
+        for p in self.particles():
+            G.add_node(p.get_uid())
 
-        # set of patches which bind. tuples are (particle uid, patch type id)
-        binding_patches: set[tuple[int,int]] = set()
+        if multipatch:
+            # Keep your current per-pair logic
+            return self._compute_scene_multigraph_greedy(bond_energy)
 
-        # loop particles
+        # Step 1: Collect all possible valid bonds
+        global_bonds = []
+        checked_pairs = set()
         for p1 in self.particles():
-            # make sure particle has node in graph
-            G.add_node(p1.get_uid())
-            # loop particles which can interact with this particle
             for p2 in self.interaction_particles(p1):
-                # if this pair has alreaady been checked, do not redo it
-                if frozenset([p1.get_uid(), p2.get_uid()]) in checked_interactions:
+                pair = frozenset([p1.get_uid(), p2.get_uid()])
+                if pair in checked_pairs:
                     continue
-                # unfortunately, this becomes. terrible
-                # let us assume no multipatch, TODO make this adjustable
-                # get interaction energy sans patchy bonds (basically this is excvol)
-                particle_energy = sum(potential.energy(self.box_size(), p1, p2)
-                                      for potential in self.potentials if not isinstance(potential, PLPatchyPotential))
-                # construct data structure to store interactions
-                patch_bond_energies: list[tuple[tuple[int, int], float]] = []
+
+                # background energy
+                particle_energy = sum(
+                    potential.energy(self.box_size(), p1, p2)
+                    for potential in self.potentials
+                    if not isinstance(potential, PLPatchyPotential)
+                )
+
                 for potential in self.potentials:
-                    for patch1, patch2 in itertools.product(p1.patches(), p2.patches()):
-                        if isinstance(potential, PLPatchyPotential):
-                            e_bond = potential.energy_2_patch(self.box_size(), p1, patch1, p2, patch2)
+                    if not isinstance(potential, PLPatchyPotential):
+                        continue
+                    for patch1 in p1.patches():
+                        for patch2 in p2.patches():
+                            e_bond = potential.energy_2_patch(
+                                self.box_size(), p1, patch1, p2, patch2
+                            )
                             if e_bond < bond_energy:
-                                # should this be a dataclass or smth
-                                patch_bond_energies.append(((patch1.get_id(), patch2.get_id()), e_bond))
-                # if we have found any patch-patch interactions
-                if len(patch_bond_energies) > 0:
-                    # sort interactions by energy
-                    patch_bond_energies.sort(key=lambda x: x[1], reverse=True)
-                    for (patch1, patch2), e in patch_bond_energies:
-                        assert (p1.get_uid(), patch1) not in binding_patches
-                        assert (p2.get_uid(), patch2) not in binding_patches
-                        G.add_edge(p1.get_uid(),
-                                   p2.get_uid(),
-                                   e=e + (particle_energy / len(patch_bond_energies)),
-                                   patches=((p1.get_uid(), patch1),
-                                             (p2.get_uid(), patch2)
-                                   ))
-                        binding_patches.add((p1.get_uid(), patch1))
-                        binding_patches.add((p2.get_uid(), patch2))
-                checked_interactions.add(frozenset([p1.get_uid(), p2.get_uid()]))
-        assert len(G.nodes) == self.num_particles()
+                                global_bonds.append({
+                                    "p1_uid": p1.get_uid(),
+                                    "patch1": patch1.get_id(),
+                                    "p2_uid": p2.get_uid(),
+                                    "patch2": patch2.get_id(),
+                                    "bond_energy": e_bond,
+                                    "particle_energy": particle_energy
+                                })
+                checked_pairs.add(pair)
+
+        # Step 2: Build global patch graph
+        B = nx.Graph()
+        for bond in global_bonds:
+            node1 = (bond["p1_uid"], bond["patch1"])
+            node2 = (bond["p2_uid"], bond["patch2"])
+            weight = -(bond["bond_energy"] + bond["particle_energy"] / 2)  # split particle_energy
+            B.add_edge(node1, node2, weight=weight, metadata=bond)
+
+        # Step 3: Solve maximum weight matching
+        match = nx.algorithms.matching.max_weight_matching(B, maxcardinality=True)
+
+        # Step 4: Add selected matches to MultiGraph
+        for u, v in match:
+            bond = B[u][v]["metadata"]
+            G.add_edge(
+                bond["p1_uid"], bond["p2_uid"],
+                e=bond["bond_energy"] + bond["particle_energy"] / 2,
+                patches=((bond["p1_uid"], bond["patch1"]),
+                         (bond["p2_uid"], bond["patch2"]))
+            )
+
         return G
 
     def scene_multigraph(self, bond_energy: float=0) -> nx.MultiGraph:
         """
         should produuce multigraph of scene
         """
-        assert len(self.potentials) > 0, "Cannot compute a multigraph of the patchy scene without at least one interaction potential!"
+        assert len(self.potentials) > 0, "Cannot compute a multigraph of the patchy scene without at " \
+                                         "least one interaction potential!"
+        self.validate_particle_uids()
         if f"{bond_energy}" not in self.scene_multigraphs_cache:
             self.scene_multigraphs_cache[f"{bond_energy}"] = self.compute_scene_multigraph(bond_energy)
         return self.scene_multigraphs_cache[f"{bond_energy}"]
 
-    def compute_scene_clusters(self, bond_energy: float=0, min_cluster_size: int = 1) -> Generator[nx.Graph]:
-        G = self.compute_scene_graph(bond_energy=bond_energy)
+    def compute_scene_clusters(self, bond_energy: float=0, min_cluster_size: int = 1, multigraph: bool=True) -> Generator[nx.Graph]:
+        if multigraph:
+            G = self.compute_scene_multigraph(bond_energy)
+        else:
+            G = self.compute_scene_graph(bond_energy=bond_energy)
         for g in nx.connected_components(G):
             if len(g) >= min_cluster_size:
                 yield G.subgraph(g)

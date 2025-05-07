@@ -52,11 +52,14 @@ cfg.read(get_local_dir() / 'settings.cfg')
 def simulation_run_dir() -> Path:
     return Path(cfg['ANALYSIS']['simulation_data_dir'])
 
+
 def tlm_data_dir() -> Union[None, Path]:
     if "tlm_data_dir" in cfg["ANALYSIS"]:
         return Path(cfg["ANALYSIS"]["tlm_data_dir"])
     else:
-        raise ValueError("No data storage directory specifid in ~/.pypatchy/settings.cfg! Set with tlm_data_dir=path/to/my/directory")
+        raise ValueError(
+            "No data storage directory specifid in ~/.pypatchy/settings.cfg! Set with tlm_data_dir=path/to/my/directory")
+
 
 def get_spec_json(name: str, folder: str) -> dict:
     try:
@@ -108,7 +111,7 @@ def selectColor(number: int, saturation=50, value=65, fmt="hex") -> Union[str, n
             return np.array([r, g, b])
 
 
-def rotAroundAxis(patchPos, axis, angle):
+def rotAroundAxis(patchPos: np.ndarray, axis: np.ndarray, angle: float):
     r = R.from_rotvec(angle * axis)
     return r.apply(patchPos)
 
@@ -198,7 +201,7 @@ def enumerateRotations() -> dict[int: dict[int: int]]:
 
 
 # there may be a faster algorithm for this but frankly I don't care enough to find it
-def rotidx(r: dict[int, dict[int, int]]) -> int:
+def rotidx(r: dict[int, int]) -> int:
     for key, value in enumerateRotations().items():
         if all(value[x] == r[x] for x in r):
             return key
@@ -318,5 +321,3 @@ PATCHY_FILE_FORMAT_KEY = "patchy_format"
 EXTERNAL_OBSERVABLES = False  # TODO real talk this should be in server config
 NUM_TEETH_KEY = "num_teeth"
 DENTAL_RADIUS_KEY = "dental_radius"
-
-

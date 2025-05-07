@@ -23,7 +23,7 @@ from ..patchy_base_particle import PatchyBaseParticle, BaseParticleSet
 from ..scene import Scene
 from .polycubesRule import PolycubesRule, diridx, PolycubesPatch, RULE_ORDER
 
-from ..structure import TypedStructure, Structure
+from ..structure import TypedStructure, Structure, Binding, StructuralHomomorphism
 from ..util import from_xyz, get_input_dir, enumerateRotations
 
 
@@ -391,6 +391,13 @@ class PolycubeStructure(TypedStructure, Scene):
 
     def centroid(self):
         return np.round(super().centroid())
+
+    def rotate(self, rotation_map: dict[int, int]) -> StructuralHomomorphism:
+        pass
+
+    def splice(self, other: Structure, splice_points: list[tuple[Binding,
+                                                                 Binding]]) -> Structure:
+        pass
 
 
 def load_polycube(file_path: Union[Path, str]) -> PolycubeStructure:

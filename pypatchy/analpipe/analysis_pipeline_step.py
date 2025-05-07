@@ -7,8 +7,8 @@ from typing import Union
 
 import pandas as pd
 
-from pypatchy.patchy.simulation_specification import PatchySimulation
-from pypatchy.patchy.ensemble_parameter import EnsembleParameter, ParameterValue
+from ..patchy.simulation_specification import PatchySimulation
+from ..patchy.ensemble_parameter import EnsembleParameter, ParameterValue
 from .analysis_data import PipelineData, PipelineDataType
 
 import drawsvg as draw

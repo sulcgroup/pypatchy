@@ -22,7 +22,6 @@ from ..util import rotAroundAxis, powerset
 from ..util import from_xyz, to_xyz, getSignedAngle
 from ..patchy_base_particle import PatchyBaseParticleType, BasePatchType, BaseParticleSet
 
-
 FACE_NAMES = ("left", "right", "bottom", "top", "back", "front")
 RULE_ORDER = (
     np.array((-1, 0, 0)),
@@ -34,16 +33,17 @@ RULE_ORDER = (
 )
 
 FACE_SVG_COORDS = [
-    (0, 2), #left
-    (2, 2), #right
-    (1, 0), #bottom
-    (1, 2), #top
-    (1, 3), #back
-    (1, 1) #front
+    (0, 2),  # left
+    (2, 2),  # right
+    (1, 0),  # bottom
+    (1, 2),  # top
+    (1, 3),  # back
+    (1, 1)  # front
 ]
 
 FACE_SQUARE_W = 64
 FACE_FIG_PAD = 12
+
 
 # old diridx - bad/buggy
 # def diridx(a):
@@ -64,12 +64,25 @@ def rdir(d: int) -> int:
         return (d - 1) % 6
 
 
+# kinda wish these next two were in a different module
 def get_orientation(face_idx: int,
                     ori_idx: int) -> np.ndarray:
     zero_rot_idx = (face_idx + 2) % len(RULE_ORDER)  # feels like it should be +4 but trust me bro
     zero_rotation = RULE_ORDER[zero_rot_idx]
     rot_mat = rotation_matrix(RULE_ORDER[face_idx], ori_idx * math.pi / 2)
     return (rot_mat @ zero_rotation).round()
+
+
+def getRotationMap(axis: int, angle: int) -> dict[int, int]:
+    """
+    where axis is in RULE_ORDER and angle is int in [0,3]
+    todo is this even right
+    """
+    return {
+        d: get_orientation(axis, (d + angle) % 4)
+        if d not in (axis, rdir(axis)) else d
+        for d, _ in enumerate(RULE_ORDER)
+    }
 
 
 # TODO: inherit from a klossar-type patch class and/or PL Patch
@@ -540,7 +553,6 @@ class PolycubeRuleCubeType(PatchyBaseParticleType):
     #         font-size=20
     #     big_cum_x += x_cum
 
-
     def shift_state(self, nvars: int):
         """
         Shifts the entire state to the right by nvars
@@ -953,7 +965,7 @@ class PolycubesRule(BaseParticleSet):
         for color in self.color_set():
             if color > 0:
                 assert -color in colormap
-                sat_vars.append( f"B({colormap[color]},{colormap[-color]})")
+                sat_vars.append(f"B({colormap[color]},{colormap[-color]})")
         return sat_vars
 
     def __hash__(self) -> int:

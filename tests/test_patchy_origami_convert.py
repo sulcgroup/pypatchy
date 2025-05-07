@@ -129,7 +129,7 @@ def test_convert_wireframe_cube(temp_dir: str, cube:DNAParticle):
                                        rel_rms_tolerance=1
                                        )
     # assign colors manually
-    for icolor in converter.patchy_scene.particle_types().patch_colors():
+    for icolor in converter.scene.particle_types().patch_colors():
         if icolor > 0:
             converter.assign_color_sequence(icolor, rand_seq(10))
 

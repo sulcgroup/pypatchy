@@ -42,10 +42,26 @@ class ParamSet(LogEntryObject):
     def __getitem__(self, parameter_name: str) -> Any:
         return self.parameter_dict[parameter_name]
 
-    def __setitem__(self, parameter_name: str, item: ParameterValue):
+    def __setitem__(self, parameter_name: str, item: Union[ParameterValue, Any]):
+        """
+        assigns a value to a parameter
+        """
+        replacing=False
         for i, pv in enumerate(self.param_vals):
             if pv.param_name == parameter_name:
-                self.param_vals[i] = item
+                replacing=True
+                if isinstance(item, ParameterValue):
+                    self.param_vals[i] = item
+                else:
+                    self.param_vals[i] = ParameterValue(param_name=parameter_name,
+                                                        param_value=item)
+                break
+        if not replacing:
+            if isinstance(item, ParameterValue):
+                self.append(item)
+            else:
+                self.append(ParameterValue(param_name=parameter_name, param_value=item))
+        self.parameter_dict[parameter_name] = item
         if isinstance(item, ParamValueGroup):
             for param_name in item.group_params_names():
                 self.parameter_dict[param_name] = item[param_name]
@@ -109,9 +125,10 @@ class ParamSet(LogEntryObject):
         """
         adds a parameter value to the set, in-place
         """
+        assert isinstance(pv, ParameterValue)
         assert pv.param_name not in self.parameter_dict, f"Trying to add existing parameter {pv.param_name}"
         self.param_vals.append(pv)
-        self.parameter_dict[pv.param_name] = pv
+        self.parameter_dict[pv.param_name] = pv.param_value
 
 
 PatchySimulation = ParamSet  # alias for backwards compatibility

@@ -33,6 +33,7 @@ class DNAParticle (DNAStructure):
     # list of list of base ids that are tips from which we can extend single strandedd overhangs
     # not updated as top is modified!
     # patch_positions: list[list[int]]
+    base_coloration: dict[int, ]
 
     def __init__(self,
                  structure: DNAStructure,
@@ -307,7 +308,6 @@ class DNAParticle (DNAStructure):
             if sid == strand_id:
                 return pid
         return None
-
 
 
 @dataclass

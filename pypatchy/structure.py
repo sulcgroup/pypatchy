@@ -12,7 +12,9 @@ from matplotlib import pyplot as plt
 import matplotlib.colors as mcolors
 
 from .polycubeutil.polycubesRule import *
-from .util import enumerateRotations
+from .util import enumerateRotations, rotidx
+
+Binding = tuple[int, int, int, int]
 
 
 def get_nodes_overlap(homocycles: list[list[int]]) -> set[int]:
@@ -95,6 +97,20 @@ class Structure:
                 edges.append((u, v, k))
         return edges
 
+    def rotate(self, rotation_map: dict[int, int]) -> StructuralHomomorphism:
+        """
+        rotates the structure by applying the rotation map to the structure
+        returns a structural homomorphism representing the rotation operation
+        """
+        structure_rotated = Structure(bindings=[(u, rotation_map[du], v, rotation_map[dv])
+                                                for u, du, v, dv in self.bindings_list])
+        return StructuralHomomorphism(self,
+                                      structure_rotated,
+                                      rotation_mapping_idx=rotidx(rotation_map),
+                                      # use identity lmap
+                                      location_mapping={i: i for i in self.vertices()}
+                                      )
+
     def num_dimensions(self) -> int:
         return 3  # todo: dynamic?
 
@@ -109,7 +125,7 @@ class Structure:
             slices = self.substructure(self.vertices())
 
             def dimension_filter(s, u, v, k, dirIdx) -> bool:
-                return dirIdx != 2*d
+                return dirIdx != 2 * d
 
             edges_to_remove: list[tuple[int, int, int]] = slices.filter_edges(dimension_filter)
             for e in edges_to_remove:
@@ -220,7 +236,7 @@ class Structure:
 
                 # list of source node IDs
                 if self._validate_homomorphism(node_list_mapping, node_list_src, node_list_target,
-                                                                    rotation_mapping, structure):
+                                               rotation_mapping, structure):
                     yield StructuralHomomorphism(self,
                                                  structure,
                                                  rmapidx,
@@ -282,7 +298,8 @@ class Structure:
 
     def positions_connected(self, v1: int, v2: int) -> bool:
         """
-
+        tests if an edge exists between the two positions
+        i could probably use "edge_exists" or smthre
         """
         return (v1, v2) in self.graph.to_undirected().edges
 
@@ -299,6 +316,36 @@ class Structure:
     def num_vertices(self) -> int:
         return len(self.graph.nodes)
 
+    def splice(self, other: Structure, splice_points: list[tuple[Binding,
+                                                                 Binding]]) -> Structure:
+        """
+        splices the structure provided in args into this structure and returns the spliced result
+        edges are spliced according to splice_points. edges are provided as a list of pairs of edge descriptors
+        where an edge descriptor is a 4-length tuple (u, du, v, dv) where u and v are vertex identifiers,
+        du is the direction (in RULE_ORDER) of the edge linking u to v. dv is the direction of edge linking v to u
+        usually du == rdir(dv) but not always
+        e.g. ((0, 1, 1, 0), (2, 0, 3, 1)) becomes ((0, 1, 2, 0), (3, 1, 1, 0) ))
+        """
+        if len(frozenset(self.vertices()).intersection(other.vertices())) > 0:
+            other = other.remap_vert_ids(self.vertices())
+        # fill this in
+
+    def slice(self, axis: int) -> Structure:
+        """
+        returns: a structure (not connected) which only includes edges orthogonal to axis
+        """
+        return Structure(bindings=[(u, du, v, dv) for u, du, v, dv in self.bindings_list
+                                   if du not in (axis, rdir(axis)) and dv not in (axis, rdir(axis))])
+
+    def remap_vert_ids(self, verts_to_avoid: Iterable[int]) -> StructuralHomomorphism:
+        """
+        returns a mapping which maps self onto a copy with verts renamed to avoid uid conflicts
+
+        """
+        if not isinstance(verts_to_avoid, frozenset):
+            verts_to_avoid = frozenset(verts_to_avoid)
+        # fill this in
+
     def matrix(self) -> np.ndarray:
         """
         Returns the structure as a N x 3 matrix where cols are x,y,z coordinates
@@ -310,6 +357,12 @@ class Structure:
         # a = np.array([*cubes_coords.values()])
         assert a.shape == (len(self), 3)
         return a
+
+    def neighbor(self, vert: int, direction: int) -> Union[None, int]:
+        if not self.edge_exists(vert, direction):
+            return None
+        # todo: this line is 100% wrong
+        return [e for e in self.graph.edges[vert] if e["diridx"] == direction][0][1]
 
     def _get_cubes_coords(self) -> dict[int, np.ndarray]:
         """
@@ -353,6 +406,13 @@ class Structure:
 
     def __str__(self) -> str:
         return f"Structure with {len(self.vertices())} particles and {len(self.bindings_list)} connections"
+
+    def replace_edges(self, bindings_from: list[Binding], bindings_to: list[Binding]):
+        """
+        in place, replace edges of `bindings_from` with `bindings_to
+        """
+        # fill in
+        pass
 
     def is_crystal(self) -> bool:
         """
@@ -507,11 +567,6 @@ class StructuralHomomorphism:
         return self.target.edge_exists(self.map_location(v),
                                        self.map_direction(delta))
 
-    # def reverse_map_direction(self, d):
-    #     if isinstance(d, int):
-    #         d = RULE_ORDER[d]
-    #     return enumerateRotations()[self._rmapidx] ....
-
 
 def identity_homomorphism(s: Structure) -> StructuralHomomorphism:
     """
@@ -576,7 +631,33 @@ class TypedStructure(Structure, ABC):
                                                  node_list_mapping,
                                                  reverse_mapping)
 
+    def is_symmetric(self, axis: int) -> bool:
+        """
+        determines if structure has rotational symmetry on specified axis
+        todo: impl in c++
+        """
+        assert -1 < axis < len(RULE_ORDER)
+        # step 1: isolate edges that aren't along the specified axis
+        layer_loops: list[tuple[int, int, int, int]] = [(u, du, v, dv) for u, du, v, dv in self.bindings_list
+                                                        if
+                                                        du not in (axis, rdir(axis)) and dv not in (axis, rdir(axis))]
+        layers = TypedStructure(bindings=layer_loops, types=self.get_particle_types())
+        # handle layers sperately
+        for layer in layers.iter_components():
+            for rot in range(4):  # todo: smarter rotation code
+                rotation = getRotationMap(axis, rot)
+                layer = layer.rotate(rotation)
+            # help
+        return True
 
+    @abstractmethod
+    def rotate(self, rotation_map: dict[int, int]) -> StructuralHomomorphism:
+        pass
+
+    @abstractmethod
+    def splice(self, other: Structure, splice_points: list[tuple[tuple[int, int, int, int],
+                                                                 tuple[int, int, int, int]]]) -> Structure:
+        pass
 
     def draw(self, pos=None):
         """
@@ -679,10 +760,26 @@ class GenericTypedStructure(TypedStructure):
 
     def iter_components(self) -> Generator[Structure, None, None]:
         for cc in nx.connected_components(self.graph.to_undirected()):
-            yield GenericTypedStructure(graph=self.graph.subgraph(cc), types={v: t for v, t in self.particle_types.items() if v in cc})
+            yield GenericTypedStructure(graph=self.graph.subgraph(cc),
+                                        types={v: t for v, t in self.particle_types.items() if v in cc})
 
     def __str__(self) -> str:
         return f"{self.bindings_list}\nParticle Typing: {self.get_particle_types()}"
+
+    def splice(self, other: GenericTypedStructure, splice_points: list[tuple[Binding, Binding]]) -> GenericTypedStructure:
+        pass
+
+    def rotate(self, rotation_map: dict[int, int]) -> StructuralHomomorphism:
+        pass
+
+    def slice(self, axis: int) -> Structure:
+        """
+        returns: a structure (not connected) which only includes edges orthogonal to axis
+        """
+        return GenericTypedStructure(bindings=[(u, du, v, dv) for u, du, v, dv in self.bindings_list
+                                               if du not in (axis, rdir(axis)) and dv not in (axis, rdir(axis))],
+                                     types=self.get_particle_types())
+
 
 def calcEmptyFromTop(top: Iterable[tuple[int, int, int, int]]) -> list[tuple[int, int]]:
     """
