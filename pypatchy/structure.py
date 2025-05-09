@@ -732,6 +732,10 @@ class GenericTypedStructure(TypedStructure):
             self.particle_types = kwargs["types"]
         else:
             self.particle_types = dict()
+        if "fill_type" in kwargs:
+            for v in self.vertices():
+                if v not in self.particle_types:
+                    self.particle_types[v] = kwargs["fill_type"]
         assert all([
             n in self.particle_types for n in self.vertices()
         ]), "Missing types for some particles!"
