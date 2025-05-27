@@ -1,20 +1,27 @@
 from __future__ import annotations
 
+import copy
+import functools
 import itertools
-import warnings
+import json
 from abc import ABC, abstractmethod
-from typing import Generator, Iterable, Callable
+from typing import Generator, Iterable, Callable, Container, Collection
 
 import networkx as nx
-import numpy as np
+import scipy as sp
 from Bio.SVDSuperimposer import SVDSuperimposer
 from matplotlib import pyplot as plt
 import matplotlib.colors as mcolors
+import igraph as ig
 
 from .polycubeutil.polycubesRule import *
-from .util import enumerateRotations, rotidx
+from .util import enumerateRotations, rotidx, get_input_dir
 
 Binding = tuple[int, int, int, int]
+
+
+def flip(b: Binding) -> Binding:
+    return (b[2], b[3], b[0], b[1])
 
 
 def get_nodes_overlap(homocycles: list[list[int]]) -> set[int]:
@@ -47,11 +54,11 @@ class Structure:
     graph: nx.MultiDiGraph
 
     # TODO: deprecated bindings_list and just use graph instead since it contains the same data
-    bindings_list: set[tuple[int, int, int, int]]
+    # bindings_list: set[tuple[int, int, int, int]]
 
     def __init__(self, **kwargs):
         self.graph: nx.MultiDiGraph = nx.MultiDiGraph()
-        self.bindings_list = set()
+        # self.bindings_list = set()
         if "bindings" in kwargs:
             for n1, d1, n2, d2 in kwargs["bindings"]:
                 if n1 not in self.graph:
@@ -60,8 +67,8 @@ class Structure:
                     self.graph.add_node(n2)
                 self.graph.add_edge(n1, n2, dirIdx=d1)
                 self.graph.add_edge(n2, n1, dirIdx=d2)
-                self.bindings_list.add((n1, d1, n2, d2))
-            assert len(self.graph.edges) == 2 * len(self.bindings_list)
+                # self.bindings_list.add((n1, d1, n2, d2))
+            assert len(self.graph.edges) == 2 * len(kwargs["bindings"])
         # if we have passed a graph object
         if "graph" in kwargs:
             # TODO: test!
@@ -82,6 +89,32 @@ class Structure:
 
         # if bindings aren't provided, the object is initialized empty
         # (useful for calls from subconstructor, see below)
+
+    @property
+    @functools.cache
+    def bindings_list(self) -> set[tuple[int, int, int, int]]:
+        """
+        Written with the aid of chatGPT
+
+        Computes the set of unique bindings (edges with directions) from the current graph.
+        Each binding is a tuple: (u, du, v, dv) where:
+        - u, v are node IDs
+        - du is the direction index of edge u -> v
+        - dv is the direction index of edge v -> u (should be reciprocal)
+        """
+        bindings = set()
+        seen = set()
+
+        for u, v, k, data in self.graph.edges(keys=True, data=True):
+            if (v, u, k) in seen:
+                continue  # already added this binding from the other direction
+            du = data["dirIdx"]
+            dv = self.graph.get_edge_data(v, u)[k]["dirIdx"]
+            bindings.add((u, du, v, dv))
+            seen.add((u, v, k))
+
+        assert len(self.graph.edges) == 2 * len(bindings)
+        return bindings
 
     def vertices(self) -> list[int]:
         return [int(n) for n in self.graph.nodes]
@@ -316,19 +349,67 @@ class Structure:
     def num_vertices(self) -> int:
         return len(self.graph.nodes)
 
-    def splice(self, other: Structure, splice_points: list[tuple[Binding,
-                                                                 Binding]]) -> Structure:
+    def splice(self, other: Structure,
+               splice_points: Collection[tuple[Binding, Binding]]) -> Structure:
         """
-        splices the structure provided in args into this structure and returns the spliced result
-        edges are spliced according to splice_points. edges are provided as a list of pairs of edge descriptors
-        where an edge descriptor is a 4-length tuple (u, du, v, dv) where u and v are vertex identifiers,
-        du is the direction (in RULE_ORDER) of the edge linking u to v. dv is the direction of edge linking v to u
-        usually du == rdir(dv) but not always
-        e.g. ((0, 1, 1, 0), (2, 0, 3, 1)) becomes ((0, 1, 2, 0), (3, 1, 1, 0) ))
+        Written with the aid of chatGPT
+
+        Splices another structure into this one at specified binding points.
+
+        Parameters:
+            other: another Structure instance to be spliced in
+            splice_points: list of tuples of bindings
+                Each tuple is (binding_from_self, binding_from_other)
+                These bindings are removed from each respective structure and replaced with new
+                cross-structure connections that link the two structures.
+
+        Returns:
+            A new Structure with the two original structures connected at the splice points.
         """
-        if len(frozenset(self.vertices()).intersection(other.vertices())) > 0:
-            other = other.remap_vert_ids(self.vertices())
-        # fill this in
+        # check that bindings are properly categorized initially
+        for b in list(zip(*splice_points))[0]:
+            assert b in self.bindings_list or flip(b) in self.bindings_list
+        for b in list(zip(*splice_points))[1]:
+            assert b in other.bindings_list or flip(b) in other.bindings_list
+
+        # Step 1: Remap `other` to avoid conflicting vertex IDs with `self`
+        hom = other.remap_vert_ids(self.vertices())
+
+        # Step 2: Combine all bindings from both structures
+        combined_bindings = list(self.bindings_list) + list(hom.target.bindings_list)
+
+        # Step 3: For each splice point, remove old bindings and add cross-structure connections
+        for b1, b2 in splice_points:
+            # Remove both directions of b1 (from self)
+            if b1 in combined_bindings:
+                combined_bindings.remove(b1)
+            # check transpose of bindings
+            elif flip(b1) in combined_bindings:
+                combined_bindings.remove(flip(b1))
+            else:
+                raise Exception()
+
+            # Remove both directions of b2 (from other — needs remapping first)
+            remapped_b2 = tuple(hom.lmap[i] if j % 2 == 0 else i for j, i in enumerate(b2))  # remap u and v only
+            if remapped_b2 in combined_bindings:
+                combined_bindings.remove(remapped_b2)
+                # transpose
+            elif (flip(b2)) in combined_bindings:
+                combined_bindings.remove(flip(b2))
+            else:
+                raise Exception()
+
+            # Add new cross-structure edges: self's u -> remapped other's u
+            assert rdir(b1[1]) == remapped_b2[3]
+            assert rdir(b2[1]) == remapped_b2[3]
+            combined_bindings.append((b1[0], b1[1], remapped_b2[2], remapped_b2[3]))
+            combined_bindings.append((remapped_b2[0], remapped_b2[1], b1[2], b1[3]))
+
+        # Step 4: return a new Structure
+        s = Structure(bindings=combined_bindings)
+        assert len(s) == len(self) + len(other)
+        assert len(s.graph.edges) == len(self.graph.edges) + len(other.graph.edges)
+        return s
 
     def slice(self, axis: int) -> Structure:
         """
@@ -339,12 +420,31 @@ class Structure:
 
     def remap_vert_ids(self, verts_to_avoid: Iterable[int]) -> StructuralHomomorphism:
         """
+        written by chatGPT
         returns a mapping which maps self onto a copy with verts renamed to avoid uid conflicts
-
         """
         if not isinstance(verts_to_avoid, frozenset):
             verts_to_avoid = frozenset(verts_to_avoid)
-        # fill this in
+
+        old_ids = sorted(self.vertices())
+        new_ids = []
+        next_id = 0
+
+        while len(new_ids) < len(old_ids):
+            if next_id not in verts_to_avoid:
+                new_ids.append(next_id)
+            next_id += 1
+
+        remap = dict(zip(old_ids, new_ids))
+
+        new_bindings = [
+            (remap[u], du, remap[v], dv) for u, du, v, dv in self.bindings_list
+        ]
+
+        remapped_structure = Structure(bindings=new_bindings)
+
+        # no rotation so use identity rotation
+        return StructuralHomomorphism(self, remapped_structure, 0, remap)
 
     def matrix(self) -> np.ndarray:
         """
@@ -394,12 +494,16 @@ class Structure:
                     processed_coords.add(destination)
             loopcount += 1
             assert loopcount < 1e7
-            return cubes_coords
+        return cubes_coords
 
-    def __contains__(self, item: Union[int]) -> bool:
+    def __contains__(self, item: Union[int, Binding]) -> bool:
         if isinstance(item, int):
             # item is assumed to be a node index
             return item in list(self.graph.nodes)
+        elif isinstance(item, tuple):
+            return item in self.bindings_list or flip(item) in self.bindings_list
+        else:
+            raise Exception()
 
     def __len__(self) -> int:
         return len(self.graph.nodes)
@@ -416,34 +520,107 @@ class Structure:
 
     def is_crystal(self) -> bool:
         """
-        caveat: this code is from chatGPT
-        Determines if the structure forms a Euclidean crystal by checking if
-        the nodes form a consistent lattice according to the directional rules in RULE_ORDER.
-        Returns:
-            True if the structure is Euclidean, False otherwise.
+        Written with the aid of chatGPT
+
+        A structure is considered crystalline if there are no cycles formed
+        using only edges that go along one axis (e.g. ±x, ±y, or ±z).
+        This ensures translational periodicity in all directions.
         """
-        try:
-            # Get the node positions
-            node_positions = self.matrix()
+        for axis in range(3):  # 3 axes: x, y, z
+            dirs = {2 * axis, 2 * axis + 1}
 
-            # Calculate distances between connected nodes
-            for v1, d1, v2, d2 in self.bindings_list:
-                # Calculate the expected position difference based on the RULE_ORDER
-                expected_position_diff = RULE_ORDER[d1]
+            # Create a substructure with only edges in this axis's directions
+            sub = Structure(bindings=[
+                (u, du, v, dv)
+                for u, du, v, dv in self.bindings_list
+                if du in dirs and dv in dirs and rdir(du) == dv
+            ])
 
-                # Actual position difference between the nodes
-                actual_position_diff = node_positions[v2] - node_positions[v1]
+            # Check for cycles in this substructure
+            try:
+                _ = next(nx.simple_cycles(sub.graph))
+                return True
+            except StopIteration:
+                continue
 
-                # Check if the actual difference matches the expected difference
-                if not np.allclose(actual_position_diff, expected_position_diff):
-                    return False
+        return False  # No directional loops → structure is crystalline
 
-            # If all connections match their expected Euclidean positions
-            return True
+    # def is_crystal(self) -> bool:
+    #     """
+    #     caveat: this code is from chatGPT
+    #     Determines if the structure forms a Euclidean crystal by checking if
+    #     the nodes form a consistent lattice according to the directional rules in RULE_ORDER.
+    #     Returns:
+    #         True if the structure is Euclidean, False otherwise.
+    #     """
+    #     assert self.is_bindings_euclidian()
+    #     try:
+    #         # Get the node positions
+    #         node_positions = self.matrix()
+    #
+    #         # Calculate distances between connected nodes
+    #         for v1, d1, v2, d2 in self.bindings_list:
+    #             # Calculate the expected position difference based on the RULE_ORDER
+    #             expected_position_diff = RULE_ORDER[d1]
+    #
+    #             # Actual position difference between the nodes
+    #             actual_position_diff = node_positions[v2] - node_positions[v1]
+    #
+    #             # Check if the actual difference matches the expected difference
+    #             if not np.allclose(actual_position_diff, expected_position_diff):
+    #                 return False
+    #
+    #         # If all connections match their expected Euclidean positions
+    #         return True
+    #
+    #     except AssertionError:
+    #         # If the structure is not connected or matrix calculation fails, it's not Euclidean
+    #         return False
 
-        except AssertionError:
-            # If the structure is not connected or matrix calculation fails, it's not Euclidean
-            return False
+    @functools.cache
+    def to_igraph(self):
+        """
+        Converts the structure graph (as stored internally as a networkx DiGraph) to an igraph Graph
+        Stores 'uid' attribute as the original NetworkX node label.
+        """
+
+        g_nx = self.graph
+
+        # Map original node labels to 0-based indices for igraph
+        label_to_index = {label: idx for idx, label in enumerate(g_nx.nodes)}
+        index_to_label = list(g_nx.nodes)
+
+        # Convert edges (drop multiedge keys)
+        edge_list = [(label_to_index[u], label_to_index[v]) for u, v, _ in g_nx.edges]
+
+        # Build igraph
+        ig_g = ig.Graph(directed=True)
+        ig_g.add_vertices(len(index_to_label))
+        ig_g.vs['uid'] = index_to_label
+        ig_g.add_edges(edge_list)
+
+        # --- Perform checks on igraph ---
+        for v in ig_g.vs:
+            out_deg = ig_g.degree(v.index, mode="OUT")
+            if out_deg < 1 or out_deg > 6:
+                raise ValueError(f"Vertex {v.index} (uid={v['uid']}) has {out_deg} out-edges, must be 1–6.")
+
+        # Check reciprocal edges
+        for e in ig_g.es:
+            src, tgt = e.source, e.target
+            if not ig_g.are_connected(tgt, src):
+                uid_src = ig_g.vs[src]['uid']
+                uid_tgt = ig_g.vs[tgt]['uid']
+                raise ValueError(f"Missing reciprocal edge: ({uid_src}, {uid_tgt}) -> ({uid_tgt}, {uid_src})")
+
+        return ig_g
+
+    def is_bindings_euclidian(self) -> bool:
+        return all([
+            abs(du - dv) == 1 # direction index within 1 of each other = opposites,
+            # accordiing to rule_order
+            for _, du, _, dv in self.bindings_list
+        ])
 
 
 class FiniteLatticeStructure(Structure):
@@ -473,16 +650,18 @@ class FiniteLatticeStructure(Structure):
             c2 = self.cube_idx(c2)
         return Structure.positions_connected(self, c1, c2)
 
+class StructuralMapping:
+    """
+    Written with the aid of chatGPT
 
-class StructuralHomomorphism:
+    A base class for structural mappings that only map vertex locations
+    between a source and a target structure.
+    """
+
     # structure that this homomorphism maps from
     source: Structure
     # structure that this homomorphism maps onto
     target: Structure
-
-    # index in enumerateRotations of the rotation mapping in this sturctural homomorphism
-    _rmapidx: int
-
     # map that maps location indexes from source onto target
     lmap: dict[int, int]
     # map that maps location indexes from targets onto source
@@ -491,30 +670,46 @@ class StructuralHomomorphism:
     def __init__(self,
                  source_structure: Structure,
                  target_structure: Structure,
-                 rotation_mapping_idx: int,
-                 location_mapping: dict,
-                 reverse_location_mapping: Union[dict, None] = None):
+                 location_mapping: dict[int, int],
+                 reverse_location_mapping: Union[dict[int, int], None] = None):
         self.source = source_structure
         self.target = target_structure
-        self._rmapidx = rotation_mapping_idx
         self.lmap = location_mapping
-        if reverse_location_mapping is not None:
-            self.rlmap = reverse_location_mapping
-        else:
-            self.rlmap = {
-                location_mapping[k]: k for k in location_mapping
-            }
+        self.rlmap = (reverse_location_mapping if reverse_location_mapping is not None
+                      else {v: k for k, v in location_mapping.items()})
 
     def map_location(self, i: int) -> int:
-        """Maps a location from the origin onto the destination"""
-        assert i in self.lmap
+        """Map a location index from source to target"""
+        assert i in self.lmap, f"Source location {i} not in location map"
         return self.lmap[i]
 
     def rmap_location(self, i: int) -> int:
-        """Maps a location from the destination onto the origin"""
-
-        assert i in self.rlmap
+        """Map a location index from target to source"""
+        assert i in self.rlmap, f"Target location {i} not in reverse location map"
         return self.rlmap[i]
+
+    def __len__(self) -> int:
+        return len(self.lmap)
+
+    def as_pairs(self) -> list[tuple[int, int]]:
+        """Return the mapping as a list of (source, target) index pairs"""
+        return list(self.lmap.items())
+
+    def __getitem__(self, item: int) -> int:
+        return self.lmap[item]
+
+    def __contains__(self, item: int) -> bool:
+        return item in self.lmap
+
+
+class StructuralHomomorphism(StructuralMapping):
+    # index in enumerateRotations of the rotation mapping in this sturctural homomorphism
+    _rmapidx: int
+
+    def __init__(self, source_structure: Structure, target_structure: Structure
+                 , rotation_mapping_idx: int, location_mapping: dict[int:int], reverse_location_mapping=None):
+        super().__init__(source_structure, target_structure, location_mapping, reverse_location_mapping)
+        self._rmapidx = rotation_mapping_idx
 
     def map_direction(self, d: Union[int, np.ndarray]) -> int:
         if isinstance(d, np.ndarray):
@@ -532,9 +727,6 @@ class StructuralHomomorphism:
             if v == d:
                 return k
         raise Exception("Good god what did you DO???")
-
-    def __len__(self):
-        return len(self.lmap)
 
     def as_transform(self) -> tuple[np.ndarray, np.ndarray]:
         # align matrices
@@ -567,6 +759,160 @@ class StructuralHomomorphism:
         return self.target.edge_exists(self.map_location(v),
                                        self.map_direction(delta))
 
+    def apply_to(self, bindings: Iterable[Binding]) -> list[Binding]:
+        return [
+            (self.map_location(u), self.map_direction(du), self.map_location(v), self.map_direction(dv))
+            for u, du, v, dv in bindings
+        ]
+
+class Tiling:
+    source_structure: Structure
+    tiled_structure: Structure
+    periodic_bindings: list[Binding]
+
+    # mapping of vertex IDs on source_structure to vertex mapping on target_structure
+    vertex_mapping: dict[int: set[int]]
+
+    def __init__(self,
+                 source_structure: Structure,
+                 periodic_bindings: list[Binding],
+                 dimensional_tiling_counts: tuple[int, ...],):
+        self.source_structure = source_structure
+
+        assert len(dimensional_tiling_counts) <= 3, "Dimensions greater than 4 not supported yet"
+
+        assert source_structure.is_bindings_euclidian(), "Cannot tile non-euclidian structures!"
+        assert source_structure.is_crystal(), "Cannot tile non-crystal structures!"
+        self.tiled_structure = copy.deepcopy(source_structure)
+        # we will need to alter this within __tile_single_dimension
+        self.periodic_bindings = [tuple(b) for b in periodic_bindings]
+
+        # loop dimensions
+        for dimension, dimensional_count in enumerate(dimensional_tiling_counts):
+            if dimensional_count < 2: continue
+            dimensional_bindings = [
+                # can assume/skip dv
+                (u, du, v, dv) for u, du, v, dv in self.periodic_bindings
+                if du in [2 * dimension, 2 * dimension + 1]
+            ]
+            assert len(dimensional_bindings) > 0
+            new_bindings = self.__tile_single_dimension(copy.deepcopy(self.tiled_structure),
+                                                        dimensional_count,
+                                                        dimensional_bindings)
+        # do we need an assert here?
+        assert all([self.tiled_structure.graph.degree[v]/2 <= 6 for v in self.tiled_structure.graph.nodes]),\
+            f"Some nodes have non-allowed degrees have degrees {[(v, self.tiled_structure.graph.degree[v]/2) 
+                                                                 for v in self.tiled_structure.graph.nodes if self.tiled_structure.graph.degree[v] > 6]}"
+        assert all(b in self.tiled_structure.bindings_list or flip(b) in self.tiled_structure.bindings_list
+                   for b in self.periodic_bindings)
+        assert self.tiled_structure.is_crystal()
+        assert self.tiled_structure.is_bindings_euclidian()
+
+    def __tile_single_dimension(self,
+                                monomer: Structure,
+                                number_of_tilings: int,
+                                dimensional_bindings: list[Binding]) -> list[Binding]:
+        """
+        internel method to use in constructor
+        """
+        n_bindings_start = len(self.periodic_bindings)
+        assert number_of_tilings >= 2
+        if number_of_tilings == 2:
+            mapping = monomer.remap_vert_ids(monomer.vertices())
+            # rotation mapping is identity
+            crystal_bindings_others = [
+                (mapping.map_location(u), du, mapping.map_location(v), dv)
+                for (u, du, v, dv) in dimensional_bindings
+            ]
+            binding_remap = [
+                (b1, b2) if b1[1] == b2[1] else (b1, flip(b2))
+                for b1, b2 in  zip(dimensional_bindings, crystal_bindings_others)
+            ]
+            tiled_structure = monomer.splice(mapping.target, binding_remap)
+            # extras = [
+            #     (u, du, v, dv) for
+            #     ((u, du, _, _), (_, _, v, dv)) in zip(dimensional_bindings, crystal_bindings_others)
+            # ]
+            extras = [
+                (u, du, mapping.map_location(v), dv)
+                for (u, du, v, dv) in dimensional_bindings
+            ]
+            assert all(du == rdir(dv) for (_, du, _, dv) in extras)
+            to_pop = dimensional_bindings
+
+        else:
+            # recurse
+            # construct tiling of n-1 structures, if we do this enough we will get to n = 2
+            # "sub tile" not "subtle"
+            subtile_periodic_bindings = self.__tile_single_dimension(monomer,
+                                                                     number_of_tilings - 1,
+                                                                     dimensional_bindings)
+            assert all([b in self.tiled_structure for b in subtile_periodic_bindings])
+            to_pop = subtile_periodic_bindings
+            # make sure we haven't somehow conjured new bindings into existance
+            assert len(subtile_periodic_bindings) == len(dimensional_bindings)
+
+            assert set(self.source_structure.vertices()) <= set(monomer.vertices())
+            mapping = monomer.remap_vert_ids(self.tiled_structure.vertices())
+            # mapping = self.tiled_structure.remap_vert_ids(monomer.vertices())
+            # construct map of vertex IDs from
+            crystal_bindings_other = mapping.apply_to(dimensional_bindings)
+
+            # crystal_bindings = [
+            #     (u, rdir(du), v, rdir(dv)) for u, du, v, dv
+            #     in mapping.apply_to(dimensional_bindings)
+            # ]
+
+            # align faces
+            binding_remap = [
+                (b1, b2) if b1[1] == b2[1] else (b1, flip(b2))
+                for b1, b2 in zip(crystal_bindings_other, subtile_periodic_bindings)
+            ]
+
+            # binding_remap = [
+            #     ((u1, du1, v2, dv2), (u2, du2, v1, dv1))
+            #     for ((u1, du1, v1, dv1), (u2, du2, v2, dv2)) in binding_remap
+            # ]
+
+            # make sure bindings are lined up
+            # binding_remap = list(zip(crystal_bindings_other, subtile_periodic_bindings))
+            tiled_structure = mapping.target.splice(self.tiled_structure, binding_remap)
+            assert tiled_structure.is_bindings_euclidian()
+            # extras = [(v, dv, u, du) for u, du, v, dv in crystal_bindings_other]
+            # flip directionality
+            # extras = [(u, rdir(du), v, rdir(dv))
+            #           for u, du, v, dv in crystal_bindings_other]
+            extras = [
+                (mapping.lmap[u1], du1, v2, dv2)
+                for ((u1, du1, v1, dv1), (u2, du2, v2, dv2)) in zip(dimensional_bindings, subtile_periodic_bindings)
+            ]
+            assert all(du == rdir(dv) for (_, du, _, dv) in extras)
+
+        # update bindings other than this one
+        # pb = copy.deepcopy(self.periodic_bindings) # don't work on main list
+        self.periodic_bindings.extend(mapping.apply_to(
+            filter(
+                lambda b: b not in dimensional_bindings and b not in dimensional_bindings and b[0] in mapping and b[2] in mapping,
+                self.periodic_bindings
+            )
+        ))
+
+        # for (u, du, v, dv) in pb:
+        #     if (u, du, v, dv) not in dimensional_bindings and (v, dv, u, du) not in dimensional_bindings:
+        #         if u in mapping.lmap and v in mapping.lmap:
+        #             assert rdir(du) == dv
+        #             self.periodic_bindings.append((mapping.lmap[u], du, mapping.lmap[v], dv))
+        self.periodic_bindings.extend(extras)
+        for b in to_pop:
+            self.periodic_bindings.remove(b)
+
+        # check binding counts
+        assert len(tiled_structure.bindings_list) == number_of_tilings * len(monomer.bindings_list)
+        assert number_of_tilings*(n_bindings_start - len(dimensional_bindings)) + len(dimensional_bindings) == len(self.periodic_bindings)
+
+        self.tiled_structure = tiled_structure
+        assert all(extra in tiled_structure for extra in extras)
+        return extras
 
 def identity_homomorphism(s: Structure) -> StructuralHomomorphism:
     """
@@ -650,15 +996,6 @@ class TypedStructure(Structure, ABC):
             # help
         return True
 
-    @abstractmethod
-    def rotate(self, rotation_map: dict[int, int]) -> StructuralHomomorphism:
-        pass
-
-    @abstractmethod
-    def splice(self, other: Structure, splice_points: list[tuple[tuple[int, int, int, int],
-                                                                 tuple[int, int, int, int]]]) -> Structure:
-        pass
-
     def draw(self, pos=None):
         """
         Draws the MultiDiGraph with matplotlib.
@@ -671,7 +1008,7 @@ class TypedStructure(Structure, ABC):
         # Get a list of available colors from matplotlib
         available_colors = list(mcolors.TABLEAU_COLORS.values())
 
-        if len(self.get_particle_types()) > len(available_colors):
+        if len(set(self.get_particle_types().values())) > len(available_colors):
             raise ValueError(f"Too many particle types for available colors! Max is {len(available_colors)}.")
 
         # Generate a color map assigning a color to each particle type
@@ -704,6 +1041,8 @@ class TypedStructure(Structure, ABC):
     def matrix_etc(self) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         returns the result of Structure::matrix + other stuff
+
+        Returns: tuple where first element is an array of positions, second is an array of uids, third is an array of particle type ids
         """
 
         cubes_coords: dict[int, np.ndarray] = self._get_cubes_coords()
@@ -714,9 +1053,16 @@ class TypedStructure(Structure, ABC):
         a, uids, ptypes = zip(*data)
         a = np.stack(a)
         # a = np.array([*cubes_coords.values()])
-        assert a.shape == (len(self), 3)
+        assert a.shape == (self.num_vertices(), 3)
         return a, np.array(uids), np.array(ptypes)
 
+    # @functools.cache
+    def to_igraph(self):
+        """Convert a NetworkX DiGraph to an igraph Graph (directed) with 'type' as a vertex attribute."""
+        ig_g = super().to_igraph()
+        types = [self.particle_type(ig_g.vs['uid'][v]) for v in ig_g.vs.indices]
+        ig_g.vs['type'] = types
+        return ig_g
 
 class GenericTypedStructure(TypedStructure):
     """
@@ -742,6 +1088,44 @@ class GenericTypedStructure(TypedStructure):
 
     def particle_type(self, particle_id: int) -> int:
         return self.particle_types[particle_id]
+
+    def set_particle_types(self, new_types: dict[int, int]):
+        assert all(key in self.particle_types for key in new_types)
+        self.particle_types.update(new_types)
+
+    def remap_vert_ids(self, verts_to_avoid: Iterable[int]) -> StructuralHomomorphism:
+        """
+        written by chatGPT
+        Returns a StructuralHomomorphism mapping this structure to a new one with
+        vertex IDs remapped to avoid collisions. Also updates particle types.
+        """
+        if not isinstance(verts_to_avoid, frozenset):
+            verts_to_avoid = frozenset(verts_to_avoid)
+
+        old_ids = sorted(self.vertices())
+        new_ids = []
+        next_id = 0
+
+        while len(new_ids) < len(old_ids):
+            if next_id not in verts_to_avoid:
+                new_ids.append(next_id)
+            next_id += 1
+
+        remap = dict(zip(old_ids, new_ids))
+
+        # Remap bindings
+        new_bindings = [
+            (remap[u], du, remap[v], dv) for u, du, v, dv in self.bindings_list
+        ]
+
+        # Remap particle types
+        new_types = {remap[k]: v for k, v in self.particle_types.items()}
+
+        assert len(new_bindings) == len(self.bindings_list)
+
+        remapped_structure = GenericTypedStructure(bindings=new_bindings, types=new_types)
+
+        return StructuralHomomorphism(self, remapped_structure, 0, remap)
 
     def get_particle_types(self) -> dict[int, int]:
         return self.particle_types
@@ -770,8 +1154,40 @@ class GenericTypedStructure(TypedStructure):
     def __str__(self) -> str:
         return f"{self.bindings_list}\nParticle Typing: {self.get_particle_types()}"
 
-    def splice(self, other: GenericTypedStructure, splice_points: list[tuple[Binding, Binding]]) -> GenericTypedStructure:
-        pass
+    def splice(self, other: GenericTypedStructure,
+               splice_points: list[tuple[Binding, Binding]]) -> GenericTypedStructure:
+        """
+        Written with the aid of chatGPT
+
+        Splices another GenericTypedStructure into this one by calling the base class splice method
+        and then merging the particle type annotations appropriately.
+
+        Parameters:
+            other: the GenericTypedStructure to splice into self
+            splice_points: a list of tuples (binding_from_self, binding_from_other)
+                specifying the connections at which to splice the structures.
+
+        Returns:
+            A new GenericTypedStructure instance that contains the spliced structure with combined
+            bindings and merged particle types.
+        """
+        # Step 1: Remap the other structure so that its vertex IDs do not clash with those of self.
+        hom = other.remap_vert_ids(self.vertices())
+        # Create the remapped version of other (hom.target) and also capture the mapping hom.lmap.
+
+        # Step 2: Call the superclass splice method to get a new Structure with combined bindings.
+        spliced_structure = super().splice(other, splice_points)
+        # At this point, spliced_structure is an instance of Structure.
+
+        # Step 3: Merge particle types.
+        # For self, the types remain unchanged.
+        # For other, we need to update the keys (vertex IDs) using the remapping hom.lmap.
+        remapped_types = {hom.lmap[k]: v for k, v in other.particle_types.items()}
+        combined_types = {**self.particle_types, **remapped_types}
+
+        # Step 4: Construct and return a new GenericTypedStructure using the spliced bindings and
+        # the merged particle types.
+        return GenericTypedStructure(bindings=list(spliced_structure.bindings_list), types=combined_types)
 
     def rotate(self, rotation_map: dict[int, int]) -> StructuralHomomorphism:
         pass
@@ -783,6 +1199,44 @@ class GenericTypedStructure(TypedStructure):
         return GenericTypedStructure(bindings=[(u, du, v, dv) for u, du, v, dv in self.bindings_list
                                                if du not in (axis, rdir(axis)) and dv not in (axis, rdir(axis))],
                                      types=self.get_particle_types())
+
+
+def read_topology(top: Union[str, dict, Path], pt_idxs: set[int] = set()) -> GenericTypedStructure:
+    # if string, assume this is a file path
+    if isinstance(top, str):
+        if top.startswith("~"):
+            top = Path(top).expanduser()
+        elif not top.startswith("/"):
+            top = get_input_dir() / "topologies" / Path(top)
+        else:
+            top = Path(top)
+        with top.open("r") as f:
+            top = json.load(f)
+    assert isinstance(top, dict), "Invalid topology"
+    bindings = copy.deepcopy(top["bindings"])
+    if "extraConnections" in top:
+        bindings += top["extraConnections"]
+
+    type_id_map = dict()
+    for pt1, _, pt2, _ in bindings:
+        for pt in [pt1, pt2]:
+            if pt in pt_idxs:
+                type_id_map[pt] = next(itertools.filterfalse(pt_idxs.__contains__, itertools.count(1)))
+    bindings = [
+        [
+            type_id_map[pt1] if pt1 in type_id_map else pt1,
+            dir1,
+            type_id_map[pt2] if pt2 in type_id_map else pt2,
+            dir2
+        ]
+        for pt1, dir1, pt2, dir2 in bindings
+    ]
+
+    nps = {
+        int(k): top["nanoparticles"][k] + 1 for k in top["nanoparticles"]
+    } if "nanoparticles" in top else {}
+    assert len(set(nps.values())) <= 1, "god please no"
+    return GenericTypedStructure(bindings=bindings, types=nps, fill_type=0)
 
 
 def calcEmptyFromTop(top: Iterable[tuple[int, int, int, int]]) -> list[tuple[int, int]]:
@@ -798,3 +1252,4 @@ def calcEmptyFromTop(top: Iterable[tuple[int, int, int, int]]) -> list[tuple[int
             if not (i, dPi) in patches:
                 empty.append((i, dPi))
     return empty
+

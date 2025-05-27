@@ -1174,7 +1174,11 @@ class RWriter(PLBaseWriter):
         # raspberry format requires that particles be sorted by type
         scene_sorted = copy.deepcopy(scene)
         scene_sorted.sort_particles_by_type()
-        self.write_top(self.get_scene_top(scene_sorted), top_path=init_top)
+        if "scene_top" in kwargs:
+            scene_top = kwargs["scene_top"]
+        else:
+            scene_top = self.get_scene_top(scene_sorted)
+        self.write_top(scene_top, top_path=init_top)
         self.write_conf(scene_sorted, init_conf)
         return {
             "topology": init_top,
@@ -1307,19 +1311,20 @@ class RWriter(PLBaseWriter):
     class RPatchyTopology(PLBaseWriter.PatchyTopology):
         # todo: better interaction site resolution
         # todo: actually optimize this for cube
-        particle_repulsion_sites = [
-            (coords, 0.25) for coords in itertools.product(
-                [0.25, -0.25],
-                [0.25, -0.25],
-                [0.25, -0.25]
-            )
-        ]
+        particle_repulsion_sites: list[tuple[list, float]]
         type_counts: dict[int, int]  # particle type ID -> count
         particle_types: PLParticleSet
 
         def __init__(self, particles: PLParticleSet, type_counts: dict[int, int]):
             self.type_counts = type_counts
             self.particle_types = particles
+            self.particle_repulsion_sites = [
+            (coords, 0.25) for coords in itertools.product(
+                [0.25, -0.25],
+                [0.25, -0.25],
+                [0.25, -0.25]
+            )
+        ]
 
         def info(self, fp: str="") -> TopInfo:
             # can use dummy fp if it doesn't matter
@@ -1369,17 +1374,26 @@ class RWriter(PLBaseWriter):
             # write repulsion sites
             for (repulsion_pt_position, r) in top.particle_repulsion_sites:
                 repulsion_pt_position = p.position() + repulsion_pt_position @ p.rotmatrix()
-                file.write(f"{np.array2string(repulsion_pt_position, suppress_small=True, precision=4, formatter={'float_kind': custom_formatter})[1:-1].strip()} @ {r} C[{particle_color}]\n")
+                file.write(f"{np.array2string(repulsion_pt_position,
+                                              suppress_small=True, 
+                                              precision=4,
+                                              formatter={'float_kind': custom_formatter})[1:-1].strip()} @ {r} C[{particle_color}]\n")
             # write patches
             # mgl doens't like conic patches w/o mgl a central sphere, so we will have each patch have a dummy particle
             for i, patch in enumerate(particle_type.patches()):
                 patch_color = selectColor(abs(patch.color()), saturation=65 if patch.color() > 0 else 25, fmt="arr")
                 patch_color = ",".join([str(round(i, 1)) for i in patch_color])
-                patch_width = 0.12 # todo: settable
+                patch_width = 2 * 0.082 # todo: settable
                 # best way to write patches is to make each patch a particle *ugh*
-                file.write(f"{np.array2string(p.patch_position(patch), suppress_small=True, precision=4, formatter={'float_kind': custom_formatter})[1:-1]} @ 0 C[0,0,0] M "
-                           f"{np.array2string(p.patch_a1(patch) / 2, suppress_small=True, precision=4, formatter={'float_kind': custom_formatter})[1:-1]} "
-                           f"{patch_width} C[{patch_color}]\n")
+                file.write(f"{np.array2string(p.patch_position(patch),
+                                              suppress_small=True,
+                                              precision=4,
+                                              formatter={'float_kind': custom_formatter})[1:-1]} @ 0 C[0,0,0] M "
+                           f"{np.array2string(p.patch_a1(patch) * patch_width,
+                                              suppress_small=True,
+                                              precision=4,
+                                              formatter={'float_kind': custom_formatter})[1:-1]} "
+                           f"{patch_width * 4} C[{patch_color}]\n")
 
 
 class MalformedSimulationException(BaseException):

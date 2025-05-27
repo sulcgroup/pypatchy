@@ -32,11 +32,13 @@ class PolycubeStructure(TypedStructure, Scene):
     # mypy type specs
     rule: PolycubesRule
     cubeMap: dict[bytes, PolycubesStructureCube]
+    particle_uid_map: dict[int, PolycubesStructureCube]
 
     def __init__(self, **kwargs):
         # TODO: refactor this constructor to be normal constructor, have make_polycube() method external
         super(PolycubeStructure, self).__init__()
         CellLists.__init__(self)
+        self.particle_uid_map = dict()
 
         # load rule
         if "rule" in kwargs:
@@ -121,13 +123,19 @@ class PolycubeStructure(TypedStructure, Scene):
                                     align1 = cube1.rotation().apply(p1.alignDir()).round()
                                     align2 = cube2.rotation().apply(p2.alignDir()).round()
                                     if (align1 == align2).all():
-                                        if cube1.state(p1.state_var()) and cube2.state(p2.state_var()):
-                                            self.graph.add_edge(cube1.get_uid(), cube2.get_uid(), dirIdx=diridx(d1))
-                                            # self.graph.add_edge(cube2.get_uid(), cube1.get_uid(), dirIdx=diridx(d2))
-                                            self.bindings_list.add((
-                                                cube1.get_uid(), diridx(d1),
-                                                cube2.get_uid(), diridx(d2)
-                                            ))
+                                        if not self.graph.has_edge(cube1.get_uid(), cube2.get_uid()):
+                                            if cube1.state(p1.state_var()) and cube2.state(p2.state_var()):
+                                                self.graph.add_edge(cube1.get_uid(), cube2.get_uid(), dirIdx=diridx(d1))
+                                                self.graph.add_edge(cube2.get_uid(), cube1.get_uid(), dirIdx=diridx(d2))
+                                                self.bindings_list.add((
+                                                    cube1.get_uid(), diridx(d1),
+                                                    cube2.get_uid(), diridx(d2)
+                                                ))
+
+                                                assert self.graph.out_degree[cube1.get_uid()] <= 6, "Added too many out edges to a cube!"
+                                                assert self.graph.out_degree[cube2.get_uid()] <= 6, "Added too many out edges to a cube!"
+        for cube in self.particles():
+            self.particle_uid_map[cube.get_uid()] = cube
 
     def num_cubes_of_type(self, ctidx: int) -> int:
         return sum([1 for cube in self._particles if cube.get_cube_type().type_id() == ctidx])
@@ -205,7 +213,7 @@ class PolycubeStructure(TypedStructure, Scene):
         return self._particles[n].typedir(self.get_arrow_diridx(n, adj))
 
     def particle_type(self, particle_id: int) -> int:
-        return self._particles[particle_id].get_type()
+        return self.particle_uid_map[particle_id].get_type()
 
     def graph_undirected(self) -> nx.Graph:
         return self.graph.to_undirected()

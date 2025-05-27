@@ -271,8 +271,7 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
         mdt["setup_date"] = setup_date.strftime("%Y-%m-%d")
 
     # too difficult to make this one a ParamSet object
-    default_param_set = get_param_set(
-        cfg[DEFAULT_PARAM_SET_KEY] if DEFAULT_PARAM_SET_KEY in cfg else "default")
+    default_param_set = get_param_set(cfg[DEFAULT_PARAM_SET_KEY] if DEFAULT_PARAM_SET_KEY in cfg else "default")
 
     params = []
 
@@ -337,14 +336,6 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
             for obs in cfg[OBSERABLES_KEY]:
                 if isinstance(obs, str):
                     observables[obs] = observable_from_file(obs)
-        # for obserable in cfg[OBSERABLES_KEY]:
-        #     # legacy: string-expression of observable
-        #     if isinstance(obserable, str):
-        #         observables[obserable] = observable_from_file(obserable)
-        #     else:
-        #         assert isinstance(obserable, dict), f"Invalid type for observale {type(obserable)}"
-        #         obserable = PatchySimObservable(**obserable)
-        #         observables[obserable.observable_name] = obserable
 
     if "server_settings" in cfg:
         if isinstance(cfg["server_settings"], str):

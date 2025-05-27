@@ -277,8 +277,7 @@ class GraphsFromPatchyBonds(AnalysisPipelineHead):
         """
         # skip timepoints that aren't multiples of the specified timestep
         G = nx.MultiDiGraph()
-        for n in range(n_particles):
-            G.add_nodes_from(range(n_particles))
+        G.add_nodes_from(range(n_particles))
         for p_idx in range(n_particles):
             particle_type: PLPatchyParticle = particle_types.particle(top.get_particles_types()[p_idx])
             G.nodes[p_idx]["particle_type"] = particle_type
