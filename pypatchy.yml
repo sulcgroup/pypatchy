@@ -13,3 +13,6 @@ dependencies:
   - drawsvg
   - openpyxl
   - scikit-optimize
+  - pytables
+  - h5py
+  - seaborn

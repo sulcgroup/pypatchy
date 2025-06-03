@@ -253,28 +253,27 @@ class Structure:
         """
 
         # TODO: TEST
+        # if the structure is not an acceptable size, generator exit
+        if len(structure) >= len(self):
+            # for now, brute-force this
+            for rmapidx, rotation_mapping in enumerateRotations().items():
+                # Ben would say rotation_mapping is a symmetry group of a cube or something
+                for node_list_target in itertools.permutations(structure.graph.nodes, r=len(self.graph.nodes)):
+                    # node lists aren't nessecarily indexed from 0
+                    # sometimes they are but it's not a safe assumption
+                    node_list_src = list(self.graph.nodes)
 
-        assert len(structure) >= len(self)
+                    node_list_mapping = {n1: n2 for n1, n2 in zip(node_list_src, node_list_target)}
+                    reverse_mapping = {n2: n1 for n1, n2 in zip(node_list_src, node_list_target)}
 
-        # for now, brute-force this
-        for rmapidx, rotation_mapping in enumerateRotations().items():
-            # Ben would say rotation_mapping is a symmetry group of a cube or something
-            for node_list_target in itertools.permutations(structure.graph.nodes, r=len(self.graph.nodes)):
-                # node lists aren't nessecarily indexed from 0
-                # sometimes they are but it's not a safe assumption
-                node_list_src = list(self.graph.nodes)
-
-                node_list_mapping = {n1: n2 for n1, n2 in zip(node_list_src, node_list_target)}
-                reverse_mapping = {n2: n1 for n1, n2 in zip(node_list_src, node_list_target)}
-
-                # list of source node IDs
-                if self._validate_homomorphism(node_list_mapping, node_list_src, node_list_target,
-                                               rotation_mapping, structure):
-                    yield StructuralHomomorphism(self,
-                                                 structure,
-                                                 rmapidx,
-                                                 node_list_mapping,
-                                                 reverse_mapping)
+                    # list of source node IDs
+                    if self._validate_homomorphism(node_list_mapping, node_list_src, node_list_target,
+                                                   rotation_mapping, structure):
+                        yield StructuralHomomorphism(self,
+                                                     structure,
+                                                     rmapidx,
+                                                     node_list_mapping,
+                                                     reverse_mapping)
 
     def _validate_homomorphism(self,
                                node_list_mapping,

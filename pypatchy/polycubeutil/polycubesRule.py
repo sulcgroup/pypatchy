@@ -403,17 +403,18 @@ class PolycubeRuleCubeType(PatchyBaseParticleType):
         return self.to_string()
 
     def to_string(self, force_static=False) -> str:
+        assert not force_static
         # option to force legacy "static representation"
-        if force_static or any([isinstance(e, StringConditionalEffect) for e in self.effects()]):
-            sz = "#".join([self.patch_string_static(idx) for (idx, _) in enumerate(RULE_ORDER)])
+        # if force_static or any([isinstance(e, StringConditionalEffect) for e in self.effects()]):
+        #     sz = "#".join([self.patch_string_static(idx) for (idx, _) in enumerate(RULE_ORDER)])
         # default to dynamic model repr
-        else:
+        # else:
             # lmao
-            sz = "|".join([
-                self.get_patch_by_diridx(i).to_string() if self.has_patch(i) else ""
-                for (i, _) in enumerate(RULE_ORDER)])
-            if len(self.effects()) > 0:
-                sz += "@" + ";".join([str(e) for e in self.effects()])
+        sz = "|".join([
+            self.get_patch_by_diridx(i).to_string() if self.has_patch(i) and self.patch(i).color() else ""
+            for (i, _) in enumerate(RULE_ORDER)])
+        if len(self.effects()) > 0:
+            sz += "@" + ";".join([str(e) for e in self.effects()])
         return sz
 
     def patch_string_static(self, patch_dir_idx: int) -> str:
@@ -836,6 +837,7 @@ class PolycubesRule(BaseParticleSet):
             for ct in self.particles()]
 
     def add_particle_patch(self, particle: Union[int], patch: PolycubesPatch):
+        assert patch.color(), f"Patch color should be nonzero! Passed value: {patch.color()}"
         if isinstance(particle, int):
             particle = self.particle(particle)
         self.add_patch(patch)
