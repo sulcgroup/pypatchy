@@ -61,7 +61,7 @@ class ParamSet(LogEntryObject):
                 self.append(item)
             else:
                 self.append(ParameterValue(param_name=parameter_name, param_value=item))
-        self.parameter_dict[parameter_name] = item
+        self.parameter_dict[parameter_name] = item.param_value
         if isinstance(item, ParamValueGroup):
             for param_name in item.group_params_names():
                 self.parameter_dict[param_name] = item[param_name]
