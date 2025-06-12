@@ -380,21 +380,24 @@ class PLParticleSet(BaseParticleSet):
                             else:
                                 c += 20
                             assert self.interaction_matrix()[tuple(interacting_colors)], "Interacting color missing from interaction matrix!"
-                            new_interaction_map[(c, -c )] = self.interaction_matrix()[tuple(interacting_colors)] / mdt_params.n_teeth
+                            # we actually *don't* want to scale by num_teeth here because we are already scaling patch strength
+                            new_interaction_map[(c, -c )] = self.interaction_matrix()[tuple(interacting_colors)]
                     else:
                         c = patch.color()
                         if self.interaction_matrix().self_interacts(patch.color()):
                             # CASE: no torsion, yes self-interact
                             # non-torsional patches are VERY EASY because you just use the same color again
                             # theta doesn't need to be adjusted for parity because it's the sames
-                            new_interaction_map[(c, c)] = self.interaction_matrix()[patch.color(),patch.color()] / mdt_params.n_teeth
+                            # we actually *don't* want to scale by num_teeth here because we are already scaling patch strength
+                            new_interaction_map[(c, c)] = self.interaction_matrix()[patch.color(),patch.color()]
                         else:
                             # assert c != 0
                             # CASE: no torsion, no self interact
                             # simple enouyg
                             interacting_colors = (c, *self.interaction_matrix().get_interacting_colors(c))
                             assert len(interacting_colors) == 2
-                            new_interaction_map[interacting_colors] = self.interaction_matrix()[interacting_colors] / mdt_params.n_teeth
+                            # we actually *don't* want to scale by num_teeth here because we are already scaling patch strength
+                            new_interaction_map[interacting_colors] = self.interaction_matrix()[interacting_colors]
 
                     r = R.identity()
                     if mdt_params.dental_radius > 0:

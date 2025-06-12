@@ -889,7 +889,8 @@ class LWriter(PLBaseWriter):
 
         interactions_file = kwargs["DPS_interaction_matrix_file"]
         # self.export_interaction_matrix(particles.interaction_matrix(), interactions_file)
-        self.export_interaction_matrix(particles.patches(), interactions_file)
+        # self.export_interaction_matrix(particles.patches(), interactions_file)
+        self.export_interaction_matrix(particles, interactions_file)
 
         self.write_conf(scene, init_conf)
         self.write_top(self.get_scene_top(scene), init_top)
@@ -916,14 +917,24 @@ class LWriter(PLBaseWriter):
     #                 # if mat[p1.color(), p2.color()]
     #             ]
     #         )
-
-    def export_interaction_matrix(self, patches: list[PLPatch], filename: str):
+    #
+    # def export_interaction_matrix(self, patches: list[PLPatch], filename: str):
+    #     with self.file(filename, "w") as f:
+    #         f.writelines(
+    #             [
+    #                 f"patchy_eps[{p1.type_id()}][{p2.type_id()}] = {p1.strength()}\n"
+    #                 for p1, p2 in itertools.combinations(patches, 2)
+    #                 if p1.color() == -p2.color()
+    #             ]
+    #         )
+    def export_interaction_matrix(self, particle_types: PLParticleSet, filename: str):
         with self.file(filename, "w") as f:
             f.writelines(
                 [
-                    f"patchy_eps[{p1.type_id()}][{p2.type_id()}] = {p1.strength()}\n"
-                    for p1, p2 in itertools.combinations(patches, 2)
-                    if p1.color() == -p2.color()
+                    # use geometric mean of patch strengths, best for backwards compatibility
+                    f"patchy_eps[{p1.type_id()}][{p2.type_id()}] = {sqrt(p1.strength() * p2.strength()) * particle_types.interaction_matrix()[p1.color(), p2.color()]}\n"
+                    for p1, p2 in itertools.combinations(particle_types.patches(), 2)
+                    if particle_types.interaction_matrix()[p1.color(), p2.color()]
                 ]
             )
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 import itertools
+from argparse import ArgumentError
 from typing import Union, Generator
 
 import networkx as nx
@@ -60,6 +61,7 @@ class InteractionMatrix:
                 # if get_interacting_colors yields any items, return True
                 return True
             return False
+        raise ArgumentError("Illegal arguement type")
 
 
     def num_interactions(self) -> int:
