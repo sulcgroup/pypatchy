@@ -1385,10 +1385,11 @@ class RWriter(PLBaseWriter):
             # write repulsion sites
             for (repulsion_pt_position, r) in top.particle_repulsion_sites:
                 repulsion_pt_position = p.position() + repulsion_pt_position @ p.rotmatrix()
-                file.write(f"{np.array2string(repulsion_pt_position,
-                                              suppress_small=True, 
+                repulsion_pt_position_str = np.array2string(repulsion_pt_position,
+                                              suppress_small=True,
                                               precision=4,
-                                              formatter={'float_kind': custom_formatter})[1:-1].strip()} @ {r} C[{particle_color}]\n")
+                                              formatter={'float_kind': custom_formatter})[1:-1].strip()
+                file.write(f"{repulsion_pt_position_str} @ {r} C[{particle_color}]\n")
             # write patches
             # mgl doens't like conic patches w/o mgl a central sphere, so we will have each patch have a dummy particle
             for i, patch in enumerate(particle_type.patches()):
@@ -1396,15 +1397,15 @@ class RWriter(PLBaseWriter):
                 patch_color = ",".join([str(round(i, 1)) for i in patch_color])
                 patch_width = 2 * 0.082 # todo: settable
                 # best way to write patches is to make each patch a particle *ugh*
-                file.write(f"{np.array2string(p.patch_position(patch),
-                                              suppress_small=True,
-                                              precision=4,
-                                              formatter={'float_kind': custom_formatter})[1:-1]} @ 0 C[0,0,0] M "
-                           f"{np.array2string(p.patch_a1(patch) * patch_width,
-                                              suppress_small=True,
-                                              precision=4,
-                                              formatter={'float_kind': custom_formatter})[1:-1]} "
-                           f"{patch_width * 4} C[{patch_color}]\n")
+                position = np.array2string(p.patch_position(patch),
+                                           suppress_small=True,
+                                           precision=4,
+                                           formatter={'float_kind': custom_formatter})[1:-1]
+                width = np.array2string(p.patch_a1(patch) * patch_width,
+                                        suppress_small=True,
+                                        precision=4,
+                                        formatter={'float_kind': custom_formatter})[1:-1]
+                file.write(f"{position} @ 0 C[0,0,0] M {width} {patch_width * 4} C[{patch_color}]\n")
 
 
 class MalformedSimulationException(BaseException):
