@@ -800,8 +800,7 @@ class Tiling:
                                                         dimensional_bindings)
         # do we need an assert here?
         assert all([self.tiled_structure.graph.degree[v]/2 <= 6 for v in self.tiled_structure.graph.nodes]),\
-            f"Some nodes have non-allowed degrees have degrees {[(v, self.tiled_structure.graph.degree[v]/2) 
-                                                                 for v in self.tiled_structure.graph.nodes if self.tiled_structure.graph.degree[v] > 6]}"
+            f"Some nodes have non-allowed degrees have degrees {[(v, self.tiled_structure.graph.degree[v]/2) for v in self.tiled_structure.graph.nodes if self.tiled_structure.graph.degree[v] > 6]}"
         assert all(b in self.tiled_structure.bindings_list or flip(b) in self.tiled_structure.bindings_list
                    for b in self.periodic_bindings)
         assert self.tiled_structure.is_crystal()
