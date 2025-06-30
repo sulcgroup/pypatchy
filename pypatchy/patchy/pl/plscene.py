@@ -770,3 +770,4 @@ class PLPSimulation(Scene, CellLists):
                 e += potential.energy(self.box_size(), p1, p2)
             # should return false if overlap is present, true if energetically acceptable
         return np.exp(-e / self.T()) <= random.random()
+

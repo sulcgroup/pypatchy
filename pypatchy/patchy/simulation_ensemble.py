@@ -1208,12 +1208,14 @@ class PatchySimulationEnsemble(Analyzable):
         num_particles = self.sim_get_total_stage_particles(sim, stage)
         assert num_particles > 0
 
-    def get_conf(self, sim: PatchySimulation, timepoint: int) -> Configuration:
+    def get_conf(self, sim: PatchySimulation, timepoint: int = -1) -> Configuration:
         """
         do not add a stage parameter!
         Returns:
             a Configuration object showing the conf of the given simulation at the given timepoint
         """
+        if timepoint == -1:
+            timepoint = self.time_length(sim)
         assert self.time_length(sim) >= timepoint, f"Specified timepoint {timepoint} exceeds simulation length" \
                                                    f"{self.time_length(sim)}"
         if timepoint > self.sim_get_param(sim, "print_conf_interval"):
@@ -1642,15 +1644,6 @@ class PatchySimulationEnsemble(Analyzable):
         #     self.metadata["analysis_file"] = get_input_dir() / (self.export_name + "_analysis_pipeline.pickle")
         with open(get_input_dir() / self.analysis_file, "wb") as f:
             pickle.dump(self.analysis_pipeline, f)
-
-    def continue_simulation(self, sims: Union[list[PatchySimulation], PatchySimulation, None]):
-        if sims is None:
-            self.continue_simulation(sims)
-        elif isinstance(sims, list):
-            for sim in sims:
-                self.continue_simulation(sim)
-        else:
-            pass
 
     def sim_get_next_stage(self, sim: PatchySimulation) -> Stage:
         try:

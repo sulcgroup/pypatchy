@@ -156,6 +156,7 @@ class LoadEnergies(AnalysisPipelineHead):
     load_cached_files = load_cached_pd_data
 
     def exec(self, _, __, stages: list[Stage], energy_files: list[Path]) -> PDPipelineData:
+        # todo: catch empty csv problem, raise custom exception
         stages_data = [pd.read_csv(stage_energy_file, sep="\s+", header=None) for stage_energy_file in energy_files]
         df = pd.concat(stages_data)
         df.columns = [TIMEPOINT_KEY, self.POTENTIAL_ENERGY_KEY, self.KINETIC_ENERGY_KEY, self.TOTAL_ENERGY_KEY]
