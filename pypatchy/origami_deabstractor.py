@@ -75,7 +75,8 @@ class OrigamiDeabstractor(ABC):  # TODO BETTER NAME
                 p.clear_clusters()
                 for b in p.iter_bases():
                     p.assign_base_to_cluster(b.uid, 0)
-        merged_conf = sum(particles[1:], start=particles[0])
+
+        merged_conf = DNAStructure.merge_many(particles)
         return merged_conf
 
     def get_sticky_length(self) -> float:
@@ -143,7 +144,8 @@ class OrigamiDeabstractor(ABC):  # TODO BETTER NAME
         pl = len(particles)
         for i, particle in enumerate(particles):
             # clone dna particle
-            origami: DNAParticle = deepcopy(self.get_dna_origami(particle))
+            origami = self.get_dna_origami(particle).clone(copy_uuids=False)
+            # origami: DNAParticle = deepcopy(self.get_dna_origami(particle))
             # origami: DNAParticle = self.get_dna_origami(particle).clone()
             print(f"{i}/{pl}", end="\r")
             assert origami.linked_particle.matches(particle)

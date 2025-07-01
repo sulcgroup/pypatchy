@@ -658,12 +658,18 @@ class PatchyOrigamiConverter(OrigamiDeabstractor):
         if isinstance(write_top_path, str):
             write_top_path = Path(write_top_path)
         if not write_top_path.is_absolute():
-            write_top_path = get_output_dir() / write_top_path
+            if write_top_path.parts[0] == "~":
+                write_top_path = write_top_path.expanduser()
+            else:
+                write_top_path = get_output_dir() / write_top_path
 
         if isinstance(write_conf_path, str):
             write_conf_path = Path(write_conf_path)
         if not write_conf_path.is_absolute():
-            write_conf_path = get_output_dir() / write_conf_path
+            if write_conf_path.parts[0] == "~":
+                write_conf_path = write_conf_path.expanduser()
+            else:
+                write_conf_path = get_output_dir() / write_conf_path
 
         assert write_top_path.parent.exists()
         assert write_conf_path.parent.exists()
@@ -694,7 +700,10 @@ class PatchyOrigamiConverter(OrigamiDeabstractor):
         if isinstance(write_oxview_path, str):
             write_oxview_path = Path(write_oxview_path)
         if not write_oxview_path.is_absolute():
-            write_oxview_path = get_output_dir() / write_oxview_path
+            if write_oxview_path.parts[0] == "~":
+                write_oxview_path = write_oxview_path.expanduser()
+            else:
+                write_oxview_path = get_output_dir() / write_oxview_path
         if not seperate:
             merged_conf = self.get_full_conf(clusters=clusters or color_by_type)
             oxview_json = merged_conf.get_oxview_json()

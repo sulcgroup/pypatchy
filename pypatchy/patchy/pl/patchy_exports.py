@@ -76,7 +76,7 @@ def generate_unit_cube():
 
 
 
-def to_gltf(scene: PLPSimulation, export_to: Path, particle_shape="sphere"):
+def to_gltf(scene: PLPSimulation, export_to: Path, particle_shape="sphere", center=True, color_saturation=85, color_value=80):
     """
     exports patchy scene as glft file. written with help of chatGPT
 
@@ -86,6 +86,9 @@ def to_gltf(scene: PLPSimulation, export_to: Path, particle_shape="sphere"):
         particle_shape: shape of particle to export. can be "sphere" or "cube" to automatically generate spheres / cubes, or a list of (verts, faces) tuples
     """
     gltf = GLTF2(asset=Asset(version="2.0"))
+
+    # for centering, if nessecary
+    offset = scene.box_size() / 2
 
     # --- Geometry selection ---
     if particle_shape == "sphere":
@@ -121,7 +124,7 @@ def to_gltf(scene: PLPSimulation, export_to: Path, particle_shape="sphere"):
     gltf.meshes = []
     type_to_mesh_idx = {}
     for type_id in range(scene.num_particle_types()):
-        rgb = selectColor(type_id, fmt="rgb")
+        rgb = selectColor(type_id, saturation=color_saturation, value=color_value, fmt="rgb")
         if isinstance(rgb, str) and rgb.startswith("rgb"):
             rgb_vals = [float(x) for x in rgb[4:-1].split(",")]
         else:
@@ -149,8 +152,11 @@ def to_gltf(scene: PLPSimulation, export_to: Path, particle_shape="sphere"):
             quat = R.from_matrix(rot_matrix).as_quat(scalar_first=False)  # [x, y, z, w]
             rotation = quat.tolist()
 
+        position = p.position()
+        if center:
+            position -= offset
         gltf.nodes.append(Node(
-            translation=p.position().tolist(),
+            translation=position.tolist(),
             rotation=rotation,
             mesh=type_to_mesh_idx[p.get_type()],
             name=p.name()
