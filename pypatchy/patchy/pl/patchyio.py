@@ -391,10 +391,10 @@ class FWriter(PLBaseWriter):
               scene: PLPSimulation,
               **kwargs) -> dict[str, str]:
 
-        particle_fn = kwargs["particle_file"]
-        patchy_fn = kwargs["patchy_file"]
-        init_top = kwargs["topology"]
-        init_conf = kwargs["conf_file"]
+        particle_fn = kwargs["particle_file"] if "particle_file" in kwargs else "particles.txt"
+        patchy_fn = kwargs["patchy_file"] if "patchy_file" in kwargs else "patches.txt"
+        init_top = kwargs["topology"] if "topology" in kwargs else "topology.top"
+        init_conf = kwargs["conf_file"] if "conf_file" in kwargs else "conf.dat"
         # write top and particles/patches spec files
         # first convert particle json into PLPatchy objects (cf plpatchylib.py)
 
