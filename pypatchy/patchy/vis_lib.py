@@ -413,7 +413,7 @@ def plot_energy(e: PatchySimulationEnsemble,
 
     plt.figure(figsize=(10, 6))
     if curve_color_param in df:
-        colors = plt.cm.viridis(np.linspace(0, 1, len(np.unique(df[curve_color_param]))))
+        colors = plt.cm.tab10(np.linspace(0, 1, len(np.unique(df[curve_color_param]))))
         color_map = dict(zip(np.unique(df[curve_color_param]), colors))
 
         for param1 in np.unique(df[curve_color_param]):
