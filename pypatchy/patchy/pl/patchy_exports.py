@@ -16,32 +16,54 @@ from ...util import selectColor
 
 
 def generate_uv_sphere(radius=1.0, segments=16, rings=16):
-    """
-    Generate vertices and indices for a UV sphere.
-    Returns (vertices, indices), where:
-    - vertices is a flat list of floats [x0, y0, z0, x1, y1, z1, ...]
-    - indices is a flat list of ints [i0, i1, i2, ...] representing triangles
-    """
     vertices = []
     indices = []
 
-    for y in range(rings + 1):
-        for x in range(segments + 1):
-            x_segment = x / segments
-            y_segment = y / rings
-            x_pos = radius * cos(x_segment * 2 * pi) * sin(y_segment * pi)
-            y_pos = radius * cos(y_segment * pi)
-            z_pos = radius * sin(x_segment * 2 * pi) * sin(y_segment * pi)
+    # Add north pole
+    vertices.extend([0.0, radius, 0.0])
+
+    # Add middle vertices
+    for y in range(1, rings):
+        theta = np.pi * y / rings
+        sin_theta = np.sin(theta)
+        cos_theta = np.cos(theta)
+        for x in range(segments):
+            phi = 2 * np.pi * x / segments
+            x_pos = radius * np.cos(phi) * sin_theta
+            y_pos = radius * cos_theta
+            z_pos = radius * np.sin(phi) * sin_theta
             vertices.extend([x_pos, y_pos, z_pos])
 
-    for y in range(rings):
+    # Add south pole
+    vertices.extend([0.0, -radius, 0.0])
+
+    north_idx = 0
+    south_idx = 1 + (rings - 2) * segments
+
+    # Top cap
+    for x in range(segments):
+        next_x = (x + 1) % segments
+        indices.extend([north_idx, 1 + x, 1 + next_x])
+
+    # Middle bands
+    for y in range(rings - 2):
         for x in range(segments):
-            i0 = y * (segments + 1) + x
-            i1 = i0 + segments + 1
-            indices.extend([i0, i1, i0 + 1])
-            indices.extend([i1, i1 + 1, i0 + 1])
+            next_x = (x + 1) % segments
+            i0 = 1 + y * segments + x
+            i1 = 1 + y * segments + next_x
+            i2 = i0 + segments
+            i3 = i1 + segments
+            indices.extend([i0, i2, i1])
+            indices.extend([i1, i2, i3])
+
+    # Bottom cap
+    base_idx = 1 + (rings - 2) * segments
+    for x in range(segments):
+        next_x = (x + 1) % segments
+        indices.extend([base_idx + x, base_idx + next_x, south_idx])
 
     return vertices, indices
+
 
 
 def generate_unit_cube():
@@ -137,6 +159,8 @@ def to_gltf(scene: PLPSimulation, export_to: Path, particle_shape="sphere", cent
         gltf.materials.append(mat)
 
         prim = Primitive(attributes={"POSITION": 0}, indices=1, material=type_id)
+        if particle_shape != "cube":
+            print("Warning: faces will not be shaded smooth, fix in Blender")
         mesh = Mesh(primitives=[prim])
         gltf.meshes.append(mesh)
         type_to_mesh_idx[type_id] = type_id
