@@ -242,6 +242,7 @@ class PLFRExclVolPotential(PLPotential):
     __b: float  # quadratic smoothing param
     __epsilon: float
 
+    # NOTE: defautls are r* = 2 * sphere radius * 0.9053 , b = 677.505671539 / sphere radius, rmax = 0.99888 * 2 * sphere radius
     def __init__(self, rmax: float, rstar: float, b: float, epsilon: float = 2):
         super().__init__(rmax)
         self.__rstar = rstar
@@ -274,22 +275,24 @@ class PLFRExclVolPotential(PLPotential):
         r_squared = periodic_dist_sqrd(box, p1.position(), p2.position())
         # if r is greater than max interaction distance, no energy
         # typically this is the sum of the radii
-        if r_squared > (self.rmax() + tot_radius) ** 2:
+        if r_squared > self.rmax() ** 2:
             return e
         # if r is less than the quadratic smoothing cutoff
         sigma = p1.radius() + p2.radius()
         # (sigma^2 / r^2) ^ 3 = (sigma / r) ^ 6
-        lj_partial = (sigma ** 2 / r_squared) ** 3
-        if r_squared < self.rstar() ** 2:
+        # if r^2 > (r*)^2, use quadratic smoothing
+        if r_squared > (self.rstar() ** 2):
             # no idea what "rrc" means
-            rrc = math.sqrt(r_squared) - self.rstar()
+            rrc = math.sqrt(r_squared) - self.rmax()
+
             # amalgam of code
-            e = self.epsilon() * self.b() / (sigma ** 2) * rrc ** 2
+            e = self.epsilon() * self.b() * rrc ** 2
         # normal lj, which basically means IT'S OVER 9000!!!!!
         else:
+            lj_partial = (sigma ** 2 / r_squared) ** 3
             # compute distance between surfaces
             # lennard jones potential
-            e = 2 * self.epsilon() * (lj_partial ** 2 - lj_partial)
+            e = 4 * self.epsilon() * (lj_partial ** 2 - lj_partial)
 
         return e
 
@@ -385,7 +388,7 @@ class PLFRPatchyPotential(PLPatchyPotential):
             # check binding geometry
             # (warning: sus)
             # todo: verify that this behavior is correct!
-            e = -1.001 * math.exp((-rsqr / self.alpha_sqr()) ** 5)
+            e = -1.001 * math.exp(-0.5 * (rsqr / self.alpha_sqr()) ** 5)
             # plus a constant, but constant = 0 i think?
             return e
         return 0
