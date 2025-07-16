@@ -27,7 +27,12 @@ class InteractionMatrix:
         }
 
     def intmap(self) -> dict[tuple[int,int],float]:
-        return copy.deepcopy(self.__interactions)
+        return {
+            **copy.deepcopy(self.__interactions),
+            **{
+                (c2, c1): self[(c1, c2)] for c1, c2 in self.__interactions
+            }
+        }
 
     def __getitem__(self, item: tuple[int, int]) -> float:
         c1, c2 = item
