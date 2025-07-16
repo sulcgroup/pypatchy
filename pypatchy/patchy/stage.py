@@ -296,28 +296,34 @@ class Stage(BuildSimulation):
                 scene.add_particles(particles, strict_check=False) # strict check currently does nothing but might someday?
                 assert self.idx() == 0, "Cannot use extern adder on stages after zero!"
                 # create temporary directory within the simulation directory
-                with tempfile.TemporaryDirectory(dir=self.getctxt().folder_path(self.spec())) as tmpdir:
+                with tempfile.TemporaryDirectory(dir=self.getctxt().folder_path(self.spec()), delete=False) as tmpdir:
                     os.chdir(tmpdir)
                     # eventually this should be a context manager
                     w = self.getctxt().writer
                     w.set_directory(tmpdir)
-                    files = w.write(scene) # write scene, with bs locations. it's ok.
-                    write_input_file(Path(tmpdir) / "input", {
-                        **self.iter_input_dict(),
-                        **dict(w.get_input_file_data(scene)), # hate that I did in fact think ahead about this.
-                        **files
-                    })
+                    files = w.write(scene, conf_file="dummy.dat") # write scene, with bs locations. it's ok.
+                    inpdct = self.iter_input_dict()
+                    inpdct.update(dict(w.get_input_file_data(scene)))
+                    inpdct.update(files)
+                    write_input_file(Path(tmpdir) / "input", inpdct)
 
                     # w.write_top(w.get_scene_top(scene), self.getctxt().sim_stage_get_param(self.spec(), self, 'topology'))
                     # cmd = f"{str(Path(self.getctxt().server_settings.oxdna_path) / 'build' /'bin'/ 'confGenerator')} input {self.getctxt().sim_stage_get_param(self.spec(), self, 'density')}"
                     cmd = [str(Path(self.getctxt().server_settings.oxdna_path) / 'build' /'bin'/ 'confGenerator'),
                             "input",
                            f"{self.getctxt().sim_stage_get_param(self.spec(), self, 'density')}"]
-                    # todo: redirect to self.ctxt().get_logger()
-                    status = subprocess.run(cmd)
-                    assert not status.returncode, f"Failed to generate conf!"
-                    gend_conf = w.read_scene(files["topology"], files["init_conf"],
+                    # run and capture everything
+                    result = subprocess.run(cmd, capture_output=True, text=True)
+                    assert not result.returncode, f"Failed to generate conf!"
+
+                    # log stdout & sterr
+                    for line in result.stdout.splitlines():
+                        self.getctxt().get_logger().info(line)
+                    for line in result.stderr.splitlines():
+                        self.getctxt().get_logger().error(line)
+                    gend_conf = w.read_scene(inpdct["topology"], inpdct["conf_file"],
                                              scene.particle_types())
+                    scene.clear_particles() # clear particles at the Singularity
                     scene.add_particles(gend_conf.particles())
             else:
 

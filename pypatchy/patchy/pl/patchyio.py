@@ -419,7 +419,7 @@ class FWriter(PLBaseWriter):
             "particle_file": str(particle_fn),
             "patchy_file": str(patchy_fn),
             "topology": str(init_top),
-            "init_conf": str(init_conf)
+            "conf_file": str(init_conf)
         }
 
     def reqd_args(self) -> list[str]:
