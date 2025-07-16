@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import itertools
 import os
+import subprocess
 import tempfile
 from pathlib import Path
 
@@ -304,9 +305,13 @@ class Stage(BuildSimulation):
                     write_input_file(Path(tmpdir) / "input", {**self.iter_input_dict(), **files})
 
                     # w.write_top(w.get_scene_top(scene), self.getctxt().sim_stage_get_param(self.spec(), self, 'topology'))
-                    cmd = f"{str(Path(self.getctxt().server_settings.oxdna_path) / 'build' /'bin'/ 'confGenerator')} input {self.getctxt().sim_stage_get_param(self.spec(), self, 'density')}"
-                    status = os.system(cmd)
-                    assert not status, f"Failed to generate conf with exit code {status}"
+                    # cmd = f"{str(Path(self.getctxt().server_settings.oxdna_path) / 'build' /'bin'/ 'confGenerator')} input {self.getctxt().sim_stage_get_param(self.spec(), self, 'density')}"
+                    cmd = [str(Path(self.getctxt().server_settings.oxdna_path) / 'build' /'bin'/ 'confGenerator'),
+                            "input",
+                           f"{self.getctxt().sim_stage_get_param(self.spec(), self, 'density')}"]
+                    # todo: redirect to self.ctxt().get_logger()
+                    status = subprocess.run(cmd)
+                    assert not status.returncode, f"Failed to generate conf!"
                     gend_conf = w.read_scene(files["topology"], files["init_conf"],
                                              scene.particle_types())
                     scene.add_particles(gend_conf.particles())
