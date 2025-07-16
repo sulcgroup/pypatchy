@@ -296,7 +296,7 @@ class Stage(BuildSimulation):
                 scene.add_particles(particles, strict_check=False) # strict check currently does nothing but might someday?
                 assert self.idx() == 0, "Cannot use extern adder on stages after zero!"
                 # create temporary directory within the simulation directory
-                with tempfile.TemporaryDirectory(dir=self.getctxt().folder_path(self.spec()), delete=False) as tmpdir:
+                with tempfile.TemporaryDirectory(dir=self.getctxt().folder_path(self.spec())) as tmpdir:
                     os.chdir(tmpdir)
                     # eventually this should be a context manager
                     w = self.getctxt().writer
