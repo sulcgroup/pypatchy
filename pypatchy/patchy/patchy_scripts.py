@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import shutil
 from pathlib import Path
-from typing import Union
+from typing import Union, Iterable
 
 import numpy as np
 
 from .pl.plparticleset import PLParticleSet, MultidentateConvertSettings
-from pypatchy.patchy.pl.patchyio import get_writer, FWriter, LWriter
-from .pl.plpotential import PLFRPatchyPotential, PLFRExclVolPotential, PLLRExclVolPotential, PLLRPatchyPotential
+from pypatchy.patchy.pl.patchyio import get_writer, FWriter, LWriter, PLBaseWriter
+from .pl.plpotential import PLFRPatchyPotential, PLFRExclVolPotential, PLLRExclVolPotential, PLLRPatchyPotential, \
+    PLPotential
 from .pl.plscene import PLPSimulation
 from ..util import get_input_dir
 
@@ -133,6 +134,7 @@ def add_standard_patchy_interaction(scene: PLPSimulation,
                                     sigma: float,
                                     interaction_matrix: Union[np.ndarray, None, dict[tuple[int,int]], float] = None):
     """
+    deprecated
     quick function to add patchy interactions which mimic
      rovigatti/Interaction/PatchySwapInteraction
     """
@@ -152,3 +154,30 @@ def add_standard_patchy_interaction(scene: PLPSimulation,
 
     # scene.add_potential(patchy_potential)
 
+
+def best_traj_contiguous_conf(top_file: Path,
+                              traj_file: Path,
+                              timepoints: Iterable[int],
+                              potentials: list[PLPotential],
+                              writer: PLBaseWriter,
+                              particle_types: PLParticleSet) -> tuple[PLPSimulation, float]:
+    """
+    given a top and traj file, iter timepoints and return the conf with the most contigious
+    clusters
+    """
+    best_score = 0
+    best_conf = None
+    for i in timepoints:
+        writer.set_directory(traj_file.parent)
+        scene: PLPSimulation = writer.read_scene(top_file.name,
+                                                 traj_file.name,
+                                                 particle_types,
+                                                 i)
+        for potential in potentials:
+            scene.add_potential(potential)
+        scene_contig, score = scene.contiguize()
+        print(f"{i}: {score}")
+        if best_score > score:
+            best_score = score
+            best_conf = scene_contig
+    return best_conf, best_score

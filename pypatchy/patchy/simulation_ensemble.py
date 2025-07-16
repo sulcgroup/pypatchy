@@ -653,6 +653,9 @@ class PatchySimulationEnsemble(Analyzable):
             return particles
 
     def get_param(self, paramname: str) -> Any:
+        """
+        returns
+        """
         # use const_params
         if paramname in self.const_params:
             return self.const_params[paramname]
@@ -945,10 +948,16 @@ class PatchySimulationEnsemble(Analyzable):
                 # in Lorenzo's interaction the potential is hardcoded
                 potential = PLLRExclVolPotential(rmax=2.01421)
             elif name == "fr_excl_vol":
-                potential = PLFRExclVolPotential(rmax=2.01421 * self.sim_get_param(sim, "PATCHY_radius") * 2,
-                                                 rstar=self.sim_get_param(sim, "PATCHY_radius") * 2 ** (1 / 6),
-                                                 b=677.505671539  # from flavio's code
+                potential = PLFRExclVolPotential(
+                    # rmax = 0.9988 if PATCHY_radius = 0.5
+                    rmax=0.9988 * (self.sim_get_param(sim, "PATCHY_radius") * 2), # ????
+                     rstar=0.90530002117156982 * (self.sim_get_param(sim, "PATCHY_radius") * 2),
+                     b=677.505671539  # from flavio's code
                                                  )
+                # potential = PLFRExclVolPotential(rmax=2.01421 * self.sim_get_param(sim, "PATCHY_radius") * 2,
+                #                                  rstar=self.sim_get_param(sim, "PATCHY_radius") * 2 ** (1 / 6),
+                #                                  b=677.505671539  # from flavio's code
+                #                                  )
 
             elif name == "lr_patchy":
                 particle_types: PLParticleSet = self.sim_get_particles_set(sim)
@@ -959,13 +968,18 @@ class PatchySimulationEnsemble(Analyzable):
                 patchy_radius = self.sim_get_param(sim, "PATCHY_radius")
                 if self.sim_get_param(sim, "use_torsion"):
                     potential = PLFRTorsionalPatchyPotential(
-                        rmax=0.4 * 3 * patchy_radius,
+                        rmax=0.4 * 3 * 2 * patchy_radius,
                         alpha=self.sim_get_param(sim, "PATCHY_alpha"),
                         narrow_type=self.sim_get_param(sim, "narrow_type")
                     )
+                    # potential = PLFRTorsionalPatchyPotential(
+                    #     rmax=0.4 * 3 * patchy_radius,
+                    #     alpha=self.sim_get_param(sim, "PATCHY_alpha"),
+                    #     narrow_type=self.sim_get_param(sim, "narrow_type")
+                    # )
                 else:
                     potential = PLFRPatchyPotential(
-                        rmax=0.4 * 3 * patchy_radius,
+                        rmax=0.4 * 3 * 2* patchy_radius,
                         alpha=self.sim_get_param(sim, "PATCHY_alpha")
                     )
             else:
@@ -1661,7 +1675,7 @@ class PatchySimulationEnsemble(Analyzable):
             # parameterize stage from previous stage
             sim_obj = Simulation(str(self.folder_path(sim, self.sim_get_stage(sim, stage.idx() - 1))),
                                  str(self.folder_path(sim, stage)))
-        sim_obj.build_sim = stage  # assign stage object as sim builder
+        sim_obj.set_builder(stage)  # assign stage object as sim builder
         return sim_obj
 
     def ipy_all(self, sim: PatchySimulation) -> list[Simulation]:
@@ -1909,30 +1923,6 @@ class PatchySimulationEnsemble(Analyzable):
         except NoSuchParamError as e:
             # if not, default to false
             return False
-
-    # DEPRECATED
-    # def gen_conf(self, sim: PatchySimulation) -> int:
-    #
-    #     """
-    #     Runs a conf generator. These are run as slurm jobs if you're on a slurm server,
-    #     or as non-background tasks otherwise
-    #     """
-    #     if self.server_settings.is_server_slurm():
-    #         response = self.bash_exec(f"sbatch --chdir={self.folder_path(sim)} {self.folder_path(sim)}/gen_conf.sh")
-    #         jobid = int(re.search(SUBMIT_SLURM_PATTERN, response).group(1))
-    #         self.append_slurm_log(SlurmLogEntry(
-    #             pid=jobid,
-    #             simulation=sim,
-    #             job_type="confgen",
-    #             script_path=self.folder_path(sim) / "gen_conf.sh",
-    #             log_path=self.folder_path(sim) / f"run{jobid}.out"
-    #         ))
-    #         return jobid
-    #     else:
-    #         self.bash_exec(f"bash gen_conf.sh > confgenlog.out", cwd=self.folder_path(sim))
-    #         # jobid = re.search(r'\[\d+\]\s+(\d+)', response).group(1)
-    #         # slurm logs aren't valid when not on a slurm server
-    #         return -1
 
     # ------------- ANALYSIS FUNCTIONS --------------------- #
 

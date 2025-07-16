@@ -27,7 +27,9 @@ class StageParticleAdder(ABC):
 @dataclass
 class RandParticleAdder(StageParticleAdder):
     # context-dependant!
+    # ^ what did I mean by this
     particles: dict[Union[str, int], int] = field()
+    extern: bool = field(default=True)
 
     def __post_init__(self):
         if isinstance(self.particles, list):

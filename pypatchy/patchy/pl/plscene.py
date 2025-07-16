@@ -116,6 +116,7 @@ class PLPSimulation(Scene, CellLists):
                     checked_interactions.add(pair)
         return e / self.num_particles()
 
+
     def get_energy_full(self) -> float:
         """
         computes average potential energy by looping energy of every particle pair
@@ -270,8 +271,10 @@ class PLPSimulation(Scene, CellLists):
 
     def add_particle_rand_positions(self,
                                     particles: Iterable[PLPatchyParticle],
-                                    nTries=1e3):
+                                    nTries=-1):
         # loop particles
+        if nTries == -1:
+            nTries = len(particles) ** 3
         for p in particles:
             t = 0
             # set max tries so it doesn't go forever
@@ -285,7 +288,7 @@ class PLPSimulation(Scene, CellLists):
                     break
                 t += 1
             if t == nTries:
-                raise Exception(f"Could not find a position t(o place a particle! nTries={nTries}")
+                raise Exception(f"Could not find a position to place a particle! nTries={nTries}")
             self.add_particle(p)
         # the following assertion is useful for catching energy issues at low particle counts
         # but it's VERY VERY SLOW
@@ -770,4 +773,81 @@ class PLPSimulation(Scene, CellLists):
                 e += potential.energy(self.box_size(), p1, p2)
             # should return false if overlap is present, true if energetically acceptable
         return np.exp(-e / self.T()) <= random.random()
+
+    def contiguize(self) -> tuple[PLPSimulation, float]:
+        """
+        Returns a copy of the scene with clusters unwrapped wherever possible
+        (i.e. if they span a periodic boundary but do NOT span the full box),
+        and the fraction of clusters that end up contiguous.
+        """
+        # 1) copy & wrap all positions into [0,L)³
+        contiguous_conf = copy.deepcopy(self)
+        contiguous_conf.inbox()
+
+        # 2) detect clusters once
+        clusters = list(contiguous_conf.compute_scene_clusters())
+        n_clusters = len(clusters)
+
+        # 3) for each cluster, unwrap only if it spans a boundary but not the full box
+        for cluster in clusters:
+            uids = list(cluster.nodes())
+            pos0 = np.array([contiguous_conf.get_particle(uid).position() for uid in uids])
+            L = contiguous_conf.box_size().copy()
+
+            # figure out which dims cross a boundary
+            to_unwrap = {}
+            for d in range(3):
+                coords = pos0[:, d]
+                if len(coords) < 2:
+                    continue
+                srt = np.sort(coords)
+                gaps = np.diff(srt)
+                wrap_gap = srt[0] + L[d] - srt[-1]
+                all_gaps = np.concatenate([gaps, [wrap_gap]])
+                i_max = np.argmax(all_gaps)
+
+                # if the largest gap is interior (not the wrap), it crosses that face
+                if i_max < len(coords) - 1:
+                    span = srt.max() - srt.min()
+                    # only unwrap if span < box length (i.e. doesn’t cover whole box)
+                    if span < L[d] - 1e-8:
+                        to_unwrap[d] = srt[i_max]
+
+            # apply shifts and grow box
+            for d, thr in to_unwrap.items():
+                for uid in uids:
+                    p = contiguous_conf.get_particle(uid)
+                    ppos = p.position()
+                    if ppos[d] <= thr:
+                        ppos = ppos.copy()
+                        ppos[d] += L[d]
+                        p.set_position(ppos)
+                # expand box to accommodate
+                new_max = max(contiguous_conf.get_particle(uid).position()[d] for uid in uids)
+                if new_max > contiguous_conf._box_size[d]:
+                    contiguous_conf._box_size[d] = new_max
+
+        # 4) recompute contiguity after unwrapping
+        n_contig_after = 0
+        for cluster in clusters:
+            uids = list(cluster.nodes())
+            pos1 = np.array([contiguous_conf.get_particle(uid).position() for uid in uids])
+            L = contiguous_conf.box_size().copy()
+            spans = False
+            for d in range(3):
+                coords = np.sort(pos1[:, d])
+                if len(coords) < 2:
+                    continue
+                gaps = np.diff(coords)
+                wrap_gap = coords[0] + L[d] - coords[-1]
+                all_gaps = np.concatenate([gaps, [wrap_gap]])
+                # if the largest gap is interior again, it still spans
+                if np.argmax(all_gaps) < len(coords) - 1:
+                    spans = True
+                    break
+            if not spans:
+                n_contig_after += 1
+
+        score = (n_contig_after / n_clusters) if n_clusters else 1.0
+        return contiguous_conf, score
 

@@ -9,13 +9,13 @@ from pygltflib import *
 
 import numpy as np
 import struct
+import math
 
-from math import sin, cos, pi
 from scipy.spatial.transform import Rotation as R
 from ...util import selectColor
 
 
-def generate_uv_sphere(radius=1.0, segments=16, rings=16):
+def generate_uv_sphere(radius=1.0, segments=16, rings=16) -> tuple[list[int], list[int]]:
     vertices = []
     indices = []
 
@@ -66,7 +66,7 @@ def generate_uv_sphere(radius=1.0, segments=16, rings=16):
 
 
 
-def generate_unit_cube():
+def generate_unit_cube() -> tuple[list[int], list[int]]:
     """
     Returns vertices and indices for a unit cube centered at the origin with side length 1.
     Vertices are flat list of floats.
@@ -96,9 +96,100 @@ def generate_unit_cube():
     flat_verts = [coord for v in verts for coord in v]
     return flat_verts, indices
 
+def generate_cone(radius: float, height: float, segments: int) -> tuple[list[float], list[int]]:
+    """
+    Open cone (no base cap) with added flat base cap.
+    Apex at +y, base circle at –y.
+    """
+    vertices: list[float] = []
+    indices: list[int] = []
+
+    half_h = height / 2.0
+    y_base = -half_h
+    y_apex = +half_h
+
+    # --- Base circle ring ---
+    for i in range(segments):
+        theta = 2 * math.pi * i / segments
+        x = radius * math.cos(theta)
+        z = radius * math.sin(theta)
+        vertices.extend([x, y_base, z])
+
+    # --- Apex vertex ---
+    apex_idx = len(vertices) // 3
+    vertices.extend([0.0, y_apex, 0.0])
+
+    # --- Side triangles ---
+    for i in range(segments):
+        nxt = (i + 1) % segments
+        indices.extend([i, apex_idx, nxt])
+
+    # --- Base cap center ---
+    base_center_idx = len(vertices) // 3
+    vertices.extend([0.0, y_base, 0.0])
+    # Triangles fan: (center → next → current) to face downward
+    for i in range(segments):
+        nxt = (i + 1) % segments
+        indices.extend([base_center_idx, nxt, i])
+
+    return vertices, indices
 
 
-def to_gltf(scene: PLPSimulation, export_to: Path, particle_shape="sphere", center=True, color_saturation=85, color_value=80):
+def generate_lopsided_cone(
+    radius: float,
+    height: float,
+    skew: float,
+    segments: int,
+    rings: int
+) -> tuple[list[float], list[int]]:
+    """
+    Leaning cone with rings, plus a flat base cap.
+    'skew' shifts each ring center in +x so the tip leans.
+    """
+    vertices: list[float] = []
+    indices: list[int] = []
+
+    half_h = height / 2.0
+    y_base = -half_h
+
+    # --- Generate rings (0 = base, rings = tip) ---
+    for r in range(rings + 1):
+        t = r / rings
+        y = y_base + t * height
+        r_i = radius * (1 - t)
+        offset_x = skew * t
+        for s in range(segments):
+            phi = 2 * math.pi * s / segments
+            x = r_i * math.cos(phi) + offset_x
+            z = r_i * math.sin(phi)
+            vertices.extend([x, y, z])
+
+    # --- Base cap center ---
+    base_center_idx = len(vertices) // 3
+    vertices.extend([0.0, y_base, 0.0])
+    # Fan triangles on ring 0
+    for s in range(segments):
+        nxt = (s + 1) % segments
+        # center → next → current
+        indices.extend([base_center_idx, nxt, s])
+
+    # --- Side quads → triangles between each pair of rings ---
+    for r in range(rings):
+        for s in range(segments):
+            curr = r * segments + s
+            nxt   = r * segments + (s + 1) % segments
+            up    = (r + 1) * segments + s
+            up_n  = (r + 1) * segments + (s + 1) % segments
+
+            # lower-left tri
+            indices.extend([curr, up, nxt])
+            # upper-right tri
+            indices.extend([nxt, up, up_n])
+
+    return vertices, indices
+
+
+def to_gltf(scene: PLPSimulation, export_to: Path, particle_shape="sphere", center=True, color_saturation=85, color_value=80, patches: Union[bool, str] = "torsional", **kwargs):
     """
     exports patchy scene as glft file. written with help of chatGPT
 
@@ -130,7 +221,7 @@ def to_gltf(scene: PLPSimulation, export_to: Path, particle_shape="sphere", cent
     vmin = verts_np.min(axis=0).tolist()
     vmax = verts_np.max(axis=0).tolist()
 
-    # --- Buffer + Accessors ---
+    # --- Buffer + Accessors for sphere ---
     gltf.buffers = [Buffer(byteLength=len(full_blob))]
     gltf.bufferViews = [
         BufferView(buffer=0, byteOffset=0, byteLength=vertex_len, target=ARRAY_BUFFER),
@@ -141,12 +232,28 @@ def to_gltf(scene: PLPSimulation, export_to: Path, particle_shape="sphere", cent
         Accessor(bufferView=1, byteOffset=0, componentType=UNSIGNED_SHORT, count=len(geometry_indices), type="SCALAR")
     ]
 
+    if patches:
+        if patches == "torsional":
+            # use a non uniform cone
+            # we should try to support differently s
+            patch_verts, patch_indices = generate_lopsided_cone(radius=0.1, height=kwargs["patch_height"], skew=1.5, segments=16, rings=16)
+        elif patches == "flexable":
+            # cone shape without torsional modulation. no one has ever used this but i have aspirations.
+            patch_verts, patch_indices = generate_cone(radius=0.1, height=kwargs["patch_height"], segments=16)
+        else:
+            # anisotropic patch potential, as in lorenzo model
+            assert patches == "sphere"
+            patch_verts, patch_indices = generate_uv_sphere(kwargs["patch_height"])
+        # --- Buffer + accessors for patches ---
+        # go here
+
     # --- Meshes + Materials per particle type ---
     gltf.materials = []
     gltf.meshes = []
     type_to_mesh_idx = {}
-    for type_id in range(scene.num_particle_types()):
-        rgb = selectColor(type_id, saturation=color_saturation, value=color_value, fmt="rgb")
+    patch_type_to_mesh_idx = {}
+    for particle_type in scene.particle_types():
+        rgb = selectColor(particle_type.type_id(), saturation=color_saturation, value=color_value, fmt="rgb")
         if isinstance(rgb, str) and rgb.startswith("rgb"):
             rgb_vals = [float(x) for x in rgb[4:-1].split(",")]
         else:
@@ -158,13 +265,56 @@ def to_gltf(scene: PLPSimulation, export_to: Path, particle_shape="sphere", cent
         })
         gltf.materials.append(mat)
 
-        prim = Primitive(attributes={"POSITION": 0}, indices=1, material=type_id)
+        prim = Primitive(attributes={"POSITION": 0},
+                         indices=1,
+                         material=particle_type.type_id())
         if particle_shape != "cube":
             print("Warning: faces will not be shaded smooth, fix in Blender")
-        mesh = Mesh(primitives=[prim])
-        gltf.meshes.append(mesh)
-        type_to_mesh_idx[type_id] = type_id
 
+        if patches:
+            patch_primatives = []
+            for patch in particle_type.patches():
+                if patch.color() > 0:
+                    rgb = selectColor(patch.color(), saturation=color_saturation, value=color_value, fmt="rgb")
+                else:
+                    rgb = selectColor(-patch.color(),
+                                           saturation=color_saturation * 0.66,
+                                           value=color_value * 0.66,
+                                           fmt="rgb")
+
+                if isinstance(rgb, str) and rgb.startswith("rgb"):
+                    rgb_vals = [float(x) for x in rgb[4:-1].split(",")]
+                else:
+                    rgb_vals = rgb
+
+                mat = Material(pbrMetallicRoughness={
+                    "baseColorFactor": rgb_vals + [1.0],
+                    "metallicFactor": 0.1,
+                    "roughnessFactor": 0.8
+                })
+                gltf.materials.append(mat)
+
+                patch_type_id = patch.type_id()
+                patch_type_to_mesh_idx[patch_type_id] = patch_type_id
+                # xyz vector
+                patch_relative_position = patch.position()
+                # xyz unit vector
+                patch_relative_direction = patch.a1()
+                if patches == "torsional":
+                    # vector orthogonal to a1 that determines patch orientation
+                    patch_orientation = patch.a3()
+                prim = Primitive(
+                    attributes={
+                        # set patch position, direction, and if relevant orientation relative to particle
+                    },
+                    indices=2, material=particle_type.type_id()
+                )
+                patch_primatives.append(prim)
+        else:
+            mesh = Mesh(primitives=[prim])
+
+        gltf.meshes.append(mesh)
+        type_to_mesh_idx[particle_type.type_id()] = particle_type.type_id()
     # --- Nodes per particle ---
     gltf.nodes = []
     for p in scene.particles():

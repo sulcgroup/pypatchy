@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import itertools
 import os
+import tempfile
+from pathlib import Path
 
 from typing import Union, Iterable, Any, Generator
 
 import numpy as np
 
-from ipy_oxdna.oxdna_simulation import BuildSimulation, Simulation
+from ipy_oxdna.oxdna_simulation import BuildSimulation, Simulation, write_input_file
 
 from .patchy_scripts import add_standard_patchy_interaction
 from .pl.plparticleset import PLParticleSet
@@ -73,12 +75,22 @@ class Stage(BuildSimulation):
         self.input_param_dict = {}
 
     def idx(self) -> int:
+        """
+        returns index of this stage within staging
+        """
         return self._prev_stage.idx() + 1 if self._prev_stage is not None else 0
 
     def name(self) -> str:
+        """
+        returns name of this stage
+        """
         return self._param_info.stage_name
 
     def getctxt(self):
+        """
+        returns ensemble context
+        Returns: a PatchySimulationEnsemble instance
+        """
         return self._ctxt
 
     def spec(self) -> PatchySimulation:
@@ -167,7 +179,6 @@ class Stage(BuildSimulation):
         self.getctxt().writer.set_abs_paths(self.getctxt().server_settings.absolute_paths)
         # write top, conf, and others
         files = self.getctxt().writer.write(scene,
-                                            self,
                                             **reqd_extra_args)
 
         # update top and dat files in replacer dict
@@ -186,14 +197,10 @@ class Stage(BuildSimulation):
         """
         Builds the stage input file
         """
-
-        for pv in self.getctxt().iter_params(self.spec(), self):
-            # only write raw-data params to input file
-            # todo: filter better, to use only actual oxdna params
-            if type(pv) is ParameterValue:
-                self.sim.input[pv.param_name] = pv.param_value
-        self.sim.input["steps"] = self.time_length()
-        self.sim.input["restart_step_counter"] = 0
+        inputs_vals = self.iter_input_dict()
+        # todo: nicer version, free up stuff in input file
+        del inputs_vals["interaction_potentials"]
+        self.sim.input.modify_input(inputs_vals)
         assert self.sim.input.get_conf_file() is not None
 
         # write external observables file path
@@ -219,21 +226,33 @@ class Stage(BuildSimulation):
         assert (self.getctxt().folder_path(self.spec(),
                                            self) / "input.json").exists(), "Didn't correctly set up input file!"
 
+    def iter_input_dict(self) -> dict[str, Any]:
+        """
+        iterates through the values that belong in the input dict, at least the ones that have been assigned
+
+        """
+        inpt = dict()
+        for pv in self.getctxt().iter_params(self.spec(), self):
+            # only write raw-data params to input file
+            # todo: filter better, to use only actual oxdna params
+            if type(pv) is ParameterValue:
+                inpt[pv.param_name] = pv.param_value
+        inpt["steps"] = self.time_length()
+        inpt["restart_step_counter"] = 0
+        return inpt
+
     def apply(self, scene: PLPSimulation):
         """
         applies stage operations to patchy scene
         """
         # first, add patchy interactions
-        # unfortunately i haven't implemented the swap interaction here yet
-        # and even if I had it would have its own issues bc it's a not state function
-        # so while ideally the computed energy should always be less than zero in practice it will sometimes be low
-        # but positive
         patchy_potentials = self.getctxt().get_interaction_potentials(self.spec())
         for potential in patchy_potentials:
             scene.add_potential(potential)
 
         # if the scene box has no particles, this is stage 0
         if scene.num_particles() == 0:
+            assert self.idx() == 0, "No particles present but nonzero stage!!"
             # set box size
             scene.set_box_size(self.box_size())
             scene.compute_cell_size(n_particles=self.num_particles_to_add())
@@ -256,15 +275,44 @@ class Stage(BuildSimulation):
         # TODO: compute cell sizes using something other than "pull from rectum"
         assert all(self.box_size()), "Box size hasn't been set!!!"
 
+        # ---------------- add particles -----------------------------------------
         if self._param_info.add_method is None:
             assert len(self.particles_to_add()) == 0, "No add method specified but particles still " \
                                                       "queued to add!"
         elif isinstance(self._param_info.add_method, RandParticleAdder):
+            # particles should be added first whether we are are using built in or extern adder
             start_particle_count = scene.num_particles()
             # self.particles_to_add incorporates num_assmblies
             particles = [scene.particle_types().particle(i_type).instantiate(i + start_particle_count)
                          for i, i_type in enumerate(self.particles_to_add())]
-            scene.add_particle_rand_positions(particles)
+            # default is now to use confGenerator.
+            if self._param_info.add_method.extern:
+                # we need particles to be sane for the stupid jurryrig i do later
+                for p in particles:
+                    p.set_rotation(np.identity(3))
+                    p.set_position(np.array([0, 0, 0]))
+                # add particles to scene so we can make top later
+                scene.add_particles(particles, strict_check=False) # strict check currently does nothing but might someday?
+                assert self.idx() == 0, "Cannot use extern adder on stages after zero!"
+                # create temporary directory within the simulation directory
+                with tempfile.TemporaryDirectory(dir=self.getctxt().folder_path(self.spec())) as tmpdir:
+                    os.chdir(tmpdir)
+                    # eventually this should be a context manager
+                    w = self.getctxt().writer
+                    w.set_directory(tmpdir)
+                    files = w.write(scene) # write scene, with bs locations. it's ok.
+                    write_input_file(Path(tmpdir) / "input", {**self.iter_input_dict(), **files})
+
+                    # w.write_top(w.get_scene_top(scene), self.getctxt().sim_stage_get_param(self.spec(), self, 'topology'))
+                    cmd = f"{str(Path(self.getctxt().server_settings.oxdna_path) / 'build' /'bin'/ 'confGenerator')} input {self.getctxt().sim_stage_get_param(self.spec(), self, 'density')}"
+                    status = os.system(cmd)
+                    assert not status, f"Failed to generate conf with exit code {status}"
+                    gend_conf = w.read_scene(files["topology"], files["init_conf"],
+                                             scene.particle_types())
+                    scene.add_particles(gend_conf.particles())
+            else:
+
+                scene.add_particle_rand_positions(particles)
 
         # TODO: merge FromPolycubeAdder into FromConfAdder
         elif isinstance(self._param_info.add_method, FromPolycubeAdder):

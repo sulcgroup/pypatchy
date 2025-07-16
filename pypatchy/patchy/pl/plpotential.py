@@ -386,8 +386,6 @@ class PLFRPatchyPotential(PLPatchyPotential):
         # TODO: replace with an interaction matrix?
         if patch1.can_bind(patch2):
             # check binding geometry
-            # (warning: sus)
-            # todo: verify that this behavior is correct!
             e = -1.001 * math.exp(-0.5 * (rsqr / self.alpha_sqr()) ** 5)
             # plus a constant, but constant = 0 i think?
             return e
