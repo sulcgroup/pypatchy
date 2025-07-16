@@ -890,8 +890,8 @@ class LWriter(PLBaseWriter):
         particles: PLParticleSet = scene.particle_types()
         scene.sort_particles_by_type()
 
-        init_top = kwargs["topology"]
-        init_conf = kwargs["conf_file"]
+        init_top = kwargs["topology"] if "topology" in kwargs else "topology.top"
+        init_conf = kwargs["conf_file"] if "conf_file" in kwargs else "init.dat"
 
         interactions_file = kwargs["DPS_interaction_matrix_file"]
         # self.export_interaction_matrix(particles.interaction_matrix(), interactions_file)
