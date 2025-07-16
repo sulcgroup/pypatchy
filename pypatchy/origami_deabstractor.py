@@ -26,6 +26,7 @@ class OrigamiDeabstractor(ABC):  # TODO BETTER NAME
     # mapping where keys are PL particle UIDs and values are DNA particles
     dna_particles: dict[int, DNAParticle]
     sticky_length: Union[int, None]
+    # color sequences, as strings
     color_sequences: dict[Union[int, str], str]
     bondcount: int
     scale_factor: Union[float, None] = None
@@ -100,7 +101,7 @@ class OrigamiDeabstractor(ABC):  # TODO BETTER NAME
             if self.get_color_match(colorstr) in self.color_sequences:
                 # use the reverse compliment of the matching color sequenece
                 self.color_sequences[colorstr] = rc(self.color_sequence(self.get_color_match(colorstr)))
-                print(f"Assigning color {colorstr} sequence {self.color_sequences[colorstr]}"
+                print(f"Assigning color {colorstr} sequence 5'->{self.color_sequences[colorstr]}->3'"
                       f" (reverse compliment of {self.get_color_match(colorstr)})")
             else:
                 # if neither our color nor its match is in the color seqs, generate a new sequence
