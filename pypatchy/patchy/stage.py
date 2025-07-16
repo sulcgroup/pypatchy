@@ -302,7 +302,11 @@ class Stage(BuildSimulation):
                     w = self.getctxt().writer
                     w.set_directory(tmpdir)
                     files = w.write(scene) # write scene, with bs locations. it's ok.
-                    write_input_file(Path(tmpdir) / "input", {**self.iter_input_dict(), **files})
+                    write_input_file(Path(tmpdir) / "input", {
+                        **self.iter_input_dict(),
+                        **dict(w.get_input_file_data(scene)), # hate that I did in fact think ahead about this.
+                        **files
+                    })
 
                     # w.write_top(w.get_scene_top(scene), self.getctxt().sim_stage_get_param(self.spec(), self, 'topology'))
                     # cmd = f"{str(Path(self.getctxt().server_settings.oxdna_path) / 'build' /'bin'/ 'confGenerator')} input {self.getctxt().sim_stage_get_param(self.spec(), self, 'density')}"
