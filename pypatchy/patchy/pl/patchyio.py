@@ -893,7 +893,7 @@ class LWriter(PLBaseWriter):
         init_top = kwargs["topology"] if "topology" in kwargs else "topology.top"
         init_conf = kwargs["conf_file"] if "conf_file" in kwargs else "init.dat"
 
-        interactions_file = kwargs["DPS_interaction_matrix_file"]
+        interactions_file = kwargs["DPS_interaction_matrix_file"] if "DPS_interaction_matrix_file" in kwargs else "interactions.txt"
         # self.export_interaction_matrix(particles.interaction_matrix(), interactions_file)
         # self.export_interaction_matrix(particles.patches(), interactions_file)
         self.export_interaction_matrix(particles, interactions_file)
