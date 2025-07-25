@@ -72,7 +72,8 @@ RUN --mount=type=ssh git clone git@github.com:sulcgroup/polycubes-clone.git /roo
 # create & activate the pypatchy env, then pip‑install both packages
 # todo: check if we really need to install with -e in the docker version
 RUN micromamba create -y -n pypatchy -f /root/Github/pypatchy/pypatchy.yml --channel-priority flexible
-
+RUN micromamba run -n pypatchy micromamba install -y boost-cpp --channel conda-forge \
+ && micromamba clean --all --yes
 
 # update docker env so we can find micromamba stuff later
 # 1. Tell Docker where your micromamba root actually lives
@@ -201,7 +202,7 @@ RUN cmake .. \
     -DPYTHON_EXECUTABLE=$(which python) \
  && make polycubes_py -j$(nproc)
 
-RUN cp src/libtlm.so $(python -m side --user-site)
+RUN cp src/libtlm.so $(python -m site --user-site)
 
 # run polycubes tests
 # run ipy_oxDNA tests
