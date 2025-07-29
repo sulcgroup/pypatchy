@@ -32,14 +32,14 @@ from .pl.pljsonrw import PLJSONEncoder
 from .pl.plpotential import PLPotential, PLFRExclVolPotential, PLFRTorsionalPatchyPotential, PLLRPatchyPotential, \
     PLLRExclVolPotential, PLFRPatchyPotential
 from .simulation_specification import get_param_set
-from ..analpipe.analyzable import Analyzable
+from ..analysis.analyzable import Analyzable
 
 from ..patchy.patchy_scripts import lorenzian_to_flavian
-from ..analpipe.analysis_pipeline import AnalysisPipeline
+from ..analysis.analysis_pipeline import AnalysisPipeline
 from .pl.plscene import PLPSimulation
 from .stage import Stage, NoStageTrajError, IncompleteStageError, StageTrajFileEmptyError
-from ..analpipe.analysis_data import PDPipelineData, TIMEPOINT_KEY
-from ..analpipe.analysis_pipeline_step import *
+from ..analysis.analysis_data import PDPipelineData, TIMEPOINT_KEY
+from ..analysis.analysis_pipeline_step import *
 from .patchy_sim_observable import PatchySimObservable, observable_from_file
 from .pl.patchyio import get_writer, PLBaseWriter, FWriter
 from ..server_config import load_server_settings, PatchyServerConfig, get_server_config

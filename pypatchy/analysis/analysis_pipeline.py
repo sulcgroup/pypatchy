@@ -7,7 +7,7 @@ from typing import Union, Generator
 
 import networkx as nx
 
-from pypatchy.analpipe.analysis_pipeline_step import AnalysisPipelineStep, AnalysisPipelineHead, \
+from pypatchy.analysis.analysis_pipeline_step import AnalysisPipelineStep, AnalysisPipelineHead, \
     AggregateAnalysisPipelineStep
 
 

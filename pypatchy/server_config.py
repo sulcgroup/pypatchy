@@ -27,6 +27,11 @@ def load_server_settings(settings_name: str) -> PatchyServerConfig:
 
 @dataclass
 class PatchyServerConfig:
+    """
+    dataclass for "server" configuration. includes path to oxDNA directory, the appropriate
+    interaction to use for patchy simulations, whether to run as slurm jobs, whether to check
+    confs with oxpy before run....
+    """
     name: str = field()
     oxdna_path: str = field()
     patchy_format: str = field()

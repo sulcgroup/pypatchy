@@ -18,7 +18,7 @@ class AnalysisPipelineStep(ABC):
     """
     Base class for a step in a Patchy Particle Data analysis pipeline
     """
-    # the name of this step on the analpipe pipeline
+    # the name of this step on the analysis pipeline
     name: str
 
     # steps immediately feeding into this step
@@ -151,7 +151,7 @@ class AnalysisPipelineStep(ABC):
 
 class AnalysisPipelineHead(AnalysisPipelineStep, ABC):
     """
-    Class for any "head" node of the analpipe pipeline.
+    Class for any "head" node of the analysis pipeline.
     Note that there's nothing stopping even a connected graph
     of the pipeline from having multiple "heads"
     Note that while I haven't explicitly stated it here, AnalysisPipelineHead.exec
@@ -176,7 +176,7 @@ class AnalysisPipelineHead(AnalysisPipelineStep, ABC):
 
 class AggregateAnalysisPipelineStep(AnalysisPipelineStep, ABC):
     """
-    Class for analpipe pipeline steps that aggregate data from multiple
+    Class for analysis pipeline steps that aggregate data from multiple
     simulations, e.g. average yield over duplicates
     """
 

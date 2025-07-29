@@ -11,8 +11,9 @@ dependencies:
   - pandas
   - python-igraph>=0.11.6
   - drawsvg
-  - openpyxl
+  - openpyxl # for exporting sticky ends
   - scikit-optimize
   - pytables
   - h5py
-  - seaborn
+  - seaborn # deprecate?
+  - paramiko # for pytests

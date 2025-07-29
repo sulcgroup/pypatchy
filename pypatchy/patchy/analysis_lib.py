@@ -14,13 +14,13 @@ from pypatchy.patchy.pl.plparticleset import PLParticleSet
 
 from .simulation_ensemble import PatchySimulationEnsemble
 from .stage import Stage
-from ..analpipe.analysis_pipeline_step import *
+from ..analysis.analysis_pipeline_step import *
 from .patchy_sim_observable import PatchySimObservable
-from ..analpipe.yield_analysis_target import ClusterCategory
+from ..analysis.yield_analysis_target import ClusterCategory
 
-from ..analpipe.yield_analysis_target import YieldAnalysisTarget
+from ..analysis.yield_analysis_target import YieldAnalysisTarget
 
-from ..analpipe.analysis_data import *
+from ..analysis.analysis_data import *
 
 from ..polycubeutil.polycubesRule import PolycubesRule
 from ..polycubeutil.polycube_structure import PolycubeStructure

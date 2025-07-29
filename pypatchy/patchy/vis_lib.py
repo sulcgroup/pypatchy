@@ -13,7 +13,7 @@ from pypatchy.patchy.analysis_lib import GraphsFromClusterTxt, ClassifyClusters,
 
 from pypatchy.patchy.simulation_specification import PatchySimulation
 
-from ..analpipe.analysis_data import TIMEPOINT_KEY, PipelineData, PDPipelineData
+from ..analysis.analysis_data import TIMEPOINT_KEY, PipelineData, PDPipelineData
 from .ensemble_parameter import EnsembleParameter, ParameterValue
 from .simulation_ensemble import PatchySimulationEnsemble, PipelineStepDescriptor, shared_ensemble, PatchySimDescriptor
 
