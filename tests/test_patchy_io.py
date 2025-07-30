@@ -5,6 +5,7 @@ specifically with regard to
 import tempfile
 from pathlib import Path
 
+import networkx as nx
 import pytest
 
 from pypatchy.patchy.pl.patchyio import get_writer, read_mgl
@@ -35,7 +36,8 @@ def cross_lr():
     writer = get_writer("lorenzo")
     writer.set_directory(Path(__file__).parent / "test_files" / "patchy_scenes" / "3dcross_lr")
     scene = writer.read_scene("topology.top", "last_conf.dat",
-                              writer.read_particle_types("topology.top", "interactions.txt"))
+                              writer.read_particle_types(topology="topology.top",
+                                                         DPS_interaction_matrix_file="interactions.txt"))
     return scene
 
 
@@ -98,9 +100,12 @@ def test_read_loro_test():
     writer.set_directory(Path(__file__).parent / "test_files" / "patchy_scenes" / "loro_eg")
     scene = writer.read_scene("LORO.lorenzo.topology.top",
                               "last_conf.dat",
-                              writer.read_particle_types("LORO.lorenzo.topology.top",
-                                                         "LORO.interaction_matrix.txt"))
-    scene.to_multidentate(n_teeth=3, dental_radius=0.05)
+                              writer.read_particle_types(topology="LORO.lorenzo.topology.top",
+                                                         DPS_interaction_matrix_file="LORO.interaction_matrix.txt"))
+    scene.to_multidentate(MultidentateConvertSettings(n_teeth=3,
+                                                      dental_radius=0.05,
+                                                      torsion=False
+                                                      ))
     pass
 
 
@@ -181,4 +186,4 @@ def test_chain(ducky: PolycubeStructure):
             )
         )
         G_new = scene.compute_scene_graph()
-        assert G_new == G_old
+        assert nx.utils.graphs_equal(G_new, G_old)
