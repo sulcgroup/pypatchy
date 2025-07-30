@@ -86,7 +86,7 @@ def test_FR(rule, narrow_type=0, alpha=0.12) -> tuple[np.ndarray, np.ndarray]:
             sim.input["backend"] = "CPU"
             with oxpy.Context():
                 manager = oxpy.OxpyManager("input")
-                energies_oxDNA[i] = manager.system_energy()
+                energies_oxDNA[i] = manager.system_ewnergy()
                 del manager
             # compute pypatchy energy
             energies_pypatchy[i] = scene.get_potential_energy()
