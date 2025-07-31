@@ -18,7 +18,6 @@ import re
 import logging
 
 import oxpy
-import pandas as pd
 # import oat stuff
 from oxDNA_analysis_tools.UTILS.oxview import from_path
 from oxDNA_analysis_tools.file_info import file_info
@@ -337,15 +336,19 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
                 if isinstance(obs, str):
                     observables[obs] = observable_from_file(obs)
 
-    if "server_settings" in cfg:
-        if isinstance(cfg["server_settings"], str):
-            server_settings = load_server_settings(cfg["server_settings"])
+    server_spec_file = next((cfg[key] for key in ["server_settings",
+                                                  "server_spec",
+                                                  "server_config"] if key in cfg),
+                            None)
+    if server_spec_file:
+        if isinstance(server_spec_file, str):
+            server_settings = load_server_settings(server_spec_file)
             if server_settings is None:
                 raise Exception(f"No server setting set called `{cfg['server_settings']}`")
         else:
-            assert isinstance(cfg["server_settings"],
+            assert isinstance(server_spec_file,
                               dict), f"Invalid type for key 'server_settings': {type(cfg['server_settings'])}"
-            server_settings = PatchyServerConfig(**cfg["server_settings"])
+            server_settings = PatchyServerConfig(**server_spec_file)
     else:
         server_settings = get_server_config()
     # in case we need this
