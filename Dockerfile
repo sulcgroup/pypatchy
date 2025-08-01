@@ -204,23 +204,7 @@ RUN cmake .. \
 
 RUN cp src/libtlm.so $(python -m site --user-site)
 
-# run polycubes tests
-docker run --rm patchy \
-    bash -lc "cd /root/Github/polycubes/cpp/build && ctest --output-on-failure -j$(nproc)"
 
-# run ipy_oxDNA tests
-docker run --rm patchy \
-  bash -l -c "\
-    eval \"\$(micromamba shell hook --shell bash)\" && \
-    micromamba activate pypatchy && \
-    cd /root/Github/ipy_oxDNA && pytest --maxfail=1 -q"
-
-# run pypatchy tests
-docker run --rm patchy \
-  bash -l -c "\
-    eval \"\$(micromamba shell hook --shell bash)\" && \
-    micromamba activate pypatchy && \
-    cd /root/Github/pypatchy && pytest --maxfail=1 -q"
 
 
 # start bash
