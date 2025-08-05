@@ -11,3 +11,5 @@ pypatchy.egg-info
 build
 dist
 *.so
+id_ed25519
+id_ed25519.pub

@@ -55,7 +55,6 @@ RUN micromamba --version
 #RUN --mount=type=ssh git clone git@github.com:lorenzo-rovigatti/oxDNA.git /root/Github/oxDNA
 # todo: replace with the above line of code once i get the flavio code PR'd into Lorenzo's
 # get back to this
-ARG SSH_KEY
 RUN --mount=type=ssh git clone git@github.com:JeDeveloper/oxDNA.git /root/Github/oxDNA
 
 # clone the ipy_oxdna repo
