@@ -1,0 +1,1044 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="./">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>design &#8212; pypatchy 0.3 documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=5ecbeea2" />
+    <link rel="stylesheet" type="text/css" href="_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="_static/alabaster.css?v=27fed22d" />
+    <script src="_static/documentation_options.js?v=b489f392"></script>
+    <script src="_static/doctools.js?v=9bcbadda"></script>
+    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="polycubeutil" href="polycubeutil.html" />
+    <link rel="prev" title="patchy" href="patchy.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="module-pypatchy.design">
+<span id="design"></span><h1><code class="docutils literal notranslate"><span class="pre">design</span></code><a class="headerlink" href="#module-pypatchy.design" title="Link to this heading">¶</a></h1>
+<section id="module-pypatchy.design.reduce_rule">
+<span id="reduce-rule-py"></span><h2><code class="docutils literal notranslate"><span class="pre">reduce_rule.py</span></code><a class="headerlink" href="#module-pypatchy.design.reduce_rule" title="Link to this heading">¶</a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="pypatchy.design.reduce_rule.RuleReducer">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pypatchy.design.reduce_rule.</span></span><span class="sig-name descname"><span class="pre">RuleReducer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rule</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.design.reduce_rule.RuleReducer" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>rule</strong> (<a class="reference internal" href="polycubeutil.html#pypatchy.polycubeutil.polycubesRule.PolycubesRule" title="pypatchy.polycubeutil.polycubesRule.PolycubesRule"><em>PolycubesRule</em></a>)</p>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.design.reduce_rule.RuleReducer.add_allosteric_control">
+<span class="sig-name descname"><span class="pre">add_allosteric_control</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">patch</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cube_type</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">state_patch_off</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">state_patch_on</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.design.reduce_rule.RuleReducer.add_allosteric_control" title="Link to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>patch</strong> (<a class="reference internal" href="polycubeutil.html#pypatchy.polycubeutil.polycubesRule.PolycubesPatch" title="pypatchy.polycubeutil.polycubesRule.PolycubesPatch"><em>PolycubesPatch</em></a>)</p></li>
+<li><p><strong>cube_type</strong> (<a class="reference internal" href="polycubeutil.html#pypatchy.polycubeutil.polycubesRule.PolycubeRuleCubeType" title="pypatchy.polycubeutil.polycubesRule.PolycubeRuleCubeType"><em>PolycubeRuleCubeType</em></a>)</p></li>
+<li><p><strong>state_patch_off</strong> (<em>set</em><em>[</em><em>int</em><em>]</em>)</p></li>
+<li><p><strong>state_patch_on</strong> (<em>set</em><em>[</em><em>int</em><em>]</em>)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pypatchy.design.reduce_rule.RuleReducer.control_vars">
+<span class="sig-name descname"><span class="pre">control_vars</span></span><a class="headerlink" href="#pypatchy.design.reduce_rule.RuleReducer.control_vars" title="Link to this definition">¶</a></dt>
+<dd><p>alias of <code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">set</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code>]]</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.design.reduce_rule.RuleReducer.merge_cube_types">
+<span class="sig-name descname"><span class="pre">merge_cube_types</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ct1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ct2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">r</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">array([[1.,</span> <span class="pre">0.,</span> <span class="pre">0.],</span> <span class="pre">[0.,</span> <span class="pre">1.,</span> <span class="pre">0.],</span> <span class="pre">[0.,</span> <span class="pre">0.,</span> <span class="pre">1.]])</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ct1_to_incl</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ct2_to_incl</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.design.reduce_rule.RuleReducer.merge_cube_types" title="Link to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ct1</strong> (<a class="reference internal" href="polycubeutil.html#pypatchy.polycubeutil.polycubesRule.PolycubeRuleCubeType" title="pypatchy.polycubeutil.polycubesRule.PolycubeRuleCubeType"><em>PolycubeRuleCubeType</em></a>) – a polycubes cube tpye</p></li>
+<li><p><strong>ct2</strong> (<a class="reference internal" href="polycubeutil.html#pypatchy.polycubeutil.polycubesRule.PolycubeRuleCubeType" title="pypatchy.polycubeutil.polycubesRule.PolycubeRuleCubeType"><em>PolycubeRuleCubeType</em></a>) – a polycubes cube type</p></li>
+<li><p><strong>r</strong> (<em>ndarray</em>) – a rotation to apply to ct1 that aligns it with ct2</p></li>
+<li><p><strong>ct1_to_incl</strong> (<em>set</em><em>[</em><em>int</em><em>] </em><em>| </em><em>None</em>) – patches to include in allosteric merge control</p></li>
+<li><p><strong>ct2_to_incl</strong> (<em>set</em><em>[</em><em>int</em><em>] </em><em>| </em><em>None</em>) – patches to include in allosteric merge control</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.design.reduce_rule.RuleReducer.minimize">
+<span class="sig-name descname"><span class="pre">minimize</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">show_all</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.design.reduce_rule.RuleReducer.minimize" title="Link to this definition">¶</a></dt>
+<dd><p>Recursive function that introduces allostery to minimzie the number of particle types
+required for this rule</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>Generator</em>[<a class="reference internal" href="polycubeutil.html#pypatchy.polycubeutil.polycubesRule.PolycubesRule" title="pypatchy.polycubeutil.polycubesRule.PolycubesRule"><em>PolycubesRule</em></a>, None, None]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pypatchy.design.reduce_rule.RuleReducer.rename_counter">
+<span class="sig-name descname"><span class="pre">rename_counter</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#pypatchy.design.reduce_rule.RuleReducer.rename_counter" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pypatchy.design.reduce_rule.RuleReducer.rule">
+<span class="sig-name descname"><span class="pre">rule</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="polycubeutil.html#pypatchy.polycubeutil.polycubesRule.PolycubesRule" title="pypatchy.polycubeutil.polycubesRule.PolycubesRule"><span class="pre">PolycubesRule</span></a></em><a class="headerlink" href="#pypatchy.design.reduce_rule.RuleReducer.rule" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.design.reduce_rule.RuleReducer.try_reduce_cube_pair">
+<span class="sig-name descname"><span class="pre">try_reduce_cube_pair</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ct1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ct2</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.design.reduce_rule.RuleReducer.try_reduce_cube_pair" title="Link to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ct1</strong> (<a class="reference internal" href="polycubeutil.html#pypatchy.polycubeutil.polycubesRule.PolycubeRuleCubeType" title="pypatchy.polycubeutil.polycubesRule.PolycubeRuleCubeType"><em>PolycubeRuleCubeType</em></a><em> | </em><em>int</em>)</p></li>
+<li><p><strong>ct2</strong> (<a class="reference internal" href="polycubeutil.html#pypatchy.polycubeutil.polycubesRule.PolycubeRuleCubeType" title="pypatchy.polycubeutil.polycubesRule.PolycubeRuleCubeType"><em>PolycubeRuleCubeType</em></a><em> | </em><em>int</em>)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-pypatchy.design.design_util">
+<span id="design-util-py"></span><h2><code class="docutils literal notranslate"><span class="pre">design_util.py</span></code><a class="headerlink" href="#module-pypatchy.design.design_util" title="Link to this heading">¶</a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="pypatchy.design.design_util.all_overlap_rotation">
+<span class="sig-prename descclassname"><span class="pre">pypatchy.design.design_util.</span></span><span class="sig-name descname"><span class="pre">all_overlap_rotation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ct1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ct2</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.design.design_util.all_overlap_rotation" title="Link to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ct1</strong> (<a class="reference internal" href="polycubeutil.html#pypatchy.polycubeutil.polycubesRule.PolycubeRuleCubeType" title="pypatchy.polycubeutil.polycubesRule.PolycubeRuleCubeType"><em>PolycubeRuleCubeType</em></a>)</p></li>
+<li><p><strong>ct2</strong> (<a class="reference internal" href="polycubeutil.html#pypatchy.polycubeutil.polycubesRule.PolycubeRuleCubeType" title="pypatchy.polycubeutil.polycubesRule.PolycubeRuleCubeType"><em>PolycubeRuleCubeType</em></a>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>bool | <em>ndarray</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pypatchy.design.design_util.no_overlap_rotation">
+<span class="sig-prename descclassname"><span class="pre">pypatchy.design.design_util.</span></span><span class="sig-name descname"><span class="pre">no_overlap_rotation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ct1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ct2</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.design.design_util.no_overlap_rotation" title="Link to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ct1</strong> (<a class="reference internal" href="polycubeutil.html#pypatchy.polycubeutil.polycubesRule.PolycubeRuleCubeType" title="pypatchy.polycubeutil.polycubesRule.PolycubeRuleCubeType"><em>PolycubeRuleCubeType</em></a>)</p></li>
+<li><p><strong>ct2</strong> (<a class="reference internal" href="polycubeutil.html#pypatchy.polycubeutil.polycubesRule.PolycubeRuleCubeType" title="pypatchy.polycubeutil.polycubesRule.PolycubeRuleCubeType"><em>PolycubeRuleCubeType</em></a>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>bool | <em>ndarray</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pypatchy.design.design_util.rotate_cube_type">
+<span class="sig-prename descclassname"><span class="pre">pypatchy.design.design_util.</span></span><span class="sig-name descname"><span class="pre">rotate_cube_type</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ct1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rotation</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.design.design_util.rotate_cube_type" title="Link to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ct1</strong> (<a class="reference internal" href="polycubeutil.html#pypatchy.polycubeutil.polycubesRule.PolycubeRuleCubeType" title="pypatchy.polycubeutil.polycubesRule.PolycubeRuleCubeType"><em>PolycubeRuleCubeType</em></a>)</p></li>
+<li><p><strong>rotation</strong> (<em>ndarray</em>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="polycubeutil.html#pypatchy.polycubeutil.polycubesRule.PolycubeRuleCubeType" title="pypatchy.polycubeutil.polycubesRule.PolycubeRuleCubeType"><em>PolycubeRuleCubeType</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="module-pypatchy.design.normalize_particle_set">
+<span id="normalize-particle-set-py"></span><h2><code class="docutils literal notranslate"><span class="pre">normalize_particle_set.py</span></code><a class="headerlink" href="#module-pypatchy.design.normalize_particle_set" title="Link to this heading">¶</a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="pypatchy.design.normalize_particle_set.desaturate">
+<span class="sig-prename descclassname"><span class="pre">pypatchy.design.normalize_particle_set.</span></span><span class="sig-name descname"><span class="pre">desaturate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rgb_hex</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">amount</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.5</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.design.normalize_particle_set.desaturate" title="Link to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>rgb_hex</strong> (<em>str</em>)</p></li>
+<li><p><strong>amount</strong> (<em>float</em>)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pypatchy.design.normalize_particle_set.draw_gradient_bar">
+<span class="sig-prename descclassname"><span class="pre">pypatchy.design.normalize_particle_set.</span></span><span class="sig-name descname"><span class="pre">draw_gradient_bar</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ax</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">width</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">height</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">color1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">color2</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.design.normalize_particle_set.draw_gradient_bar" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pypatchy.design.normalize_particle_set.get_total_strengths">
+<span class="sig-prename descclassname"><span class="pre">pypatchy.design.normalize_particle_set.</span></span><span class="sig-name descname"><span class="pre">get_total_strengths</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">particle_set</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">int_mat</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tooth_counts</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_teeth</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">4</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.design.normalize_particle_set.get_total_strengths" title="Link to this definition">¶</a></dt>
+<dd><p>given a particle set and a candidate interaction matrix (continuous and sorted by color number)
+compute the total patch strength of each particle type in the set</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>particle_set</strong> (<em>PLParticleSet</em>)</p></li>
+<li><p><strong>int_mat</strong> (<em>ndarray</em>)</p></li>
+<li><p><strong>tooth_counts</strong> (<em>dict</em><em>[</em><em>slice</em><em>(</em><em>&lt;class 'int'&gt;</em><em>, </em><em>&lt;class 'int'&gt;</em><em>, </em><em>None</em><em>)</em><em>]</em>)</p></li>
+<li><p><strong>max_teeth</strong> (<em>int</em>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>ndarray</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pypatchy.design.normalize_particle_set.normalize_particle_set">
+<span class="sig-prename descclassname"><span class="pre">pypatchy.design.normalize_particle_set.</span></span><span class="sig-name descname"><span class="pre">normalize_particle_set</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">particle_set</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_strength</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">6.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_teeth</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">4</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_teeth</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weight_particle</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weight_strand</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.design.normalize_particle_set.normalize_particle_set" title="Link to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>particle_set</strong> (<em>PLParticleSet</em>)</p></li>
+<li><p><strong>target_strength</strong> (<em>float</em>)</p></li>
+<li><p><strong>max_teeth</strong> (<em>int</em>)</p></li>
+<li><p><strong>min_teeth</strong> (<em>int</em>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>tuple[<em>InteractionMatrix</em>, dict[int, int]]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pypatchy.design.normalize_particle_set.plot_combined_patch_and_interaction_strengths">
+<span class="sig-prename descclassname"><span class="pre">pypatchy.design.normalize_particle_set.</span></span><span class="sig-name descname"><span class="pre">plot_combined_patch_and_interaction_strengths</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">particle_sets</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fp</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.design.normalize_particle_set.plot_combined_patch_and_interaction_strengths" title="Link to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>particle_sets</strong> (<em>dict</em><em>[</em><em>str</em><em>, </em><em>PLParticleSet</em><em> | </em><em>tuple</em><em>[</em><em>PLParticleSet</em><em>, </em><em>dict</em><em>[</em><em>int</em><em>, </em><em>int</em><em>]</em><em>]</em><em>]</em>)</p></li>
+<li><p><strong>fp</strong> (<em>Path</em><em> | </em><em>None</em>)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pypatchy.design.normalize_particle_set.plot_interaction_strengths">
+<span class="sig-prename descclassname"><span class="pre">pypatchy.design.normalize_particle_set.</span></span><span class="sig-name descname"><span class="pre">plot_interaction_strengths</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">intmats</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fp</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.design.normalize_particle_set.plot_interaction_strengths" title="Link to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>intmats</strong> (<em>dict</em><em>[</em><em>str</em><em>, </em><em>InteractionMatrix</em><em> | </em><em>tuple</em><em>[</em><em>InteractionMatrix</em><em>, </em><em>dict</em><em>[</em><em>int</em><em>, </em><em>int</em><em>]</em><em>]</em><em>]</em>)</p></li>
+<li><p><strong>fp</strong> (<em>Path</em><em> | </em><em>None</em>)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pypatchy.design.normalize_particle_set.plot_patch_strengths_stacked">
+<span class="sig-prename descclassname"><span class="pre">pypatchy.design.normalize_particle_set.</span></span><span class="sig-name descname"><span class="pre">plot_patch_strengths_stacked</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">particle_sets</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fp</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.design.normalize_particle_set.plot_patch_strengths_stacked" title="Link to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>particle_sets</strong> (<em>dict</em><em>[</em><em>str</em><em>, </em><em>PLParticleSet</em><em>] </em><em>| </em><em>PLParticleSet</em>)</p></li>
+<li><p><strong>fp</strong> (<em>Path</em><em> | </em><em>str</em><em> | </em><em>None</em>)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="module-pypatchy.design.solve_params">
+<span id="solve-params-py"></span><h2><code class="docutils literal notranslate"><span class="pre">solve_params.py</span></code><a class="headerlink" href="#module-pypatchy.design.solve_params" title="Link to this heading">¶</a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="pypatchy.design.solve_params.CrystalloydizationTestParams">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pypatchy.design.solve_params.</span></span><span class="sig-name descname"><span class="pre">CrystalloydizationTestParams</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n_replicas</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">24</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_unit_cells</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">400</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_steps</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1000000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">record_interval</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1000.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">density</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Tmin</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Tmax</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">torsion</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.design.solve_params.CrystalloydizationTestParams" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>dataclass that holds wide-scale info about how to test a crystal, for the sat solver</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>n_replicas</strong> (<em>int</em>)</p></li>
+<li><p><strong>n_unit_cells</strong> (<em>int</em>)</p></li>
+<li><p><strong>n_steps</strong> (<em>int</em>)</p></li>
+<li><p><strong>record_interval</strong> (<em>int</em>)</p></li>
+<li><p><strong>density</strong> (<em>float</em>)</p></li>
+<li><p><strong>Tmin</strong> (<em>float</em>)</p></li>
+<li><p><strong>Tmax</strong> (<em>float</em>)</p></li>
+<li><p><strong>torsion</strong> (<em>bool</em>)</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pypatchy.design.solve_params.CrystalloydizationTestParams.Tmax">
+<span class="sig-name descname"><span class="pre">Tmax</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1</span></em><a class="headerlink" href="#pypatchy.design.solve_params.CrystalloydizationTestParams.Tmax" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pypatchy.design.solve_params.CrystalloydizationTestParams.Tmin">
+<span class="sig-name descname"><span class="pre">Tmin</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0</span></em><a class="headerlink" href="#pypatchy.design.solve_params.CrystalloydizationTestParams.Tmin" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pypatchy.design.solve_params.CrystalloydizationTestParams.density">
+<span class="sig-name descname"><span class="pre">density</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0.1</span></em><a class="headerlink" href="#pypatchy.design.solve_params.CrystalloydizationTestParams.density" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.design.solve_params.CrystalloydizationTestParams.get_total_type_counts">
+<span class="sig-name descname"><span class="pre">get_total_type_counts</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cube_type_counts</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.design.solve_params.CrystalloydizationTestParams.get_total_type_counts" title="Link to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>cube_type_counts</strong> (<em>list</em><em>[</em><em>int</em><em>]</em>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pypatchy.design.solve_params.CrystalloydizationTestParams.n_replicas">
+<span class="sig-name descname"><span class="pre">n_replicas</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">24</span></em><a class="headerlink" href="#pypatchy.design.solve_params.CrystalloydizationTestParams.n_replicas" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pypatchy.design.solve_params.CrystalloydizationTestParams.n_steps">
+<span class="sig-name descname"><span class="pre">n_steps</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1000000</span></em><a class="headerlink" href="#pypatchy.design.solve_params.CrystalloydizationTestParams.n_steps" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pypatchy.design.solve_params.CrystalloydizationTestParams.n_unit_cells">
+<span class="sig-name descname"><span class="pre">n_unit_cells</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">400</span></em><a class="headerlink" href="#pypatchy.design.solve_params.CrystalloydizationTestParams.n_unit_cells" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pypatchy.design.solve_params.CrystalloydizationTestParams.record_interval">
+<span class="sig-name descname"><span class="pre">record_interval</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1000.0</span></em><a class="headerlink" href="#pypatchy.design.solve_params.CrystalloydizationTestParams.record_interval" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pypatchy.design.solve_params.CrystalloydizationTestParams.torsion">
+<span class="sig-name descname"><span class="pre">torsion</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">True</span></em><a class="headerlink" href="#pypatchy.design.solve_params.CrystalloydizationTestParams.torsion" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="pypatchy.design.solve_params.MultifariousTypeRequirement">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pypatchy.design.solve_params.</span></span><span class="sig-name descname"><span class="pre">MultifariousTypeRequirement</span></span><a class="headerlink" href="#pypatchy.design.solve_params.MultifariousTypeRequirement" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pypatchy.design.solve_params.MultifariousTypeRequirement.ALL_SHARED">
+<span class="sig-name descname"><span class="pre">ALL_SHARED</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">2</span></em><a class="headerlink" href="#pypatchy.design.solve_params.MultifariousTypeRequirement.ALL_SHARED" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pypatchy.design.solve_params.MultifariousTypeRequirement.ANY_SHARED">
+<span class="sig-name descname"><span class="pre">ANY_SHARED</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1</span></em><a class="headerlink" href="#pypatchy.design.solve_params.MultifariousTypeRequirement.ANY_SHARED" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pypatchy.design.solve_params.MultifariousTypeRequirement.NO_MULTIFARIOUS">
+<span class="sig-name descname"><span class="pre">NO_MULTIFARIOUS</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">-1</span></em><a class="headerlink" href="#pypatchy.design.solve_params.MultifariousTypeRequirement.NO_MULTIFARIOUS" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pypatchy.design.solve_params.MultifariousTypeRequirement.NO_REQUIREMENTS">
+<span class="sig-name descname"><span class="pre">NO_REQUIREMENTS</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0</span></em><a class="headerlink" href="#pypatchy.design.solve_params.MultifariousTypeRequirement.NO_REQUIREMENTS" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="pypatchy.design.solve_params.SolveParams">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pypatchy.design.solve_params.</span></span><span class="sig-name descname"><span class="pre">SolveParams</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.design.solve_params.SolveParams" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>A class that holds the parameters for a SAT solver execution
+It include number of species, number of colors, etc.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>name</strong> (<em>str</em>)</p>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.design.solve_params.SolveParams.brief_descr">
+<span class="sig-name descname"><span class="pre">brief_descr</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.design.solve_params.SolveParams.brief_descr" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pypatchy.design.solve_params.SolveParams.crystal">
+<span class="sig-name descname"><span class="pre">crystal</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#pypatchy.design.solve_params.SolveParams.crystal" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pypatchy.design.solve_params.SolveParams.forbid_self_interact">
+<span class="sig-name descname"><span class="pre">forbid_self_interact</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#pypatchy.design.solve_params.SolveParams.forbid_self_interact" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pypatchy.design.solve_params.SolveParams.forbidden_topologies">
+<span class="sig-name descname"><span class="pre">forbidden_topologies</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">GenericTypedStructure</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#pypatchy.design.solve_params.SolveParams.forbidden_topologies" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.design.solve_params.SolveParams.get_locations">
+<span class="sig-name descname"><span class="pre">get_locations</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.design.solve_params.SolveParams.get_locations" title="Link to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>set[int]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.design.solve_params.SolveParams.get_logger">
+<span class="sig-name descname"><span class="pre">get_logger</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.design.solve_params.SolveParams.get_logger" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.design.solve_params.SolveParams.get_logger_name">
+<span class="sig-name descname"><span class="pre">get_logger_name</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.design.solve_params.SolveParams.get_logger_name" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.design.solve_params.SolveParams.has_nanoparticles">
+<span class="sig-name descname"><span class="pre">has_nanoparticles</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.design.solve_params.SolveParams.has_nanoparticles" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pypatchy.design.solve_params.SolveParams.maxAltTries">
+<span class="sig-name descname"><span class="pre">maxAltTries</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#pypatchy.design.solve_params.SolveParams.maxAltTries" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pypatchy.design.solve_params.SolveParams.multifarious_behavior">
+<span class="sig-name descname"><span class="pre">multifarious_behavior</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#pypatchy.design.solve_params.SolveParams.multifarious_behavior" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pypatchy.design.solve_params.SolveParams.nC">
+<span class="sig-name descname"><span class="pre">nC</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#pypatchy.design.solve_params.SolveParams.nC" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pypatchy.design.solve_params.SolveParams.nDim">
+<span class="sig-name descname"><span class="pre">nDim</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#pypatchy.design.solve_params.SolveParams.nDim" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pypatchy.design.solve_params.SolveParams.nS">
+<span class="sig-name descname"><span class="pre">nS</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#pypatchy.design.solve_params.SolveParams.nS" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pypatchy.design.solve_params.SolveParams.nSolutions">
+<span class="sig-name descname"><span class="pre">nSolutions</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#pypatchy.design.solve_params.SolveParams.nSolutions" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pypatchy.design.solve_params.SolveParams.name">
+<span class="sig-name descname"><span class="pre">name</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#pypatchy.design.solve_params.SolveParams.name" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pypatchy.design.solve_params.SolveParams.nanoparticles">
+<span class="sig-name descname"><span class="pre">nanoparticles</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#pypatchy.design.solve_params.SolveParams.nanoparticles" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.design.solve_params.SolveParams.num_locations">
+<span class="sig-name descname"><span class="pre">num_locations</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.design.solve_params.SolveParams.num_locations" title="Link to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pypatchy.design.solve_params.SolveParams.pc_analysis_hyperparams">
+<span class="sig-name descname"><span class="pre">pc_analysis_hyperparams</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">None</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#pypatchy.design.solve_params.SolveParams.pc_analysis_hyperparams" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pypatchy.design.solve_params.SolveParams.pre_forbid_solutions">
+<span class="sig-name descname"><span class="pre">pre_forbid_solutions</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">Path</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#pypatchy.design.solve_params.SolveParams.pre_forbid_solutions" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pypatchy.design.solve_params.SolveParams.segregate_bindings">
+<span class="sig-name descname"><span class="pre">segregate_bindings</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#pypatchy.design.solve_params.SolveParams.segregate_bindings" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pypatchy.design.solve_params.SolveParams.segregate_colors">
+<span class="sig-name descname"><span class="pre">segregate_colors</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#pypatchy.design.solve_params.SolveParams.segregate_colors" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pypatchy.design.solve_params.SolveParams.solver_timeout">
+<span class="sig-name descname"><span class="pre">solver_timeout</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#pypatchy.design.solve_params.SolveParams.solver_timeout" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pypatchy.design.solve_params.SolveParams.tlm_params">
+<span class="sig-name descname"><span class="pre">tlm_params</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#pypatchy.design.solve_params.CrystalloydizationTestParams" title="pypatchy.design.solve_params.CrystalloydizationTestParams"><span class="pre">CrystalloydizationTestParams</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#pypatchy.design.solve_params.SolveParams.tlm_params" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pypatchy.design.solve_params.SolveParams.topologies">
+<span class="sig-name descname"><span class="pre">topologies</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">GenericTypedStructure</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">GenericTypedStructure</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#pypatchy.design.solve_params.SolveParams.topologies" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="pypatchy.design.solve_params.SolveParams.topology">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">topology</span></span><a class="headerlink" href="#pypatchy.design.solve_params.SolveParams.topology" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.design.solve_params.SolveParams.use_test_lattice">
+<span class="sig-name descname"><span class="pre">use_test_lattice</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.design.solve_params.SolveParams.use_test_lattice" title="Link to this definition">¶</a></dt>
+<dd><p>return true if the input params require solutions to be validated on a thernal lattice model,
+false otherwise</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pypatchy.design.solve_params.construct">
+<span class="sig-prename descclassname"><span class="pre">pypatchy.design.solve_params.</span></span><span class="sig-name descname"><span class="pre">construct</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_nC</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_nC</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_nS</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_nS</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_diff</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.design.solve_params.construct" title="Link to this definition">¶</a></dt>
+<dd><p>what</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>name</strong> (<em>str</em>)</p></li>
+<li><p><strong>min_nC</strong> (<em>int</em>)</p></li>
+<li><p><strong>max_nC</strong> (<em>int</em>)</p></li>
+<li><p><strong>min_nS</strong> (<em>int</em>)</p></li>
+<li><p><strong>max_nS</strong> (<em>int</em>)</p></li>
+<li><p><strong>max_diff</strong> (<em>int</em><em> | </em><em>None</em>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>list[<a class="reference internal" href="#pypatchy.design.solve_params.SolveParams" title="pypatchy.design.solve_params.SolveParams"><em>SolveParams</em></a>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pypatchy.design.solve_params.load_solve_params">
+<span class="sig-prename descclassname"><span class="pre">pypatchy.design.solve_params.</span></span><span class="sig-name descname"><span class="pre">load_solve_params</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">spec_file_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nColors</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nSpecies</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.design.solve_params.load_solve_params" title="Link to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>spec_file_path</strong> (<em>Path</em><em> | </em><em>str</em>)</p></li>
+<li><p><strong>nColors</strong> (<em>int</em>)</p></li>
+<li><p><strong>nSpecies</strong> (<em>int</em>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="#pypatchy.design.solve_params.SolveParams" title="pypatchy.design.solve_params.SolveParams"><em>SolveParams</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="module-pypatchy.design.solve_utils">
+<span id="solve-utils-py"></span><h2><code class="docutils literal notranslate"><span class="pre">solve_utils.py</span></code><a class="headerlink" href="#module-pypatchy.design.solve_utils" title="Link to this heading">¶</a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="pypatchy.design.solve_utils.CrystalloydRating">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pypatchy.design.solve_utils.</span></span><span class="sig-name descname"><span class="pre">CrystalloydRating</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pc</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="polycubeutil.html#pypatchy.polycubeutil.polycube_structure.PolycubeStructure" title="pypatchy.polycubeutil.polycube_structure.PolycubeStructure"><span class="pre">pypatchy.polycubeutil.polycube_structure.PolycubeStructure</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">unit_cell</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">pypatchy.structure.TypedStructure</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mapping</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">topology_idx</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">score</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">-1</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.design.solve_utils.CrystalloydRating" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>pc</strong> (<a class="reference internal" href="polycubeutil.html#pypatchy.polycubeutil.polycube_structure.PolycubeStructure" title="pypatchy.polycubeutil.polycube_structure.PolycubeStructure"><em>PolycubeStructure</em></a>)</p></li>
+<li><p><strong>unit_cell</strong> (<em>TypedStructure</em><em> | </em><em>None</em>)</p></li>
+<li><p><strong>mapping</strong> (<em>dict</em><em>[</em><em>int</em><em>, </em><em>int</em><em>] </em><em>| </em><em>None</em>)</p></li>
+<li><p><strong>topology_idx</strong> (<em>int</em>)</p></li>
+<li><p><strong>score</strong> (<em>float</em>)</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pypatchy.design.solve_utils.CrystalloydRating.mapping">
+<span class="sig-name descname"><span class="pre">mapping</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#pypatchy.design.solve_utils.CrystalloydRating.mapping" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pypatchy.design.solve_utils.CrystalloydRating.pc">
+<span class="sig-name descname"><span class="pre">pc</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="polycubeutil.html#pypatchy.polycubeutil.polycube_structure.PolycubeStructure" title="pypatchy.polycubeutil.polycube_structure.PolycubeStructure"><span class="pre">PolycubeStructure</span></a></em><a class="headerlink" href="#pypatchy.design.solve_utils.CrystalloydRating.pc" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pypatchy.design.solve_utils.CrystalloydRating.score">
+<span class="sig-name descname"><span class="pre">score</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">-1</span></em><a class="headerlink" href="#pypatchy.design.solve_utils.CrystalloydRating.score" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pypatchy.design.solve_utils.CrystalloydRating.topology_idx">
+<span class="sig-name descname"><span class="pre">topology_idx</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#pypatchy.design.solve_utils.CrystalloydRating.topology_idx" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pypatchy.design.solve_utils.CrystalloydRating.unit_cell">
+<span class="sig-name descname"><span class="pre">unit_cell</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">TypedStructure</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#pypatchy.design.solve_utils.CrystalloydRating.unit_cell" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="pypatchy.design.solve_utils.TypedTopology">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pypatchy.design.solve_utils.</span></span><span class="sig-name descname"><span class="pre">TypedTopology</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.design.solve_utils.TypedTopology" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">TypedStructure</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.design.solve_utils.TypedTopology.get_particle_types">
+<span class="sig-name descname"><span class="pre">get_particle_types</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.design.solve_utils.TypedTopology.get_particle_types" title="Link to this definition">¶</a></dt>
+<dd><p>returns the map</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict[int, int]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.design.solve_utils.TypedTopology.get_topology">
+<span class="sig-name descname"><span class="pre">get_topology</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.design.solve_utils.TypedTopology.get_topology" title="Link to this definition">¶</a></dt>
+<dd><p>converts to C++ library object</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>TLMTopology</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.design.solve_utils.TypedTopology.particle_type">
+<span class="sig-name descname"><span class="pre">particle_type</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">particle_id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.design.solve_utils.TypedTopology.particle_type" title="Link to this definition">¶</a></dt>
+<dd><p>returns the type of the particle with the provided id</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>particle_id</strong> (<em>int</em>)</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pypatchy.design.solve_utils.TypedTopology.special_types">
+<span class="sig-name descname"><span class="pre">special_types</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#pypatchy.design.solve_utils.TypedTopology.special_types" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pypatchy.design.solve_utils.build_graphs">
+<span class="sig-prename descclassname"><span class="pre">pypatchy.design.solve_utils.</span></span><span class="sig-name descname"><span class="pre">build_graphs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">topology</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.design.solve_utils.build_graphs" title="Link to this definition">¶</a></dt>
+<dd><p>warning: the following function was written by ChatGPT
+:param topology:</p>
+<p>Returns:</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pypatchy.design.solve_utils.compute_coordinates">
+<span class="sig-prename descclassname"><span class="pre">pypatchy.design.solve_utils.</span></span><span class="sig-name descname"><span class="pre">compute_coordinates</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">topology</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.design.solve_utils.compute_coordinates" title="Link to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>topology</strong> (<em>frozenset</em>)</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>dict[int, <em>array</em>]</p>
+</dd>
+</dl>
+<p>Returns:</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pypatchy.design.solve_utils.coordsFromFile">
+<span class="sig-prename descclassname"><span class="pre">pypatchy.design.solve_utils.</span></span><span class="sig-name descname"><span class="pre">coordsFromFile</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.design.solve_utils.coordsFromFile" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pypatchy.design.solve_utils.countParticlesAndBindings">
+<span class="sig-prename descclassname"><span class="pre">pypatchy.design.solve_utils.</span></span><span class="sig-name descname"><span class="pre">countParticlesAndBindings</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">topology</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.design.solve_utils.countParticlesAndBindings" title="Link to this definition">¶</a></dt>
+<dd><p>Returns the number of bindings and particles in a topology
+Doesn’t take into account external bindings (for crystals) or nanoparticles
+:param topology:</p>
+<p>Returns: a tuple of the number of particles and the number of bindings</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pypatchy.design.solve_utils.forbidden_symmetries">
+<span class="sig-prename descclassname"><span class="pre">pypatchy.design.solve_utils.</span></span><span class="sig-name descname"><span class="pre">forbidden_symmetries</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.design.solve_utils.forbidden_symmetries" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pypatchy.design.solve_utils.gen_map_crystalloyd_onto">
+<span class="sig-prename descclassname"><span class="pre">pypatchy.design.solve_utils.</span></span><span class="sig-name descname"><span class="pre">gen_map_crystalloyd_onto</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">crystalloyd</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">unit_cell</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">species_np_map</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.design.solve_utils.gen_map_crystalloyd_onto" title="Link to this definition">¶</a></dt>
+<dd><p>generates a mapping that maps each cube in self onto the unit cell of the structure
+returns false if no such mapping is possibles</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>crystalloyd</strong> (<a class="reference internal" href="polycubeutil.html#pypatchy.polycubeutil.polycube_structure.PolycubeStructure" title="pypatchy.polycubeutil.polycube_structure.PolycubeStructure"><em>PolycubeStructure</em></a>)</p></li>
+<li><p><strong>unit_cell</strong> (<em>TypedStructure</em>)</p></li>
+<li><p><strong>species_np_map</strong> (<em>dict</em><em>[</em><em>int</em><em>, </em><em>int</em><em>]</em>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="#pypatchy.design.solve_utils.CrystalloydRating" title="pypatchy.design.solve_utils.CrystalloydRating"><em>CrystalloydRating</em></a> | bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pypatchy.design.solve_utils.getFACE_ROTATIONS">
+<span class="sig-prename descclassname"><span class="pre">pypatchy.design.solve_utils.</span></span><span class="sig-name descname"><span class="pre">getFACE_ROTATIONS</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.design.solve_utils.getFACE_ROTATIONS" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pypatchy.design.solve_utils.getFlatFaceRot">
+<span class="sig-prename descclassname"><span class="pre">pypatchy.design.solve_utils.</span></span><span class="sig-name descname"><span class="pre">getFlatFaceRot</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.design.solve_utils.getFlatFaceRot" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pypatchy.design.solve_utils.getIndexOf">
+<span class="sig-prename descclassname"><span class="pre">pypatchy.design.solve_utils.</span></span><span class="sig-name descname"><span class="pre">getIndexOf</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">elem</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">array</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.design.solve_utils.getIndexOf" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pypatchy.design.solve_utils.match_crystalloyd_to_unit_cell">
+<span class="sig-prename descclassname"><span class="pre">pypatchy.design.solve_utils.</span></span><span class="sig-name descname"><span class="pre">match_crystalloyd_to_unit_cell</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">crystalloyd</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">unit_cell</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">np_species_map</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">allow_small</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.design.solve_utils.match_crystalloyd_to_unit_cell" title="Link to this definition">¶</a></dt>
+<dd><p>matches the provided crystalloyd to the unit cell
+:param crystalloyd a crystalloyd polycube strucutre:
+:param unit_cell unit cell to match to the crystalloyd:
+:param np_species_map a mapping of cube type IDs in crystalloyd to particle types in unit_cell:</p>
+<p>Returns: a tuple (rotation idx, translation vector)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>crystalloyd</strong> (<a class="reference internal" href="polycubeutil.html#pypatchy.polycubeutil.polycube_structure.PolycubeStructure" title="pypatchy.polycubeutil.polycube_structure.PolycubeStructure"><em>PolycubeStructure</em></a>)</p></li>
+<li><p><strong>unit_cell</strong> (<em>TypedStructure</em>)</p></li>
+<li><p><strong>np_species_map</strong> (<em>dict</em><em>[</em><em>slice</em><em>(</em><em>&lt;class 'int'&gt;</em><em>, </em><em>&lt;class 'int'&gt;</em><em>, </em><em>None</em><em>)</em><em>]</em>)</p></li>
+<li><p><strong>allow_small</strong> (<em>bool</em>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>Generator</em>[tuple[int, <em>ndarray</em>, <em>ndarray</em>, <em>ndarray</em>], None, None]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pypatchy.design.solve_utils.match_unit_cell_at_pt">
+<span class="sig-prename descclassname"><span class="pre">pypatchy.design.solve_utils.</span></span><span class="sig-name descname"><span class="pre">match_unit_cell_at_pt</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">crystalloyd</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tiling_structure_dimensions</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">coord_matrix</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">np_species_map</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ptypes</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">uids</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rmap</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rot_idx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tran</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.design.solve_utils.match_unit_cell_at_pt" title="Link to this definition">¶</a></dt>
+<dd><p>attempts to find a rotation that maps the unit cell (with coordinates defined in coord_matrix)
+to the crystalloyd, with the provided translation</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>crystalloyd</strong> (<a class="reference internal" href="polycubeutil.html#pypatchy.polycubeutil.polycube_structure.PolycubeStructure" title="pypatchy.polycubeutil.polycube_structure.PolycubeStructure"><em>PolycubeStructure</em></a>)</p></li>
+<li><p><strong>tiling_structure_dimensions</strong> (<em>tuple</em><em>[</em><em>int</em><em>, </em><em>int</em><em>, </em><em>int</em><em>]</em>)</p></li>
+<li><p><strong>coord_matrix</strong> (<em>ndarray</em>)</p></li>
+<li><p><strong>np_species_map</strong> (<em>dict</em><em>[</em><em>slice</em><em>(</em><em>&lt;class 'int'&gt;</em><em>, </em><em>&lt;class 'int'&gt;</em><em>, </em><em>None</em><em>)</em><em>]</em>)</p></li>
+<li><p><strong>ptypes</strong> (<em>ndarray</em>)</p></li>
+<li><p><strong>uids</strong> (<em>ndarray</em>)</p></li>
+<li><p><strong>rmap</strong> (<em>dict</em><em>[</em><em>slice</em><em>(</em><em>&lt;class 'int'&gt;</em><em>, </em><em>&lt;class 'int'&gt;</em><em>, </em><em>None</em><em>)</em><em>]</em>)</p></li>
+<li><p><strong>rot_idx</strong> (<em>int</em>)</p></li>
+<li><p><strong>tran</strong> (<em>ndarray</em>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>tuple[int, <em>ndarray</em>, <em>ndarray</em>, <em>ndarray</em>] | bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pypatchy.design.solve_utils.match_unit_cell_from_igraph_mapping">
+<span class="sig-prename descclassname"><span class="pre">pypatchy.design.solve_utils.</span></span><span class="sig-name descname"><span class="pre">match_unit_cell_from_igraph_mapping</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">crystalloyd</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">unit_cell</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mapping</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">np_species_map</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.design.solve_utils.match_unit_cell_from_igraph_mapping" title="Link to this definition">¶</a></dt>
+<dd><p>Given a vertex mapping from crystalloyd (subgraph) to unit cell (supergraph),
+verify spatial alignment and type mapping, and return the closest discrete rotation index.
+Code by chatGPT</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>(rot_idx, unit_coords, unit_uids, unit_types) if valid, else False</p>
+</dd>
+<dt class="field-even">Parameters<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>crystalloyd</strong> (<a class="reference internal" href="polycubeutil.html#pypatchy.polycubeutil.polycube_structure.PolycubeStructure" title="pypatchy.polycubeutil.polycube_structure.PolycubeStructure"><em>PolycubeStructure</em></a>)</p></li>
+<li><p><strong>unit_cell</strong> (<em>TypedStructure</em>)</p></li>
+<li><p><strong>mapping</strong> (<em>list</em><em>[</em><em>int</em><em>]</em>)</p></li>
+<li><p><strong>np_species_map</strong> (<em>dict</em><em>[</em><em>int</em><em>, </em><em>int</em><em>]</em>)</p></li>
+</ul>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>tuple[int, <em>ndarray</em>, <em>ndarray</em>, <em>ndarray</em>] | bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pypatchy.design.solve_utils.parseHexRule">
+<span class="sig-prename descclassname"><span class="pre">pypatchy.design.solve_utils.</span></span><span class="sig-name descname"><span class="pre">parseHexRule</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">hexRule</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.design.solve_utils.parseHexRule" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pypatchy.design.solve_utils.patchRotToVec">
+<span class="sig-prename descclassname"><span class="pre">pypatchy.design.solve_utils.</span></span><span class="sig-name descname"><span class="pre">patchRotToVec</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rot</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.design.solve_utils.patchRotToVec" title="Link to this definition">¶</a></dt>
+<dd><p>Get vector indicating patch rotation, given rotation state and face index</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>i</strong> (<em>int</em>) – Index of patch [0…5]</p></li>
+<li><p><strong>rot</strong> (<em>int</em>) – Rotation state [0,1,2,3] = North , East, South, West</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Patch rotation vector</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>vector</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pypatchy.design.solve_utils.patchVecToRot">
+<span class="sig-prename descclassname"><span class="pre">pypatchy.design.solve_utils.</span></span><span class="sig-name descname"><span class="pre">patchVecToRot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">v</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.design.solve_utils.patchVecToRot" title="Link to this definition">¶</a></dt>
+<dd><p>Get rotation state, given face index and patch rotation vector</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>i</strong> (<em>int</em>) – Index of patch [0…5]</p></li>
+<li><p><strong>v</strong> (<em>vector</em>) – Patch rotation vector</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Rotation state [0,1,2,3] = North , East, South, West</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pypatchy.design.solve_utils.quaternion_inverse">
+<span class="sig-prename descclassname"><span class="pre">pypatchy.design.solve_utils.</span></span><span class="sig-name descname"><span class="pre">quaternion_inverse</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">q</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.design.solve_utils.quaternion_inverse" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pypatchy.design.solve_utils.rot_idx_to_quaternion">
+<span class="sig-prename descclassname"><span class="pre">pypatchy.design.solve_utils.</span></span><span class="sig-name descname"><span class="pre">rot_idx_to_quaternion</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">idx</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.design.solve_utils.rot_idx_to_quaternion" title="Link to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>idx</strong> (<em>int</em>)</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>ndarray</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pypatchy.design.solve_utils.rot_map_to_quat">
+<span class="sig-prename descclassname"><span class="pre">pypatchy.design.solve_utils.</span></span><span class="sig-name descname"><span class="pre">rot_map_to_quat</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rot_map</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.design.solve_utils.rot_map_to_quat" title="Link to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>rot_map</strong> (<em>dict</em><em>[</em><em>int</em><em>, </em><em>int</em><em>]</em>)</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>ndarray</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pypatchy.design.solve_utils.rotation_matrix_to_quaternion">
+<span class="sig-prename descclassname"><span class="pre">pypatchy.design.solve_utils.</span></span><span class="sig-name descname"><span class="pre">rotation_matrix_to_quaternion</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rotation</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.design.solve_utils.rotation_matrix_to_quaternion" title="Link to this definition">¶</a></dt>
+<dd><p>chatGPT wrote this code
+Convert a 3x3 rotation matrix to a quaternion.
+Is there a neater way to do this? unclear!!!</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pypatchy.design.solve_utils.ruleToHex">
+<span class="sig-prename descclassname"><span class="pre">pypatchy.design.solve_utils.</span></span><span class="sig-name descname"><span class="pre">ruleToHex</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ruleset</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.design.solve_utils.ruleToHex" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pypatchy.design.solve_utils.setup_logger">
+<span class="sig-prename descclassname"><span class="pre">pypatchy.design.solve_utils.</span></span><span class="sig-name descname"><span class="pre">setup_logger</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">logger_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">file_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.design.solve_utils.setup_logger" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pypatchy.design.solve_utils.toPolycube">
+<span class="sig-prename descclassname"><span class="pre">pypatchy.design.solve_utils.</span></span><span class="sig-name descname"><span class="pre">toPolycube</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rule</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pc</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.design.solve_utils.toPolycube" title="Link to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>rule</strong> (<a class="reference internal" href="polycubeutil.html#pypatchy.polycubeutil.polycubesRule.PolycubesRule" title="pypatchy.polycubeutil.polycubesRule.PolycubesRule"><em>PolycubesRule</em></a>)</p></li>
+<li><p><strong>pc</strong> (<em>TLMPolycube</em>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="polycubeutil.html#pypatchy.polycubeutil.polycube_structure.PolycubeStructure" title="pypatchy.polycubeutil.polycube_structure.PolycubeStructure"><em>PolycubeStructure</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pypatchy.design.solve_utils.to_diridx">
+<span class="sig-prename descclassname"><span class="pre">pypatchy.design.solve_utils.</span></span><span class="sig-name descname"><span class="pre">to_diridx</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.design.solve_utils.to_diridx" title="Link to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>x</strong> (<em>int</em>)</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>DirIdx</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pypatchy.design.solve_utils.to_xyz">
+<span class="sig-prename descclassname"><span class="pre">pypatchy.design.solve_utils.</span></span><span class="sig-name descname"><span class="pre">to_xyz</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">vector</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.design.solve_utils.to_xyz" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pypatchy.design.solve_utils.try_crystalloyd_map_rotran">
+<span class="sig-prename descclassname"><span class="pre">pypatchy.design.solve_utils.</span></span><span class="sig-name descname"><span class="pre">try_crystalloyd_map_rotran</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">crystalloyd</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">unit_cell</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">species_np_map</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rot_idx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">coord_matrix</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">uids</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.design.solve_utils.try_crystalloyd_map_rotran" title="Link to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>crystalloyd</strong> (<a class="reference internal" href="polycubeutil.html#pypatchy.polycubeutil.polycube_structure.PolycubeStructure" title="pypatchy.polycubeutil.polycube_structure.PolycubeStructure"><em>PolycubeStructure</em></a>)</p></li>
+<li><p><strong>unit_cell</strong> (<em>TypedStructure</em>)</p></li>
+<li><p><strong>species_np_map</strong> (<em>dict</em><em>[</em><em>slice</em><em>(</em><em>&lt;class 'int'&gt;</em><em>, </em><em>&lt;class 'int'&gt;</em><em>, </em><em>None</em><em>)</em><em>]</em>)</p></li>
+<li><p><strong>rot_idx</strong> (<em>int</em>)</p></li>
+<li><p><strong>coord_matrix</strong> (<em>ndarray</em>)</p></li>
+<li><p><strong>uids</strong> (<em>ndarray</em>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>bool | dict[int, int]</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="sat">
+<h2><code class="docutils literal notranslate"><span class="pre">sat</span></code><a class="headerlink" href="#sat" title="Link to this heading">¶</a></h2>
+<p>This package contains code for using SAT-Assembly to design polycube systems, which can then be converted into patchy particles.</p>
+<p><a href="#id1"><span class="problematic" id="id2">``</span></a></p>
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">pypatchy</a></h1>
+
+
+
+
+
+
+
+
+
+<search id="searchbox" style="display: none" role="search">
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Search"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="introduction.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="concepts.html">Concepts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials.html">Tutorials</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="package_reference.html">Reference</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="analysis.html"><code class="docutils literal notranslate"><span class="pre">analysis</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="patchy.html"><code class="docutils literal notranslate"><span class="pre">patchy</span></code></a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#"><code class="docutils literal notranslate"><span class="pre">design</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="polycubeutil.html"><code class="docutils literal notranslate"><span class="pre">polycubeutil</span></code></a></li>
+</ul>
+</li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+  <li><a href="package_reference.html">Reference</a><ul>
+      <li>Previous: <a href="patchy.html" title="previous chapter"><code class="docutils literal notranslate"><span class="pre">patchy</span></code></a></li>
+      <li>Next: <a href="polycubeutil.html" title="next chapter"><code class="docutils literal notranslate"><span class="pre">polycubeutil</span></code></a></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2025, Joshua Evans of <a href="https://sulcgroup.github.io/">Sulc Lab @ ASU</a>.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 8.2.3</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+      |
+      <a href="_sources/design.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

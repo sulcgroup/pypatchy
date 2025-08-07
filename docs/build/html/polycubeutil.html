@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="./">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>polycubeutil &#8212; pypatchy 0.3 documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=5ecbeea2" />
+    <link rel="stylesheet" type="text/css" href="_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="_static/alabaster.css?v=27fed22d" />
+    <script src="_static/documentation_options.js?v=b489f392"></script>
+    <script src="_static/doctools.js?v=9bcbadda"></script>
+    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="design" href="design.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="polycubeutil">
+<h1><code class="docutils literal notranslate"><span class="pre">polycubeutil</span></code><a class="headerlink" href="#polycubeutil" title="Link to this heading">¶</a></h1>
+<p>This module contains functions for reading, writing, and manipulating polycube data.</p>
+<nav class="contents local" id="contents">
+<ul class="simple">
+<li><p><a class="reference internal" href="#polycube-structure-py" id="id1"><code class="docutils literal notranslate"><span class="pre">polycube_structure.py</span></code></a></p></li>
+<li><p><a class="reference internal" href="#polycubesrule-py" id="id2"><code class="docutils literal notranslate"><span class="pre">polycubesRule.py</span></code></a></p></li>
+<li><p><a class="reference internal" href="#polycube-util-py" id="id3"><code class="docutils literal notranslate"><span class="pre">polycube_util.py</span></code></a></p></li>
+</ul>
+</nav>
+<section id="polycube-structure-py">
+<h2><a class="toc-backref" href="#id1" role="doc-backlink"><code class="docutils literal notranslate"><span class="pre">polycube_structure.py</span></code></a><a class="headerlink" href="#polycube-structure-py" title="Link to this heading">¶</a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="pypatchy.polycubeutil.polycube_structure.PolycubeStructure">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pypatchy.polycubeutil.polycube_structure.</span></span><span class="sig-name descname"><span class="pre">PolycubeStructure</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.polycubeutil.polycube_structure.PolycubeStructure" title="Link to this definition">¶</a></dt>
+<dd><p>A structure formed from connected cubes on a 3D integer grid</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pypatchy.polycubeutil.polycube_structure.load_polycube">
+<span class="sig-prename descclassname"><span class="pre">pypatchy.polycubeutil.polycube_structure.</span></span><span class="sig-name descname"><span class="pre">load_polycube</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_path</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.polycubeutil.polycube_structure.load_polycube" title="Link to this definition">¶</a></dt>
+<dd><p>Loads a polycube from a json file.
+:param file_path: a path to a json file. If the path is implicitly relative, it will be prepended with <cite>~/.pypatchy/input</cite>
+:return: the PolycubeStructure stored in the file</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>file_path</strong> (<em>Path</em><em> | </em><em>str</em>)</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="#pypatchy.polycubeutil.polycube_structure.PolycubeStructure" title="pypatchy.polycubeutil.polycube_structure.PolycubeStructure"><em>PolycubeStructure</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="polycubesrule-py">
+<h2><a class="toc-backref" href="#id2" role="doc-backlink"><code class="docutils literal notranslate"><span class="pre">polycubesRule.py</span></code></a><a class="headerlink" href="#polycubesrule-py" title="Link to this heading">¶</a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="pypatchy.polycubeutil.polycubesRule.diridx">
+<span class="sig-prename descclassname"><span class="pre">pypatchy.polycubeutil.polycubesRule.</span></span><span class="sig-name descname"><span class="pre">diridx</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">a</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.polycubeutil.polycubesRule.diridx" title="Link to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>a</strong> (<em>ndarray</em>) – a 3-length integer vector with magnitude 1</p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>ValueError</strong> – if param a is not a 3-length integer vector with magnitude 1</p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>the direction index in RULE_ORDER of a vector</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pypatchy.polycubeutil.polycubesRule.rdir">
+<span class="sig-prename descclassname"><span class="pre">pypatchy.polycubeutil.polycubesRule.</span></span><span class="sig-name descname"><span class="pre">rdir</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">d</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.polycubeutil.polycubesRule.rdir" title="Link to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>d</strong> (<em>int</em>) – an integer from [0,5] representing a direction in RULE_ORDER</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>the index in RULE_ORDER of the negated vector RULE_ORDER[d]</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pypatchy.polycubeutil.polycubesRule.get_orientation">
+<span class="sig-prename descclassname"><span class="pre">pypatchy.polycubeutil.polycubesRule.</span></span><span class="sig-name descname"><span class="pre">get_orientation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">face_idx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ori_idx</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.polycubeutil.polycubesRule.get_orientation" title="Link to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>face_idx</strong> (<em>int</em>) – an index in RULE_ORDER</p></li>
+<li><p><strong>ori_idx</strong> (<em>int</em>) – the orientation index</p></li>
+</ul>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>ValueError</strong> – if face_idx is not a valid face index (face_idx ∈ [1,5])</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>ndarray</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pypatchy.polycubeutil.polycubesRule.getRotationMap">
+<span class="sig-prename descclassname"><span class="pre">pypatchy.polycubeutil.polycubesRule.</span></span><span class="sig-name descname"><span class="pre">getRotationMap</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">axis</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">angle</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.polycubeutil.polycubesRule.getRotationMap" title="Link to this definition">¶</a></dt>
+<dd><p>Converts an axis-angle rotation (as integer indeces) to a rotation map (direction index key-value pairs)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>axis</strong> (<em>int</em>) – an integer from [0,5] representing a direction in RULE_ORDER</p></li>
+<li><p><strong>angle</strong> (<em>int</em>) – a rotation angle as an integer from [0,3] which is multiplied by π / 2 to conver to a radian angle</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>a rotation map of length 6 where keys are nonrepeating integers [0,5] and values are nonrepeating integers [0,5]</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict[int, int]</p>
+</dd>
+</dl>
+<p>todo is this even right</p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="pypatchy.polycubeutil.polycubesRule.PolycubesPatch">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pypatchy.polycubeutil.polycubesRule.</span></span><span class="sig-name descname"><span class="pre">PolycubesPatch</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">uid</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">color</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">direction</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">orientation</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stateVar</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">activationVar</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.polycubeutil.polycubesRule.PolycubesPatch" title="Link to this definition">¶</a></dt>
+<dd><p>A patch on a patchy particle.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>uid</strong> (<em>Union</em><em>[</em><em>int</em><em>, </em><em>None</em><em>]</em>)</p></li>
+<li><p><strong>color</strong> (<em>int</em>)</p></li>
+<li><p><strong>direction</strong> (<em>Union</em><em>[</em><em>int</em><em>, </em><em>np.ndarray</em><em>]</em>)</p></li>
+<li><p><strong>orientation</strong> (<em>Union</em><em>[</em><em>int</em><em>, </em><em>np.ndarray</em><em>]</em>)</p></li>
+<li><p><strong>stateVar</strong> (<em>int</em>)</p></li>
+<li><p><strong>activationVar</strong> (<em>int</em>)</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.polycubeutil.polycubesRule.PolycubesPatch.rotate">
+<span class="sig-name descname"><span class="pre">rotate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rotation</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.polycubeutil.polycubesRule.PolycubesPatch.rotate" title="Link to this definition">¶</a></dt>
+<dd><p>Rotates and returns copy of patch</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>rotation</strong> (<em>ndarray</em>)</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="#pypatchy.polycubeutil.polycubesRule.PolycubesPatch" title="pypatchy.polycubeutil.polycubesRule.PolycubesPatch"><em>PolycubesPatch</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.polycubeutil.polycubesRule.PolycubesPatch.set_align_rot">
+<span class="sig-name descname"><span class="pre">set_align_rot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">new_align</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.polycubeutil.polycubesRule.PolycubesPatch.set_align_rot" title="Link to this definition">¶</a></dt>
+<dd><p>See above method get_align_rot_num
+:param : param new_align an integer from 0 to 4 specifiying a rotation from the default patch orientation</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>new_align</strong> (<em>int</em>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.polycubeutil.polycubesRule.PolycubesPatch.set_type_id">
+<span class="sig-name descname"><span class="pre">set_type_id</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">new_val</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.polycubeutil.polycubesRule.PolycubesPatch.set_type_id" title="Link to this definition">¶</a></dt>
+<dd><p>sets patch unique identifier
+use with caution!</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>new_val</strong> (<em>int</em>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="pypatchy.polycubeutil.polycubesRule.PolycubeRuleCubeType">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pypatchy.polycubeutil.polycubesRule.</span></span><span class="sig-name descname"><span class="pre">PolycubeRuleCubeType</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ct_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">patches</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stateSize</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">effects</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">''</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.polycubeutil.polycubesRule.PolycubeRuleCubeType" title="Link to this definition">¶</a></dt>
+<dd><p>A cube type in a polycube rule</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ct_id</strong> (<em>int</em>)</p></li>
+<li><p><strong>patches</strong> (<em>list</em><em>[</em><a class="reference internal" href="#pypatchy.polycubeutil.polycubesRule.PolycubesPatch" title="pypatchy.polycubeutil.polycubesRule.PolycubesPatch"><em>PolycubesPatch</em></a><em>]</em>)</p></li>
+<li><p><strong>effects</strong> (<em>Union</em><em>[</em><em>None</em><em>, </em><em>list</em><em>[</em><em>Effect</em><em>]</em><em>]</em>)</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.polycubeutil.polycubesRule.PolycubeRuleCubeType.add_state_var">
+<span class="sig-name descname"><span class="pre">add_state_var</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.polycubeutil.polycubesRule.PolycubeRuleCubeType.add_state_var" title="Link to this definition">¶</a></dt>
+<dd><p>Increases the number of state variables by 1 and returns the newly-created
+state variable</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.polycubeutil.polycubesRule.PolycubeRuleCubeType.effects_targeting">
+<span class="sig-name descname"><span class="pre">effects_targeting</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">v</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.polycubeutil.polycubesRule.PolycubeRuleCubeType.effects_targeting" title="Link to this definition">¶</a></dt>
+<dd><p>Returns a list containing all the effects on this cube type that target a given variable</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>v</strong> (<em>int</em>)</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>list[<em>StringConditionalEffect</em> | <em>DynamicEffect</em> | <em>EnvironmentalEffect</em>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.polycubeutil.polycubesRule.PolycubeRuleCubeType.get_patch_by_idx">
+<span class="sig-name descname"><span class="pre">get_patch_by_idx</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">i</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.polycubeutil.polycubesRule.PolycubeRuleCubeType.get_patch_by_idx" title="Link to this definition">¶</a></dt>
+<dd><p>Does NOT use direction indexes!
+:returns: the ith patch in the particle’s patch list.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>i</strong> (<em>int</em>)</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="#pypatchy.polycubeutil.polycubesRule.PolycubesPatch" title="pypatchy.polycubeutil.polycubesRule.PolycubesPatch"><em>PolycubesPatch</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.polycubeutil.polycubesRule.PolycubeRuleCubeType.get_patch_by_state_var">
+<span class="sig-name descname"><span class="pre">get_patch_by_state_var</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">state_var</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.polycubeutil.polycubesRule.PolycubeRuleCubeType.get_patch_by_state_var" title="Link to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>state_var</strong> (<em>int</em>)</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>None | <a class="reference internal" href="#pypatchy.polycubeutil.polycubesRule.PolycubesPatch" title="pypatchy.polycubeutil.polycubesRule.PolycubesPatch"><em>PolycubesPatch</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.polycubeutil.polycubesRule.PolycubeRuleCubeType.get_patch_state_var">
+<span class="sig-name descname"><span class="pre">get_patch_state_var</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">make_if_0</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.polycubeutil.polycubesRule.PolycubeRuleCubeType.get_patch_state_var" title="Link to this definition">¶</a></dt>
+<dd><p>returns the state variable associated with a patch</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>int</strong> (<em>key a</em>)</p></li>
+<li><p><strong>string</strong> (<em>as an np array</em>)</p></li>
+<li><p><strong>vector</strong> (<em>or</em>)</p></li>
+<li><p><strong>key</strong> (<em>int</em><em> | </em><em>str</em><em> | </em><em>ndarray</em>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.polycubeutil.polycubesRule.PolycubeRuleCubeType.patch">
+<span class="sig-name descname"><span class="pre">patch</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">direction</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.polycubeutil.polycubesRule.PolycubeRuleCubeType.patch" title="Link to this definition">¶</a></dt>
+<dd><p>Accessor for patch</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>patch_idx</strong> – int index of patch, or 3-length vector for patch position</p></li>
+<li><p><strong>direction</strong> (<em>int</em><em> | </em><em>ndarray</em>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>patch object specified by <cite>patch_index</cite></p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#pypatchy.polycubeutil.polycubesRule.PolycubesPatch" title="pypatchy.polycubeutil.polycubesRule.PolycubesPatch"><em>PolycubesPatch</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.polycubeutil.polycubesRule.PolycubeRuleCubeType.patch_conditional">
+<span class="sig-name descname"><span class="pre">patch_conditional</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">patch</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">minimize</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.polycubeutil.polycubesRule.PolycubeRuleCubeType.patch_conditional" title="Link to this definition">¶</a></dt>
+<dd><p>Expresses the conditional for the provided patch in traditional string form
+:param patch: the patch for which to derive a conditional
+:param minimize: true if the patches should be indexed ignoring zero-color patches, false otherwise</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>patch</strong> (<a class="reference internal" href="#pypatchy.polycubeutil.polycubesRule.PolycubesPatch" title="pypatchy.polycubeutil.polycubesRule.PolycubesPatch"><em>PolycubesPatch</em></a>)</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.polycubeutil.polycubesRule.PolycubeRuleCubeType.patch_index_in">
+<span class="sig-name descname"><span class="pre">patch_index_in</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">p</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.polycubeutil.polycubesRule.PolycubeRuleCubeType.patch_index_in" title="Link to this definition">¶</a></dt>
+<dd><p>Returns the index in self._patches of the provided patch</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>p</strong> (<a class="reference internal" href="#pypatchy.polycubeutil.polycubesRule.PolycubesPatch" title="pypatchy.polycubeutil.polycubesRule.PolycubesPatch"><em>PolycubesPatch</em></a>)</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.polycubeutil.polycubesRule.PolycubeRuleCubeType.radius">
+<span class="sig-name descname"><span class="pre">radius</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">normal</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">array([0.,</span> <span class="pre">0.,</span> <span class="pre">0.])</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.polycubeutil.polycubesRule.PolycubeRuleCubeType.radius" title="Link to this definition">¶</a></dt>
+<dd><p>Returns the radius of the particle along the provided normal from the particle centroid</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>normal</strong> (<em>ndarray</em>)</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.polycubeutil.polycubesRule.PolycubeRuleCubeType.rotate">
+<span class="sig-name descname"><span class="pre">rotate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">r</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.polycubeutil.polycubesRule.PolycubeRuleCubeType.rotate" title="Link to this definition">¶</a></dt>
+<dd><p>Applies a rotation in place to this cube type
+This isn’t normally very useful but it’s important for merging cube types</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>r</strong> (<em>ndarray</em>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.polycubeutil.polycubesRule.PolycubeRuleCubeType.shift_state">
+<span class="sig-name descname"><span class="pre">shift_state</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">nvars</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.polycubeutil.polycubesRule.PolycubeRuleCubeType.shift_state" title="Link to this definition">¶</a></dt>
+<dd><p>Shifts the entire state to the right by nvars</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>nvars</strong> (<em>int</em>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="pypatchy.polycubeutil.polycubesRule.PolycubesRule">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pypatchy.polycubeutil.polycubesRule.</span></span><span class="sig-name descname"><span class="pre">PolycubesRule</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.polycubeutil.polycubesRule.PolycubesRule" title="Link to this definition">¶</a></dt>
+<dd><p>A set of cube types</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.polycubeutil.polycubesRule.PolycubesRule.concat">
+<span class="sig-name descname"><span class="pre">concat</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">other</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.polycubeutil.polycubesRule.PolycubesRule.concat" title="Link to this definition">¶</a></dt>
+<dd><p>Joins two polycubes rules by shifting one and concatinating</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>other</strong> (<a class="reference internal" href="#pypatchy.polycubeutil.polycubesRule.PolycubesRule" title="pypatchy.polycubeutil.polycubesRule.PolycubesRule"><em>PolycubesRule</em></a>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.polycubeutil.polycubesRule.PolycubesRule.draw_rule">
+<span class="sig-name descname"><span class="pre">draw_rule</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">draw_width</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">800</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.polycubeutil.polycubesRule.PolycubesRule.draw_rule" title="Link to this definition">¶</a></dt>
+<dd><p>translation of draw code from polycubes js</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>Drawing</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.polycubeutil.polycubesRule.PolycubesRule.to_SAT">
+<span class="sig-name descname"><span class="pre">to_SAT</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filename</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.polycubeutil.polycubesRule.PolycubesRule.to_SAT" title="Link to this definition">¶</a></dt>
+<dd><p>convert particle set to SAT format</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>filename</strong> (<em>Path</em><em> | </em><em>str</em>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.polycubeutil.polycubesRule.PolycubesRule.to_canonical">
+<span class="sig-name descname"><span class="pre">to_canonical</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.polycubeutil.polycubesRule.PolycubesRule.to_canonical" title="Link to this definition">¶</a></dt>
+<dd><p>converts the rule to a standardized “canonoical” form by rotating cube types, changing cube type order,
+and color ordering
+This is useful for comparing rules that have the same pattern of interactions expressed in different color
+enumerations and cube type rotations
+function written in part by catGPT but I had to refise heavily</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#pypatchy.polycubeutil.polycubesRule.PolycubesRule" title="pypatchy.polycubeutil.polycubesRule.PolycubesRule"><em>PolycubesRule</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="polycube-util-py">
+<h2><a class="toc-backref" href="#id3" role="doc-backlink"><code class="docutils literal notranslate"><span class="pre">polycube_util.py</span></code></a><a class="headerlink" href="#polycube-util-py" title="Link to this heading">¶</a></h2>
+<p>This module contains high-level utility functions for polyccubes that don’t require a polycubes binary but do require other <code class="docutils literal notranslate"><span class="pre">polycubeutil</span></code> modules.
+Specifically, it requires the classes <code class="docutils literal notranslate"><span class="pre">PolycubesStructure</span></code>, <code class="docutils literal notranslate"><span class="pre">PolycubeStructureCube</span></code>, and <code class="docutils literal notranslate"><span class="pre">PolycubesRule</span></code> from <code class="docutils literal notranslate"><span class="pre">polycube_structure.py</span></code>, <code class="docutils literal notranslate"><span class="pre">polycubesRule.py</span></code>, and <code class="docutils literal notranslate"><span class="pre">cube.py</span></code> respectively.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="pypatchy.polycubeutil.polycube_util.make_colors_consecutive">
+<span class="sig-prename descclassname"><span class="pre">pypatchy.polycubeutil.polycube_util.</span></span><span class="sig-name descname"><span class="pre">make_colors_consecutive</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rule</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.polycubeutil.polycube_util.make_colors_consecutive" title="Link to this definition">¶</a></dt>
+<dd><p>translation of Joakim Bohlin’s <cite>simplify</cite> method from <cite>utils.js</cite>
+Simplifies a rule by making colors consecutive (so colors used in rule will be 1, 2, 3, etc.)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>rule</strong> (<a class="reference internal" href="#pypatchy.polycubeutil.polycubesRule.PolycubesRule" title="pypatchy.polycubeutil.polycubesRule.PolycubesRule"><em>PolycubesRule</em></a>) – a polycubes rule</p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>AssertionError</strong> – if the rule has patches with color value of zero</p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>the rule, simplified</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="#pypatchy.polycubeutil.polycubesRule.PolycubesRule" title="pypatchy.polycubeutil.polycubesRule.PolycubesRule">PolycubesRule</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pypatchy.polycubeutil.polycube_util.get_fully_addressable_rule">
+<span class="sig-prename descclassname"><span class="pre">pypatchy.polycubeutil.polycube_util.</span></span><span class="sig-name descname"><span class="pre">get_fully_addressable_rule</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">structure</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.polycubeutil.polycube_util.get_fully_addressable_rule" title="Link to this definition">¶</a></dt>
+<dd><p>Given a topology (as a FiniteLatticeStructure object), construct a polycubes structure where each location in the topology
+is a unique cube type, and each connection between two locations is mediated by a unique color.
+:param structure: the topology (as a FiniteLatticeStructure object)
+:return: A polycube of the topology with non-repeating cube types and colors
+:rtype: PolycubesStructure</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>structure</strong> (<em>FiniteLatticeStructure</em>)</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="#pypatchy.polycubeutil.polycube_structure.PolycubeStructure" title="pypatchy.polycubeutil.polycube_structure.PolycubeStructure"><em>PolycubeStructure</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">pypatchy</a></h1>
+
+
+
+
+
+
+
+
+
+<search id="searchbox" style="display: none" role="search">
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Search"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="introduction.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="concepts.html">Concepts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials.html">Tutorials</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="package_reference.html">Reference</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="analysis.html"><code class="docutils literal notranslate"><span class="pre">analysis</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="patchy.html"><code class="docutils literal notranslate"><span class="pre">patchy</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="design.html"><code class="docutils literal notranslate"><span class="pre">design</span></code></a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#"><code class="docutils literal notranslate"><span class="pre">polycubeutil</span></code></a></li>
+</ul>
+</li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+  <li><a href="package_reference.html">Reference</a><ul>
+      <li>Previous: <a href="design.html" title="previous chapter"><code class="docutils literal notranslate"><span class="pre">design</span></code></a></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2025, Joshua Evans of <a href="https://sulcgroup.github.io/">Sulc Lab @ ASU</a>.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 8.2.3</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+      |
+      <a href="_sources/polycubeutil.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

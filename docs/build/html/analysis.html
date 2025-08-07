@@ -1,0 +1,1250 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="./">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>analysis &#8212; pypatchy 0.3 documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=5ecbeea2" />
+    <link rel="stylesheet" type="text/css" href="_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="_static/alabaster.css?v=27fed22d" />
+    <script src="_static/documentation_options.js?v=b489f392"></script>
+    <script src="_static/doctools.js?v=9bcbadda"></script>
+    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="patchy" href="patchy.html" />
+    <link rel="prev" title="Reference" href="package_reference.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="analysis">
+<h1><code class="docutils literal notranslate"><span class="pre">analysis</span></code><a class="headerlink" href="#analysis" title="Link to this heading">¶</a></h1>
+<nav class="contents local" id="contents">
+<ul class="simple">
+<li><p><a class="reference internal" href="#module-pypatchy.analysis.analysis_data" id="id1"><code class="docutils literal notranslate"><span class="pre">analysis_data.py</span></code></a></p></li>
+<li><p><a class="reference internal" href="#module-pypatchy.analysis.analysis_pipeline" id="id2"><code class="docutils literal notranslate"><span class="pre">analysis_pipeline.py</span></code></a></p></li>
+<li><p><a class="reference internal" href="#module-pypatchy.analysis.analysis_pipeline_step" id="id3"><code class="docutils literal notranslate"><span class="pre">analysis_pipeline_step.py</span></code></a></p></li>
+<li><p><a class="reference internal" href="#module-pypatchy.analysis.analyzable" id="id4"><code class="docutils literal notranslate"><span class="pre">analyzable.py</span></code></a></p></li>
+<li><p><a class="reference internal" href="#module-pypatchy.analysis.yield_analysis_target" id="id5"><code class="docutils literal notranslate"><span class="pre">yield_analysis_target.py</span></code></a></p></li>
+</ul>
+</nav>
+<p id="module-pypatchy.analysis">This module contains modules for constructing analysis pipelines to process simulation data.</p>
+<section id="module-pypatchy.analysis.analysis_data">
+<span id="analysis-data-py"></span><h2><a class="toc-backref" href="#id1" role="doc-backlink"><code class="docutils literal notranslate"><span class="pre">analysis_data.py</span></code></a><a class="headerlink" href="#module-pypatchy.analysis.analysis_data" title="Link to this heading">¶</a></h2>
+<p>This module provides data structures and utilities for managing, caching,
+and combining different types of analysis data used in the pypatchy analysis pipeline.
+It defines base classes and subclasses for pandas-based, object-based, and raw data.</p>
+<dl class="py exception">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_data.MissingCommonDataError">
+<em class="property"><span class="k"><span class="pre">exception</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pypatchy.analysis.analysis_data.</span></span><span class="sig-name descname"><span class="pre">MissingCommonDataError</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analysis_data.MissingCommonDataError" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Exception</span></code></p>
+<p>Exception to be thrown when two datasets are required for some operation but there’s no overlap
+between the tranges of the datasets</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>args</strong> (<a class="reference internal" href="#pypatchy.analysis.analysis_data.PipelineData" title="pypatchy.analysis.analysis_data.PipelineData"><em>PipelineData</em></a>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_data.ObjectPipelineData">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pypatchy.analysis.analysis_data.</span></span><span class="sig-name descname"><span class="pre">ObjectPipelineData</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analysis_data.ObjectPipelineData" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#pypatchy.analysis.analysis_data.PipelineData" title="pypatchy.analysis.analysis_data.PipelineData"><code class="xref py py-class docutils literal notranslate"><span class="pre">PipelineData</span></code></a></p>
+<p>Data composed of lists of graphs at each timepoint</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>data</strong> (<em>dict</em><em>[</em><em>int</em><em>, </em><em>list</em><em>[</em><em>Any</em><em>]</em><em>]</em>)</p>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_data.ObjectPipelineData.cache_data">
+<span class="sig-name descname"><span class="pre">cache_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">p</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analysis_data.ObjectPipelineData.cache_data" title="Link to this definition">¶</a></dt>
+<dd><p>saves data to a cache file (to be implemented by subclasses)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>p</strong> (<em>Path</em>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_data.ObjectPipelineData.compare_tranges">
+<span class="sig-name descname"><span class="pre">compare_tranges</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tr</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analysis_data.ObjectPipelineData.compare_tranges" title="Link to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>tr</strong> (<em>range</em>) – range of timepoints to compare against</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>a numpy array of boolean corresponding to timepoints. each element is true if the object has data at that timepoint, false otherwise.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>array</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_data.ObjectPipelineData.data">
+<span class="sig-name descname"><span class="pre">data</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#pypatchy.analysis.analysis_data.ObjectPipelineData.data" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_data.ObjectPipelineData.get">
+<span class="sig-name descname"><span class="pre">get</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analysis_data.ObjectPipelineData.get" title="Link to this definition">¶</a></dt>
+<dd><p>Return the stored data object (to be implemented by subclasses).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict[int, list[<em>Any</em>]]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_data.ObjectPipelineData.load_cached_data">
+<span class="sig-name descname"><span class="pre">load_cached_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">p</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analysis_data.ObjectPipelineData.load_cached_data" title="Link to this definition">¶</a></dt>
+<dd><p>loads data cached in a file (to be implemented by subclasses)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>p</strong> (<em>Path</em>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_data.ObjectPipelineData.trange">
+<span class="sig-name descname"><span class="pre">trange</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analysis_data.ObjectPipelineData.trange" title="Link to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>the time range of the stored data</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>ndarray</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py exception">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_data.OverlappingDataError">
+<em class="property"><span class="k"><span class="pre">exception</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pypatchy.analysis.analysis_data.</span></span><span class="sig-name descname"><span class="pre">OverlappingDataError</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analysis_data.OverlappingDataError" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Exception</span></code></p>
+<p>Exception class for when you try to merge data with overlapping timepoints that conflict
+eg one PipelineData object says we have datum A at timepoint t, other one says we have datum B at timepoint t</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>args</strong> (<a class="reference internal" href="#pypatchy.analysis.analysis_data.PipelineData" title="pypatchy.analysis.analysis_data.PipelineData"><em>PipelineData</em></a>)</p>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_data.OverlappingDataError.overlap_data">
+<span class="sig-name descname"><span class="pre">overlap_data</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analysis_data.OverlappingDataError.overlap_data" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_data.OverlappingDataError.overlapping_timepoints">
+<span class="sig-name descname"><span class="pre">overlapping_timepoints</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analysis_data.OverlappingDataError.overlapping_timepoints" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_data.PDPipelineData">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pypatchy.analysis.analysis_data.</span></span><span class="sig-name descname"><span class="pre">PDPipelineData</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tr</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analysis_data.PDPipelineData" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#pypatchy.analysis.analysis_data.PipelineData" title="pypatchy.analysis.analysis_data.PipelineData"><code class="xref py py-class docutils literal notranslate"><span class="pre">PipelineData</span></code></a></p>
+<p>Data stored in a pandas dataframe</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>data</strong> (<em>DataFrame</em>)</p></li>
+<li><p><strong>tr</strong> (<em>Union</em><em>[</em><em>None</em><em>, </em><em>np.ndarray</em><em>]</em>)</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_data.PDPipelineData.cache_data">
+<span class="sig-name descname"><span class="pre">cache_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">p</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analysis_data.PDPipelineData.cache_data" title="Link to this definition">¶</a></dt>
+<dd><p>saves the data to a cache file using pd.HDFStore
+:param p: Path to the data cache file</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>p</strong> (<em>Path</em>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_data.PDPipelineData.compare_tranges">
+<span class="sig-name descname"><span class="pre">compare_tranges</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tr</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analysis_data.PDPipelineData.compare_tranges" title="Link to this definition">¶</a></dt>
+<dd><p>Improved impl written by chatGPT
+Compares the range of the data stored in this object with the provided
+range object, optimized for large self._trange and tr.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>a numpy array of boolean corresponding to timepoints. each element is true if the object has data at</p>
+</dd>
+<dt class="field-even">Parameters<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>tr</strong> (<em>range</em><em> | </em><em>list</em><em> | </em><em>ndarray</em>)</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>array</em></p>
+</dd>
+</dl>
+<p>the corresponding timepoint, false otherwise.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_data.PDPipelineData.data">
+<span class="sig-name descname"><span class="pre">data</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">DataFrame</span></em><a class="headerlink" href="#pypatchy.analysis.analysis_data.PDPipelineData.data" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_data.PDPipelineData.get">
+<span class="sig-name descname"><span class="pre">get</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analysis_data.PDPipelineData.get" title="Link to this definition">¶</a></dt>
+<dd><p>accessor for data as pandas dataframe
+:returns: data as a pandas dataframe</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>DataFrame</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_data.PDPipelineData.load_cached_data">
+<span class="sig-name descname"><span class="pre">load_cached_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">p</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analysis_data.PDPipelineData.load_cached_data" title="Link to this definition">¶</a></dt>
+<dd><p>loads data stored in a csv file or (more likely) and hdf5 file
+:param p: Path to the data cache file</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>p</strong> (<em>Path</em>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_data.PDPipelineData.missing_timepoints">
+<span class="sig-name descname"><span class="pre">missing_timepoints</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tr</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analysis_data.PDPipelineData.missing_timepoints" title="Link to this definition">¶</a></dt>
+<dd><p>Compares the range of these data with the provided timepoints
+:returns: an array of timepoints which are present in self’s timepoint range but not in the provided timepoints</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>tr</strong> (<em>range</em><em> | </em><em>list</em><em>[</em><em>int</em><em> | </em><em>float</em><em>] </em><em>| </em><em>ndarray</em>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_data.PDPipelineData.trange">
+<span class="sig-name descname"><span class="pre">trange</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analysis_data.PDPipelineData.trange" title="Link to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>the time range of the stored data</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>ndarray</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_data.PipelineData">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pypatchy.analysis.analysis_data.</span></span><span class="sig-name descname"><span class="pre">PipelineData</span></span><a class="headerlink" href="#pypatchy.analysis.analysis_data.PipelineData" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">ABC</span></code></p>
+<p>Wrapper base-class for analysis data</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_data.PipelineData.cache_data">
+<em class="property"><span class="k"><span class="pre">abstractmethod</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">cache_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">p</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analysis_data.PipelineData.cache_data" title="Link to this definition">¶</a></dt>
+<dd><p>saves data to a cache file (to be implemented by subclasses)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>p</strong> (<em>Path</em>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_data.PipelineData.compare_tranges">
+<em class="property"><span class="k"><span class="pre">abstractmethod</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">compare_tranges</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tr</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analysis_data.PipelineData.compare_tranges" title="Link to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>tr</strong> (<em>range</em>) – range of timepoints to compare against</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>a numpy array of boolean corresponding to timepoints. each element is true if the object has data at that timepoint, false otherwise.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>array</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_data.PipelineData.get">
+<em class="property"><span class="k"><span class="pre">abstractmethod</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">get</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analysis_data.PipelineData.get" title="Link to this definition">¶</a></dt>
+<dd><p>Return the stored data object (to be implemented by subclasses).</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_data.PipelineData.load_cached_data">
+<em class="property"><span class="k"><span class="pre">abstractmethod</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">load_cached_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">p</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analysis_data.PipelineData.load_cached_data" title="Link to this definition">¶</a></dt>
+<dd><p>loads data cached in a file (to be implemented by subclasses)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>p</strong> (<em>Path</em>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_data.PipelineData.matches_trange">
+<span class="sig-name descname"><span class="pre">matches_trange</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tr</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analysis_data.PipelineData.matches_trange" title="Link to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>tr</strong> (<em>range</em>) – a range of timepoints</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>true if the timepoints in the data match the provided arg, false otherwise.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_data.PipelineData.trange">
+<em class="property"><span class="k"><span class="pre">abstractmethod</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">trange</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analysis_data.PipelineData.trange" title="Link to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>the time range of the stored data</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>ndarray</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_data.PipelineDataType">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pypatchy.analysis.analysis_data.</span></span><span class="sig-name descname"><span class="pre">PipelineDataType</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">values</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analysis_data.PipelineDataType" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Enum</span></code></p>
+<p>Enumeration for data types that can be used in an analysis pipeline.</p>
+<dl>
+<dt>Members:</dt><dd><p>PIPELINE_DATATYPE_RAWDATA: Raw data from trajectory.dat.</p>
+<p>PIPELINE_DATATYPE_OBSERVABLE: Data derived from observables.</p>
+<p>PIPELINE_DATATYPE_DATAFRAME: Data stored in a pandas DataFrame.</p>
+<p>PIPELINE_DATATYPE_GRAPH: Data represented as a list of graphs.</p>
+<p>PIPELINE_DATATYPE_OBJECTS: Arbitrary Python objects (e.g., graphs, simulations).</p>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_data.PipelineDataType.PIPELINE_DATATYPE_DATAFRAME">
+<span class="sig-name descname"><span class="pre">PIPELINE_DATATYPE_DATAFRAME</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">2</span></em><a class="headerlink" href="#pypatchy.analysis.analysis_data.PipelineDataType.PIPELINE_DATATYPE_DATAFRAME" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_data.PipelineDataType.PIPELINE_DATATYPE_GRAPH">
+<span class="sig-name descname"><span class="pre">PIPELINE_DATATYPE_GRAPH</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">3</span></em><a class="headerlink" href="#pypatchy.analysis.analysis_data.PipelineDataType.PIPELINE_DATATYPE_GRAPH" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_data.PipelineDataType.PIPELINE_DATATYPE_OBJECTS">
+<span class="sig-name descname"><span class="pre">PIPELINE_DATATYPE_OBJECTS</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">4</span></em><a class="headerlink" href="#pypatchy.analysis.analysis_data.PipelineDataType.PIPELINE_DATATYPE_OBJECTS" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_data.PipelineDataType.PIPELINE_DATATYPE_OBSERVABLE">
+<span class="sig-name descname"><span class="pre">PIPELINE_DATATYPE_OBSERVABLE</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1</span></em><a class="headerlink" href="#pypatchy.analysis.analysis_data.PipelineDataType.PIPELINE_DATATYPE_OBSERVABLE" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_data.PipelineDataType.PIPELINE_DATATYPE_RAWDATA">
+<span class="sig-name descname"><span class="pre">PIPELINE_DATATYPE_RAWDATA</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0</span></em><a class="headerlink" href="#pypatchy.analysis.analysis_data.PipelineDataType.PIPELINE_DATATYPE_RAWDATA" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_data.RawPipelineData">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pypatchy.analysis.analysis_data.</span></span><span class="sig-name descname"><span class="pre">RawPipelineData</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analysis_data.RawPipelineData" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#pypatchy.analysis.analysis_data.ObjectPipelineData" title="pypatchy.analysis.analysis_data.ObjectPipelineData"><code class="xref py py-class docutils literal notranslate"><span class="pre">ObjectPipelineData</span></code></a></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>data</strong> (<em>dict</em><em>[</em><em>int</em><em>, </em><em>list</em><em>[</em><em>Any</em><em>]</em><em>]</em>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_data.load_cached_object_data">
+<span class="sig-prename descclassname"><span class="pre">pypatchy.analysis.analysis_data.</span></span><span class="sig-name descname"><span class="pre">load_cached_object_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">_</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">f</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analysis_data.load_cached_object_data" title="Link to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>f</strong> (<em>Path</em>)</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="#pypatchy.analysis.analysis_data.ObjectPipelineData" title="pypatchy.analysis.analysis_data.ObjectPipelineData"><em>ObjectPipelineData</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_data.load_cached_pd_data">
+<span class="sig-prename descclassname"><span class="pre">pypatchy.analysis.analysis_data.</span></span><span class="sig-name descname"><span class="pre">load_cached_pd_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">_</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">f</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analysis_data.load_cached_pd_data" title="Link to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>f</strong> (<em>Path</em>) – Path to the data cache file</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>a PDPipelineData object containing the the cache file</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#pypatchy.analysis.analysis_data.PDPipelineData" title="pypatchy.analysis.analysis_data.PDPipelineData"><em>PDPipelineData</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="module-pypatchy.analysis.analysis_pipeline">
+<span id="analysis-pipeline-py"></span><h2><a class="toc-backref" href="#id2" role="doc-backlink"><code class="docutils literal notranslate"><span class="pre">analysis_pipeline.py</span></code></a><a class="headerlink" href="#module-pypatchy.analysis.analysis_pipeline" title="Link to this heading">¶</a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_pipeline.AnalysisPipeline">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pypatchy.analysis.analysis_pipeline.</span></span><span class="sig-name descname"><span class="pre">AnalysisPipeline</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analysis_pipeline.AnalysisPipeline" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>A pipeline for analyzing patchy particle data.
+the pipeline consists of multiple steps (graph nodes) connected by pipes (directional graph edges)
+The pipeline graph does not have to be connected but must not be cyclic for reasons i hope are obvious</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>args</strong> (<em>Union</em><em>[</em><a class="reference internal" href="#pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep" title="pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep"><em>AnalysisPipelineStep</em></a><em>, </em><em>tuple</em><em>[</em><em>str</em><em>, </em><em>str</em><em>]</em><em>]</em>)</p>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_pipeline.AnalysisPipeline.add_step">
+<span class="sig-name descname"><span class="pre">add_step</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">origin_step</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">newStep</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analysis_pipeline.AnalysisPipeline.add_step" title="Link to this definition">¶</a></dt>
+<dd><p>Adds a step to the analysis pipeline.
+:param origin_step: an existing step in the pipeline that serves as a data source for the new step, or None if the new step is a head node
+:param newStep: new step to add to the pipeline</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>origin_step</strong> (<a class="reference internal" href="#pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep" title="pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep"><em>AnalysisPipelineStep</em></a><em> | </em><em>None</em>)</p></li>
+<li><p><strong>newStep</strong> (<a class="reference internal" href="#pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep" title="pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep"><em>AnalysisPipelineStep</em></a>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="#pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep" title="pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep"><em>AnalysisPipelineStep</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_pipeline.AnalysisPipeline.ancestors">
+<span class="sig-name descname"><span class="pre">ancestors</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">step</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analysis_pipeline.AnalysisPipeline.ancestors" title="Link to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>a list of steps that provide data - perhaps through intermediaries - to the passed step</p>
+</dd>
+<dt class="field-even">Parameters<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>step</strong> (<a class="reference internal" href="#pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep" title="pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep"><em>AnalysisPipelineStep</em></a>)</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list[<a class="reference internal" href="#pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep" title="pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep"><em>AnalysisPipelineStep</em></a>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_pipeline.AnalysisPipeline.descendants">
+<span class="sig-name descname"><span class="pre">descendants</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">step</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analysis_pipeline.AnalysisPipeline.descendants" title="Link to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>step</strong> (<a class="reference internal" href="#pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep" title="pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep"><em>AnalysisPipelineStep</em></a>)</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>list[<a class="reference internal" href="#pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep" title="pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep"><em>AnalysisPipelineStep</em></a>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_pipeline.AnalysisPipeline.draw_pipeline">
+<span class="sig-name descname"><span class="pre">draw_pipeline</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">scale</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">120</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analysis_pipeline.AnalysisPipeline.draw_pipeline" title="Link to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>Drawing</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_pipeline.AnalysisPipeline.extend">
+<span class="sig-name descname"><span class="pre">extend</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">newSteps</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">newPipes</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analysis_pipeline.AnalysisPipeline.extend" title="Link to this definition">¶</a></dt>
+<dd><p>Extends the analysis pipeline by adding the new steps and pipes within</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>newSteps</strong> (<em>list</em><em>[</em><a class="reference internal" href="#pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep" title="pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep"><em>AnalysisPipelineStep</em></a><em>]</em>)</p></li>
+<li><p><strong>newPipes</strong> (<em>list</em><em>[</em><em>tuple</em><em>[</em><em>str</em><em>, </em><em>str</em><em>]</em><em>]</em>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="#pypatchy.analysis.analysis_pipeline.AnalysisPipeline" title="pypatchy.analysis.analysis_pipeline.AnalysisPipeline"><em>AnalysisPipeline</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_pipeline.AnalysisPipeline.get_distinct_pipelines">
+<span class="sig-name descname"><span class="pre">get_distinct_pipelines</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analysis_pipeline.AnalysisPipeline.get_distinct_pipelines" title="Link to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>generator for connected components of the pipeline graph</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>Generator[nx.DiGraph]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_pipeline.AnalysisPipeline.get_pipeline_step">
+<span class="sig-name descname"><span class="pre">get_pipeline_step</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">step</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analysis_pipeline.AnalysisPipeline.get_pipeline_step" title="Link to this definition">¶</a></dt>
+<dd><p>Method mainly for standardizing object types. If provided with an AnalysisPipelineStep object, it
+will just return the object. if provided with a string it will return the step in the pipeline with the provided name</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>step</strong> (<em>str</em><em> | </em><a class="reference internal" href="#pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep" title="pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep"><em>AnalysisPipelineStep</em></a>) – identifier for step being gotten</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>an analysis pipeline step</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep" title="pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep"><em>AnalysisPipelineStep</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_pipeline.AnalysisPipeline.head_nodes">
+<span class="sig-name descname"><span class="pre">head_nodes</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analysis_pipeline.AnalysisPipeline.head_nodes" title="Link to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>a list of steps in the pipeline that don’t recieve data from other steps</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>list[<a class="reference internal" href="#pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineHead" title="pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineHead"><em>AnalysisPipelineHead</em></a>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_pipeline.AnalysisPipeline.is_force_recompute">
+<span class="sig-name descname"><span class="pre">is_force_recompute</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">step</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analysis_pipeline.AnalysisPipeline.is_force_recompute" title="Link to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>true if the passed step requires a recompute, false otherwise</p>
+</dd>
+<dt class="field-even">Parameters<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>step</strong> (<a class="reference internal" href="#pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep" title="pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep"><em>AnalysisPipelineStep</em></a><em> | </em><em>str</em>)</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_pipeline.AnalysisPipeline.name_map">
+<span class="sig-name descname"><span class="pre">name_map</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">dict[slice(&lt;class</span> <span class="pre">'str'&gt;,</span> <span class="pre">&lt;class</span> <span class="pre">'pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep'&gt;,</span> <span class="pre">None)]</span></em><a class="headerlink" href="#pypatchy.analysis.analysis_pipeline.AnalysisPipeline.name_map" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_pipeline.AnalysisPipeline.num_distinct_pipelines">
+<span class="sig-name descname"><span class="pre">num_distinct_pipelines</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analysis_pipeline.AnalysisPipeline.num_distinct_pipelines" title="Link to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>the number of connected components of the overall analysis graph</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_pipeline.AnalysisPipeline.num_pipeline_steps">
+<span class="sig-name descname"><span class="pre">num_pipeline_steps</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analysis_pipeline.AnalysisPipeline.num_pipeline_steps" title="Link to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>the total number of analysis steps in this pipeline.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_pipeline.AnalysisPipeline.num_pipes">
+<span class="sig-name descname"><span class="pre">num_pipes</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analysis_pipeline.AnalysisPipeline.num_pipes" title="Link to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_pipeline.AnalysisPipeline.pipeline_graph">
+<span class="sig-name descname"><span class="pre">pipeline_graph</span></span><a class="headerlink" href="#pypatchy.analysis.analysis_pipeline.AnalysisPipeline.pipeline_graph" title="Link to this definition">¶</a></dt>
+<dd><p>alias of <code class="xref py py-class docutils literal notranslate"><span class="pre">DiGraph</span></code></p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_pipeline.AnalysisPipeline.set_input_tstep">
+<span class="sig-name descname"><span class="pre">set_input_tstep</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">step</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">propegate_fwd</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">propegate_back</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">new_val</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">factor</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">visited_nodes</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analysis_pipeline.AnalysisPipeline.set_input_tstep" title="Link to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>step</strong> (<em>str</em><em> | </em><a class="reference internal" href="#pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep" title="pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep"><em>AnalysisPipelineStep</em></a>)</p></li>
+<li><p><strong>propegate_fwd</strong> (<em>bool</em>)</p></li>
+<li><p><strong>propegate_back</strong> (<em>bool</em>)</p></li>
+<li><p><strong>new_val</strong> (<em>int</em>)</p></li>
+<li><p><strong>factor</strong> (<em>float</em>)</p></li>
+<li><p><strong>visited_nodes</strong> (<em>set</em><em>[</em><em>str</em><em>] </em><em>| </em><em>None</em>)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_pipeline.AnalysisPipeline.set_output_tstep">
+<span class="sig-name descname"><span class="pre">set_output_tstep</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">step</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">propegate_fwd</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">propegate_back</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">new_val</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">factor</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">visited_nodes</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analysis_pipeline.AnalysisPipeline.set_output_tstep" title="Link to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>step</strong> (<em>str</em><em> | </em><a class="reference internal" href="#pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep" title="pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep"><em>AnalysisPipelineStep</em></a>)</p></li>
+<li><p><strong>propegate_fwd</strong> (<em>bool</em>)</p></li>
+<li><p><strong>propegate_back</strong> (<em>bool</em>)</p></li>
+<li><p><strong>new_val</strong> (<em>int</em>)</p></li>
+<li><p><strong>factor</strong> (<em>float</em>)</p></li>
+<li><p><strong>visited_nodes</strong> (<em>set</em><em>[</em><em>str</em><em>] </em><em>| </em><em>None</em>)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_pipeline.AnalysisPipeline.step_exists">
+<span class="sig-name descname"><span class="pre">step_exists</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">step_name</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analysis_pipeline.AnalysisPipeline.step_exists" title="Link to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>step_name</strong> (<em>str</em>) – a name to test for is in pipeline</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>True if the analysis pipeline contains a step with the provided name, false otherwise</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_pipeline.AnalysisPipeline.steps_before">
+<span class="sig-name descname"><span class="pre">steps_before</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">step</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analysis_pipeline.AnalysisPipeline.steps_before" title="Link to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>step</strong> (<a class="reference internal" href="#pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep" title="pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep"><em>AnalysisPipelineStep</em></a>) – an analyis pipeline step to get directly preceding steps for</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>a list of steps that provide data to the step passed</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list[<a class="reference internal" href="#pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep" title="pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep"><em>AnalysisPipelineStep</em></a>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_pipeline.AnalysisPipeline.validate">
+<span class="sig-name descname"><span class="pre">validate</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analysis_pipeline.AnalysisPipeline.validate" title="Link to this definition">¶</a></dt>
+<dd><p>Checks if the pipeline is okay, makes it everyone’s problem if not</p>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-pypatchy.analysis.analysis_pipeline_step">
+<span id="analysis-pipeline-step-py"></span><h2><a class="toc-backref" href="#id3" role="doc-backlink"><code class="docutils literal notranslate"><span class="pre">analysis_pipeline_step.py</span></code></a><a class="headerlink" href="#module-pypatchy.analysis.analysis_pipeline_step" title="Link to this heading">¶</a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_pipeline_step.AggregateAnalysisPipelineStep">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pypatchy.analysis.analysis_pipeline_step.</span></span><span class="sig-name descname"><span class="pre">AggregateAnalysisPipelineStep</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">step_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">input_tstep</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_tstep</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">aggregate_over</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analysis_pipeline_step.AggregateAnalysisPipelineStep" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep" title="pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep"><code class="xref py py-class docutils literal notranslate"><span class="pre">AnalysisPipelineStep</span></code></a>, <code class="xref py py-class docutils literal notranslate"><span class="pre">ABC</span></code></p>
+<p>Class for analysis pipeline steps that aggregate data from multiple
+simulations, e.g. average yield over duplicates</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>step_name</strong> (<em>str</em>)</p></li>
+<li><p><strong>input_tstep</strong> (<em>int</em>)</p></li>
+<li><p><strong>output_tstep</strong> (<em>int</em>)</p></li>
+<li><p><strong>aggregate_over</strong> (<em>tuple</em><em>[</em><a class="reference internal" href="patchy.html#pypatchy.patchy.ensemble_parameter.EnsembleParameter" title="pypatchy.patchy.ensemble_parameter.EnsembleParameter"><em>EnsembleParameter</em></a><em>, </em><em>...</em><em>]</em>)</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_pipeline_step.AggregateAnalysisPipelineStep.get_input_data_params">
+<span class="sig-name descname"><span class="pre">get_input_data_params</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analysis_pipeline_step.AggregateAnalysisPipelineStep.get_input_data_params" title="Link to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>tuple[<a class="reference internal" href="patchy.html#pypatchy.patchy.ensemble_parameter.ParameterValue" title="pypatchy.patchy.ensemble_parameter.ParameterValue"><em>ParameterValue</em></a>, …]</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineHead">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pypatchy.analysis.analysis_pipeline_step.</span></span><span class="sig-name descname"><span class="pre">AnalysisPipelineHead</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">step_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">input_tstep</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_tstep</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineHead" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep" title="pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep"><code class="xref py py-class docutils literal notranslate"><span class="pre">AnalysisPipelineStep</span></code></a>, <code class="xref py py-class docutils literal notranslate"><span class="pre">ABC</span></code></p>
+<p>Class for any “head” node of the analysis pipeline.
+Note that there’s nothing stopping even a connected graph
+of the pipeline from having multiple “heads”
+Note that while I haven’t explicitly stated it here, AnalysisPipelineHead.exec
+the first two positional arguements to be a PatchySimulationEnsemble and a PatchySimulation</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>step_name</strong> (<em>str</em>)</p></li>
+<li><p><strong>input_tstep</strong> (<em>int</em>)</p></li>
+<li><p><strong>output_tstep</strong> (<em>int</em>)</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineHead.get_data_in_filenames">
+<em class="property"><span class="k"><span class="pre">abstractmethod</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">get_data_in_filenames</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineHead.get_data_in_filenames" title="Link to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>a list of files containing the raw data that will be used by this step</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>list[str]</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pypatchy.analysis.analysis_pipeline_step.</span></span><span class="sig-name descname"><span class="pre">AnalysisPipelineStep</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">step_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">input_tstep</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_tstep</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">ABC</span></code></p>
+<p>Base class for a step in a Patchy Particle Data analysis pipeline</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>step_name</strong> (<em>str</em>)</p></li>
+<li><p><strong>input_tstep</strong> (<em>int</em>)</p></li>
+<li><p><strong>output_tstep</strong> (<em>int</em>)</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep.cache_data">
+<span class="sig-name descname"><span class="pre">cache_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">file_path</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep.cache_data" title="Link to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>data</strong> (<a class="reference internal" href="#pypatchy.analysis.analysis_data.PipelineData" title="pypatchy.analysis.analysis_data.PipelineData"><em>PipelineData</em></a>)</p></li>
+<li><p><strong>file_path</strong> (<em>Path</em>)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep.config_io">
+<span class="sig-name descname"><span class="pre">config_io</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_tstep</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_tstep</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep.config_io" title="Link to this definition">¶</a></dt>
+<dd><p>Configures the input and output time intervals</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep.draw">
+<span class="sig-name descname"><span class="pre">draw</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep.draw" title="Link to this definition">¶</a></dt>
+<dd><p>This method isn’t abstract but it’s highly recommended that you override it</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>tuple[tuple[int, int], <em>Group</em>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep.exec">
+<em class="property"><span class="k"><span class="pre">abstractmethod</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">exec</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep.exec" title="Link to this definition">¶</a></dt>
+<dd><p>Executes this analysis step</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>data! (in a PipelineData wrapper object)</p>
+</dd>
+<dt class="field-even">Parameters<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>args</strong> (<a class="reference internal" href="#pypatchy.analysis.analysis_data.PipelineData" title="pypatchy.analysis.analysis_data.PipelineData"><em>PipelineData</em></a><em> | </em><a class="reference internal" href="#pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep" title="pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep"><em>AnalysisPipelineStep</em></a>)</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#pypatchy.analysis.analysis_data.PipelineData" title="pypatchy.analysis.analysis_data.PipelineData"><em>PipelineData</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep.force_recompute">
+<span class="sig-name descname"><span class="pre">force_recompute</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep.force_recompute" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep.get_cache_file_name">
+<span class="sig-name descname"><span class="pre">get_cache_file_name</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep.get_cache_file_name" title="Link to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>the filename for where this step will cache data</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep.get_output_data_type">
+<em class="property"><span class="k"><span class="pre">abstractmethod</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">get_output_data_type</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep.get_output_data_type" title="Link to this definition">¶</a></dt>
+<dd><p>Override this method to tell stuff what kind of data this step will spit out
+It’s assumed that whatever it does will be constant</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>the data type produced by this pipeline, represented by an enum</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="#pypatchy.analysis.analysis_data.PipelineDataType" title="pypatchy.analysis.analysis_data.PipelineDataType"><em>PipelineDataType</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep.input_tstep">
+<span class="sig-name descname"><span class="pre">input_tstep</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep.input_tstep" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep.load_cached_files">
+<em class="property"><span class="k"><span class="pre">abstractmethod</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">load_cached_files</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">f</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep.load_cached_files" title="Link to this definition">¶</a></dt>
+<dd><p>loads data from a file object (from <cite>open(filepath)</cite>)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>f</strong> (<em>Path</em>)</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="#pypatchy.analysis.analysis_data.PipelineData" title="pypatchy.analysis.analysis_data.PipelineData"><em>PipelineData</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep.name">
+<span class="sig-name descname"><span class="pre">name</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep.name" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep.output_tstep">
+<span class="sig-name descname"><span class="pre">output_tstep</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep.output_tstep" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-pypatchy.analysis.analyzable">
+<span id="analyzable-py"></span><h2><a class="toc-backref" href="#id4" role="doc-backlink"><code class="docutils literal notranslate"><span class="pre">analyzable.py</span></code></a><a class="headerlink" href="#module-pypatchy.analysis.analyzable" title="Link to this heading">¶</a></h2>
+<p>Abstract base class for things that can be used for analysis pipelines
+Mostly meant to be extended by <cite>PatchySimulationEnsemble</cite></p>
+<dl class="py class">
+<dt class="sig sig-object py" id="pypatchy.analysis.analyzable.Analyzable">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pypatchy.analysis.analyzable.</span></span><span class="sig-name descname"><span class="pre">Analyzable</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">analysis_file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">analysis_pipeline</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analyzable.Analyzable" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">ABC</span></code></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>analysis_file</strong> (<em>str</em>)</p></li>
+<li><p><strong>analysis_pipeline</strong> (<a class="reference internal" href="#pypatchy.analysis.analysis_pipeline.AnalysisPipeline" title="pypatchy.analysis.analysis_pipeline.AnalysisPipeline"><em>AnalysisPipeline</em></a>)</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.analysis.analyzable.Analyzable.add_analysis_steps">
+<span class="sig-name descname"><span class="pre">add_analysis_steps</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analyzable.Analyzable.add_analysis_steps" title="Link to this definition">¶</a></dt>
+<dd><p>Adds steps to the analysis pipeline</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pypatchy.analysis.analyzable.Analyzable.analysis_data">
+<span class="sig-name descname"><span class="pre">analysis_data</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep" title="pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep"><span class="pre">AnalysisPipelineStep</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="patchy.html#pypatchy.patchy.simulation_specification.ParamSet" title="pypatchy.patchy.simulation_specification.ParamSet"><span class="pre">ParamSet</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="#pypatchy.analysis.analysis_data.PipelineData" title="pypatchy.analysis.analysis_data.PipelineData"><span class="pre">PipelineData</span></a><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#pypatchy.analysis.analyzable.Analyzable.analysis_data" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pypatchy.analysis.analyzable.Analyzable.analysis_file">
+<span class="sig-name descname"><span class="pre">analysis_file</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#pypatchy.analysis.analyzable.Analyzable.analysis_file" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pypatchy.analysis.analyzable.Analyzable.analysis_pipeline">
+<span class="sig-name descname"><span class="pre">analysis_pipeline</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#pypatchy.analysis.analysis_pipeline.AnalysisPipeline" title="pypatchy.analysis.analysis_pipeline.AnalysisPipeline"><span class="pre">AnalysisPipeline</span></a></em><a class="headerlink" href="#pypatchy.analysis.analyzable.Analyzable.analysis_pipeline" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.analysis.analyzable.Analyzable.analysis_status">
+<em class="property"><span class="k"><span class="pre">abstractmethod</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">analysis_status</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analyzable.Analyzable.analysis_status" title="Link to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>DataFrame</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.analysis.analyzable.Analyzable.clear_pipeline">
+<span class="sig-name descname"><span class="pre">clear_pipeline</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analyzable.Analyzable.clear_pipeline" title="Link to this definition">¶</a></dt>
+<dd><p>deletes all steps from the analysis pipeline</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.analysis.analyzable.Analyzable.get_analysis_step">
+<span class="sig-name descname"><span class="pre">get_analysis_step</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">step</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analyzable.Analyzable.get_analysis_step" title="Link to this definition">¶</a></dt>
+<dd><p>Alias for PatchySimulationEnsemble.get_pipeline_step</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>step</strong> (<em>str</em><em> | </em><a class="reference internal" href="#pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep" title="pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep"><em>AnalysisPipelineStep</em></a>)</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="#pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep" title="pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep"><em>AnalysisPipelineStep</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.analysis.analyzable.Analyzable.get_cached_analysis_data">
+<span class="sig-name descname"><span class="pre">get_cached_analysis_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">step</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analyzable.Analyzable.get_cached_analysis_data" title="Link to this definition">¶</a></dt>
+<dd><p>Returns: cached pipeline data for the given step</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>sim</strong> (<a class="reference internal" href="patchy.html#pypatchy.patchy.simulation_specification.ParamSet" title="pypatchy.patchy.simulation_specification.ParamSet"><em>ParamSet</em></a>)</p></li>
+<li><p><strong>step</strong> (<a class="reference internal" href="#pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep" title="pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep"><em>AnalysisPipelineStep</em></a>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="#pypatchy.analysis.analysis_data.PipelineData" title="pypatchy.analysis.analysis_data.PipelineData"><em>PipelineData</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.analysis.analyzable.Analyzable.get_logger">
+<em class="property"><span class="k"><span class="pre">abstractmethod</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">get_logger</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analyzable.Analyzable.get_logger" title="Link to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>Logger</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.analysis.analyzable.Analyzable.get_pipeline_step">
+<span class="sig-name descname"><span class="pre">get_pipeline_step</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">step</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analyzable.Analyzable.get_pipeline_step" title="Link to this definition">¶</a></dt>
+<dd><p>Returns a step in the analysis pipeline</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>step</strong> (<em>str</em><em> | </em><a class="reference internal" href="#pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep" title="pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep"><em>AnalysisPipelineStep</em></a>)</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="#pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep" title="pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep"><em>AnalysisPipelineStep</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.analysis.analyzable.Analyzable.has_pipeline">
+<span class="sig-name descname"><span class="pre">has_pipeline</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analyzable.Analyzable.has_pipeline" title="Link to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.analysis.analyzable.Analyzable.is_data_loaded">
+<span class="sig-name descname"><span class="pre">is_data_loaded</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">step</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">time_steps</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analyzable.Analyzable.is_data_loaded" title="Link to this definition">¶</a></dt>
+<dd><p>Returns: true if we have data cached for the given simulation and step, false otherwise</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>sim</strong> (<a class="reference internal" href="patchy.html#pypatchy.patchy.simulation_specification.ParamSet" title="pypatchy.patchy.simulation_specification.ParamSet"><em>ParamSet</em></a>)</p></li>
+<li><p><strong>step</strong> (<a class="reference internal" href="#pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep" title="pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep"><em>AnalysisPipelineStep</em></a>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.analysis.analyzable.Analyzable.is_nocache">
+<em class="property"><span class="k"><span class="pre">abstractmethod</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">is_nocache</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analyzable.Analyzable.is_nocache" title="Link to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.analysis.analyzable.Analyzable.link_analysis_pipeline">
+<span class="sig-name descname"><span class="pre">link_analysis_pipeline</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">other</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analyzable.Analyzable.link_analysis_pipeline" title="Link to this definition">¶</a></dt>
+<dd><p>links this ensembles’s analysis pipeline to another ensemble</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>other</strong> (<a class="reference internal" href="#pypatchy.analysis.analyzable.Analyzable" title="pypatchy.analysis.analyzable.Analyzable"><em>Analyzable</em></a>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.analysis.analyzable.Analyzable.missing_analysis_data">
+<span class="sig-name descname"><span class="pre">missing_analysis_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">step</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analyzable.Analyzable.missing_analysis_data" title="Link to this definition">¶</a></dt>
+<dd><p>Returns: a Pandas dataframe showing which analysis data are missing</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>step</strong> (<a class="reference internal" href="#pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep" title="pypatchy.analysis.analysis_pipeline_step.AnalysisPipelineStep"><em>AnalysisPipelineStep</em></a><em> | </em><em>str</em>)</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>DataFrame</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.analysis.analyzable.Analyzable.save_pipeline_data">
+<em class="property"><span class="k"><span class="pre">abstractmethod</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">save_pipeline_data</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analyzable.Analyzable.save_pipeline_data" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.analysis.analyzable.Analyzable.set_analysis_pipeline">
+<span class="sig-name descname"><span class="pre">set_analysis_pipeline</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">src</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">clear_old_pipeline</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">link_file</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analyzable.Analyzable.set_analysis_pipeline" title="Link to this definition">¶</a></dt>
+<dd><p>Sets the ensemble’s analysis pipeline from an existing analysis pipeline file
+:param src: a string or path object indicating the file to set from
+:param clear_old_pipeline: if set to True, the existing analysis pipleine will be replaced with the pipeline from the file. otherwise, the new pipeline will be appended
+:param link_file: if set to True, the provided source file will be linked to this ensemble, so changes made to this analysis pipeline will apply to all ensembles that source from that file</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>src</strong> (<em>str</em><em> | </em><em>Path</em>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.analysis.analyzable.Analyzable.show_analysis_pipeline">
+<span class="sig-name descname"><span class="pre">show_analysis_pipeline</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.analyzable.Analyzable.show_analysis_pipeline" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-pypatchy.analysis.yield_analysis_target">
+<span id="yield-analysis-target-py"></span><h2><a class="toc-backref" href="#id5" role="doc-backlink"><code class="docutils literal notranslate"><span class="pre">yield_analysis_target.py</span></code></a><a class="headerlink" href="#module-pypatchy.analysis.yield_analysis_target" title="Link to this heading">¶</a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="pypatchy.analysis.yield_analysis_target.ClusterCategory">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pypatchy.analysis.yield_analysis_target.</span></span><span class="sig-name descname"><span class="pre">ClusterCategory</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">values</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.yield_analysis_target.ClusterCategory" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Enum</span></code></p>
+<p>NEVER actually use one of these objects directly!
+Otherwise comparisons will fail because Pandas is very badly coded!
+[censored swearing profusely]</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pypatchy.analysis.yield_analysis_target.ClusterCategory.MATCH">
+<span class="sig-name descname"><span class="pre">MATCH</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">3</span></em><a class="headerlink" href="#pypatchy.analysis.yield_analysis_target.ClusterCategory.MATCH" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pypatchy.analysis.yield_analysis_target.ClusterCategory.OVER">
+<span class="sig-name descname"><span class="pre">OVER</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0</span></em><a class="headerlink" href="#pypatchy.analysis.yield_analysis_target.ClusterCategory.OVER" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pypatchy.analysis.yield_analysis_target.ClusterCategory.SMALLER_NOT_SUB">
+<span class="sig-name descname"><span class="pre">SMALLER_NOT_SUB</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1</span></em><a class="headerlink" href="#pypatchy.analysis.yield_analysis_target.ClusterCategory.SMALLER_NOT_SUB" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pypatchy.analysis.yield_analysis_target.ClusterCategory.SUBSET">
+<span class="sig-name descname"><span class="pre">SUBSET</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">2</span></em><a class="headerlink" href="#pypatchy.analysis.yield_analysis_target.ClusterCategory.SUBSET" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="pypatchy.analysis.yield_analysis_target.YieldAnalysisTarget">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pypatchy.analysis.yield_analysis_target.</span></span><span class="sig-name descname"><span class="pre">YieldAnalysisTarget</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">graph</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.yield_analysis_target.YieldAnalysisTarget" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>very simple wrapper class for yield target
+The yield analysis target is a particle cluster represented as a graph.
+The yield of a cluster is the number of nodes in the largest possible subgraph of the target which
+is isomorphic to the cluster graph</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>name</strong> (<em>str</em>)</p></li>
+<li><p><strong>graph</strong> (<em>Graph</em>)</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="pypatchy.analysis.yield_analysis_target.YieldAnalysisTarget.compare">
+<span class="sig-name descname"><span class="pre">compare</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">g</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.yield_analysis_target.YieldAnalysisTarget.compare" title="Link to this definition">¶</a></dt>
+<dd><p>Compares a cluster graph to the analysis target and returns a classification of the cluster and its yield</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>g</strong> (<em>Graph</em>) – a graph</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>a tuple where the first element is the category of the cluster, and the seonc element is a float representation of the yield</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>tuple[<a class="reference internal" href="#pypatchy.analysis.yield_analysis_target.ClusterCategory" title="pypatchy.analysis.yield_analysis_target.ClusterCategory"><em>ClusterCategory</em></a>, float]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pypatchy.analysis.yield_analysis_target.YieldAnalysisTarget.graph">
+<span class="sig-name descname"><span class="pre">graph</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Graph</span></em><a class="headerlink" href="#pypatchy.analysis.yield_analysis_target.YieldAnalysisTarget.graph" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pypatchy.analysis.yield_analysis_target.YieldAnalysisTarget.name">
+<span class="sig-name descname"><span class="pre">name</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#pypatchy.analysis.yield_analysis_target.YieldAnalysisTarget.name" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pypatchy.analysis.yield_analysis_target.graphShape">
+<span class="sig-prename descclassname"><span class="pre">pypatchy.analysis.yield_analysis_target.</span></span><span class="sig-name descname"><span class="pre">graphShape</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">shapePath</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pypatchy.analysis.yield_analysis_target.graphShape" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">pypatchy</a></h1>
+
+
+
+
+
+
+
+
+
+<search id="searchbox" style="display: none" role="search">
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Search"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="introduction.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="concepts.html">Concepts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials.html">Tutorials</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="package_reference.html">Reference</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#"><code class="docutils literal notranslate"><span class="pre">analysis</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="patchy.html"><code class="docutils literal notranslate"><span class="pre">patchy</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="design.html"><code class="docutils literal notranslate"><span class="pre">design</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="polycubeutil.html"><code class="docutils literal notranslate"><span class="pre">polycubeutil</span></code></a></li>
+</ul>
+</li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+  <li><a href="package_reference.html">Reference</a><ul>
+      <li>Previous: <a href="package_reference.html" title="previous chapter">Reference</a></li>
+      <li>Next: <a href="patchy.html" title="next chapter"><code class="docutils literal notranslate"><span class="pre">patchy</span></code></a></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2025, Joshua Evans of <a href="https://sulcgroup.github.io/">Sulc Lab @ ASU</a>.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 8.2.3</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+      |
+      <a href="_sources/analysis.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>
