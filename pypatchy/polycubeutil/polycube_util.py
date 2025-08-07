@@ -20,11 +20,11 @@ def make_colors_consecutive(rule: PolycubesRule) -> PolycubesRule:
     """
     translation of Joakim Bohlin's `simplify` method from `utils.js`
     Simplifies a rule by making colors consecutive (so colors used in rule will be 1, 2, 3, etc.)
-    Args:
-        rule: a polycubes rule
 
-    Returns:
-        the rule, simplified
+    :param rule: a polycubes rule
+    :raise AssertionError: if the rule has patches with color value of zero
+    :return: the rule, simplified
+    :rtype: PolycubesRule
     """
     # construct set of only positive colors
     color_set = [c for c in rule.color_set() if c > 0]
@@ -45,6 +45,13 @@ def make_colors_consecutive(rule: PolycubesRule) -> PolycubesRule:
 
 
 def get_fully_addressable_rule(structure: FiniteLatticeStructure) -> PolycubeStructure:
+    """
+    Given a topology (as a FiniteLatticeStructure object), construct a polycubes structure where each location in the topology
+    is a unique cube type, and each connection between two locations is mediated by a unique color.
+    :param structure: the topology (as a FiniteLatticeStructure object)
+    :return: A polycube of the topology with non-repeating cube types and colors
+    :rtype: PolycubesStructure
+    """
     # construct empty rule
     rule = PolycubesRule()
     # construct position map
@@ -128,6 +135,8 @@ def rotation_mapping_to_matrix(rotation_map: dict[int, int]) -> np.ndarray:
     """
     Written by chatGPT
     Convert a rotation map to a rotation matrix.
+    :param rotation_map: a rotation map
+    :return: a rotation matrix
     """
 
     # Create a rotation matrix from the rotation map

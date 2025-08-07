@@ -17,12 +17,15 @@ release = '0.3'
 extensions = [
     'sphinx.ext.duration',
     'sphinx.ext.doctest',
-    'sphinx.ext.autodoc'
+    'sphinx.ext.autodoc',
+    'sphinx.ext.autosummary',
+    'sphinx.ext.napoleon'
 ]
 
 templates_path = ['_templates']
 exclude_patterns = []
 
+autodoc_typehints = "description"
 
 
 # -- Options for HTML output -------------------------------------------------

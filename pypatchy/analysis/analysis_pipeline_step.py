@@ -21,8 +21,6 @@ class AnalysisPipelineStep(ABC):
     # the name of this step on the analysis pipeline
     name: str
 
-    # steps immediately feeding into this step
-
     # interval in timesteps between input data points
     input_tstep: int
 
@@ -36,6 +34,9 @@ class AnalysisPipelineStep(ABC):
                  step_name: str,
                  input_tstep: Union[int, None] = None,
                  output_tstep: Union[int, None] = None):
+        """
+
+        """
         self.name = step_name  # unique name, not class name
         # self.idx = -1
         if isinstance(input_tstep, float):
@@ -168,8 +169,7 @@ class AnalysisPipelineHead(AnalysisPipelineStep, ABC):
     @abstractmethod
     def get_data_in_filenames(self) -> list[str]:
         """
-        Returns:
-            a list of files containing the raw data that will be used by this step
+        :return: a list of files containing the raw data that will be used by this step
         """
         pass
 
@@ -189,7 +189,7 @@ class AggregateAnalysisPipelineStep(AnalysisPipelineStep, ABC):
 
     def get_input_data_params(self, sim) -> tuple[ParameterValue, ...]:
         """
-        .........
+
         """
         if isinstance(sim, PatchySimulation):
             this_step_param_specs: tuple[ParameterValue] = tuple(sim.param_vals)

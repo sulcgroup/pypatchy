@@ -1,3 +1,11 @@
+"""
+This module provides data structures and utilities for managing, caching,
+and combining different types of analysis data used in the pypatchy analysis pipeline.
+It defines base classes and subclasses for pandas-based, object-based, and raw data.
+
+"""
+
+
 from __future__ import annotations
 
 import itertools
@@ -14,6 +22,22 @@ TIMEPOINT_KEY = "timepoint"
 
 
 class PipelineDataType(Enum):
+    """
+    Enumeration for data types that can be used in an analysis pipeline.
+
+
+    Members:
+        PIPELINE_DATATYPE_RAWDATA: Raw data from trajectory.dat.
+
+        PIPELINE_DATATYPE_OBSERVABLE: Data derived from observables.
+
+        PIPELINE_DATATYPE_DATAFRAME: Data stored in a pandas DataFrame.
+
+        PIPELINE_DATATYPE_GRAPH: Data represented as a list of graphs.
+
+        PIPELINE_DATATYPE_OBJECTS: Arbitrary Python objects (e.g., graphs, simulations).
+
+    """
     # raw data from trajectory.dat
     PIPELINE_DATATYPE_RAWDATA = 0
     # data from an observable
@@ -56,30 +80,56 @@ class PipelineData(ABC):
 
     @abstractmethod
     def get(self):
+        """
+        Return the stored data object (to be implemented by subclasses).
+        """
         pass
 
     @abstractmethod
     def compare_tranges(self, tr: range) -> np.array:
+        """
+
+        :param tr: range of timepoints to compare against
+
+        :returns: a numpy array of boolean corresponding to timepoints. each element is true if the object has data at that timepoint, false otherwise.
+
+        """
         pass
 
     # TODO: make abstract and force more efficient impl
     def matches_trange(self, tr: range) -> bool:
+        """
+        :param tr: a range of timepoints
+        :returns: true if the timepoints in the data match the provided arg, false otherwise.
+        """
         return self.compare_tranges(tr).all()
 
     @abstractmethod
     def trange(self) -> np.ndarray:
+        """
+        :returns: the time range of the stored data
+        """
         pass
 
     @abstractmethod
     def cache_data(self, p: Path):
+        """
+        saves data to a cache file (to be implemented by subclasses)
+        """
         pass
 
     @abstractmethod
     def load_cached_data(self, p: Path):
+        """
+        loads data cached in a file (to be implemented by subclasses)
+        """
         pass
 
     @abstractmethod
     def __add__(self, other: PipelineData):
+        """
+        Combines this set of data with another set of data (to be implemented by subclasses).
+        """
         pass
 
 
@@ -95,10 +145,17 @@ class PDPipelineData(PipelineData):
     data: pd.DataFrame
 
     def __init__(self, data: Union[None, pd.DataFrame], tr: Union[None, np.ndarray]):
+        """
+        Constructor
+        """
         self._trange = tr
         self.data = data
 
     def get(self) -> pd.DataFrame:
+        """
+        accessor for data as pandas dataframe
+        :returns: data as a pandas dataframe
+        """
         return self.data
 
     def compare_tranges(self, tr: Union[range, list, np.ndarray]) -> np.array:
@@ -107,8 +164,8 @@ class PDPipelineData(PipelineData):
         Compares the range of the data stored in this object with the provided
         range object, optimized for large self._trange and tr.
 
-        Return:
-            a numpy array of booleans with length len(tr)
+        :returns: a numpy array of boolean corresponding to timepoints. each element is true if the object has data at
+        the corresponding timepoint, false otherwise.
         """
         # Convert self._trange to a set for O(1) lookup if not already a set
         # This is beneficial if self._trange is used repeatedly for comparison
@@ -128,20 +185,30 @@ class PDPipelineData(PipelineData):
     def missing_timepoints(self, tr: Union[range, list[Union[int, float]], np.ndarray]):
         """
         Compares the range of these data with the provided timepoints
-        Returns an array of timepoints which are present in self's timepoint range but not in the
-        provided timepoits
+        :returns: an array of timepoints which are present in self's timepoint range but not in the provided timepoints
         """
         return np.array(list(set(self.trange()).difference(tr)))
 
     def trange(self) -> np.ndarray:
+        """
+        :returns: the time range of the stored data
+        """
         return self._trange
 
     def cache_data(self, p: Path):
+        """
+        saves the data to a cache file using pd.HDFStore
+        :param p: Path to the data cache file
+        """
         with pd.HDFStore(str(p)) as f:
             f["data"] = self.data
             f["trange"] = pd.Series(self.trange())
 
     def load_cached_data(self, p: Path):
+        """
+        loads data stored in a csv file or (more likely) and hdf5 file
+        :param p: Path to the data cache file
+        """
         # backwards compatibility with csv storage (mistakes were made)
         if not p.exists() and Path(str(p)[:str(p).rfind(".")] + ".csv").exists():
             self.data = pd.read_csv(Path(str(p)[:str(p).rfind(".")] + ".csv"))
@@ -152,6 +219,10 @@ class PDPipelineData(PipelineData):
                 self._trange = np.array(hdfdata["trange"])
 
     def __add__(self, other: PDPipelineData) -> PDPipelineData:
+        """
+        :param other: PDPipelineData with additional pdndas dataframe data
+        :returns: a PDPipelineData object containing the data in this and other
+        """
         overlap, _, _ = np.intersect1d(self.trange(), other.trange())
         # if no overlap, we're cool
         if overlap.size == 0:
@@ -168,6 +239,10 @@ class PDPipelineData(PipelineData):
 
 
 def load_cached_pd_data(_, f: Path) -> PDPipelineData:
+    """
+    :param f: Path to the data cache file
+    :returns: a PDPipelineData object containing the the cache file
+    """
     assert f.is_file()
     data = PDPipelineData(None, None)
     data.load_cached_data(f)

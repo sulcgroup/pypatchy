@@ -45,28 +45,38 @@ FACE_SQUARE_W = 64
 FACE_FIG_PAD = 12
 
 
-# old diridx - bad/buggy
-# def diridx(a):
-#     return np.all(np.array(RULE_ORDER) == np.array(list(a))[np.newaxis, :], axis=1).nonzero()[0][0]
-
 # new diridx - written by chatgpt
 def diridx(a: np.ndarray) -> int:
+    """
+    :param a: a 3-length integer vector with magnitude 1
+    :raise ValueError: if param a is not a 3-length integer vector with magnitude 1
+    :return: the direction index in RULE_ORDER of a vector
+    """
     for idx, rule in enumerate(RULE_ORDER):
         if np.array_equal(a, rule):
             return idx
-    assert False, f"{a} is not in RULE_ORDER"
-
+    raise ValueError(f"{a} is not in RULE_ORDER")
 
 def rdir(d: int) -> int:
+    """
+    :param d: an integer from [0,5] representing a direction in RULE_ORDER
+    :return: the index in RULE_ORDER of the negated vector RULE_ORDER[d]
+    """
     if d % 2 == 0:
         return (d + 1) % 6
     else:
         return (d - 1) % 6
 
-
 # kinda wish these next two were in a different module
 def get_orientation(face_idx: int,
                     ori_idx: int) -> np.ndarray:
+    """
+    :param face_idx: an index in RULE_ORDER
+    :raise ValueError: if face_idx is not a valid face index (face_idx \u2208 [1,5])
+    :param ori_idx: the orientation index
+    """
+    if face_idx >= len(RULE_ORDER) or face_idx < 0:
+        raise ValueError(f"{face_idx} is not an index in RULE_ORDER")
     zero_rot_idx = (face_idx + 2) % len(RULE_ORDER)  # feels like it should be +4 but trust me bro
     zero_rotation = RULE_ORDER[zero_rot_idx]
     rot_mat = rotation_matrix(RULE_ORDER[face_idx], ori_idx * math.pi / 2)
@@ -75,7 +85,13 @@ def get_orientation(face_idx: int,
 
 def getRotationMap(axis: int, angle: int) -> dict[int, int]:
     """
-    where axis is in RULE_ORDER and angle is int in [0,3]
+    Converts an axis-angle rotation (as integer indeces) to a rotation map (direction index key-value pairs)
+
+    :param axis: an integer from [0,5] representing a direction in RULE_ORDER
+    :param angle: a rotation angle as an integer from [0,3] which is multiplied by \u03C0 / 2 to conver to a radian angle
+
+    :return: a rotation map of length 6 where keys are nonrepeating integers [0,5] and values are nonrepeating integers [0,5]
+
     todo is this even right
     """
     return {
@@ -201,6 +217,9 @@ class PolycubesPatch(BasePatchType):
 
 
 class PolycubeRuleCubeType(PatchyBaseParticleType):
+    """
+    A cube type in a polycube rule
+    """
     def __init__(self,
                  ct_id: int,
                  patches: list[PolycubesPatch],
@@ -653,6 +672,9 @@ class PolycubeRuleCubeType(PatchyBaseParticleType):
 
 
 class PolycubesRule(BaseParticleSet):
+    """
+    A set of cube types
+    """
     def __init__(self, **kwargs):
         """
         Extremely flexable and occassionally-misbehaving constructor for a Polycubes rule

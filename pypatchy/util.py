@@ -1,4 +1,27 @@
 from __future__ import annotations
+"""utility.py
+================
+General purpose helper functions used across the PyPatchy codebase.
+
+The functions in this module are intentionally **stateless** and have **no
+external side-effects**, which makes them easy to unit-test.  They range from
+simple NumPy linear-algebra helpers (`dist`, `normalize`, `angle_between`) to
+filesystem convenience wrappers (`get_local_dir`, `lsin`) and colour
+utilities (`selectColor`).
+
+Only the most commonly used public helpers are documented below – internal
+implementation details may change at any time.
+
+Public API
+----------
+* dist(a, b) – Euclidean distance between two vectors.
+* normalize(v) – Return a unit-length copy of the vector `v`.
+* angle_between(v1, v2) – Angle (radians) between two vectors.
+* halfway_vector(a, b) – Unit vector halfway between `a` and `b`.
+* random_unit_vector() – Pseudo-random 3-D unit vector.
+
+(See inline docstrings for the remaining helpers.)
+"""
 
 import json
 import os

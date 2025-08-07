@@ -1,3 +1,7 @@
+"""
+Module containing
+"""
+
 from __future__ import annotations
 
 import copy
@@ -14,6 +18,8 @@ import numpy as np
 
 from oxDNA_analysis_tools.UTILS.data_structures import Configuration
 
+from ipy_oxdna.util import process_path
+
 from ..cell_lists import CellLists
 
 from .cube import PolycubesStructureCube
@@ -29,12 +35,18 @@ from ..util import from_xyz, get_input_dir, enumerateRotations
 
 # todo: add cell lists? probably overkill
 class PolycubeStructure(TypedStructure, Scene):
+    """
+    A structure formed from connected cubes on a 3D integer grid
+    """
     # mypy type specs
     rule: PolycubesRule
     cubeMap: dict[bytes, PolycubesStructureCube]
     particle_uid_map: dict[int, PolycubesStructureCube]
 
     def __init__(self, **kwargs):
+        """
+        Malliable constructor for a polycube structure.
+        """
         # TODO: refactor this constructor to be normal constructor, have make_polycube() method external
         super(PolycubeStructure, self).__init__()
         CellLists.__init__(self)
@@ -409,14 +421,16 @@ class PolycubeStructure(TypedStructure, Scene):
 
 
 def load_polycube(file_path: Union[Path, str]) -> PolycubeStructure:
-    if isinstance(file_path, str):
-        file_path = Path(file_path)
-    if not file_path.is_absolute():
-        file_path = get_input_dir() / file_path
+    """
+    Loads a polycube from a json file.
+    :param file_path: a path to a json file. If the path is implicitly relative, it will be prepended with `~/.pypatchy/input`
+    :return: the PolycubeStructure stored in the file
+    """
+    file_path = process_path(file_path, get_input_dir())
     with file_path.open("r") as f:
         data = json.load(f)
-        rule = PolycubesRule(rule_json=data["cube_types"])
-        return PolycubeStructure(rule=rule, structure=data["cubes"])
+    rule = PolycubesRule(rule_json=data["cube_types"])
+    return PolycubeStructure(rule=rule, structure=data["cubes"])
 
 
 

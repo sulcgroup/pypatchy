@@ -309,7 +309,7 @@ class StageInfoParam(Mapping):
         return iter(self.info)
 
 
-def parameter_value(key: str, val: Union[dict, str, int, float, bool]) -> ParameterValue:
+def parameter_value(key: str, val: Union[dict, str, int, float, bool, list]) -> ParameterValue:
     """
     Constructs a ParameterValue object
     """
