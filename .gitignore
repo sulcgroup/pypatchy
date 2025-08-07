@@ -1,9 +1,5 @@
 __pycache__
-slurm_out
-log.txt
 .idea
-input
-output
 */.ipynb_checkpoints
 .ipynb_checkpoints
 src/pypatchy/patchy/.ipynb_checkpoints
@@ -11,3 +7,4 @@ pypatchy.egg-info
 build
 dist
 *.so
+docs/_build
