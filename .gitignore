@@ -8,3 +8,5 @@ build
 dist
 *.so
 docs/_build
+id_ed25519
+id_ed25519.pub

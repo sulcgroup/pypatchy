@@ -55,7 +55,6 @@ RUN micromamba --version
 #RUN --mount=type=ssh git clone git@github.com:lorenzo-rovigatti/oxDNA.git /root/Github/oxDNA
 # todo: replace with the above line of code once i get the flavio code PR'd into Lorenzo's
 # get back to this
-ARG SSH_KEY
 RUN --mount=type=ssh git clone git@github.com:JeDeveloper/oxDNA.git /root/Github/oxDNA
 
 # clone the ipy_oxdna repo
@@ -204,23 +203,7 @@ RUN cmake .. \
 
 RUN cp src/libtlm.so $(python -m site --user-site)
 
-# run polycubes tests
-docker run --rm patchy \
-    bash -lc "cd /root/Github/polycubes/cpp/build && ctest --output-on-failure -j$(nproc)"
 
-# run ipy_oxDNA tests
-docker run --rm patchy \
-  bash -l -c "\
-    eval \"\$(micromamba shell hook --shell bash)\" && \
-    micromamba activate pypatchy && \
-    cd /root/Github/ipy_oxDNA && pytest --maxfail=1 -q"
-
-# run pypatchy tests
-docker run --rm patchy \
-  bash -l -c "\
-    eval \"\$(micromamba shell hook --shell bash)\" && \
-    micromamba activate pypatchy && \
-    cd /root/Github/pypatchy && pytest --maxfail=1 -q"
 
 
 # start bash
