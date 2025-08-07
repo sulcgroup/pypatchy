@@ -388,8 +388,9 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
 
 class PatchySimulationEnsemble(Analyzable):
     """
-    Stores data for a group of related simulations
-    This class is... enormous
+    Stores data for a group of related simulations.
+    This is the main object for running patchy particle simulations with PyPatchy
+    The term "Ensemble" isn't used here in the same way as thermodynamics.
     """
 
     # --------------- GENERAL MEMBER VARS -------------- #
@@ -437,6 +438,18 @@ class PatchySimulationEnsemble(Analyzable):
                  analysis_file: str,
                  metadata_dict: dict,
                  server_settings: Union[PatchyServerConfig, None] = None):
+        """
+        :param export_name: the name to use for this ensemble.
+        :param setup_date: the date that this group of simulations was set up
+        :param metadata_file_name: name of metadata file
+        :param analysis_pipeline: analysis pipeline object
+        :param const_params: the parameters that will be constant in all simulations
+        :param ensemble_params: parameters which will be varied between different simulations
+        :param observables: observables to use for this ensemble
+        :param analysis_file: name of a file from which to load analysis pipeline data
+        :param metadata_dict: metadata for this simulation grouo
+        :param server_settings: "server settings" (aka simulation group preset) for the simulations
+        """
         super().__init__(analysis_file, analysis_pipeline)
         self.export_name = export_name
         self.sim_init_date = setup_date
@@ -452,6 +465,10 @@ class PatchySimulationEnsemble(Analyzable):
         # File handler with a higher level (DEBUG)
         logger: logging.Logger = logging.getLogger(self.export_name)
         logger.setLevel(logging.INFO)
+        # if the logger associated with this dataset already has handlers, clear them
+        if len(logger.handlers) > 0:
+            for handler in logger.handlers[::-1]:
+                logger.removeHandler()
         # setup logger file handler
         file_handler = logging.FileHandler(
             get_log_dir() / f"log_{self.export_name}_{self.datestr()}_at{datetime.datetime.now().strftime('%Y-%m-%d-%H-%M')}.log",
@@ -490,9 +507,8 @@ class PatchySimulationEnsemble(Analyzable):
 
         given a list of parameter values, returns a PatchySimulation object
 
-        Parameters:
-           args
-           kwargs key-value pairs where each key is a parameter name in self.ensemble_params
+        :param args: group of ParameterValue objects
+        :param kwargs: key-value pairs where each key is a parameter name in self.ensemble_params
         """
         # sim_params = args
         sim_params: list[Union[list[ParameterValue], EnsembleParameter]] = []
@@ -526,43 +542,46 @@ class PatchySimulationEnsemble(Analyzable):
 
     def datestr(self) -> str:
         """
-        Returns: the initialization date of the simulation, as a date string
+        :return: the initialization date of the simulation, as a date string
         """
         return self.sim_init_date.strftime("%Y-%m-%d")
 
     def long_name(self) -> str:
         """
-        Returns:
-             the full name of the simulation, including the date
+        :return: the full name of the simulation, including the date
         """
         return f"{self.export_name}_{self.datestr()}"
 
     def get_logger(self) -> logging.Logger:
         """
-        Returns: the simulation logger
+        implementation of Analyzable.get_logger()
+        :returns: the simulation logger
         """
         return logging.getLogger(self.export_name)
 
     def is_do_analysis_parallel(self) -> bool:
         """
-        Returns:
-            true if the analysis is set up to run in parallel using multiprocessing.Pool
-            and false otherwise.
+        :returns: true if the analysis is set up to run in parallel using multiprocessing.Pool and false otherwise.
         """
         return "parallel" in self.metadata and self.metadata["parallel"]
 
     def n_processes(self) -> int:
         """
-        Returns: the number of times the patchy simulatinos are allowe to run in parallel
+        :returns: the number of times the patchy simulatinos are allowe to run in parallel
         """
         return self.metadata["parallel"]
 
     def is_nocache(self) -> bool:
+        """
+        implementation of Analyzable.is_nocache()
+        :returns: true if analysis should skip cache
+        """
         return "nocache" in self.metadata and self.metadata["nocache"]
 
     def set_server_settings(self, stgs: Union[PatchyServerConfig, str]):
         """
         sets the server settings that will be used to run simulations
+        :param stgs: server settings
         """
         if isinstance(stgs, PatchyServerConfig):
             self.server_settings = stgs
@@ -575,11 +594,13 @@ class PatchySimulationEnsemble(Analyzable):
     def set_nocache(self, bNewVal: bool):
         """
         Assigns the analysis system to not cache analysis data
+        :param bNewVal: nev value for nocache. if True, analysis will skip cached data
         """
         self.metadata["nocache"] = bNewVal
 
     def append_slurm_log(self, item: SlurmLogEntry):
         """
+        todo: make slurm logging work again
         Appends an entry to the slurm log, also writes a brief description
         to the logger
         """
@@ -589,6 +610,8 @@ class PatchySimulationEnsemble(Analyzable):
     def set_metadata_attr(self, key: str, val: Any):
         """
         Sets a metadata value, and saves the metadata file if a change has been made
+        :param key: key in metadata dict
+        :param val: value in metadata dict
         """
         oldVal = self.metadata[val]
         self.metadata[key] = val
@@ -597,8 +620,8 @@ class PatchySimulationEnsemble(Analyzable):
 
     def get_stopped_sims(self) -> list[PatchySimulation]:
         """
-        Returns a list of simulations which have been stopped by the slurm
-        controller before they were complete
+        todo: unit test of this, somehow
+        :return: a list of simulations which have been stopped by the slurm controller before they were complete
         """
         sims_that_need_attn = []
         for sim in self.ensemble():
@@ -619,10 +642,10 @@ class PatchySimulationEnsemble(Analyzable):
                       sim: PatchySimulation,
                       paramname: str) -> Any:
         """
-        Returns the value of a parameter
-        This method will first search in the simulation to see if this parameter
-        has a specific value for this simulation, then in the ensemble const params,
-        then the default parameter set
+        This method will first search in the simulation to see if this parameter has a specific value for this simulation, then in the ensemble const params, then the default parameter set
+        :param sim: descriptor for a simulation for which to access a parameter
+        :param paramname: name of the parameter
+        :return: the value of a parameter.
         """
         if paramname in sim:
             return sim[paramname]
@@ -636,7 +659,10 @@ class PatchySimulationEnsemble(Analyzable):
 
     def sim_stage_get_param(self, sim: PatchySimulation, stage: Stage, param_name: str) -> Any:
         """
-        Returns the value of the provided parameter for the given simulation and stage
+        :param sim: descriptor for a simulation for which to access a parameter
+        :param stage: Stage object for which to access a parameter
+        :param param_name: name of the parameter
+        :return: the value of the provided parameter for the given simulation and stage
         """
         if stage is not None and stage.has_var(param_name):
             return stage.get_var(param_name)
@@ -645,7 +671,7 @@ class PatchySimulationEnsemble(Analyzable):
 
     def sim_get_particles_set(self, sim: PatchySimulation) -> PLParticleSet:
         """
-        Returns the particle set used by the simulation passed as a parameter, with multidentate conversion if appropriate
+        :return: the particle set used by the simulation passed as a parameter, with multidentate conversion if appropriate
         """
         particles: PLParticleSet = self.sim_get_param(sim, PARTICLE_TYPES_KEY)
         try:
@@ -657,7 +683,8 @@ class PatchySimulationEnsemble(Analyzable):
 
     def get_param(self, paramname: str) -> Any:
         """
-        returns
+        :param paramname: the name of the simulation ensemble parameter to access
+        :return: the inner value of the ParameterValue (NOT the ParameterValue object) with the given name
         """
         # use const_params
         if paramname in self.const_params:
@@ -670,6 +697,9 @@ class PatchySimulationEnsemble(Analyzable):
     def iter_params(self, sim: PatchySimulation, stage: Stage) -> Generator[ParameterValue, None, None]:
         """
         Iterates through parameter values for the given simulation and stage
+        :param sim: descriptor for a simulation for which to access a parameter
+        :param stage: Stage object for which to access a parameter
+        :return: generator which will iterate through the parameters
         """
         pvs: set[ParameterValue] = set()
         # first, iter stage vals
@@ -720,21 +750,29 @@ class PatchySimulationEnsemble(Analyzable):
     def paramfile(self, sim: PatchySimulation, paramname: str) -> Path:
         """
         Shorthand to get a simulation data file
+        :param sim: A PatchySimulation object describing a specific simulation
+        :param paramname: a param name associated with a simulation file (topoplogy, conf, energy, etc.)
+        :return: a path to a simulation data file for the provided simulation
         """
         return self.folder_path(sim) / self.sim_get_param(sim, paramname)
 
     def paramstagefile(self, sim: PatchySimulation, stage: Stage, paramname: str):
+        """
+        Shorthand to get a simulation data file associated with a specific simulation and stage
+        :param sim: A PatchySimulation object describing a specific simulation
+        :param stage: The stage for this file
+        :param paramname: a param name associated with a simulation file (topoplogy, conf, energy, etc.)
+        :return: a path to a simulation data file for the provided simulation and stage
+        """
         return self.folder_path(sim) / stage.adjfn(self.sim_get_param(sim, paramname))
 
     def get_sim_particle_count(self,
                                sim: PatchySimulation,
                                particle_idx: int) -> int:
         """
-        Args:
-            sim: the patchy simulation to count for
-            particle_idx: the index of the particle to get the count for
-        Returns:
-            the int
+        :param sim: the patchy simulation to count for
+        :param particle_idx: the index of the particle to get the count for
+        :return: the number of particles of the provided types in the simulation
         """
         # grab particle name
         particle_name = self.sim_get_particles_set(sim).particle(particle_idx).name()
@@ -743,6 +781,8 @@ class PatchySimulationEnsemble(Analyzable):
     def get_stages_info(self, sim: Union[None, PatchySimulation] = None) -> dict[str, StageInfoParam]:
         """
         Returns staging information parameters
+        :param sim: the simulation to access, or None to access for the entire ensemble
+        :return: a map of
         """
         if sim is not None:
             stages_info: dict[str, StageInfoParam] = self.sim_get_param(sim, STAGES_KEY)
@@ -755,7 +795,8 @@ class PatchySimulationEnsemble(Analyzable):
         Computes stages
         horrible nightmare code
         Stage objects require other ensemble parameters so must be constructed as needed and not on init
-
+        :param sim: a PatchySimulation for which to access a stage list
+        :return: list of stages to execute for this simulation
         """
         assert isinstance(sim, PatchySimulation), "Cannot invoke this method with a parameter list!"
         # ---------- STEP ONE: LOAD STAGE INFO ------------------------------
@@ -838,6 +879,13 @@ class PatchySimulationEnsemble(Analyzable):
         return stages
 
     def sim_get_stages_between(self, sim: PatchySimulation, tstart: int, tend: int) -> list[Stage]:
+        """
+        todo a unit test for this?
+        :param sim:
+        :param tstart:
+        :param tend:
+        :return: list of stages for the provided simulation between the start and end
+        """
         return [stage for stage in self.sim_get_stages(sim) if stage.end_time() >= tstart and stage.start_time() < tend]
 
     def sim_get_stage(self, sim: PatchySimulation, stage_name: Union[str, int]) -> Stage:

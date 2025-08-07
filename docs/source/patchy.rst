@@ -7,15 +7,44 @@ This is the main pypatchy module, and contains code for reading patchy particle 
 
 .. automodule:: pypatchy.patchy
 
-.. the pl module contains submodules
 
 ``pl``
 ~~~~~~~~~~~~~~~~~~~~~~
 The name of this module stands as a testement to the principle of "don't use a word unless you know what it means"
 .. automodule:: pypatchy.patchy.pl
 
+``patchyio.py``
+...................
+.. automodule:: pypatchy.patchy.pl.patchyio
+    :members:
 
-.. the simulation_ensemble.py module is a single file
+``plparticle.py``
+.......................
+.. automodule:: pypatchy.patchy.pl.plparticle
+    :members:
+
+``plparticleset.py``
+............................
+.. automodule:: pypatchy.patchy.pl.plparticleset
+    :members:
+
+``plpatch.py``
+................
+.. automodule:: pypatchy.patchy.pl.plpatch
+    :members:
+
+``plpatchylib.py``
+...................
+.. automodule:: pypatchy.patchy.pl.plpatchylib
+    :members:
+
+``plscene.py``
+.................
+.. automodule:: pypatchy.patchy.pl.plscene
+    :members:
+
+``.``
+~~~~~~~~
 
 ``simulation_ensemble.py``
 ....................................

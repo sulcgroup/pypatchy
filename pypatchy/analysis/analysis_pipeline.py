@@ -411,6 +411,9 @@ class AnalysisPipeline:
         return len(self.pipeline_graph.edges)
 
     def draw_pipeline(self, scale=120) -> draw.Drawing:
+        """
+
+        """
         dw = scale * self.num_pipeline_steps()
         dh = scale * .6 * self.num_pipeline_steps()
         drawing = draw.Drawing(width=dw,

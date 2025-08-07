@@ -19,46 +19,12 @@ from ...polycubeutil.polycube_structure import PolycubeStructure
 from ...polycubeutil.polycubesRule import PolycubesRule
 from ...util import to_xyz, halfway_vector, normalize, get_input_dir
 
-#
-# def to_PL(particle_set: BaseParticleSet,
-#           mdt_convert: Union[MultidentateConvertSettings, None] = None,
-#           num_teeth: int = 1,
-#           dental_radius: float = 0.) -> PLParticleSet:
-#     """
-#     I will freely admit I have no idea what "PL" means
-#     Whatever it means, this function converts an arbitrary particle set into
-#     PL particles and patches, applying multidentate where applicable.
-#     """
-#     # in the unlikely event this is already a PL particle set
-#     if isinstance(particle_set, PLParticleSet):
-#         if num_teeth == 1 and dental_radius == 0:
-#             return particle_set
-#         else:
-#             particles = particle_set
-#     elif isinstance(particle_set, PolycubesRule):
-#         particles = polycube_rule_to_PL(particle_set)
-#     elif all([isinstance(p, MGLParticle) for p in particle_set]):
-#         particles, _ = mgl_particles_to_pl(particle_set)
-#     else:
-#         raise Exception("Unrecognized particle types!!")
-#
-#     # do multidentate convert
-#     if mdt_convert is None:
-#         mdt_convert = MultidentateConvertSettings(n_teeth=num_teeth, dental_radius=dental_radius)
-#
-#     if mdt_convert.n_teeth > 1:
-#         particles = particles.to_multidentate(mdt_convert)
-#
-#     assert particles.num_particle_types() == particle_set.num_particle_types(), \
-#         f"Bad conversion! Number of particle types produced {particles.num_particle_types()} not equal to number of particles" \
-#         f" in input particle set {particle_set.num_particle_types()}!"
-#
-#     return particles
-
 
 def polycube_rule_to_PL(particle_set: PolycubesRule) -> PLParticleSet:
     """
-    converts a particle rule to a patchy particle set
+    converts a polycubes rule to a patchy particle set
+    :param particle_set: the polycubes rule to convert to a particle set
+    :return: the a patchy patchy particle set corresponding to the rule
     """
     particles: PLParticleSet = PLParticleSet()
     # iter particles
@@ -115,10 +81,8 @@ def PL_to_rule(particles: list[PLPatchyParticle], ) -> PolycubesRule:
     Tries to convert the provided set of particles and patches to a Polycubes Rule.
     TODO: include dynamic effects!!!! somehow.
     todo: interaction matrix
-    Args:
-        particles: a list of PLPatchyParticle objects
-    Returns:
-        the set of particles provided as a Polycubes rule if possible. none if not possible
+    :param particles: a list of PLPatchyParticle objects
+    :return: the set of particles provided as a Polycubes rule if possible. none if not possible
     """
     return PolycubesRule(rule_json=[
         {
@@ -140,6 +104,16 @@ def polycube_to_pl(polycube: PolycubeStructure,
                    dental_radius: Union[float, None] = None,
                    pad_cubes: float = 0.05,
                    pad_edges: float = 0.1) -> PLPSimulation:
+    """
+    Converts a polycube to a patchy particle scene. Conversion parameters can be passed as a
+    `MultidentateConvertSettings` object or as individual values
+    :param polycube: the polycube structure to convert
+    :param mdt_convert: conversion settings, as an object
+    :param nteeth: number of teeth to create per face when performing a multidentate convert
+    :param dental_radius: distance from the center of the face to the "tooth" patches when performing a multidentate convert
+    :param pad_cubes: padding between cubes, relative to cube size
+    :param pad_edges: padding along edges of simulation box, relative to box size
+    """
     # construct empty patchy scene
     pl = PLPSimulation()
     # convert polycubes rule to patchy particles
@@ -208,6 +182,10 @@ def polycube_to_pl(polycube: PolycubeStructure,
 
 
 class MGLPLSourceMap(PLSourceMap):
+    """
+    A conversion object to mediate conversion between MGL and PL Patchy format
+    I don't think this is currently used? TODO: write a test script for it
+    """
     # maps mgl particle color to PL type
     __color_type_map: dict[str, int]
     # maps mgl patch color string to PL patch color ints
@@ -217,6 +195,11 @@ class MGLPLSourceMap(PLSourceMap):
                  src: MGLParticleSet,
                  colorTypeMap: dict[str, int],
                  patchColorMap: dict[str, int]):
+        """
+        :param src: source MGL particle set
+        :param colorTypeMap: mapping of colors in MGL to color int values
+        :param patchColorMap:
+        """
         super().__init__(src)
         self.__color_type_map = colorTypeMap
         self.__patch_color_map = patchColorMap
@@ -237,6 +220,9 @@ class MGLPLSourceMap(PLSourceMap):
 
 def mgl_particles_to_pl(mgl_particles: MGLParticleSet,
                         ref_scene: Union[MGLScene, None] = None) -> PLParticleSet:
+    """
+
+    """
     particle_type_list = []
     patch_uid = 0
     patch_color_map: dict[str, int] = {}
@@ -344,6 +330,11 @@ def mgl_particles_to_pl(mgl_particles: MGLParticleSet,
 
 def mgl_to_pl(mgl: MGLScene,
               pad_frac: float = 0.1) -> PLPSimulation:
+    """
+    Converts an MGL scene to a patchy particle conf
+    :param mgl: MGL scene to convert
+    :param pad_frac: padding of box size
+    """
     pl = PLPSimulation()
     pset = mgl_particles_to_pl(mgl.particle_types(), mgl)
     pset = pset.normalize()
@@ -394,7 +385,8 @@ POLYCUBE_NULL_A3: np.ndarray = np.array([
 
 def load_pl_particles(**kwargs) -> PLParticleSet:
     """
-    loads a particle sets from a dict, format negociable
+    loads a particle sets from a dict, format negotiable\
+    todo: write unit tests
     """
     try:
         if "format" in kwargs:

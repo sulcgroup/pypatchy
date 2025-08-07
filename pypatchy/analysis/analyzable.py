@@ -31,6 +31,10 @@ class Analyzable(ABC):
     def __init__(self,
                  analysis_file: str,
                  analysis_pipeline: AnalysisPipeline):
+        """
+        :param analysis_file: path to analysis file
+        :param analysis_pipeline: analysis pipeline to use for this dataset
+        """
         self.analysis_file = analysis_file
         self.analysis_pipeline = analysis_pipeline
         # construct analysis data dict in case we need it
@@ -42,10 +46,9 @@ class Analyzable(ABC):
                               link_file=True):
         """
         Sets the ensemble's analysis pipeline from an existing analysis pipeline file
-        Args:
-            src: a string or path object indicating the file to set from
-            clear_old_pipeline: if set to True, the existing analysis pipleine will be replaced with the pipeline from the file. otherwise, the new pipeline will be appended
-            link_file: if set to True, the provided source file will be linked to this ensemble, so changes made to this analysis pipeline will apply to all ensembles that source from that file
+        :param src: a string or path object indicating the file to set from
+        :param clear_old_pipeline: if set to True, the existing analysis pipleine will be replaced with the pipeline from the file. otherwise, the new pipeline will be appended
+        :param link_file: if set to True, the provided source file will be linked to this ensemble, so changes made to this analysis pipeline will apply to all ensembles that source from that file
         """
         if isinstance(src, str):
             if src.endswith(".pickle"):
@@ -65,26 +68,42 @@ class Analyzable(ABC):
 
     def get_analysis_step(self, step: Union[str, AnalysisPipelineStep]) -> AnalysisPipelineStep:
         """
-        Alias for PatchySimulationEnsemble.get_pipeline_step
+        Alias for get_pipeline_step
+        :param step: step to access
+        :return: a step in the analysis pipeline
         """
         return self.get_pipeline_step(step)
 
     def get_pipeline_step(self, step: Union[str, AnalysisPipelineStep]) -> AnalysisPipelineStep:
         """
         Returns a step in the analysis pipeline
+        :param step: step to access
+        :return: a step in the analysis pipeline
         """
         return self.analysis_pipeline.get_pipeline_step(step)
 
     def has_pipeline(self) -> bool:
+        """
+        check if the pipeline has any steps
+        :return: True if the pipeline has any steps, False otherwise
+        """
         return len(self.analysis_pipeline) != 0
 
     def show_analysis_pipeline(self):
+        """
+        Draw the analysis pipeline, by calling draw_pipeline on the analysis pipeline associated with these data
+        :return: a draw.Drawing object showing the steps on the pipeline
+        """
         return self.analysis_pipeline.draw_pipeline()
 
-    def add_analysis_steps(self, *args):
+    def add_analysis_steps(self, *args: Union[AnalysisPipeline]):
         """
-        Adds steps to the analysis pipeline
+        Adds steps to the analysis pipeline. Can pass an existing AnalysisPipeline object or a list of Steps
+        and links. In the latter case, the steps and links are passed in the same args list
+        part of the same args list
+        :param args: steps to add
         """
+        # if we've passed an existing pipeline, use it as a starting point
         if isinstance(args[0], AnalysisPipeline):
             new_steps = args[0]
         else:
@@ -106,6 +125,7 @@ class Analyzable(ABC):
     def link_analysis_pipeline(self, other: Analyzable):
         """
         links this ensembles's analysis pipeline to another ensemble
+        :param other: another set of analyzable data to link with this Analyzable's pipeline
         """
         if len(self.analysis_pipeline) != 0:
             self.get_logger().warning("Error: should not link from existing analysis pipeline! "
@@ -119,7 +139,9 @@ class Analyzable(ABC):
                               step: Union[AnalysisPipelineStep,
                                           str]) -> pd.DataFrame:
         """
-        Returns: a Pandas dataframe showing which analysis data are missing
+        Figure out which data are missing for a given step.
+        :param step: an AnalysisPipelineStep object or string indicating a step in the pipeline
+        :returns: a Pandas dataframe showing which analysis data are missing
         """
         if isinstance(step, str):
             return self.missing_analysis_data(self.analysis_pipeline.name_map[step])
@@ -131,7 +153,11 @@ class Analyzable(ABC):
                        step: AnalysisPipelineStep,
                        time_steps) -> bool:
         """
-        Returns: true if we have data cached for the given simulation and step, false otherwise
+        Checks is data are already loaded for a given subset of the analyziable data and step in the pipeline
+        :param sim: a set of parameters identifying s aubset of the analyzable data
+        :param step: the analysis step we're loading
+        :param time_steps: timesteps to search for data
+        :return: true if we have data cached for the given simulation and step, false otherwise
         """
         return not self.is_nocache() and (step, sim,) in self.analysis_data and self.analysis_data[
             (step, sim)].matches_trange(time_steps)
@@ -140,7 +166,10 @@ class Analyzable(ABC):
                                  sim: ParamSet,
                                  step: AnalysisPipelineStep) -> PipelineData:
         """
-        Returns: cached pipeline data for the given step
+        Load cached data for a subset of the analyzable system.
+        :param sim: subset of the analyzable to load cache for
+        :param step: step for which to load cached data
+        :return: cached pipeline data for the given step
         """
         assert (step, sim) in self.analysis_data, f"No cached data for {sim} step {step}"
         self.get_logger().info("Data already loaded!")
@@ -148,18 +177,33 @@ class Analyzable(ABC):
 
     @abstractmethod
     def analysis_status(self) -> pd.DataFrame:
+        """
+        to be implemented in subclasses
+        :return: the status of the analysis, as a Pandas dataframe
+        """
         pass
 
     @abstractmethod
     def save_pipeline_data(self):
+        """
+        to be implemented in subclasses
+        """
         pass
 
     @abstractmethod
     def get_logger(self) -> logging.Logger:
+        """
+        to be implemented in subclasses
+        :return: a logging.Logger object to which to log stuff
+        """
         pass
 
     @abstractmethod
     def is_nocache(self) -> bool:
+        """
+        to be implemented in subclasses
+        :return: whether we're skipping caching
+        """
         pass
 
     def clear_pipeline(self):
