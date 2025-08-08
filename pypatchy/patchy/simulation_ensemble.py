@@ -66,7 +66,12 @@ LAST_CONTINUE_COUNT_KEY = "continue_count"
 SUBMIT_SLURM_PATTERN = r"Submitted batch job (\d+)"
 
 
-def describe_param_vals(*args) -> str:
+def describe_param_vals(*args: ParameterValue) -> str:
+    """
+    describes parameters
+    :param args: a list of parameter values
+    :return: string desccripton of list of parameters
+    """
     return "_".join([str(v) for v in args])
 
 
@@ -86,13 +91,16 @@ class PyPatchyLogRecord(logging.LogRecord):
 
 def get_descriptor_key(sim: PatchySimDescriptor) -> str:
     """
-    returns a string representing the provided descriptor
+    :return: a string representing the provided descriptor
     """
     return sim if isinstance(sim, str) else str(sim) \
         if isinstance(sim, PatchySimulation) else describe_param_vals(*sim)
 
 
 def list_simulation_ensembles():
+    """
+    lists all simulation ensembles?
+    """
     print("Simulations:")
     sim_paths = [ensemble_dir
                  for ensemble_dir in simulation_run_dir().glob("*_*-*-*")
@@ -112,6 +120,10 @@ def list_simulation_ensembles():
 
 
 def metadata_file_exist(name: str, date: datetime.datetime) -> bool:
+    """
+    tests if metadata exists for a given name and date
+    :return: true if a metadata file exists for the provided ensemble name + date, false otherwise
+    """
     return metadata_file(name, date).exists()
 
 
@@ -128,6 +140,9 @@ def normalize_date(d):
 def find_ensemble(*args: str, **kwargs) -> PatchySimulationEnsemble:
     """
     External method to construct PatchySimulationEnsemble objects. nightmare,
+    :param args: who knows
+    :param kwargs: no seriously, DM me if you know
+    :returns: a patchy simulation ensemble object
     """
 
     if len(args) > 0:
