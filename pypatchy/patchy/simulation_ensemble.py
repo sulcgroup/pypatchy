@@ -889,6 +889,12 @@ class PatchySimulationEnsemble(Analyzable):
         return [stage for stage in self.sim_get_stages(sim) if stage.end_time() >= tstart and stage.start_time() < tend]
 
     def sim_get_stage(self, sim: PatchySimulation, stage_name: Union[str, int]) -> Stage:
+        """
+        Constructs and returns a Stage object for the given simulation corresponding to the given stage
+        :param sim: simulation descriptor
+        :param stage_name: name of a stage
+        :return: a Stage object
+        """
         stages = self.sim_get_stages(sim)
         if isinstance(stage_name, int):
             return stages[stage_name]
@@ -900,8 +906,10 @@ class PatchySimulationEnsemble(Analyzable):
 
     def sim_get_stage_top_traj(self, sim: PatchySimulation, stage: Union[str, int, Stage]) -> tuple[Path, Path]:
         """
-        Returns:
-            the traj and top FILES for provided simulation and stage
+        gets top and traj file paths
+        :param sim: simulation descriptor
+        :param stage: name of a stage
+        :return: the traj and top FILES for provided simulation and stage
         """
         return (
             self.sim_get_stage_top(sim, stage),
@@ -910,19 +918,27 @@ class PatchySimulationEnsemble(Analyzable):
 
     def sim_get_stage_top(self, sim: PatchySimulation, stage: Union[str, int, Stage]) -> Path:
         """
-        Returns a path to the topology file for the given simulation and stage
+        Finds a path to a top file associated with a sim and stage
+        :param sim: simulation descriptor
+        :param stage: name of a stage
+        :return: a path to the topology file for the given simulation and stage
         """
         return self.folder_path(sim, stage) / self.sim_stage_get_param(sim, stage, "topology")
 
-    def sim_get_stage_last_conf(self, sim: PatchySimulation, stage: Union[str, int, Stage]):
+    def sim_get_stage_last_conf(self, sim: PatchySimulation, stage: Union[str, int, Stage]) -> Path:
         """
-        Returns a path to the last_conf file for the given simulation and stage
+        Gets the path to a last conf file for simulation and stage
+        :param sim: simulation descriptor
+        :param stage: name of a stage
+        :return: a path to the last_conf file for the given simulation and stage
         """
         return self.folder_path(sim, stage) / self.sim_stage_get_param(sim, stage, "lastconf_file")
 
     def sim_get_stage_last_step(self, sim: PatchySimulation, stage: Union[str, int, Stage]) -> int:
         """
-
+        :param sim: simulation descriptor
+        :param stage: name of a stage
+        :return: the last step for the given simulation and stage
         """
         lastconf_file = self.sim_get_stage_last_conf(sim, stage)
         if not lastconf_file.is_file():
@@ -939,15 +955,18 @@ class PatchySimulationEnsemble(Analyzable):
         """
         Computes the number of particles in a stage. Includes particles added in this stage and
         all previous stages
+        :param sim: simulation descriptor
+        :param stage: name of a stage
+        :return: the number of particles in the stage
         """
         return sum([s.num_particles_to_add() for s in self.sim_get_stages(sim)[:stage.idx() + 1]])  # incl passed stage
 
     def sim_most_recent_stage(self, sim: PatchySimulation) -> Stage:
         """
-        Returns:
-            a tuple where the first element is the most recent stage file with a trajectory
-            and the second element is true if the last conf in the traj is at the last timepoint of the stage
-            or none if no stage has begun
+        constructs a Stage object for the most recent stage
+        :param sim: simulation descriptor
+        :return: a tuple where the first element is the most recent stage file with a trajectory and the second element
+         is true if the last conf in the traj is at the last timepoint of the stage or none if no stage has begun
         """
         # increment in  reverse order so we check later stages first
         for stage in reversed(self.sim_get_stages(sim)):
@@ -982,7 +1001,9 @@ class PatchySimulationEnsemble(Analyzable):
 
     def sim_num_stages(self, sim: PatchySimulation) -> int:
         """
-        Returns: the number of stages for a provided simulation
+        Gets the number of stages in a simulation
+        :param sim: simulation descriptor
+        :return: the number of stages for a provided simulation
         """
         return len(self.sim_get_stages(sim))
 
@@ -990,6 +1011,8 @@ class PatchySimulationEnsemble(Analyzable):
         """
         Contructs and returns a set of interaction potentials for the given simulation
         Much of this is currently hardcoded because making is more programmatic is not worth my time
+        :param sim: simulation descriptor
+        :returns: a list of patchy potentials
         """
         # todo: include interaction potential spec in server spec
         interaction_potential_names: list[str] = self.sim_get_param(sim, "interaction_potentials")
@@ -1041,7 +1064,10 @@ class PatchySimulationEnsemble(Analyzable):
 
     def sim_stage_done(self, sim: PatchySimulation, stage: Stage) -> bool:
         """
-        similar to get_last_step but returns a boolean: true if stage traj exists and is correct length, false otherwise
+        :param sim: simulation descriptor
+        :param stage: a stage object
+        similar to get_last_step but returns a boolean
+        :return: true if stage traj exists and is correct length, false otherwise
         """
         last_conf_file = self.sim_get_stage_last_conf(sim, stage)
         if not last_conf_file.is_file():
@@ -1052,18 +1078,21 @@ class PatchySimulationEnsemble(Analyzable):
 
     def ensemble(self) -> list[PatchySimulation]:
         """
-        Returns: a list of all simulations in this ensemble
+        :return: a list of all simulations in this ensemble
         """
         return [PatchySimulation(e) for e in itertools.product(*self.ensemble_params)]
 
     def num_ensemble_parameters(self) -> int:
         """
-        Returns:
-            the number of ensemble parameters
+        :return: the number of ensemble parameters
         """
         return len(self.ensemble_params)
 
     def add_params(self, **kwargs):
+        """
+        Adds parameters to the simulation ensemble
+        :param kwargs: key-value args parameters to add
+        """
         for key, value in kwargs.items():
             if isinstance(value, (str, float, bool, int)):
                 self.const_params.append(ParameterValue(key, value))
@@ -1074,14 +1103,16 @@ class PatchySimulationEnsemble(Analyzable):
 
     def tld(self) -> Path:
         """
-        Returns: The top-level directory for simulation files for this ensemble
+        :return: The top-level directory for simulation files for this ensemble
         """
         return simulation_run_dir() / self.long_name()
 
     def folder_path(self, sim: PatchySimulation, stage: Union[Stage, None] = None) -> Path:
         """
-        Returns:
-            the path to the working directory of the given simulation, at the given stage
+        Gets a path to a simulation folder associated with a simulation and stage
+        :param sim: simulation descriptor
+        :param stage: stage object or None
+        :return: the path to the working directory of the given simulation, at the given stage
         """
         if stage is None or stage.idx() == 0:
             return self.tld() / sim.get_folder_path()
@@ -1089,6 +1120,9 @@ class PatchySimulationEnsemble(Analyzable):
             return self.tld() / sim.get_folder_path() / stage.name()
 
     def save_pipeline_data(self):
+        """
+
+        """
         self.dump_metadata()
 
     def time_length(self,
@@ -1097,7 +1131,8 @@ class PatchySimulationEnsemble(Analyzable):
                                None] = None
                     ) -> int:
         """
-        Returns the length of a simulation, in steps
+        :param sim: simulation descriptor or a list thereof
+        :return: the length of a simulation, in steps
         """
 
         if sim is None:
@@ -1192,7 +1227,10 @@ class PatchySimulationEnsemble(Analyzable):
 
     def show_last_conf(self, sim: Union[PatchySimulation, None] = None, **kwargs):
         """
-        Displays the final configuration of a simulation
+        Displays the final configuration of a simulation using OxView
+        TODO: ppview
+        :param sim: a patchy simulation descriptor, or None
+        :param kwargs: key-value pairs to pass to get_simulation
         """
         if len(kwargs) > 0:
             self.sim_get_param(self.get_simulation(**kwargs))
@@ -1208,6 +1246,13 @@ class PatchySimulationEnsemble(Analyzable):
     def get_scene(self, sim: PatchySimulation,
                   stage: Union[Stage, str, None] = None,
                   step: Union[int, None] = None) -> PLPSimulation:
+        """
+        Gets a patchy simulation conf as a patchy simulation object
+        :param sim: patchy simulation descriptor
+        :param stage: stage object or None
+        :param step: step or None
+        :return: a PLPSimulation object
+        """
         if isinstance(stage, str):
             stage = self.sim_get_stage(sim, stage)
         self.writer.set_directory(self.folder_path(sim, stage))
@@ -1259,13 +1304,12 @@ class PatchySimulationEnsemble(Analyzable):
         """
         Checks if a trajectory file is valid by counting the lines
         A valid traj file should have a line count which is a multiple of (number of particles + 3)
-        I sould like to depreacate this method ASAP but right now oat segfaults with no warning when a traj
+        I would like to depreacate this method ASAP but right now oat segfaults with no warning when a traj
         file is corrupted
-        Args:
-            :param sim
-            :param stage
+        :param sim:
+        :param stage:
 
-        Return: True if the traj file is not corrupted, false otherwise
+        :return: True if the traj file is not corrupted, false otherwise
         """
         if stage is None:
             stage = self.sim_get_stages(sim)[0]
@@ -1276,8 +1320,7 @@ class PatchySimulationEnsemble(Analyzable):
     def get_conf(self, sim: PatchySimulation, timepoint: int = -1) -> Configuration:
         """
         do not add a stage parameter!
-        Returns:
-            a Configuration object showing the conf of the given simulation at the given timepoint
+        :return: a Configuration object showing the conf of the given simulation at the given timepoint
         """
         if timepoint == -1:
             timepoint = self.time_length(sim)
@@ -1287,7 +1330,6 @@ class PatchySimulationEnsemble(Analyzable):
             # this means that we're dealing with tidxs not step numbers
             return self.get_conf(sim, int(timepoint / self.sim_get_param(sim, "print_conf_interval")))
         else:
-
             stage = self.sim_get_timepoint_stage(sim, timepoint)
             # it's possible there's a better way to do this
             top_file, traj_file = self.sim_get_stage_top_traj(sim, stage)
@@ -1304,6 +1346,11 @@ class PatchySimulationEnsemble(Analyzable):
             return conf
 
     def show_conf(self, sim: PatchySimulation, timepoint: int):
+        """
+        displays a
+        :param sim: a patchy simulation descriptor
+        :param timepoint: a timepoint index
+        """
         conf = self.get_conf(sim, timepoint)
 
         with tempfile.NamedTemporaryFile(delete=False, suffix=".conf") as temp_conf:
@@ -1327,87 +1374,21 @@ class PatchySimulationEnsemble(Analyzable):
             for sim in self.ensemble()
         }, orient="index")
 
-    def all_folders_exist(self):
+    def all_folders_exist(self) -> bool:
+        """
+        tests if all folders exist
+        :return: true if all folders exist, false otherwise
+        """
         return all(self.folder_path(s).exists() for s in self.ensemble())
-
-    # def dna_analysis(self,
-    #                  observable: Union[str, PatchySimObservable],
-    #                  simulation_selector: Union[None, list[PatchySimulation], PatchySimulation] = None,
-    #                  conf_file_name: Union[None, str] = None):
-    #     """
-    #     Runs the oxDNA utility DNAAnalysis, which allows the program to compute output for
-    #     an observable for t
-    #     """
-    #     if isinstance(observable, str):
-    #         observable = self.observables[observable]
-    #     elif not isinstance(observable, PatchySimObservable):
-    #         print("You definately forgot to put the observable first again. Gonna stop before you do any more damage")
-    #         return
-    #     if simulation_selector is None:
-    #         simulation_selector = self.ensemble()
-    #     if isinstance(simulation_selector, list):
-    #         for sim in simulation_selector:
-    #             self.dna_analysis(observable, sim)
-    #     else:
-    #         if conf_file_name is None:
-    #             conf_file_name = self.sim_get_param(simulation_selector, "trajectory_file")
-    #         self.write_setup_files(simulation_selector,
-    #                                "input_dna_analysis",
-    #                                {
-    #                                    "conf_file": conf_file_name
-    #                                }, analysis=True)
-    #         server_config = get_server_config()
-    #
-    #         # write slurm script
-    #         with open(self.folder_path(simulation_selector) / "dna_analysis.sh", "w+") as slurm_file:
-    #             # bash header
-    #
-    #             self.write_sbatch_params(simulation_selector, slurm_file)
-    #
-    #             # skip confGenerator call because we will invoke it directly later
-    #             slurm_file.write(f"{server_config['oxdna_path']}/build/bin/DNAnalysis input_dna_analysis\n")
-    #
-    #         self.bash_exec(f"chmod u+x {self.folder_path(simulation_selector)}/slurm_script.sh")
-    #         self.start_simulation(simulation_selector,
-    #                               script_name="dna_analysis.sh",
-    #                               job_type="dna_analysis")
-    #         self.dump_metadata()
-
-    # def merge_topologies(self,
-    #                      sim_selector: Union[None, PatchySimulation, list[PatchySimulation]] = None,
-    #                      topologies: Union[list[int], None] = None,
-    #                      out_file_name: Union[str, None] = None):
-    #     """
-    #     Merges some topology files
-    #     """
-    #     if sim_selector is None:
-    #         sim_selector = self.ensemble()
-    #     if isinstance(sim_selector, list):
-    #         for sim in sim_selector:
-    #             self.merge_topologies(sim, topologies, out_file_name)
-    #     else:
-    #         # if no topology file specified
-    #         if topologies is None:
-    #             topologies = [f for f in self.folder_path(sim_selector).iterdir() if
-    #                           re.match(r"trajectory_\d+\.dat", f.name)]
-    #             topologies = sorted(topologies,
-    #                                 key=lambda f: int(re.search(r'trajectory_(\d+)\.dat', f.param_name).group(1)))
-    #         if out_file_name is None:
-    #             out_file_name = self.folder_path(sim_selector) / "full_trajectory.dat"
-    #
-    #         #
-    #         self.bash_exec(f"cat {' '.join(map(str, topologies))} > {str(out_file_name)}")
-
-    def list_folder_files(self, sim: PatchySimulation):
-        print([p.name for p in self.folder_path(sim).iterdir()])
 
     # ----------------------- Setup Methods ----------------------------------- #
     def do_setup(self,
                  sims: Union[list[PatchySimulation], None] = None,
-                 stage: Union[None, str, Stage] = None,
-                 gen_conf: bool = False):
+                 stage: Union[None, str, Stage] = None):
         """
-
+        Performs setup, for the entire ensemble or for specific simulations.
+        :param sims: None, or a list of simulation descriptors, If None, will use self.ensemble()
+        :param stage: None, a stage name string, or a Stage object
         """
 
         # check for mps stuff
@@ -1445,7 +1426,9 @@ class PatchySimulationEnsemble(Analyzable):
                           sim: PatchySimulation,
                           stage: Union[str, Stage, None] = None):
         """
-        Writes any/all nessecary files
+        Writes any/all nessecary files for a simulation
+        :param sim: A simulation descriptor
+        :param stage: a stage object, or None
         """
         if stage is None:
             try:
@@ -1467,13 +1450,6 @@ class PatchySimulationEnsemble(Analyzable):
 
         elif isinstance(stage, str):
             stage = self.sim_get_stage(sim, stage)
-
-        # if extras is None:
-        #     extras = {}
-        #
-        # # get server config
-        # if replacer_dict is None:
-        #     replacer_dict = {}
 
         # if this is the first conf
         if stage.idx() == 0:
@@ -1573,6 +1549,7 @@ class PatchySimulationEnsemble(Analyzable):
     def run_simulation(self, sim: PatchySimulation):
         """
         Runs a patchy simulation using oxpy
+        :param sim: simulation descriptor
         """
         stage = self.sim_most_recent_stage(sim)
         with oxpy.Context():
@@ -1621,74 +1598,13 @@ class PatchySimulationEnsemble(Analyzable):
                     print("Warning: Simulation directory already exists!")
         print(f"Exported to {str(write_path)}, everything - or something at least - went ok")
 
-    # DEPRECATED
-    def write_input_file(self,
-                         sim: PatchySimulation,
-                         stage: Stage,
-                         replacer_dict: [str, str],
-                         extras: [str, str],
-                         analysis: bool = False):
-        # honestly think this is everything lmao
-        # input_file = self.input_file(sim, stage, replacer_dict, extras, analysis)
-        # TODO: include checks for input file params
-        with open(self.folder_path(sim, stage) / "input", 'w+') as inputfile:
-            # write server config spec
-            for key in self.server_settings.input_file_params.var_names():
-                if key in replacer_dict:
-                    val = replacer_dict[key]
-                else:
-                    val = self.sim_stage_get_param(sim, stage, key)
-                    # val = self.server_settings.input_file_params[key]
-                inputfile.write(f"{key} = {val}\n")
 
-            # newline
-            inputfile.write("\n")
-
-            # loop parameters in group
-            for paramname in self.default_param_set.var_names():
-                # if we've specified this param in a replacer dict
-                if paramname in replacer_dict:
-                    val = replacer_dict[paramname]
-                # if no override
-                elif paramname not in sim and paramname not in self.const_params:
-                    val = self.default_param_set[paramname]
-                else:
-                    val = self.sim_get_param(sim, paramname)
-                # check paths are absolute if applicable
-                if self.server_settings.absolute_paths:
-                    # approximation for "is this a file?"
-                    if isinstance(val, str) and re.search(r'\.\w+$', val) is not None:
-                        # if path isn't absolute
-                        if not Path(val).is_absolute():
-                            # prepend folder path
-                            val = str(self.folder_path(sim) / val)
-                inputfile.write(f"{paramname} = {val}\n")
-
-            # write extras
-            for key, val in extras.items():
-                if key in replacer_dict:
-                    val = replacer_dict[key]
-                inputfile.write(f"{key} = {val}\n")
-
-            # write more parameters
-
-            inputfile.write(f"T = {self.sim_stage_get_param(sim, stage, 'T')}" + "\n")
-            try:
-                inputfile.write(f"narrow_type = {self.sim_get_param(sim, 'narrow_type')}" + "\n")
-            except NoSuchParamError as e:
-                self.get_logger().info(f"No narrow type specified for simulation {sim}.")
-
-            # write external observables file path
-            if len(self.observables) > 0:
-                assert not self.server_settings.absolute_paths, "Absolute file paths aren't currently compatible with observiables!" \
-                                                                " Get on it Josh!!!"
-                if EXTERNAL_OBSERVABLES:
-                    inputfile.write(f"observables_file = observables.json" + "\n")
-                else:
-                    for i, obsrv in enumerate(self.observables.values()):
-                        obsrv.write_input(inputfile, i, stage, analysis)
-
-    def write_sim_observables(self, sim: PatchySimulation, rel_paths: bool = True):
+    def write_sim_observables(self, sim: PatchySimulation):
+        """
+        DEPRECATED
+        write observables for a simulation in an observables.json file
+        todo: use ipy_oxdna methods
+        """
         if len(self.observables) > 0:
             with open(self.folder_path(sim) / "observables.json", "w+") as f:
                 json.dump({f"data_output_{i + 1}": obs.to_dict() for i, obs in enumerate(self.observables.values())}, f)
@@ -1718,6 +1634,11 @@ class PatchySimulationEnsemble(Analyzable):
             return self.sim_get_stages(sim)[0]  # first stage
 
     def ipy(self, sim: PatchySimulation, stage: Union[Stage, None] = None) -> Simulation:
+        """
+        :param sim: simulation descriptor
+        :param stage: stage object or None
+        :return: an ipy_oxdna simulation object for a simulation
+        """
         if stage is None:
             stage = self.sim_get_next_stage(sim)
         if self.sim_num_stages(sim) == 1 or stage.idx() == 0:
@@ -1736,9 +1657,10 @@ class PatchySimulationEnsemble(Analyzable):
                           e: Union[None, list[PatchySimulation]] = None,
                           stage: Union[str, None] = None):
         """
+        :param e: None or a list of simulation descriptor
+        :param stage: stage object or None
         Starts simulations
         If no simulation param is specificed will start all
-
         """
         if e is None:
             e = self.ensemble()
@@ -1777,6 +1699,9 @@ class PatchySimulationEnsemble(Analyzable):
     def is_setup_done(self, sims: list[PatchySimulation], stage: Union[None, str, Stage]) -> bool:
         """
         tests if setup is complete for the given simulations and stages
+        :param sims: list of patchy simulation descriptors
+        :param stage: None, a Stage object, or a stage name
+        :return: true if all the sims have the files required to run, false otherwise
         """
         # loop sims
         for sim in sims:
@@ -1809,6 +1734,12 @@ class PatchySimulationEnsemble(Analyzable):
         return True
 
     def ok_to_run(self, sim: PatchySimulation, stage: Stage) -> bool:
+        """
+        tests if a simulation is ready to run
+        :param sim: simulation identifier
+        :param stage: Stage object
+        :return: true if the simulation (and stage) is ready to run, false otherwise
+        """
         try:
             most_recent_stage = self.sim_most_recent_stage(sim)
             if most_recent_stage.idx() >= stage.idx():
@@ -1866,6 +1797,8 @@ class PatchySimulationEnsemble(Analyzable):
     def check_stage(self, sim: PatchySimulation) -> Stage:
         """
         Checks staging status of this simulation
+        :param sim: simulation identifier
+        :return: a Stage object
         """
         # if no stage name provided use first stage
         try:
@@ -1895,9 +1828,15 @@ class PatchySimulationEnsemble(Analyzable):
         oxpy.run for backwards compatibility with oxDNA_torsion, which isn't compatible with oxpy
         because oxDNA versions are a horrible nightmare world
 
-        Parameters:
-             sim : simulation to start
-             script_name : the name of the slurm script file
+        todo: clean this up
+
+        :param sim: simulation to start
+        :param script_name: the name of the slurm script file, why would this be something other than the default?
+        :param stage_name: name of stage to start, or None to find a default one
+        :param is_analysis: false
+        :param force_ignore_ok_check: skip checking if the simulation is okay to run
+        :param retries: number of times to retry submitting the slurm script
+        :param backoff_factor: factor to increase time between job submissions, to avoid antagonizing the Slurm-Demon
         """
 
         if stage_name is not None:
@@ -1978,14 +1917,25 @@ class PatchySimulationEnsemble(Analyzable):
     # ------------- ANALYSIS FUNCTIONS --------------------- #
 
     def has_data_file(self, step: PipelineStepDescriptor, sim: PatchySimDescriptor) -> bool:
-        return self.get_cache_file(step, sim).exists()
+        """
+        Test if there's a cache file for the given analysis step and patchy simulation
+        :param sim: simulation identifier
+        :param step: analysis pipeline step descriptor
+        :return: true if a cache file exists for this simulation and step, false otherwise
+        """
+        return self._get_cache_file(step, sim).exists()
 
-    def param_value_valid(self, pv: ParameterValue):
+    def param_value_valid(self, pv: ParameterValue) -> bool:
+        """
+        tests if a parameter value exists in ensemble params
+        :param pv: parameter value
+        :return: true if the ParameterValue exists in any of the ensemble parameters
+        """
         return any([pv in ep for ep in self.ensemble_params])
 
     def is_multiselect(self, selector: PatchySimDescriptor, exceptions: tuple[EnsembleParameter, ...] = ()) -> bool:
         """
-        Returns true if the provided selector will match multiple PatchySimulation objects, false otherwise
+        :return: true if the provided selector will match multiple PatchySimulation objects, false otherwise
         """
         if isinstance(selector, PatchySimulation):
             return False
@@ -2007,16 +1957,14 @@ class PatchySimulationEnsemble(Analyzable):
                  sim: Union[PatchySimDescriptor, None] = None,
                  time_steps: Union[range, None, int] = None) -> Union[PipelineData, list[PipelineData]]:
         """
-        horrific monster of a class method
-        Returns data for a step, doing any/all required calculations
-        Parameters:
-            :param step an analysis step
-            :param sim a patchy simulation object, descriptor of a PatchySimulation object,
-            list of PatchySimulation object, or tuple of ParameterValues that indicates a PatchySimulation
-            object
-            It's VERY important to note that the list and tuple options have DIFFERENT behaviors!!!
-            :param time_steps a range of timesteps to get data at. if None, the steps
-            will be calculated automatically
+        horrific monster of a class method. Acquires data for a step in the analysis pipeline, doing any/all required calculations
+        :param step: an analysis step
+        :param sim" a patchy simulation object, descriptor of a PatchySimulation object, list of PatchySimulation
+        object, or tuple of ParameterValues that indicates a PatchySimulation object It's VERY important to note that
+        the list and tuple options have DIFFERENT behaviors!!!
+        :param time_steps: a range of timesteps to get data at. if None, the steps will be calculated automatically
+        :return: data for a step in the analysis pipeline and a simulation, at the given time range
+
         """
         if type(time_steps) == int:
             time_steps = range(0, 2 * time_steps, time_steps)  # 0, time_step
@@ -2090,7 +2038,7 @@ class PatchySimulationEnsemble(Analyzable):
         if not self.analysis_pipeline.is_force_recompute(step) and self.has_data_file(step, sim):
             self.get_logger().info(
                 f"Cache file for simulation {get_descriptor_key(sim)} and step {step} exists! Loading...")
-            cache_file_path = self.get_cache_file(step, sim)
+            cache_file_path = self._get_cache_file(step, sim)
             cached_data = step.load_cached_files(cache_file_path)
             # if we already have the data needed for the required time range
             if cached_data.matches_trange(time_steps):
@@ -2105,7 +2053,7 @@ class PatchySimulationEnsemble(Analyzable):
         try:
             # compute data for previous steps
             self.get_logger().info(f"Computing data for step {step.name} for simulation {str(sim)}...")
-            data_in = self.get_step_input_data(step, sim, time_steps)
+            data_in = self._get_step_input_data(step, sim, time_steps)
         finally:
             if self.is_do_analysis_parallel():
                 lock.release()
@@ -2116,11 +2064,11 @@ class PatchySimulationEnsemble(Analyzable):
         if self.is_do_analysis_parallel():
             lock.acquire()
         try:
-            self.get_logger().info(f"Caching data in file `{self.get_cache_file(step, sim)}`")
+            self.get_logger().info(f"Caching data in file `{self._get_cache_file(step, sim)}`")
             if isinstance(sim, tuple):
                 assert not self.is_multiselect(sim)
                 sim = self.get_simulation(*sim)
-            step.cache_data(data, self.get_cache_file(step, sim))
+            step.cache_data(data, self._get_cache_file(step, sim))
         finally:
             if self.is_do_analysis_parallel():
                 lock.release()
@@ -2132,6 +2080,12 @@ class PatchySimulationEnsemble(Analyzable):
                                sim: PatchySimDescriptor,
                                step: AnalysisPipelineStep,
                                time_steps) -> PDPipelineData:
+        """
+        gets analysis step data for a multi-simulation selector
+        :param sim: patchy simulation identifier
+        :param step: an analysis pipeline step
+        :param time_steps: timepoints in the simulation for which to get data
+        """
         # if the simulation selector provided doesn't line up with the aggregation params
         # (or the step isn't an aggregation step), this method will return a grouping of results. somehow.
         simulations_list: list[PatchySimulation] = self.get_simulation(*sim)
@@ -2153,10 +2107,10 @@ class PatchySimulationEnsemble(Analyzable):
         else:
             raise Exception("Attempting to merge non-mergable data type")
 
-    def get_step_input_data(self,
-                            step: PipelineStepDescriptor,
-                            sim: PatchySimDescriptor,
-                            time_steps: range) -> Union[list[PipelineData],
+    def _get_step_input_data(self,
+                             step: PipelineStepDescriptor,
+                             sim: PatchySimDescriptor,
+                             time_steps: range) -> Union[list[PipelineData],
                                                         list[Union[
                                                             PatchySimulationEnsemble,
                                                             PatchySimulation,
@@ -2202,18 +2156,16 @@ class PatchySimulationEnsemble(Analyzable):
                 for prev_step in self.analysis_pipeline.steps_before(step)
             ]
 
-    def get_cache_file(self,
-                       step: PipelineStepDescriptor,
-                       sim: Union[tuple[ParameterValue, ...], PatchySimulation]) -> Path:
+    def _get_cache_file(self,
+                        step: PipelineStepDescriptor,
+                        sim: Union[tuple[ParameterValue, ...], PatchySimulation]) -> Path:
         """
         Retrieves a path to a file of analysis cache data for the given analysis step and
         simulation descriptor
 
-        Parameters:
-             step : an AnalysisPipelineStep object or an int indxer for such an object
-             sim : either a PatchySimulation object or a tuple of ParameterValue objects specifying
-             a set of PatchySimulation objects
-        Return: a path to a data file
+        :param step : an AnalysisPipelineStep object or an int indxer for such an object
+        :param sim : either a PatchySimulation object or a tuple of ParameterValue objects specifying a set of PatchySimulation objects
+        :return: a path to a data file
         """
         # get step object if it was passed as an index
         step = self.get_pipeline_step(step)
@@ -2233,7 +2185,7 @@ class PatchySimulationEnsemble(Analyzable):
         else:
             return self.ensemble()
 
-    def slurm_job_info(self, jobid: int = -1, ignore_cache=False, retries=3, backoff_factor=2) -> Union[dict, None]:
+    def slurm_job_info(self, jobid: int = -1, retries=3, backoff_factor=2) -> Union[dict, None]:
         if jobid == -1:
             retr_id = os.environ.get("SLURM_JOB_ID")
             assert retr_id is not None
@@ -2253,9 +2205,12 @@ class PatchySimulationEnsemble(Analyzable):
 
         return None
 
-    def bash_exec(self, command: str, is_async=False, cwd=None):
+    def bash_exec(self, command: str, is_async=False, cwd: Union[None, str]=None):
         """
         Executes a bash command and returns the output
+        :param command: a string to run with subprocess
+        :param is_async: whether to run the command asynchrously
+        :param cwd: directory to change to before running the command, or None to not change the directory
         """
         if not is_async:
             response = subprocess.run(command,
@@ -2274,18 +2229,6 @@ class PatchySimulationEnsemble(Analyzable):
                 return stage
         return None  # raise exception?
 
-    def read_energies(ensemble: PatchySimulationEnsemble) -> pd.DataFrame:
-        energy_data_frames = []
-        for sim in ensemble.ensemble():
-            energy_file: Path = ensemble.paramfile(sim, "energy_file")
-            sim_energies = pd.read_csv(energy_file, delim_whitespace=True, header=None,
-                                       names=["t", "pe", "ke", "te"])
-            for param in sim:
-                sim_energies[param.param_name] = param.value_name()
-            energy_data_frames.append(sim_energies)
-        df = pd.concat(energy_data_frames)
-        return df
-
 
 def process_simulation_data(args: tuple[PatchySimulationEnsemble, AnalysisPipelineStep, PatchySimulation, range]):
     ensemble, step, s, time_steps = args
@@ -2295,10 +2238,10 @@ def process_simulation_data(args: tuple[PatchySimulationEnsemble, AnalysisPipeli
 def shared_ensemble(es: list[PatchySimulationEnsemble],
                     ignores: set = set()) -> Union[list[list[PatchySimulation]], None]:
     """
+    TODO: unit test
     Computes the simulation specs that are shared between the provided ensembles
-    Args:
-        es: a list of simulation ensembles
-        ignores: a set of const parameter names to ignore when constructing simulation overlap
+    :param es: a list of simulation ensembles
+    :param ignores: a set of const parameter names to ignore when constructing simulation overlap
     Returns:
     """
 
