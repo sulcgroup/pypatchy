@@ -69,23 +69,27 @@ def encode_mdt_settings(mdt_settings: MultidentateConvertSettings) -> dict[str, 
 
 class PLJSONEncoder(json.JSONEncoder):
     def default(self, obj: Any) -> Union[dict, list, float, int, bool, str]:
+        # numpy stuff
         if isinstance(obj, np.ndarray):
             return obj.tolist()
-        if isinstance(obj, (np.int32, np.int64)):
+        elif isinstance(obj, (np.int32, np.int64)):
             return int(obj)
-        if isinstance(obj, (np.float32, np.float64)):
+        elif isinstance(obj, (np.float32, np.float64)):
             return float(obj)
-        if isinstance(obj, set):
+
+        # other stuff
+        elif isinstance(obj, set):
             return list(obj)
-        if isinstance(obj, PLPatch):
+        elif isinstance(obj, PLPatch):
             encode_patch(obj)
-        if isinstance(obj, PLPatchyParticle):
+        elif isinstance(obj, PLPatchyParticle):
             return encode_particle_type(obj)
-        if isinstance(obj, PLParticleSet):
+        elif isinstance(obj, PLParticleSet):
             return encode_particle_set(obj)
-        if isinstance(obj, PLSourceMap):
+        elif isinstance(obj, PLSourceMap):
             return encode_src_map(obj)
-        if isinstance(obj, MultidentateConvertSettings):
+        elif isinstance(obj, MultidentateConvertSettings):
             return encode_mdt_settings(obj)
-        return json.JSONEncoder.default(self, obj)
+        else:
+            return json.JSONEncoder.default(self, obj)
 

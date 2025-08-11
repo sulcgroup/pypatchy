@@ -385,7 +385,7 @@ POLYCUBE_NULL_A3: np.ndarray = np.array([
 
 def load_pl_particles(**kwargs) -> PLParticleSet:
     """
-    loads a particle sets from a dict, format negotiable\
+    loads a particle sets from a dict, format negotiable
     todo: write unit tests
     """
     try:

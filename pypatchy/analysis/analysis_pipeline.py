@@ -25,6 +25,9 @@ class AnalysisPipeline:
     name_map: dict[str: AnalysisPipelineStep]
 
     def __init__(self, *args: Union[AnalysisPipelineStep, tuple[str, str]]):
+        """
+        Flexable pipeline for an analysis pipeline.
+        """
         # assert all([isinstance(s, AnalysisPipelineStep) for s in args]), "Invalid arguement passed to pipeline constructor!"
         # construct new directed graph for the pipeline
         self.pipeline_graph: nx.DiGraph = nx.DiGraph()
@@ -55,9 +58,8 @@ class AnalysisPipeline:
         """
         Adds a pipe from one node to another node
 
-        Args:
-            first: the origin of the pipe. this analysis step will provide data to the second node
-            second: the destination of the pipe. this step will recieve data from the first node
+        :param first: the origin of the pipe. this analysis step will provide data to the second node
+        :param second: the destination of the pipe. this step will recieve data from the first node
 
         """
         self.pipeline_graph.add_edge(first.name, second.name)
@@ -68,8 +70,7 @@ class AnalysisPipeline:
 
     def num_pipeline_steps(self) -> int:
         """
-        Returns:
-             the total number of analysis steps in this pipeline.
+        :return: the total number of analysis steps in this pipeline.
         """
         return len(self.name_map)
 
@@ -77,9 +78,10 @@ class AnalysisPipeline:
                  newStep: AnalysisPipelineStep) -> AnalysisPipelineStep:
         """
         Adds a step to the analysis pipeline.
-        Args:
-            origin_step: an existing step in the pipeline that serves as a data source for the new step, or None if the new step is a head node
-            newStep: new step to add to the pipeline
+
+        :param origin_step: an existing step in the pipeline that serves as a data source for the new step, or None if the new step is a head node
+        :param newStep: new step to add to the pipeline
+        :return: the new step we just added to the pipeline
         """
         if origin_step is not None:
             assert origin_step.name in self.name_map
@@ -99,11 +101,8 @@ class AnalysisPipeline:
         Method mainly for standardizing object types. If provided with an AnalysisPipelineStep object, it
         will just return the object. if provided with a string it will return the step in the pipeline with the provided name
 
-        Args:
-            step: identifier for step being gotten
-
-        Returns:
-              an analysis pipeline step
+        :param step: identifier for step being gotten
+        :return: an analysis pipeline step
         """
         assert isinstance(step, AnalysisPipelineStep) or step in self.name_map, \
             f"Pipeline has no step called {step}. Pipeline steps: {', '.join(self.name_map.keys())}"
@@ -111,10 +110,8 @@ class AnalysisPipeline:
 
     def steps_before(self, step: AnalysisPipelineStep) -> list[AnalysisPipelineStep]:
         """
-        Args:
-            step: an analyis pipeline step to get directly preceding steps for
-        Returns:
-            a list of steps that provide data to the step passed
+        :param step: an analyis pipeline step to get directly preceding steps for
+        :return: a list of steps that provide data to the step passed
         """
         # if the pipeline data is expected to be in raw form
         assert not isinstance(step, AnalysisPipelineHead)
@@ -122,8 +119,7 @@ class AnalysisPipeline:
 
     def ancestors(self, step: AnalysisPipelineStep) -> list[AnalysisPipelineStep]:
         """
-        Returns:
-            a list of steps that provide data - perhaps through intermediaries - to the passed step
+        Returns: a list of steps that provide data - perhaps through intermediaries - to the passed step
         """
         return [self.name_map[n] for n in nx.ancestors(self.pipeline_graph, step.name)]
 
@@ -142,7 +138,7 @@ class AnalysisPipeline:
 
     def head_nodes(self) -> list[AnalysisPipelineHead]:
         """
-        Returns:
+        :return:
             a list of steps in the pipeline that don't recieve data from other steps
         """
         return [self.name_map[n] for n in self.pipeline_graph.nodes
@@ -150,21 +146,21 @@ class AnalysisPipeline:
 
     def num_distinct_pipelines(self) -> int:
         """
-        Returns:
-            the number of connected components of the overall analysis graph
+        :return: the number of connected components of the overall analysis graph
         """
         return len([n for n in self.get_distinct_pipelines()])
 
     def get_distinct_pipelines(self) -> Generator[nx.DiGraph]:
         """
-        Returns:
-            generator for connected components of the pipeline graph
+        :return: generator for connected components of the pipeline graph
         """
         return nx.weakly_connected_components(self.pipeline_graph)
 
     def extend(self, newSteps: list[AnalysisPipelineStep], newPipes: list[tuple[str, str]]) -> AnalysisPipeline:
         """
         Extends the analysis pipeline by adding the new steps and pipes within
+        :param newSteps: a list of AnalysisPipelineSteps to add to the pipeline
+        :param newPipes: a list of new pipes (between analysis steps) expressed as pairs of step names
         """
         stepqueue = [*newSteps]
         edgeset = [*newPipes]
@@ -207,6 +203,17 @@ class AnalysisPipeline:
                         new_val: int = 0,
                         factor: float = 0,
                         visited_nodes: Union[set[str], None] = None):
+        """
+        Recursively sets the input timestep of a node. Can provide either a flat integer `new_val` or a floating point
+         modifier`factor`.
+        :param step: step in the analysis pipeline at which to set the analysis timestep, can be a name of a step or
+        an AnalysisPipelineStep object
+        :param propegate_back: whether to propegate the new step input timestep backwards in the pipeline
+        :param propegate_fwd: whether to propegate the new step input timestep forwards in the pipeline
+        :param new_val: a new flat input timestep interval value
+        :param factor: a factor by which to modify the input timestep value
+        :param visited_nodes: a set of nodes visited in search, for purposes of recursive search
+        """
         if visited_nodes is None:
             visited_nodes = set()
         if isinstance(step, str):
@@ -243,6 +250,17 @@ class AnalysisPipeline:
                          new_val: int = 0,
                          factor: float = 0,
                          visited_nodes: Union[set[str], None] = None):
+        """
+        Recursively sets the output timestep of a node. Can provide either a flat integer `new_val` or a floating point
+         modifier`factor`.
+        :param step: step in the analysis pipeline at which to set the analysis timestep, can be a name of a step or
+        an AnalysisPipelineStep object
+        :param propegate_back: whether to propegate the new step output timestep backwards in the pipeline
+        :param propegate_fwd: whether to propegate the new step output timestep forwards in the pipeline
+        :param new_val: a new flat output timestep interval value
+        :param factor: a factor by which to modify the output timestep value
+        :param visited_nodes: a set of nodes visited in search, for purposes of recursive search
+        """
         if visited_nodes is None:
             visited_nodes = set()
         if isinstance(step, str):
@@ -308,7 +326,7 @@ class AnalysisPipeline:
                        other_start_node: AnalysisPipelineStep,
                        other_prev_node: Union[AnalysisPipelineStep, None] = None):
         """
-        Recursively joins two pipelines using an algorithm i am franly not awake enough right now to explain
+        Recursively joins two pipelines using an algorithm i am frankly not awake enough right now to explain
         """
         new_node = self.add_step(other_prev_node, copy.deepcopy(other_start_node))
         pipes = list(other_graph.pipeline_graph.successors(other_start_node.name))
@@ -325,13 +343,8 @@ class AnalysisPipeline:
     def __add__(self, other: AnalysisPipeline) -> AnalysisPipeline:
         """
         Joins this pipeline and the other pipeline and returns the merged pipelines
-
-        Args:
-            other: another analyiss pipeline
-
-        Returns:
-            the analyis pipeline formed by joining self and other pipeline
-
+        :param other: another analyiss pipeline
+        :returns: the analyis pipeline formed by joining self and other pipeline
         """
         new_pipeline = copy.deepcopy(self)
         # add nodes recursively from head
@@ -342,7 +355,12 @@ class AnalysisPipeline:
         assert len(list(nx.simple_cycles(new_pipeline.pipeline_graph))) == 0, "Analysis pipeline is cyclic"
         return new_pipeline
 
-    def __contains__(self, key: Union[str, AnalysisPipelineStep, AnalysisPipeline]):
+    def __contains__(self, key: Union[str, AnalysisPipelineStep, AnalysisPipeline]) -> bool:
+        """
+        :param key: the name of a step in the pipeline, an AnalysisPipelineStep, or an entire pipeline which
+        will be checked for being a subpipeline(?)
+        :return: True if the key is in the pipeline, False otherwise
+        """
         if isinstance(key, AnalysisPipelineStep):
             return key.name in self
         elif isinstance(key, AnalysisPipeline):
@@ -397,22 +415,27 @@ class AnalysisPipeline:
 
     def step_exists(self, step_name: str) -> bool:
         """
-        Args:
-            step_name: a name to test for is in pipeline
-        Returns:
-            True if the analysis pipeline contains a step with the provided name, false otherwise
+        :param step_name: a name to test for is in pipeline
+        :return: True if the analysis pipeline contains a step with the provided name, false otherwise
         """
         return step_name in self.name_map
 
     def __str__(self):
+        """
+        :return: quick string descripton of the pipeline
+        """
         return f"Analysis pipeline with {self.num_pipes()} pipes and {len(self)} steps."
 
     def num_pipes(self) -> int:
+        """
+        :return: the number of links connecting steps in the analysis pipeline
+        """
         return len(self.pipeline_graph.edges)
 
     def draw_pipeline(self, scale=120) -> draw.Drawing:
         """
-
+        Visually draws the analysis pipeline
+        :return: a draw.Drawing object visualizing the analysis pipeline
         """
         dw = scale * self.num_pipeline_steps()
         dh = scale * .6 * self.num_pipeline_steps()

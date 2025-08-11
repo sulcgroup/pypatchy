@@ -42,6 +42,9 @@ class DNAParticle (DNAStructure):
         """
         Constructs an object to facilitate conversion of patchy particle to DNA origami
         in a multicomponent structure
+        :param structure: a DNA structure
+        :param patches: a list of strand IDs in the structure which can be assigned to patches on a patchy particle
+        :param patchy_particle: a patchy particle that will correspond to the DNA structure
         """
         DNAStructure.__init__(self, structure.strands, structure.time, structure.box, structure.energy)
         assert all([all([-1 < sid < len(self.strands) for sid in patch])
@@ -77,19 +80,28 @@ class DNAParticle (DNAStructure):
     #     return cpy
 
     def linked_particle(self) -> PatchyBaseParticle:
+        """
+        :return: the patchy particle corresponding to this DNA particle
+        """
         return self.linked_particle
 
     def has_linked(self) -> bool:
+        """
+        :return: true if this DNA particle is linked to a patchy particle
+        """
         return self.linked_particle is not None
 
     def has_strand_map(self) -> bool:
         """
-        Returns True if the strands have already been mapped to patches
+        :returns: True if the strands have already been mapped to patches
         This can be done manually or automatically by match_patches_to_strands
         """
         return self.patch_strand_map is not None
 
     def assign_patches_strands(self, strand_map: dict) -> bool:
+        """
+        :param strand_map:
+        """
         if self.patch_strand_map is None:
             self.patch_strand_map = strand_map
             return False
@@ -125,6 +137,7 @@ class DNAParticle (DNAStructure):
     def patch_strand_id(self, patch: Union[int, PLPatch]) -> int:
         """
         Returns the DNA strand that corresponds to the provided patch
+        :param patch: the patch
         """
         if not self.has_linked():
             raise Exception("Cannot get matching DNA strand from patch if no linked particle")

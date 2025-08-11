@@ -11,6 +11,32 @@ PARTICLE_TYPES_KEY = "particle_types"
 MDT_CONVERT_KEY = "mdt_convert"
 STAGES_KEY = "staging"
 
+class InvalidParameterError(BaseException):
+    _param_name: str
+    _param_value: Any
+    _custom_msg: str
+
+    def __init__(self, param_name: str, param_value: Any, custom: Union[str, None] = None):
+        """
+        :param param_name: name of param with invalid value
+        :param param_value: value of param with invalid value. given the nature of this exception this won't
+        always be stringifyable
+        """
+        self._param_name = param_name
+        self._param_value = param_value
+
+    def msg(self) -> str:
+        return f"Parameter {self._param_name} has invalid value {self._param_value}. Value type is {type(self._param_value)}"
+
+    def __str__(self):
+        return self.msg() + self._custom_msg if self._custom_msg else self.msg()
+
+class InvalidParameterTypeError(InvalidParameterError, TypeError):
+    def __init__(self, param_name: str, param_value: Any, custom: Union[str, None] = None):
+        InvalidParameterError.__init__(param_name, param_value, custom)
+
+    def msg(self):
+        return f"Parameter {self._param_name} has invalid value type {type(self._param_value)}. Value is {self._param_value}"
 
 @dataclass
 class ParameterValue:
@@ -25,7 +51,8 @@ class ParameterValue:
     param_value: Union[str, bool, float, int] = field()  # only basic types allowed here
 
     def __post_init__(self):
-        assert not isinstance(self.param_value, ParameterValue)
+        if isinstance(self.param_value, ParameterValue):
+            raise InvalidParameterError(self.param_name, self.param_value, True)
 
     def value_name(self):
         return str(self.param_value)
@@ -166,7 +193,7 @@ class MDTConvertParams(ParameterValue):
     def __init__(self, cvt_settings: MultidentateConvertSettings, convert_params_name: str = MDT_CONVERT_KEY):
         ParameterValue.__init__(self, MDT_CONVERT_KEY, cvt_settings)
         if not isinstance(cvt_settings, MultidentateConvertSettings):
-            raise TypeError(f"Invalid multidentate convert settings object type {type(cvt_settings)}")
+            raise InvalidParameterTypeError(f"Invalid multidentate convert settings object type {type(cvt_settings)}")
         self.convert_params_name = convert_params_name
 
     def value_name(self) -> str:
@@ -257,7 +284,8 @@ class StageInfoParam(Mapping):
             #         raise TypeError(f"Invalid 'add_method' provided: {kwargs['add_method']}")
             # require type specification
             else:
-                assert type(add_method) == dict
+                if not isinstance(add_method, dict):
+                    raise InvalidParameterTypeError("add_method", add_method)
                 if "type" not in add_method:
                     self.add_method = RandParticleAdder(**kwargs["add_method"])
                     # change in behavior: if add method type is not specified, assume random
@@ -272,10 +300,6 @@ class StageInfoParam(Mapping):
                         self.add_method = FromPolycubeAdder(**kwargs["add_method"])
                     elif add_type == "patchy":
                         raise Exception("Not implemented yet")
-                    elif add_type == "fix":
-                        # add particles and fix them in place
-                        raise Exception("Not only is this not implemented yet I'm not even fully sure what it's"
-                                        "supposed to be")
                     else:
                         raise TypeError(f"Invalid 'add_method' provided: {kwargs['add_method']}")
         else:

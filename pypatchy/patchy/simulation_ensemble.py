@@ -59,6 +59,7 @@ OBSERABLES_KEY = "observables"
 PARTICLE_TYPE_LVLS_KEY = "particle_type_levels"
 NUM_ASSEMBLIES_KEY = "num_assemblies"
 DENSITY_KEY = "density"
+ENSEMBLE_SETUP_DATE = "setup_date"
 
 METADATA_FILE_KEY = "sim_metadata_file"
 LAST_CONTINUE_COUNT_KEY = "continue_count"
@@ -136,6 +137,31 @@ def metadata_file(name: str, date: datetime.datetime) -> Path:
 def normalize_date(d):
     return d if isinstance(d, datetime.datetime) else datetime.datetime.strptime(d, "%Y-%m-%d")
 
+class MissingEnembleSetupInfoError(BaseException):
+    """
+    custom exception for trying to construct a simulation ensemble without a required setup value (e.g. name, date)
+    Note that this is distinct from issues with simulation parameters, which are handled by MissingSimParamError
+    """
+
+    __missing_info_key: str
+
+    def __init__(self, missing_info_key: str):
+        self.__missing_info_key = missing_info_key
+
+    def __str__(self):
+        return f"Missing ensemble setup key {self.__missing_info_key}"
+
+class MissingSimParamError(BaseException):
+    """
+    Exception for missing simulation parameters (e.g. temperature, particle types, etc.
+    """
+    __missing_param_name: str
+
+    def __init__(self, missing_name: str):
+        self.__missing_param_name = missing_name
+
+    def __str__(self):
+        return f"Missing parameter {self.__missing_param_name}"
 
 def find_ensemble(*args: str, **kwargs) -> PatchySimulationEnsemble:
     """
@@ -228,7 +254,7 @@ def find_ensemble(*args: str, **kwargs) -> PatchySimulationEnsemble:
             # assume - incorrectly - that the user knows what they're doing
             metadata_file_path = get_input_dir() / metadata_file_name
             if not metadata_file_path.is_file():
-                raise Exception(
+                raise FileNotFoundError(
                     f"No metadata file at for simulation {metadata_file_name}")
             with metadata_file_path.open("r") as mdt_file:
                 mdt = json.load(mdt_file)
@@ -254,10 +280,24 @@ def find_ensemble(*args: str, **kwargs) -> PatchySimulationEnsemble:
 
 def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
                    mdtfile: Union[Path, None] = None) -> PatchySimulationEnsemble:
+    """
+    External patchy simulation constructor
+    :param cfg: a key-value dict
+    :param mdt: a metadata dict
+    :param mdtfile: a path to a file for metadata
+    :return: a PatchySimulationEnsemble object
+    """
+
+    # check for required keys
+    if ENSEMBLE_SETUP_DATE not in mdt:
+        raise MissingEnembleSetupInfoError(ENSEMBLE_SETUP_DATE)
+    # standarize datatype of setup date
+    setup_date: datetime.datetime = normalize_date(mdt[ENSEMBLE_SETUP_DATE])
+
+    if EXPORT_NAME_KEY not in cfg:
+        raise MissingEnembleSetupInfoError(EXPORT_NAME_KEY)
     export_name = cfg[EXPORT_NAME_KEY]  # grab export name
 
-    # normalize setup date (wrong word)
-    setup_date: datetime.datetime = normalize_date(mdt["setup_date"])
     # for debugging purporses, let me seed random
     if "randseed" in cfg:
         random.seed(cfg["randseed"])
@@ -281,11 +321,13 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
         analysis_file = f"{export_name}_analysis_pipeline.pickle"
         analysis_pipeline = AnalysisPipeline()
 
-    if isinstance(mdt["setup_date"], datetime.datetime):
-        mdt["setup_date"] = setup_date.strftime("%Y-%m-%d")
+    if isinstance(mdt[ENSEMBLE_SETUP_DATE], datetime.datetime):
+        mdt[ENSEMBLE_SETUP_DATE] = setup_date.strftime("%Y-%m-%d")
 
     # too difficult to make this one a ParamSet object
-    default_param_set = get_param_set(cfg[DEFAULT_PARAM_SET_KEY] if DEFAULT_PARAM_SET_KEY in cfg else "default")
+    # todo: kill this, replace with server config
+    default_param_set_key = cfg[DEFAULT_PARAM_SET_KEY] if DEFAULT_PARAM_SET_KEY in cfg else "default"
+    default_param_set = get_param_set(default_param_set_key) if default_param_set_key else {}
 
     params = []
 
@@ -314,6 +356,7 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
             particles = polycube_rule_to_PL(rule)
         params.append(ParticleSetParam(particles))
     else:
+        # todo: should this be an exception?
         print("Warning: No particle info specified!")
 
     # handle multidentate params
@@ -346,7 +389,6 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
                 observables[obs_name] = Observable(*obs)
         else:
             # oh no
-            # backwards compatibility
             for obs in cfg[OBSERABLES_KEY]:
                 if isinstance(obs, str):
                     observables[obs] = observable_from_file(obs)
@@ -360,16 +402,21 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
             server_settings = load_server_settings(server_spec_file)
             if server_settings is None:
                 raise Exception(f"No server setting set called `{cfg['server_settings']}`")
-        else:
-            assert isinstance(server_spec_file,
-                              dict), f"Invalid type for key 'server_settings': {type(cfg['server_settings'])}"
+        elif isinstance(server_spec_file,dict):
             server_settings = PatchyServerConfig(**server_spec_file)
+        elif isinstance(PatchyServerConfig):
+            server_settings =server_spec_file
+        else:
+            raise TypeError(f"Invalid type for key 'server_settings': {type(cfg['server_settings'])}")
+
     else:
         server_settings = get_server_config()
     # in case we need this
 
     # load ensemble params from cfg
     # there should always be ensemble params in the cfg
+    if ENSEMBLE_PARAMS_KEY not in cfg:
+        raise MissingEnembleSetupInfoError(ENSEMBLE_PARAMS_KEY)
     ensemble_parameters = [
         EnsembleParameter(key, [
             parameter_value(key, val) for val in paramData
@@ -400,6 +447,89 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
     ensemble.dump_metadata()
     return ensemble
 
+class SimEnsembleJsonEncoder(PLJSONEncoder):
+    """
+    JSON encoder class for all stuff required by PatchySimulationEnsemble
+    """
+
+    def default(self, obj: Any) -> Union[dict, list, float, int, bool, str]:
+        if type(obj) in [int, bool, str, float]:
+            return obj
+        elif type(obj) == dict:
+            return {
+                key: self.default([obj[key]]) for key in obj
+            }
+        elif type(obj) == list:
+            return [
+                self.default(val) for val in obj
+            ]
+        elif isinstance(obj, ParamSet):
+            return {
+                vn: self.default(obj[vn])
+                for vn in obj.var_names()
+            }
+        elif isinstance(obj, EnsembleParameter):
+            return self.encode_ensemble_parameter(obj)
+        elif isinstance(obj, ParameterValue):
+            return self.encode_param_value(obj)
+        elif isinstance(obj, Observable):
+            return obj.export()
+        else:
+            return super().default(obj)
+
+    def encode_ensemble_parameter(self, obj: EnsembleParameter) -> dict:
+        # important that dict keys match constructor args
+        return {
+            "key": obj.param_key,
+            "paramData": [self.encode_param_value(v) for v in obj.param_value_set]
+        }
+
+    def encode_param_value(self, obj: ParameterValue) -> dict:
+        if isinstance(obj, ParamValueGroup):
+            return {
+                "param_name": obj.param_name,
+                "valname": obj.value_name(),
+                "param_value": {
+                    vn: self.encode_param_value(obj[vn]) for vn in obj.param_value
+                }
+            }
+        # specific versions of parameter value group
+        elif isinstance(obj, MDTConvertParams):
+            mdt_dict = {
+                "n_teeth": obj.param_value.n_teeth,
+                "dental_radius": obj.param_value.dental_radius
+            }
+            # things with default value; don't waste space with defaults
+            if not obj.param_value.torsion:
+                mdt_dict["torsion"] = obj.param_value.torsion
+            if not obj.param_value.follow_surf:
+                mdt_dict["follow_surf"] = obj.param_value.follow_surf
+            if obj.param_value.energy_scale_method != MultidentateConvertSettings.ENERGY_SCALE_LINEAR:
+                if obj.param_value.energy_scale_method == MultidentateConvertSettings.ENERGY_SCALE_NONE:
+                    mdt_dict["energy_scale_method"] = "none"
+                elif obj.param_value.energy_scale_method == MultidentateConvertSettings.ENERGY_SCALE_LOG:
+                    mdt_dict["energy_scale_method"] = "log"
+                else:
+                    # energy scale number is a scalar value
+                    mdt_dict["energy_scale_method"] = obj.param_value.energy_scale_method
+            if obj.param_value.alpha_scale_method != MultidentateConvertSettings.ALPHA_SCALE_NONE:
+                # TODO: lipari-szabo method or something
+                if obj.param_value.alpha_scale_method == -1:
+                    raise Exception("lipari-szabo method not supported!")
+                else:
+                    # energy scale number is a scalar value
+                    mdt_dict["alpha_scale_method"] = obj.param_value.alpha_scale_method
+            return mdt_dict
+        elif isinstance(obj, ParticleSetParam):
+            pass
+        elif isinstance(obj, StagedAssemblyParam):
+            pass
+        # default parameter value
+        else:
+            return {
+                "param_name": obj.param_name,
+                "param_value": obj.param_value
+            }
 
 class PatchySimulationEnsemble(Analyzable):
     """
@@ -501,6 +631,8 @@ class PatchySimulationEnsemble(Analyzable):
         logger.addHandler(stream_handler)
 
         self.metadata = metadata_dict
+
+
         # slurm log stuff currently deprecated
         self.slurm_log = SlurmLog()
 
@@ -1543,7 +1675,12 @@ class PatchySimulationEnsemble(Analyzable):
                         f"Mismatch between python-computed energy {scene_computed_energy} and oxDNA-computed energy {e}")
 
     def write_run_script(self, sim: PatchySimulation, stage: Stage, input_file="input"):
-
+        """
+        Writes a script named `slurm_script.sh` which will be executed with `sbatch` to run the simulation
+        :param sim: A simulation descriptor
+        :param stage: stage
+        :param input_file: name of input file
+        """
         slurm_script_name = "slurm_script.sh"
         if stage:
             slurm_script_name = stage.adjfn(slurm_script_name)
@@ -1628,13 +1765,22 @@ class PatchySimulationEnsemble(Analyzable):
         """
         Saves metadata stored in `self.metadata` to a metadata file
         Also saves the analysis pathway
+        todo: make this comprehensive
         """
         self.metadata["slurm_log"] = self.slurm_log.to_list()
         self.metadata["analysis_file"] = self.analysis_file
+
+        # there's a bunch of metadata["ensemble_confg"] stuff that gets passed as raw text but should be saved as json to be comprehensive
+        # todo: are there any more of these?
+        ec = self.metadata["ensemble_config"]
+        ec[OBSERABLES_KEY] = self.observables
+        ec[CONST_PARAMS_KEY] = self.const_params
+        ec[ENSEMBLE_PARAMS_KEY] = self.ensemble_params
+
         # dump metadata dict to file
         with open(get_input_dir() / self.metadata_file, "w") as f:
             # TODO: more encoders?
-            json.dump(self.metadata, fp=f, indent=4, cls=PLJSONEncoder)
+            json.dump(self.metadata, fp=f, indent=4, cls=SimEnsembleJsonEncoder)
         # dump analysis pipevline as pickle
         # if "analysis_file" not in self.metadata:
         #     self.metadata["analysis_file"] = get_input_dir() / (self.export_name + "_analysis_pipeline.pickle")

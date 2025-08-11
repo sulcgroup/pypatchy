@@ -97,7 +97,7 @@ class MultidentateConvertSettings:
     dental_radius: float = field()
     torsion: bool = field(default=True)  # this will have no effect on non-torsional patches
     follow_surf: bool = field(default=False)
-    # energy scale > 0 means "multiply the en         ergy by the scale
+    # energy scale > 0 means "multiply the energy by the scale
     energy_scale_method: Union[int, float] = field(
         default=ENERGY_SCALE_LINEAR)  # TODO: flexable support for energy scaling
     alpha_scale_method: Union[int, float] = field(default=ALPHA_SCALE_NONE)
@@ -119,7 +119,7 @@ class MultidentateConvertSettings:
         if isinstance(self.alpha_scale_method, str):
             if self.alpha_scale_method.lower() == "none":
                 self.alpha_scale_method = MultidentateConvertSettings.ALPHA_SCALE_NONE
-            elif self.alpha_scale_method.lower() in ["ls", "lipari-szabo"]:
+            elif self.alpha_scale_method.lower() in ["", "lipari-szabo"]:
                 raise Exception(f"lipari-szabo method not supported!")
             else:
                 raise Exception(f"Invalid alpha scale method {self.alpha_scale_method}")

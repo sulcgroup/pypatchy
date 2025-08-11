@@ -1,3 +1,7 @@
+"""
+This module contains a bunch of classes that extend AnalysisPipelineStep, for use
+in the pypatchy.analysis system
+"""
 import json
 import re
 import warnings
@@ -48,7 +52,7 @@ class LoadParticlesTraj(AnalysisPipelineHead):
     normalize_coords: bool
 
     def __init__(self,
-                 name,
+                 name: str,
                  normalize_coords=True,
                  input_tstep: Union[int, None] = 1,
                  output_tstep: Union[int, None] = None):
@@ -56,6 +60,10 @@ class LoadParticlesTraj(AnalysisPipelineHead):
         Constructor for traj read step
         I strongly advise initializing with:
         input_tstep = ensemble.get_input_file_param("print_conf_interval")
+        :param name: name of step
+        :param normalize_coords: whether to "normalize" coordinates (inbox the confs)
+        :param input_tstep: input timepoint interval
+        :param output_tstep: output timepoint interval
         """
         super().__init__(name, input_tstep, output_tstep)
         self.normalize_coords = normalize_coords
