@@ -53,11 +53,14 @@ class FromPolycubeAdder(StageParticleAdder):
         patch_distance_multiplier: float = field(default=1.)
 
         def __post_init__(self):
-            if isinstance(self.polycube_file_path, str):
-                polycube_path = Path(self.polycube_file_path).expanduser()
+            if isinstance(self.polycube_file_path, dict):
+                self.polycube_file_path = PolycubeStructure(**self.polycube_file_path)
             else:
-                polycube_path = self.polycube_file_path
-            self.polycube_file_path = load_polycube(polycube_path)
+                if isinstance(self.polycube_file_path, str):
+                    polycube_path = Path(self.polycube_file_path).expanduser()
+                else:
+                    polycube_path = self.polycube_file_path
+                self.polycube_file_path = load_polycube(polycube_path)
 
     polycubes: list[AddablePolycube]
 

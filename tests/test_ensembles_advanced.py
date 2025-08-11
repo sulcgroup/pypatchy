@@ -13,3 +13,6 @@ def test_dilute(temp_dir: str):
     e.set_server_settings(load_server_settings("test_fr"))
     e.do_setup(stage="first_stage")
 
+
+def test_setup_from_polycubes(temp_dir: str):
+    pass

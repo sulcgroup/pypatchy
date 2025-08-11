@@ -4,14 +4,13 @@ import copy
 import datetime
 import itertools
 import multiprocessing
-import os
 import random
 import shutil
 import tempfile
 import time
 from collections import Counter
 from json import JSONDecodeError
-from typing import Any, Generator
+from typing import Generator
 
 import subprocess
 import re
@@ -27,9 +26,9 @@ from oxDNA_analysis_tools.UTILS.data_structures import Configuration
 from ipy_oxdna.oxdna_simulation import SimulationManager, Simulation
 from ipy_oxdna.observable import Observable
 
-from .pl.pljsonrw import PLJSONEncoder
 from .pl.plpotential import PLPotential, PLFRExclVolPotential, PLFRTorsionalPatchyPotential, PLLRPatchyPotential, \
     PLLRExclVolPotential, PLFRPatchyPotential
+from .sim_ensemble_json import SimEnsembleJsonEncoder
 from .simulation_specification import get_param_set
 from ..analysis.analyzable import Analyzable
 
@@ -361,12 +360,13 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
 
     # handle multidentate params
     if NUM_TEETH_KEY in cfg[CONST_PARAMS_KEY]:
-        assert DENTAL_RADIUS_KEY in cfg[CONST_PARAMS_KEY]
-        num_teeth = cfg[CONST_PARAMS_KEY][NUM_TEETH_KEY]
-        dental_radius = cfg[CONST_PARAMS_KEY][DENTAL_RADIUS_KEY]
+        raise Exception("DEPRECATED")
+        # assert DENTAL_RADIUS_KEY in cfg[CONST_PARAMS_KEY]
+        # num_teeth = cfg[CONST_PARAMS_KEY][NUM_TEETH_KEY]
+        # dental_radius = cfg[CONST_PARAMS_KEY][DENTAL_RADIUS_KEY]
         # only bothering to support legacy conversion params here
-        mdt_convert = MultidentateConvertSettings(num_teeth, dental_radius)
-        params.append(MDTConvertParams(mdt_convert))
+        # mdt_convert = MultidentateConvertSettings(num_teeth, dental_radius)
+        # params.append(MDTConvertParams(mdt_convert))
 
     # load const params from cfg
     if CONST_PARAMS_KEY in cfg:
@@ -447,89 +447,6 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
     ensemble.dump_metadata()
     return ensemble
 
-class SimEnsembleJsonEncoder(PLJSONEncoder):
-    """
-    JSON encoder class for all stuff required by PatchySimulationEnsemble
-    """
-
-    def default(self, obj: Any) -> Union[dict, list, float, int, bool, str]:
-        if type(obj) in [int, bool, str, float]:
-            return obj
-        elif type(obj) == dict:
-            return {
-                key: self.default([obj[key]]) for key in obj
-            }
-        elif type(obj) == list:
-            return [
-                self.default(val) for val in obj
-            ]
-        elif isinstance(obj, ParamSet):
-            return {
-                vn: self.default(obj[vn])
-                for vn in obj.var_names()
-            }
-        elif isinstance(obj, EnsembleParameter):
-            return self.encode_ensemble_parameter(obj)
-        elif isinstance(obj, ParameterValue):
-            return self.encode_param_value(obj)
-        elif isinstance(obj, Observable):
-            return obj.export()
-        else:
-            return super().default(obj)
-
-    def encode_ensemble_parameter(self, obj: EnsembleParameter) -> dict:
-        # important that dict keys match constructor args
-        return {
-            "key": obj.param_key,
-            "paramData": [self.encode_param_value(v) for v in obj.param_value_set]
-        }
-
-    def encode_param_value(self, obj: ParameterValue) -> dict:
-        if isinstance(obj, ParamValueGroup):
-            return {
-                "param_name": obj.param_name,
-                "valname": obj.value_name(),
-                "param_value": {
-                    vn: self.encode_param_value(obj[vn]) for vn in obj.param_value
-                }
-            }
-        # specific versions of parameter value group
-        elif isinstance(obj, MDTConvertParams):
-            mdt_dict = {
-                "n_teeth": obj.param_value.n_teeth,
-                "dental_radius": obj.param_value.dental_radius
-            }
-            # things with default value; don't waste space with defaults
-            if not obj.param_value.torsion:
-                mdt_dict["torsion"] = obj.param_value.torsion
-            if not obj.param_value.follow_surf:
-                mdt_dict["follow_surf"] = obj.param_value.follow_surf
-            if obj.param_value.energy_scale_method != MultidentateConvertSettings.ENERGY_SCALE_LINEAR:
-                if obj.param_value.energy_scale_method == MultidentateConvertSettings.ENERGY_SCALE_NONE:
-                    mdt_dict["energy_scale_method"] = "none"
-                elif obj.param_value.energy_scale_method == MultidentateConvertSettings.ENERGY_SCALE_LOG:
-                    mdt_dict["energy_scale_method"] = "log"
-                else:
-                    # energy scale number is a scalar value
-                    mdt_dict["energy_scale_method"] = obj.param_value.energy_scale_method
-            if obj.param_value.alpha_scale_method != MultidentateConvertSettings.ALPHA_SCALE_NONE:
-                # TODO: lipari-szabo method or something
-                if obj.param_value.alpha_scale_method == -1:
-                    raise Exception("lipari-szabo method not supported!")
-                else:
-                    # energy scale number is a scalar value
-                    mdt_dict["alpha_scale_method"] = obj.param_value.alpha_scale_method
-            return mdt_dict
-        elif isinstance(obj, ParticleSetParam):
-            pass
-        elif isinstance(obj, StagedAssemblyParam):
-            pass
-        # default parameter value
-        else:
-            return {
-                "param_name": obj.param_name,
-                "param_value": obj.param_value
-            }
 
 class PatchySimulationEnsemble(Analyzable):
     """
