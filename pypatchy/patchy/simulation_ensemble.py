@@ -530,7 +530,7 @@ class PatchySimulationEnsemble(Analyzable):
         # if the logger associated with this dataset already has handlers, clear them
         if len(logger.handlers) > 0:
             for handler in logger.handlers[::-1]:
-                logger.removeHandler()
+                logger.removeHandler(handler)
         # setup logger file handler
         file_handler = logging.FileHandler(
             get_log_dir() / f"log_{self.export_name}_{self.datestr()}_at{datetime.datetime.now().strftime('%Y-%m-%d-%H-%M')}.log",
