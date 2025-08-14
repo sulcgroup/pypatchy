@@ -2,6 +2,7 @@
 This module contains a bunch of classes that extend AnalysisPipelineStep, for use
 in the pypatchy.analysis system
 """
+from __future__ import annotations
 import json
 import re
 import warnings
@@ -12,9 +13,9 @@ import networkx as nx
 from ipy_oxdna.observable import Observable
 from oxDNA_analysis_tools.UTILS.RyeReader import get_confs, describe, inbox
 from oxDNA_analysis_tools.UTILS.data_structures import Configuration
-from pypatchy.patchy.pl.patchyio import PLBaseWriter
-from pypatchy.patchy.pl.plparticle import PLPatchyParticle
-from pypatchy.patchy.pl.plparticleset import PLParticleSet
+from .pl.patchyio import PLBaseWriter
+from .pl.plparticle import PLPatchyParticle
+from .pl.plparticleset import PLParticleSet
 
 from .simulation_ensemble import PatchySimulationEnsemble
 from .stage import Stage
@@ -352,6 +353,11 @@ class GraphsFromClusterTxt(AnalysisPipelineHead):
                 # find stage start time
                 stepcounter = stage.start_time()
                 # iterate lines in the graph file
+                # todo context mgr
+                w = stage.getctxt().writer
+                w.set_directory(stage.sim_dir)
+                # topology in the simulation sense (list of particles w/ typing info)
+                sim_top = w.read_top(stage.getctxt().sim_get_stage_top(stage.spec(), stage))
                 for line in f:
                     # skip timepoints that aren't multiples of the specified timestep
                     if stepcounter % self.output_tstep == 0:
@@ -375,6 +381,9 @@ class GraphsFromClusterTxt(AnalysisPipelineHead):
                                 for dest in m.group(2).split(' '):
                                     # add edge between source and connected particle
                                     G.add_edge(int(source), int(dest))
+                            # add particle types
+                            for particle_id in G.nodes:
+                                G.nodes[particle_id]["particle_type"] = sim_top.get_particle_type(particle_id)
                             clusterGraphs.append(G)
                         graphs[stepcounter] = clusterGraphs
                     stepcounter += self.source_observable.print_every

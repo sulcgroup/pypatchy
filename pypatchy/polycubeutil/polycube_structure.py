@@ -1,13 +1,11 @@
 """
-Module containing
+Module containing polycube structure
 """
 
 from __future__ import annotations
 
 import copy
-import itertools
 import json
-import random
 from collections import defaultdict
 from pathlib import Path
 from typing import Union
@@ -27,10 +25,10 @@ from ..vis_util import get_particle_color
 
 from ..patchy_base_particle import PatchyBaseParticle, BaseParticleSet
 from ..scene import Scene
-from .polycubesRule import PolycubesRule, diridx, PolycubesPatch, RULE_ORDER
+from .polycubesRule import PolycubesRule, diridx, PolycubesPatch
 
 from ..structure import TypedStructure, Structure, Binding, StructuralHomomorphism
-from ..util import from_xyz, get_input_dir, enumerateRotations
+from ..util import from_xyz, get_input_dir
 
 
 # todo: add cell lists? probably overkill

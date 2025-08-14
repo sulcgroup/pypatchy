@@ -262,6 +262,9 @@ class PLBaseWriter(ABC):
         def get_particles_types(self) -> list[int]:
             return self.particle_ids
 
+        def get_particle_type(self, particle_id: int) -> int:
+            return self.particle_ids[particle_id]
+
         @abstractmethod
         def num_particle_types(self) -> int:
             pass

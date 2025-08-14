@@ -1,19 +1,16 @@
 from __future__ import annotations
 
 import copy
-import itertools
-import math
 from typing import Union
 
 import numpy as np
 
 from ..ensemble_parameter import PARTICLE_TYPES_KEY
-from ..mgl import MGLParticle, MGLScene, MGLParticleSet
+from ..mgl import MGLScene, MGLParticleSet
 from .plparticle import PLPatchyParticle, PATCHY_NULL_A1, PATCHY_NULL_A3
-from .plparticleset import PLParticleSet, PLSourceMap, MultidentateConvertSettings
+from .plparticleset import PLParticleSet, PLSourceMap, MultidentateConvertSettings, decode_particles_dict
 from .plpatch import PLPatch
 from .plscene import PLPSimulation
-from ...patchy_base_particle import BaseParticleSet
 from .patchyio import writer_options, get_writer
 from ...polycubeutil.polycube_structure import PolycubeStructure
 from ...polycubeutil.polycubesRule import PolycubesRule
@@ -400,21 +397,8 @@ def load_pl_particles(**kwargs) -> PLParticleSet:
                 raise Exception(f"Invalid writer {kwargs['format']}")
         else:
             assert PARTICLE_TYPES_KEY in kwargs and "patches" in kwargs, "No writer or particle/patches info specified!"
-            particles_list = kwargs[PARTICLE_TYPES_KEY]
-            patches_list = kwargs["patches"]
-            # fix json field names
-            for patch in patches_list:
-                if "id" in patch:
-                    patch["type_id"] = patch["id"]
-                    del patch["id"]
-                if "position" in patch:
-                    patch["relposition"] = patch["position"]
-                    del patch["position"]
+            return decode_particles_dict(**kwargs)
 
-            patches = [PLPatch(**p) for p in patches_list]
-            particles_list = [PLPatchyParticle([patches[patch_id] for patch_id in p["patches"]],
-                                               type_id=p["type"])
-                              for p in particles_list]
-            return PLParticleSet(intmat=particles_list)
     except ValueError as e:
         raise ValueError(f"Invalid particle load info! {str(e)}")
+

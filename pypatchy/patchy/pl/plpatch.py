@@ -17,15 +17,15 @@ class PLPatch(BasePatchType):
     def __init__(self,
                  type_id: Union[None, int] = None,
                  color: Union[None, int] = None,
-                 relposition: Union[None, np.ndarray] = None,
-                 a1: Union[None, np.ndarray] = None,
-                 a2: Union[None, np.ndarray] = None,
+                 relposition: Union[None, np.ndarray, list] = None,
+                 a1: Union[None, np.ndarray, list] = None,
+                 a2: Union[None, np.ndarray, list] = None,
                  strength: float = 1.0):
         super().__init__(type_id, color)
         self._key_points = [
-            relposition,
-            a1,
-            a2
+            np.array(relposition) if isinstance(relposition, list) else relposition,
+            np.array(a1) if isinstance(a1, list) else a1,
+            np.array(a2) if isinstance(a2, list) else a2,
         ]
         self._type = type_id
         self._strength = strength

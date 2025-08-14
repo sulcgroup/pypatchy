@@ -4,6 +4,7 @@ import copy
 import datetime
 import itertools
 import multiprocessing
+import os
 import random
 import shutil
 import tempfile
@@ -332,7 +333,12 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
 
     # load particles
     # todo: revise
-    if any(key in cfg for key in [PARTICLE_TYPES_KEY, "rule", "cube_types"]):
+    # default: if PARTICLE_TYPES_KEY is in const_params, ignore all else
+    # todo: ensemble params
+    if PARTICLE_TYPES_KEY in cfg[CONST_PARAMS_KEY]:
+        pass #??
+        # params.append(ParticleSetParam(load_pl_particles(**cfg[CONST_PARAMS_KEY][PARTICLE_TYPES_KEY])))
+    elif any(key in cfg for key in [PARTICLE_TYPES_KEY, "rule", "cube_types"]):
         if PARTICLE_TYPES_KEY in cfg:
             if isinstance(cfg[PARTICLE_TYPES_KEY], PLParticleSet):
                 particles = cfg[PARTICLE_TYPES_KEY]
@@ -372,6 +378,7 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
     if CONST_PARAMS_KEY in cfg:
         for key, val in cfg[CONST_PARAMS_KEY].items():
             if key == NUM_TEETH_KEY or key == DENTAL_RADIUS_KEY:
+                del cfg[CONST_PARAMS_KEY][key] # for compatability, please do not
                 continue  # skip in const_params
             param_val = parameter_value(key, val)
             params.append(param_val)
@@ -743,6 +750,7 @@ class PatchySimulationEnsemble(Analyzable):
             return particles.to_multidentate(mdt_convert)
         except NoSuchParamError as e:
             # if no multidentate convert, return particle set as-is
+            assert isinstance(particles, PLParticleSet)
             return particles
 
     def get_param(self, paramname: str) -> Any:
@@ -2307,6 +2315,42 @@ class PatchySimulationEnsemble(Analyzable):
                 return stage
         return None  # raise exception?
 
+    def dnaAnalysis(self,
+                    obs: Observable, # todo: multiple observables, probably not hard but also not needed
+                    sim: Union[None, PatchySimDescriptor] = None,
+                    stage: Union[None, Stage, str] = None):
+        if sim is None:
+            sim = self.ensemble()
+        if isinstance(sim, list):
+            for s in sim:
+                self.dnaAnalysis(obs, s, stage)
+        else:
+            if stage is None:
+                stage = self.sim_get_stages(sim)[0]
+            elif isinstance(stage, str):
+                stage = self.sim_get_stage(sim, stage)
+            # make temporary directory to run dnaAnalysis
+
+            with tempfile.TemporaryDirectory(delete=False) as tmpdir:
+                shutil.copyfile(self.folder_path(sim, stage) / "input", tmpdir + "/input")
+                os.chdir(tmpdir)
+                with oxpy.Context():
+                    infile = oxpy.InputFile()
+                    infile.init_from_filename("input")
+                    # add analyis observable
+                    infile["trajectory_file"] = str(self.paramfile(sim, "trajectory_file"))
+                    # file paths to pypatchy directory
+                    for key in self.writer.reqd_args():
+                        infile[key] = str(self.paramfile(sim, key))
+                    infile["plugin_search_path"] = self.get_param("plugin_search_path")
+                    # with (Path(tmpdir) / infile["observables_file"]).open("w") as f:
+                    #     json.dump({"analysis_data_output_1": obs.export()["output"]}, f)
+                    with open(tmpdir + "/input", "w") as f:
+                        for key in infile.keys():
+                            f.write(f"{key} = {infile[key]}\n")
+                        f.write("analysis_data_output_1 = " + repr(obs))
+                    self.bash_exec(self.server_settings.oxdna_path + "/build/bin/DNAnalysis input")
+                shutil.copyfile(tmpdir + f"/{obs.file_name}", self.folder_path(sim, stage) / obs.file_name)
 
 def process_simulation_data(args: tuple[PatchySimulationEnsemble, AnalysisPipelineStep, PatchySimulation, range]):
     ensemble, step, s, time_steps = args

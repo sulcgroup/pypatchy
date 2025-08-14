@@ -10,8 +10,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Generator, Union
 
-from pypatchy.patchy.pl.plscene import PLPSimulation
-from pypatchy.polycubeutil.polycube_structure import PolycubeStructure, load_polycube
+from .pl.plscene import PLPSimulation
+from ..polycubeutil.polycube_structure import PolycubeStructure, load_polycube
 
 
 class StageParticleAdder(ABC):

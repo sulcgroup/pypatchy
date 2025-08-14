@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 from typing import Union, Any, Mapping, Iterator
 
 from .particle_adders import StageParticleAdder, RandParticleAdder, FromPolycubeAdder
-from .pl.plparticleset import PLParticleSet, MultidentateConvertSettings
+from .pl.plparticleset import PLParticleSet, MultidentateConvertSettings, decode_particles_dict
 
 # from ..patchyio import get_writer # TODO: sort out this spaghtii
 
@@ -351,9 +351,8 @@ def parameter_value(key: str, val: Union[dict, str, int, float, bool, list]) -> 
             if val["type"] == MDT_CONVERT_KEY:
                 return MDTConvertParams(MultidentateConvertSettings(**data), param_name)
             elif val["type"] == PARTICLE_TYPES_KEY:
-                raise Exception("Particle type parameters not currently supported!")
-                # get_writer().set_directory(get_input_dir())
-                # return ParticleSetParam(get_writer().read_particle_types(**data)) # TODO: TEST
+
+                return ParticleSetParam(decode_particles_dict(**data))
             elif val["type"] == STAGES_KEY:
                 if not "stages" in data:
                     raise TypeError(f"Missing key 'stages' in staging info param {data['name']}")

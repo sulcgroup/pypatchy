@@ -928,23 +928,29 @@ class TypedStructure(Structure, ABC):
     @abstractmethod
     def particle_type(self, particle_id: int) -> int:
         """
-        returns the type of the particle with the provided id
+        :return: the type of the particle with the provided id
         """
         pass
 
     @abstractmethod
     def get_particle_types(self) -> dict[int, int]:
         """
-        returns the map
+        :return: the map of location identifiers to particle types
         """
         pass
 
     @abstractmethod
     def num_particle_types(self) -> int:
+        """
+        :return: the number of particle types
+        """
         pass
 
     def homomorphisms(self, structure: TypedStructure) -> Generator[StructuralHomomorphism]:
-
+        """
+        todo: test
+        :param structure:
+        """
         assert len(structure) >= len(self)
 
         # for now, brute-force this

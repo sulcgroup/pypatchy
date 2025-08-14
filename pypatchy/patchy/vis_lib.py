@@ -201,6 +201,9 @@ def plot_compare_ensembles(es: list[PatchySimulationEnsemble],
 
 def show_clusters(e: PatchySimulationEnsemble, sim: PatchySimulation, analysis_step: Union[GraphsFromClusterTxt, str],
                   timepoint: int = -1, step: int = -1, figsize=4, min_cluster_size=2) -> Union[plt.Figure, None]:
+    """
+
+    """
     import matplotlib.pyplot as plt
 
     if isinstance(analysis_step, str):
@@ -214,9 +217,8 @@ def show_clusters(e: PatchySimulationEnsemble, sim: PatchySimulation, analysis_s
     tr = range(int(timepoint),
                int(timepoint + analysis_step.output_tstep),
                int(analysis_step.output_tstep))
-    total_graph: nx.Graph = e.get_data(analysis_step, sim, tr).get()[timepoint]
+    graphs: list[nx.Graph] = [g for g in e.get_data(analysis_step, sim, tr).get()[timepoint] if len(g) > min_cluster_size]
 
-    graphs = [total_graph.subgraph(g) for g in nx.connected_components(nx.to_undirected(total_graph)) if len(g) >= min_cluster_size]
 
     nclusters = len(graphs)
     if nclusters == 0:
@@ -235,18 +237,27 @@ def show_clusters(e: PatchySimulationEnsemble, sim: PatchySimulation, analysis_s
             pos = nx.planar_layout(cluster)
         except nx.NetworkXException:
             pos = nx.kamada_kawai_layout(cluster)
-        node_colors = [get_particle_color(cluster.nodes[j]["particle_type"].type_id()) for j in cluster.nodes]
+        node_colors = [get_particle_color(cluster.nodes[j]["particle_type"]) for j in cluster.nodes]
         nx.draw_networkx_nodes(cluster, pos=pos, node_color=node_colors, ax=ax)
         nx.draw_networkx_labels(cluster, pos=pos, ax=ax, font_size=8)
         # Extract edge colors if available
-        edge_colors = [get_particle_color(abs(cluster.edges[edge].get("patch").color())) for edge in cluster.edges]
+        try:
+            edge_colors = [get_particle_color(abs(cluster.edges[edge].get("patch").color())) for edge in cluster.edges]
 
-        # Draw edges with curved style to show direction and prevent overlap
-        nx.draw_networkx_edges(cluster, pos=pos, ax=ax,
-                               edge_color=edge_colors,
-                               connectionstyle="arc3,rad=0.2",
-                               arrows=True,
-                               arrowsize=10)
+            # Draw edges with curved style to show direction and prevent overlap
+            nx.draw_networkx_edges(cluster, pos=pos, ax=ax,
+                                   edge_color=edge_colors,
+                                   connectionstyle="arc3,rad=0.2",
+                                   arrows=True,
+                                   arrowsize=10)
+        except AttributeError:
+
+            # Draw edges with curved style to show direction and prevent overlap
+            nx.draw_networkx_edges(cluster, pos=pos, ax=ax,
+                                   connectionstyle="arc3,rad=0.2",
+                                   arrows=True,
+                                   arrowsize=10)
+
 
         ax.set_axis_off()
 

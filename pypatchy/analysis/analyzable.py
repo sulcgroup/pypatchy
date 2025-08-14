@@ -96,7 +96,7 @@ class Analyzable(ABC):
         """
         return self.analysis_pipeline.draw_pipeline()
 
-    def add_analysis_steps(self, *args: Union[AnalysisPipeline]):
+    def add_analysis_steps(self, *args: Union[AnalysisPipeline, tuple[str, str], AnalysisPipelineStep]):
         """
         Adds steps to the analysis pipeline. Can pass an existing AnalysisPipeline object or a list of Steps
         and links. In the latter case, the steps and links are passed in the same args list

@@ -4,13 +4,12 @@ from typing import Any, Union
 
 from ipy_oxdna.observable import Observable
 
-from pypatchy.patchy.ensemble_parameter import EnsembleParameter, ParameterValue, ParamValueGroup, MDTConvertParams, \
-    ParticleSetParam, StagedAssemblyParam, StageInfoParam
-from pypatchy.patchy.particle_adders import StageParticleAdder, RandParticleAdder, FromPolycubeAdder, FromConfAdder
-from pypatchy.patchy.pl.pljsonrw import PLJSONEncoder
-from pypatchy.patchy.pl.plparticleset import MultidentateConvertSettings
-from pypatchy.patchy.simulation_specification import ParamSet
-
+from .ensemble_parameter import EnsembleParameter, ParameterValue, ParamValueGroup, MDTConvertParams, \
+    ParticleSetParam, StagedAssemblyParam, StageInfoParam, PARTICLE_TYPES_KEY, STAGES_KEY, MDT_CONVERT_KEY
+from .particle_adders import StageParticleAdder, RandParticleAdder, FromPolycubeAdder, FromConfAdder
+from .pl.pljsonrw import PLJSONEncoder
+from .pl.plparticleset import MultidentateConvertSettings
+from .simulation_specification import ParamSet
 
 class SimEnsembleJsonEncoder(PLJSONEncoder):
     """
@@ -36,7 +35,14 @@ class SimEnsembleJsonEncoder(PLJSONEncoder):
         elif isinstance(obj, EnsembleParameter):
             return self.encode_ensemble_parameter(obj)
         elif isinstance(obj, ParameterValue):
-            return self.encode_param_value(obj)
+            pvdict = self.encode_param_value(obj)
+            if isinstance(obj, ParticleSetParam):
+                pvdict["type"] = PARTICLE_TYPES_KEY
+            elif isinstance(obj, StagedAssemblyParam):
+                pvdict["type"] = STAGES_KEY
+            elif isinstance(obj, MDTConvertParams):
+                pvdict["type"] = MDT_CONVERT_KEY
+            return pvdict
         elif isinstance(obj, Observable):
             return obj.export()
         # StageInfoParam should probably inherit from ParameterValue, but it doesn't right now
@@ -66,9 +72,8 @@ class SimEnsembleJsonEncoder(PLJSONEncoder):
     def encode_param_value(self, obj: ParameterValue) -> dict:
         if isinstance(obj, ParamValueGroup):
             return {
-                "param_name": obj.param_name,
-                "valname": obj.value_name(),
-                "param_value": {
+                "name": obj.param_name,
+                ** {
                     pv.param_name: self.encode_param_value(pv) for pv in obj.param_value.values()
                 }
             }
@@ -100,7 +105,7 @@ class SimEnsembleJsonEncoder(PLJSONEncoder):
                     mdt_dict["alpha_scale_method"] = obj.param_value.alpha_scale_method
             return mdt_dict
         elif isinstance(obj, ParticleSetParam):
-            return super().default(obj)
+            return super().default(obj.param_value)
         elif isinstance(obj, StagedAssemblyParam):
             return [
                 self.default(stage) for stage in obj.param_value.values()

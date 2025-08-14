@@ -8,12 +8,12 @@ from typing import Union
 
 import numpy as np
 from scipy.spatial.transform import Rotation as R
+from ipy_oxdna.util import rotation_matrix
 
 from .plparticle import PLPatchyParticle
 from .plpatch import PLPatch, make_interaction_matrix
 from ...interaction_matrix import InteractionMatrix
 from ...patchy_base_particle import BaseParticleSet
-from ipy_oxdna.util import rotation_matrix
 
 
 class PLSourceMap(ABC):
@@ -469,3 +469,27 @@ class PLParticleSet(BaseParticleSet):
                     return False
 
         return True
+
+
+def decode_particles_dict(particle_types: dict, patches: dict):
+    # fix json field names
+    for patch in patches:
+        if "id" in patch:
+            patch["type_id"] = patch["id"]
+            del patch["id"]
+        if "position" in patch:
+            patch["relposition"] = patch["position"]
+            del patch["position"]
+
+    patches = [PLPatch(**p) for p in patches]
+    for pdict in particle_types:
+        if "type" in pdict:
+            pdict["type_id"] = pdict["type"]
+            del pdict["type"]
+        pdict["patches"] = [patches[patch_id] for patch_id in pdict["patches"]]
+        if "name" in pdict:
+            pdict["particle_name"] = pdict["name"]
+            del pdict["name"]
+    particles_list = [PLPatchyParticle(**p)
+                      for p in particle_types]
+    return PLParticleSet(particles=particles_list)
