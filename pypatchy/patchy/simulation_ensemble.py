@@ -366,7 +366,10 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
 
     # handle multidentate params
     if NUM_TEETH_KEY in cfg[CONST_PARAMS_KEY]:
-        raise Exception("DEPRECATED")
+        if cfg[NUM_TEETH_KEY] > 0:
+            raise Exception("DEPRECATED")
+        else:
+            del cfg[NUM_TEETH_KEY]
         # assert DENTAL_RADIUS_KEY in cfg[CONST_PARAMS_KEY]
         # num_teeth = cfg[CONST_PARAMS_KEY][NUM_TEETH_KEY]
         # dental_radius = cfg[CONST_PARAMS_KEY][DENTAL_RADIUS_KEY]
@@ -2349,7 +2352,7 @@ class PatchySimulationEnsemble(Analyzable):
                         for key in infile.keys():
                             f.write(f"{key} = {infile[key]}\n")
                         f.write("analysis_data_output_1 = " + repr(obs))
-                    self.bash_exec(self.server_settings.oxdna_path + "/build/bin/DNAnalysis input")
+                    self.get_logger(self.bash_exec(self.server_settings.oxdna_path + "/build/bin/DNAnalysis input"))
                 shutil.copyfile(tmpdir + f"/{obs.file_name}", self.folder_path(sim, stage) / obs.file_name)
 
 def process_simulation_data(args: tuple[PatchySimulationEnsemble, AnalysisPipelineStep, PatchySimulation, range]):
