@@ -66,6 +66,7 @@ LAST_CONTINUE_COUNT_KEY = "continue_count"
 
 SUBMIT_SLURM_PATTERN = r"Submitted batch job (\d+)"
 
+SERVER_SETTINGS_KEY = "server_settings"
 
 def describe_param_vals(*args: ParameterValue) -> str:
     """
@@ -170,6 +171,8 @@ def find_ensemble(*args: str, **kwargs) -> PatchySimulationEnsemble:
     :param kwargs: no seriously, DM me if you know
     :returns: a patchy simulation ensemble object
     """
+    if "set_server" not in kwargs:
+        kwargs["set_server"] = None
 
     if len(args) > 0:
         simname = args[0]
@@ -179,15 +182,22 @@ def find_ensemble(*args: str, **kwargs) -> PatchySimulationEnsemble:
             sim_init_date = normalize_date(
                 [kwargs[key] for key in ["sim_date", "date"] if key in kwargs][0])
         else:
-            return find_ensemble(name=simname)
+            return find_ensemble(name=simname,
+                                 set_server=kwargs["set_server"])
         if not simname.endswith(".json"):
-            return find_ensemble(name=simname, date=sim_init_date)
+            return find_ensemble(name=simname,
+                                 date=sim_init_date,
+                                 set_server=kwargs["set_server"])
         elif metadata_file_exist(simname, sim_init_date):
             # if metadata file exists, load from it
-            return find_ensemble(metadata=simname, date=sim_init_date)
+            return find_ensemble(metadata=simname,
+                                 date=sim_init_date,
+                                 set_server=kwargs["set_server"])
         else:
             # load from cfg file
-            return find_ensemble(cfg=simname, date=sim_init_date)
+            return find_ensemble(cfg=simname,
+                                 date=sim_init_date,
+                                 set_server=kwargs["set_server"])
 
     elif "name" in kwargs:
         # flexable option. if name is provided, will look for metadata file but default to using the cfg file
@@ -204,16 +214,21 @@ def find_ensemble(*args: str, **kwargs) -> PatchySimulationEnsemble:
         else:
             sim_init_date: datetime.datetime = datetime.datetime.now()
         if metadata_file_exist(simname, sim_init_date):
-            return find_ensemble(mdf=simname, date=sim_init_date)
+            return find_ensemble(mdf=simname,
+                                 date=sim_init_date,
+                                 set_server=kwargs["set_server"])
         else:
             # try loading a cfg file with that name
             if (get_input_dir() / (simname + ".json")).exists():
                 with open((get_input_dir() / (simname + ".json")), "r") as f:
                     exportname = json.load(f)["export_name"]
                 if metadata_file_exist(exportname, sim_init_date):
-                    return find_ensemble(exportname, sim_init_date)
+                    return find_ensemble(exportname, sim_init_date,
+                                         set_server=kwargs["set_server"])
             print(f"Warning: could not find metadata file for {simname} at {sim_init_date.strftime('%Y-%m-%d')}")
-            return find_ensemble(cfg=simname, date=sim_init_date)
+            return find_ensemble(cfg=simname,
+                                 date=sim_init_date,
+                                 set_server=kwargs["set_server"])
 
     elif any([key in kwargs for key in ["cfg_file_name", "cfg_file", "cfg"]]):
         # if the user is specifying a cfg file
@@ -240,8 +255,10 @@ def find_ensemble(*args: str, **kwargs) -> PatchySimulationEnsemble:
                 raise JSONDecodeError(msg=f"Error parsing patchy ensemble spec file {str(cfg_file_path)}! {e.msg}",
                                       doc=e.doc,
                                       pos=e.pos)
+            if kwargs["set_server"]:
+                cfg[SERVER_SETTINGS_KEY] = kwargs["set_server"]
             return build_ensemble(cfg, {
-                "setup_date": sim_init_date.strftime("%Y-%m-%d"),
+                "setup_date": sim_init_date.strftime("%Y-%m-%d")
             })
 
     elif any([key in kwargs for key in ["metadata_file_name", "metadata_file", "mdf", "mdt", "metadata"]]):
@@ -258,7 +275,14 @@ def find_ensemble(*args: str, **kwargs) -> PatchySimulationEnsemble:
                     f"No metadata file at for simulation {metadata_file_name}")
             with metadata_file_path.open("r") as mdt_file:
                 mdt = json.load(mdt_file)
-                return build_ensemble(mdt["ensemble_config"], mdt, metadata_file_path)
+                cfg = mdt["ensemble_config"]
+                if kwargs["set_server"]:
+                    cfg[SERVER_SETTINGS_KEY] = kwargs["set_server"]
+                return build_ensemble(
+                    cfg,
+                    mdt,
+                    metadata_file_path
+                )
         else:
             # grab date arg
             if any([key in kwargs for key in ["sim_date", "date"]]):
@@ -273,12 +297,14 @@ def find_ensemble(*args: str, **kwargs) -> PatchySimulationEnsemble:
                     "metadata") == -1:  # please please do not name a file that isn't metadata "metadata"
                 metadata_file_name = metadata_file_name + "_" + sim_init_date.strftime("%Y-%m-%d") + "_metadata"
             metadata_file_name += ".json"
-            return find_ensemble(mdt=metadata_file_name)  # recurse to strong literal behavior
+            return find_ensemble(mdt=metadata_file_name,
+                                 set_server=kwargs["set_server"])  # recurse to strong literal behavior
     else:
         raise Exception("Missing required identifier for simulation!")
 
 
-def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
+def build_ensemble(cfg: dict[str],
+                   mdt: dict[str, Union[str, dict]],
                    mdtfile: Union[Path, None] = None) -> PatchySimulationEnsemble:
     """
     External patchy simulation constructor
@@ -386,7 +412,6 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
     const_parameters = ParamSet(params)
 
     # observables are optional
-    # TODO: integrate oxpy
     observables: dict[str: PatchySimObservable] = {}
 
     if OBSERABLES_KEY in cfg:
@@ -401,10 +426,10 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
                 if isinstance(obs, str):
                     observables[obs] = observable_from_file(obs)
 
-    server_spec_file = next((cfg[key] for key in ["server_settings",
-                                                  "server_spec",
-                                                  "server_config"] if key in cfg),
-                            None)
+    # load server spec
+    server_spec_file = next((cfg[key] for key in [SERVER_SETTINGS_KEY,
+                                              "server_spec",
+                                              "server_config"] if key in cfg), None)
     if server_spec_file:
         if isinstance(server_spec_file, str):
             server_settings = load_server_settings(server_spec_file)
@@ -412,8 +437,8 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
                 raise Exception(f"No server setting set called `{cfg['server_settings']}`")
         elif isinstance(server_spec_file,dict):
             server_settings = PatchyServerConfig(**server_spec_file)
-        elif isinstance(PatchyServerConfig):
-            server_settings =server_spec_file
+        elif isinstance(server_spec_file,PatchyServerConfig):
+            server_settings = server_spec_file
         else:
             raise TypeError(f"Invalid type for key 'server_settings': {type(cfg['server_settings'])}")
 
@@ -452,7 +477,9 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
     #         assert sim is not None, f"Slurm log included a record for invalid simulation {str(entry['simulation'])}"
     #         entry["simulation"] = sim
     #     ensemble.slurm_log = SlurmLog(*[SlurmLogEntry(**e) for e in mdt["slurm_log"]])
-    ensemble.dump_metadata()
+
+    # I've removed dump_metadata from the initializer, can dump metadata later as needed
+    # ensemble.dump_metadata()
     return ensemble
 
 
@@ -566,8 +593,33 @@ class PatchySimulationEnsemble(Analyzable):
         self.const_params = const_params
 
         self.ensemble_params = ensemble_params
-        self.ensemble_param_name_map = {p.param_key: p for p in self.ensemble_params}
+        self.ensemble_param_name_map = {
+            p.param_key: p for p in self.ensemble_params
+        }
         self.observables = observables
+
+    def __enter__(self):
+        """
+        Context manager entrypoint. required to make PatchySimulationEnsemble
+        fuction as a context manager but doesn't do anything else
+        :return: self
+        """
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """
+        exit for context manager. writes updated ensemble info
+        to metadata file
+        :param exc_type: type of exception
+        :param exc_val: value of exception
+        :param exc_tb: traceback
+        """
+        # TODO: do we need to handle exceptions better?
+        # on exit, dump metadata file
+        self.dump_metadata()
+        # if this block exited by raising an exception, re-raise it here
+        if exc_type:
+            raise exc_val
 
     # --------------- Accessors and Mutators -------------------------- #
     def get_simulation(self, *args: Union[tuple[str, Any], ParameterValue], **kwargs) -> Union[
@@ -678,17 +730,6 @@ class PatchySimulationEnsemble(Analyzable):
         """
         self.get_logger().debug(str(item))
         self.slurm_log.append(item)
-
-    def set_metadata_attr(self, key: str, val: Any):
-        """
-        Sets a metadata value, and saves the metadata file if a change has been made
-        :param key: key in metadata dict
-        :param val: value in metadata dict
-        """
-        oldVal = self.metadata[val]
-        self.metadata[key] = val
-        if val != oldVal:
-            self.dump_metadata()
 
     def get_stopped_sims(self) -> list[PatchySimulation]:
         """
@@ -823,6 +864,8 @@ class PatchySimulationEnsemble(Analyzable):
     def paramfile(self, sim: PatchySimulation, paramname: str) -> Path:
         """
         Shorthand to get a simulation data file
+        IIRC This method needs to be distinct from paramstagefile (see below) for use in methods
+        that generate staging info
         :param sim: A PatchySimulation object describing a specific simulation
         :param paramname: a param name associated with a simulation file (topoplogy, conf, energy, etc.)
         :return: a path to a simulation data file for the provided simulation
@@ -874,7 +917,7 @@ class PatchySimulationEnsemble(Analyzable):
         if not auto:
             return self.sim_get_spec_stages(sim)
         else:
-            return self.sim_gen_stages(sim)
+            return self.sim_generate_stages(sim)
 
     def sim_get_spec_stages(self, sim: PatchySimulation) -> list[Stage]:
         assert isinstance(sim, PatchySimulation), "Cannot invoke this method with a parameter list!"
@@ -918,7 +961,7 @@ class PatchySimulationEnsemble(Analyzable):
                 raise e
             # if stages not found
             # list particle type counts
-            stages = self._gen_default_stage(sim, cumulative_type_counts)
+            stages = [self._gen_default_stage(sim, cumulative_type_counts)]
 
         # assign box sizes
         for stage in stages:
@@ -942,14 +985,14 @@ class PatchySimulationEnsemble(Analyzable):
 
         return stages
 
-    def _gen_default_stage(self, sim, cumulative_type_counts: Union[dict, None]=None) -> list[Stage]:
+    def _gen_default_stage(self, sim, cumulative_type_counts: Union[dict, None]=None) -> Stage:
         particles = {
             p.name(): self.sim_get_param(sim, p.name())
             for p in self.sim_get_particles_set(sim).particles()
         }
         if cumulative_type_counts is not None:
             cumulative_type_counts.update(particles)
-        stages = [Stage(
+        return Stage(
             sim,
             None,
             self,
@@ -959,52 +1002,66 @@ class PatchySimulationEnsemble(Analyzable):
                 steps=self.sim_get_param(sim, "steps"),
                 allow_shortfall=True
             )
-        )]
-        return stages
+        )
 
-    def sim_gen_stages(self, sim: PatchySimulation) -> list[Stage]:
+    def sim_generate_stages(self, sim: PatchySimulation) -> list[Stage]:
         """
         generates staging information based on existing simulation data files, useful for more ad-hoc simulations
         :param sim: a PatchySimulation for which to generate a stage list
         """
         sim_subfolders = []
-        for f in self.folder_path(sim).iterdir():
-            if f.is_dir():
+        stages = [self._gen_default_stage(sim)]
+        for fname in self.folder_path(sim).iterdir():
+            if fname.is_dir() and (fname/"input").exists(): # we will open fname.input later
                 try:
                     # do last_conf first since it's more likely to be absent
-                    with (self.folder_path(sim) / f / self.sim_get_param(sim, "lastconf_file")).open("r") as f:
+                    with (self.folder_path(sim) / fname / self.sim_get_param(sim,
+                 "lastconf_file")).open("r") as f:
                         t_end = int(f.readline().split("=")[1].strip())
-                    with (self.folder_path(sim) / f / self.sim_get_param(sim, "conf_file")).open("r") as f:
+                    with (self.folder_path(sim) / fname / self.sim_get_param(sim,
+                 "trajectory_file")).open("r") as f:
                         t_start = int(f.readline().split("=")[1].strip())
                 except FileNotFoundError as e:
-                    self.get_logger().info(f"Folder {f} does not have file {e.filename}, skipping....")
-                sim_subfolders.append((f, t_start, t_end))
+                    self.get_logger().info(f"Folder {fname} does not have file {e.filename}, skipping....")
+                    continue
+                sim_subfolders.append((fname, t_start, t_end))
         if len(sim_subfolders) == 0:
-            stages = self._gen_default_stage(sim)
             with (self.folder_path(sim) / self.sim_get_param(sim, "lastconf_file")).open("r") as f:
                 last_step = int(f.readline().split("=")[1].strip())
             stages[0].set_tend(last_step)
             return stages
         else:
-            return [Stage(
+            for i, (fp, tstart, tend) in enumerate(sorted(sim_subfolders, key=lambda x: x[1])):
+                # load params from input file, to make sure that params are considered
+                # correctly
+                input_file_params = {}
+                with (fp / "input").open("r") as f:
+                    for line in f:
+                        key, value = line.split("=")
+                        input_file_params[key.strip()] = value.strip()
+                # overwrite steps key to actual last timestep
+                input_file_params["steps"] = tend
+                stages.append(Stage(
                     sim,
-                    stages[i - 1] if i else None,
+                    stages[i], # +1 offset to indexing, so i - 1 + 1 = i
                     self,
-                    StageInfoParam(f,
+                    StageInfoParam(fp.name,
                                    t=t_start,
-                                   steps=tend
+                                   **input_file_params
                                    )
-                ) for i, (f, tstart, tend) in sorted(sim_subfolders, key=lambda x: x[1])]
+                ))
+            return stages
 
-    def sim_get_stages_between(self, sim: PatchySimulation, tstart: int, tend: int) -> list[Stage]:
+
+    def sim_get_stages_between(self, sim: PatchySimulation, tstart: int, tend: int, auto: bool=False) -> list[Stage]:
         """
         todo a unit test for this?
-        :param sim:
-        :param tstart:
-        :param tend:
+        :param sim: simulation descriptor
+        :param tstart: start time
+        :param tend: end time
         :return: list of stages for the provided simulation between the start and end
         """
-        return [stage for stage in self.sim_get_stages(sim) if stage.end_time() >= tstart and stage.start_time() < tend]
+        return [stage for stage in self.sim_get_stages(sim, auto) if stage.end_time() >= tstart and stage.start_time() < tend]
 
     def sim_get_stage(self, sim: PatchySimulation, stage_name: Union[str, int]) -> Stage:
         """
@@ -1079,7 +1136,7 @@ class PatchySimulationEnsemble(Analyzable):
         """
         return sum([s.num_particles_to_add() for s in self.sim_get_stages(sim)[:stage.idx() + 1]])  # incl passed stage
 
-    def sim_most_recent_stage(self, sim: PatchySimulation) -> Stage:
+    def sim_most_recent_stage(self, sim: PatchySimulation, autogenerate_stages: bool = False) -> Stage:
         """
         constructs a Stage object for the most recent stage
         :param sim: simulation descriptor
@@ -1087,7 +1144,7 @@ class PatchySimulationEnsemble(Analyzable):
          is true if the last conf in the traj is at the last timepoint of the stage or none if no stage has begun
         """
         # increment in  reverse order so we check later stages first
-        for stage in reversed(self.sim_get_stages(sim)):
+        for stage in reversed(self.sim_get_stages(sim, autogenerate_stages)):
             # if traj file exists
             if (self.folder_path(sim) / self.sim_get_param(sim, "lastconf_file")).exists():
                 try:
@@ -1264,7 +1321,8 @@ class PatchySimulationEnsemble(Analyzable):
                 return self.time_length(self.get_simulation(sim))
         else:
             try:
-                stage = self.sim_most_recent_stage(sim)
+                # for time length purposes autoidentify stages
+                stage = self.sim_most_recent_stage(sim, True)
                 return self.sim_get_stage_last_step(sim, stage)
             except IncompleteStageError as e:
                 return e.last_timestep()
@@ -1539,6 +1597,8 @@ class PatchySimulationEnsemble(Analyzable):
             # write .sh script
             self.get_logger().info("Writing sbatch scripts...")
             self.write_run_script(sim, stage_obj)
+        # save metadata to file
+        self.dump_metadata()
 
     def write_setup_files(self,
                           sim: PatchySimulation,
@@ -1954,7 +2014,7 @@ class PatchySimulationEnsemble(Analyzable):
                          retries=3,
                          backoff_factor=2) -> int:
         """
-        Starts an oxDNA simulation. direct invocation is not suggested;
+        Starts an oxDNA simulation. direct invocation is not suggested; run from start_simulations()
 
         NOTE: even for non-slurm jobs we use subprocess.run on an execution file rather than
         oxpy.run for backwards compatibility with oxDNA_torsion, which isn't compatible with oxpy
@@ -2184,7 +2244,7 @@ class PatchySimulationEnsemble(Analyzable):
             lock.acquire()
         try:
             # compute data for previous steps
-            self.get_logger().info(f"Computing data for step {step.name} for simulation {str(sim)}...")
+            self.get_logger().info(f"Computing data for step {step.name} for simulation {repr(sim)}...")
             data_in = self._get_step_input_data(step, sim, time_steps)
         finally:
             if self.is_do_analysis_parallel():
@@ -2192,14 +2252,14 @@ class PatchySimulationEnsemble(Analyzable):
         # TODO: make sure this can handle the amount of args we're feeding in here
         # execute the step!
         # TODO: handle existing data that's incomplete over the required time interval
-        data: PipelineData = step.exec(*data_in)
+        data: PipelineData = step(*data_in)
         if self.is_do_analysis_parallel():
             lock.acquire()
         try:
             self.get_logger().info(f"Caching data in file `{self._get_cache_file(step, sim)}`")
             if isinstance(sim, tuple):
                 assert not self.is_multiselect(sim)
-                sim = self.get_simulation(*sim) # please don't, idk why i even allwoed this
+                sim = self.get_simulation(*sim)
             step.cache_data(data, self._get_cache_file(step, sim))
         finally:
             if self.is_do_analysis_parallel():
@@ -2265,19 +2325,31 @@ class PatchySimulationEnsemble(Analyzable):
                 sim), "Analysis pipeline head nodes should only take single simulations"
             if not isinstance(sim, PatchySimulation):
                 sim = self.get_simulation(*sim)
-            stages: list[Stage] = self.sim_get_stages_between(sim, time_steps.start, time_steps.stop)
+            # todo: watch this space!! it may react VERY BADLY to non-automated stages!!!
+            stages: list[Stage] = self.sim_get_stages_between(sim,
+                                                              time_steps.start,
+                                                              time_steps.stop,
+            # autogenerate stages, since we're trying to read actual data
+                                                              auto=True)
             files = [self, sim, stages]
+            # get list of files that are needed for this file
             for file_name_in in step.get_data_in_filenames():
+                # I don't remember when regexes WERE supported
                 assert isinstance(file_name_in, str), f"Unexpected file_name_in parameter type {type(file_name_in)}." \
                                                       f"Regexes no longer supported."
                 # add all files of this type, in an order corresponding to `stages`
                 try:
                     # for files that are parameters (topology, conf, etc.)
-                    file_name = self.sim_get_param(sim, file_name_in)
+                    file_names = [
+                        self.folder_path(sim, stage) / self.sim_stage_get_param(sim, stage, file_name_in)
+                        for stage in stages
+                    ]
                 except NoSuchParamError as e:
                     # for files that are observable outputs
-                    file_name = file_name_in  # i don't think any modification is actually needed here?
-                file_names = [self.folder_path(sim) / stage.adjfn(file_name) for stage in stages]
+                    file_names = [
+                        self.folder_path(sim, stage) / file_name_in
+                        for stage in stages
+                    ]
                 files.append(file_names)
             return files
         else:  # honestly this is still complecated but not as bad
@@ -2310,14 +2382,11 @@ class PatchySimulationEnsemble(Analyzable):
             # cache analysis data in a folder in the top level directory
             return self.tld() / describe_param_vals(*sim) / step.get_cache_file_name()
 
-    def step_targets(self, step: PipelineStepDescriptor):
-        step = self.get_pipeline_step(step)
-        if isinstance(step, AggregateAnalysisPipelineStep):
-            return itertools.product(p for p in self.ensemble_params if p not in step.params_aggregate_over)
-        else:
-            return self.ensemble()
-
     def slurm_job_info(self, jobid: int = -1, retries=3, backoff_factor=2) -> Union[dict, None]:
+        """
+        todo: this cannot be the optimal way to d oths
+        :return: a dict of data relating to a slurm job
+        """
         if jobid == -1:
             retr_id = os.environ.get("SLURM_JOB_ID")
             assert retr_id is not None
@@ -2365,6 +2434,7 @@ class PatchySimulationEnsemble(Analyzable):
                     obs: Observable, # todo: multiple observables, probably not hard but also not needed
                     sim: Union[None, PatchySimDescriptor] = None,
                     stage: Union[None, Stage, str] = None):
+
         if sim is None:
             sim = self.ensemble()
         if isinstance(sim, list):
@@ -2372,22 +2442,24 @@ class PatchySimulationEnsemble(Analyzable):
                 self.dnaAnalysis(obs, s, stage)
         else:
             if stage is None:
-                stage = self.sim_get_stages(sim)[0]
+                # automatically run dnaAnalysis for all sim-like stages
+                for stage in self.sim_get_stages(sim, True):
+                    self.dnaAnalysis(obs, sim, stage)
             elif isinstance(stage, str):
                 stage = self.sim_get_stage(sim, stage)
             # make temporary directory to run dnaAnalysis
 
-            with tempfile.TemporaryDirectory() as tmpdir:
-                shutil.copyfile(self.folder_path(sim, stage) / "input", tmpdir + "/input")
-                os.chdir(tmpdir)
+            with tempfile.TemporaryDirectory(delete=False) as tmpdir:
+                shutil.copyfile(self.folder_path(sim, stage) / "input",
+                                tmpdir + "/input")
                 with oxpy.Context():
                     infile = oxpy.InputFile()
-                    infile.init_from_filename("input")
+                    infile.init_from_filename(str(self.folder_path(sim, stage) / "input"))
                     # add analyis observable
-                    infile["trajectory_file"] = str(self.paramfile(sim, "trajectory_file"))
+                    infile["trajectory_file"] = str(self.paramstagefile(sim, stage, "trajectory_file"))
                     # file paths to pypatchy directory
                     for key in self.writer.reqd_args():
-                        infile[key] = str(self.paramfile(sim, key))
+                        infile[key] = str(self.folder_path(sim, stage) / self.sim_stage_get_param(sim, stage, key))
                     infile["plugin_search_path"] = self.get_param("plugin_search_path")
                     # with (Path(tmpdir) / infile["observables_file"]).open("w") as f:
                     #     json.dump({"analysis_data_output_1": obs.export()["output"]}, f)
@@ -2395,8 +2467,10 @@ class PatchySimulationEnsemble(Analyzable):
                         for key in infile.keys():
                             f.write(f"{key} = {infile[key]}\n")
                         f.write("analysis_data_output_1 = " + repr(obs))
-                    self.get_logger().info(self.bash_exec(self.server_settings.oxdna_path + "/build/bin/DNAnalysis input"))
-                shutil.copyfile(tmpdir + f"/{obs.file_name}", self.folder_path(sim, stage) / obs.file_name)
+                    self.get_logger().info(self.bash_exec(self.server_settings.oxdna_path + "/build/bin/DNAnalysis input",
+                                                          cwd=tmpdir))
+                shutil.copyfile(tmpdir + f"/{obs.file_name}",
+                                self.folder_path(sim, stage) / obs.file_name)
 
 def process_simulation_data(args: tuple[PatchySimulationEnsemble, AnalysisPipelineStep, PatchySimulation, range]):
     ensemble, step, s, time_steps = args

@@ -191,9 +191,13 @@ class PLBaseWriter(ABC):
     def directory(self) -> Path:
         return self._writing_directory
 
-    def file(self, filename, access="w") -> IO:
-        assert access != "r" or (self.directory() / filename).exists()
-        return open(self.directory() / filename, access)
+    def file(self, filename: Union[Path, str], access="w") -> IO:
+        # allow for passing filename as an absolute path, bypassing directory()
+        if isinstance(filename, Path) and filename.is_absolute():
+            return filename.open(access)
+        else:
+            assert access != "r" or (self.directory() / filename).exists()
+            return (self.directory() / filename).open(access)
 
     @abstractmethod
     def reqd_args(self) -> list[str]:

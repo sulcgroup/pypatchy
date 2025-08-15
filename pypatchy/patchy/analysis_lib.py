@@ -75,7 +75,7 @@ class LoadParticlesTraj(AnalysisPipelineHead):
     load_cached_files = load_cached_object_data
     DATA_IN_FILENAMES = ["topology", "conf_file", "trajectory_file"]
 
-    def exec(self,
+    def __call__(self,
              ensemble: PatchySimulationEnsemble,
              sim: PatchySimulation,
              stages: list[Stage],
@@ -87,11 +87,17 @@ class LoadParticlesTraj(AnalysisPipelineHead):
             ensemble.writer.set_directory(traj_file_path.parent)
             top = ensemble.writer.read_top(top_file)
             top_info, init_conf_info = describe(str(top_file), str(first_conf_file_path))
-            firstconf = get_confs(traj_info=init_conf_info,
-                                  top_info=top_info,
-                                  start_conf=0,
-                                  n_confs=1)[0]
-            confdict = {0: (firstconf, top.get_particles_types())}
+
+            # the initial conf isn't part of the traj file so in stage 0 we need to add it ourselves
+            # doing this for other stages will cause problems
+            if stage.is_first():
+                firstconf = get_confs(traj_info=init_conf_info,
+                                      top_info=top_info,
+                                      start_conf=0,
+                                      n_confs=1)[0]
+                confdict = {0: (firstconf, top.get_particles_types())}
+            else:
+                confdict = {}
             # load trajectory confs
             top_info, traj_info = describe(
                 str(top_file),
@@ -164,7 +170,7 @@ class LoadEnergies(AnalysisPipelineHead):
 
     load_cached_files = load_cached_pd_data
 
-    def exec(self, _, __, stages: list[Stage], energy_files: list[Path]) -> PDPipelineData:
+    def __call__(self, _, __, stages: list[Stage], energy_files: list[Path]) -> PDPipelineData:
         # todo: catch empty csv problem, raise custom exception
         stages_data = [pd.read_csv(stage_energy_file, sep="\s+", header=None) for stage_energy_file in energy_files]
         df = pd.concat(stages_data)
@@ -190,7 +196,7 @@ class BlobsFromClusters(AnalysisPipelineHead):
         with f.open("rb") as datafile:
             return pickle.load(datafile)
 
-    def exec(self, din: Path) -> PipelineData:
+    def __call__(self, din: Path) -> PipelineData:
         clusters_lists = {}
         stepcounter = 0
         with open(din, "r") as f:
@@ -243,9 +249,9 @@ class GraphsFromPatchyBonds(AnalysisPipelineHead):
         with f.open("rb") as datafile:
             return pickle.load(datafile)
 
-    def exec(self, _, __, stages: list[Stage], graphs_files: list[Path]) -> ObjectPipelineData:
+    def __call__(self, _, __, stages: list[Stage], graphs_files: list[Path]) -> ObjectPipelineData:
         """
-        executes analysis step
+        __call__utes analysis step
         """
         graphs = {}
         # iter stages
@@ -341,9 +347,9 @@ class GraphsFromClusterTxt(AnalysisPipelineHead):
 
     load_cached_files = load_cached_object_data
 
-    def exec(self, _, __, stages: list[Stage], graphs_files: list[Path]) -> ObjectPipelineData:
+    def __call__(self, _, __, stages: list[Stage], graphs_files: list[Path]) -> ObjectPipelineData:
         """
-        executes analysis step
+        __call__utes analysis step
         """
         graphs = {}
         # iter stages
@@ -434,7 +440,7 @@ class MatchGraphToCrystal(AnalysisPipelineStep):
 
     load_cached_files = load_cached_pd_data
 
-    def exec(self, input_data: ObjectPipelineData) -> PDPipelineData:
+    def __call__(self, input_data: ObjectPipelineData) -> PDPipelineData:
         cluster_cats_data = {
             TIMEPOINT_KEY: [],
             self.CLUSTER_CATEGORY_KEY: [],
@@ -503,7 +509,7 @@ class ClassifyClusters(AnalysisPipelineStep):
 
     load_cached_files = load_cached_pd_data
 
-    def exec(self, input_data: ObjectPipelineData) -> PDPipelineData:
+    def __call__(self, input_data: ObjectPipelineData) -> PDPipelineData:
         cluster_cats_data = {
             TIMEPOINT_KEY: [],
             self.CLUSTER_CATEGORY_KEY: [],
@@ -588,9 +594,9 @@ class ClassifyPolycubeClusters(AnalysisPipelineStep):
 
     load_cached_files = load_cached_pd_data
 
-    def exec(self, input_data_1: ObjectPipelineData, input_data_2: ObjectPipelineData) -> PDPipelineData:
+    def __call__(self, input_data_1: ObjectPipelineData, input_data_2: ObjectPipelineData) -> PDPipelineData:
         """
-        Executes the step
+        __call__utes the step
         """
         # use data class types to identify inputs
         if isinstance(input_data_2, RawPipelineData):
@@ -709,7 +715,7 @@ class ClassifyPolycubeClusters(AnalysisPipelineStep):
 #
 #     load_cached_files = load_cached_pd_data
 #
-#     def exec(self,
+#     def __call__(self,
 #              graph_data: GraphPipelineData,
 #              traj_data: PDPipelineData) -> PDPipelineData:
 #         traj = traj_data.get()
@@ -764,7 +770,7 @@ class ComputeClusterYield(AnalysisPipelineStep):
 
     load_cached_files = load_cached_pd_data
 
-    def exec(self, cluster_categories: PDPipelineData) -> PDPipelineData:
+    def __call__(self, cluster_categories: PDPipelineData) -> PDPipelineData:
         """
         returns a pandas DataFrame where each row corresponds to a timepoint
         the resulting dataframe will be indexed by timepoint
@@ -837,7 +843,7 @@ class ComputeClusterSizeData(AnalysisPipelineStep):
 
     load_cached_files = load_cached_pd_data
 
-    def exec(self, input_graphs: ObjectPipelineData) -> PDPipelineData:
+    def __call__(self, input_graphs: ObjectPipelineData) -> PDPipelineData:
 
         cluster_size_data = {
             TIMEPOINT_KEY: [],
@@ -910,10 +916,10 @@ class ComputeSpecGroupClusterYield(AggregateAnalysisPipelineStep):
 
     load_cached_files = load_cached_pd_data
 
-    def exec(self, yield_data: PDPipelineData) -> PDPipelineData:
+    def __call__(self, yield_data: PDPipelineData) -> PDPipelineData:
         """
-        yield_data should be a pd.DataFrame with columns name YIELD_KEY and TIMEPOINT_KEY
-        returns a pd.DataFrame where each row is a timepoint, with columns for min, max,
+        :param yield_data: should be a pd.DataFrame with columns name YIELD_KEY and TIMEPOINT_KEY
+        :return: a pd.DataFrame where each row is a timepoint, with columns for min, max,
         mean average, and standard deviation of the yield at that timepoint
         the resulting dataframe will be indexed by timepoint
         """

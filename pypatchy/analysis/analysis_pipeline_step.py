@@ -61,12 +61,11 @@ class AnalysisPipelineStep(ABC):
         pass
 
     @abstractmethod
-    def exec(self, *args: Union[PipelineData, AnalysisPipelineStep]) -> PipelineData:
+    def __call__(self, *args: Union[PipelineData, AnalysisPipelineStep]) -> PipelineData:
         """
         Executes this analysis step
 
-        Returns:
-            data! (in a PipelineData wrapper object)
+        :return: data! (in a PipelineData wrapper object)
         """
         pass
 

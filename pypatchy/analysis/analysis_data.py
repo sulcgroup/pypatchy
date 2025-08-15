@@ -60,8 +60,8 @@ class OverlappingDataError(Exception):
 
     def __init__(self, *args: PipelineData):
         self._overlapping_data = args
-        self._overlapping_timepoints = itertools.accumulate(self.overlap_data(),
-                                                            func=lambda a, b: np.intersect1d(a, b)[0])
+        self._overlapping_timepoints = list(itertools.accumulate(self.overlap_data(),
+                                                            func=lambda a, b: np.intersect1d(a, b)[0]))
 
     def overlap_data(self):
         return self._overlapping_data

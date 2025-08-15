@@ -2,11 +2,11 @@
 import os
 import stat
 
-from paramiko.sftp_client import SFTPClient
 
 from pypatchy.patchy.simulation_ensemble import PatchySimulationEnsemble
 
 try:
+    from paramiko.sftp_client import SFTPClient
     from paramiko.client import SSHClient
 
 except ImportError as e:
