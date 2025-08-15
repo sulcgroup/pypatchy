@@ -561,19 +561,24 @@ class ClassifyPolycubeClusters(AnalysisPipelineStep):
 
     def __init__(self,
                  name: str,
-                 target_name: str,
+                 target_name: Union[str, PolycubeStructure],
                  expected_edge_length: float = 1,
                  edge_distance_tolerance: float = 0.1,
                  input_tstep: Union[int, None] = None,
                  output_tstep: Union[int, None] = None):
         super().__init__(name, input_tstep, output_tstep)
-        with (get_input_dir() / "targets" / (target_name + ".json")).open("r") as f:
-            target_data = json.load(f)
-            rule = PolycubesRule(rule_json=target_data["cube_types"])
-            self.target_polycube = PolycubeStructure(rule=rule, structure=target_data["cubes"])
+        if isinstance(target_name, str):
+            with (get_input_dir() / "targets" / (target_name + ".json")).open("r") as f:
+                target_data = json.load(f)
+                rule = PolycubesRule(rule_json=target_data["cube_types"])
+                self.target_polycube = PolycubeStructure(rule=rule, structure=target_data["cubes"])
+                self.target = YieldAnalysisTarget(target_name, self.target_polycube.graph_undirected())
+
+        else:
+            self.target_polycube = target_name
             self.target = YieldAnalysisTarget(target_name, self.target_polycube.graph_undirected())
-            self.graphedgelen = expected_edge_length
-            self.graphedgetolerence = edge_distance_tolerance
+        self.graphedgelen = expected_edge_length
+        self.graphedgetolerence = edge_distance_tolerance
 
     CLUSTER_CATEGORY_KEY = "clustercategory"
     SIZE_RATIO_KEY = "sizeratio"

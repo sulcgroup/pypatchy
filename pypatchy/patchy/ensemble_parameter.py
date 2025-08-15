@@ -123,7 +123,7 @@ class EnsembleParameter:
     param_value_set: list[ParameterValue]  # sorry
     param_value_map: dict[str, ParameterValue]
 
-    def __init__(self, key: str, paramData: list[EnsembleParameter]):
+    def __init__(self, key: str, paramData: list[ParameterValue]):
         self.param_key = key
         self.param_value_set = paramData
         self.param_value_map = {

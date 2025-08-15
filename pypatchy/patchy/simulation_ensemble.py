@@ -863,7 +863,7 @@ class PatchySimulationEnsemble(Analyzable):
             stages_info: dict[str, StageInfoParam] = self.get_param(STAGES_KEY)
         return stages_info
 
-    def sim_get_stages(self, sim: PatchySimulation) -> list[Stage]:
+    def sim_get_stages(self, sim: PatchySimulation, auto=False) -> list[Stage]:
         """
         Computes stages
         horrible nightmare code
@@ -871,6 +871,12 @@ class PatchySimulationEnsemble(Analyzable):
         :param sim: a PatchySimulation for which to access a stage list
         :return: list of stages to execute for this simulation
         """
+        if not auto:
+            return self.sim_get_spec_stages(sim)
+        else:
+            return self.sim_gen_stages(sim)
+
+    def sim_get_spec_stages(self, sim: PatchySimulation) -> list[Stage]:
         assert isinstance(sim, PatchySimulation), "Cannot invoke this method with a parameter list!"
         # ---------- STEP ONE: LOAD STAGE INFO ------------------------------
         cumulative_type_counts = Counter()
@@ -912,22 +918,7 @@ class PatchySimulationEnsemble(Analyzable):
                 raise e
             # if stages not found
             # list particle type counts
-            particles = {
-                p.name(): self.sim_get_param(sim, p.name())
-                for p in self.sim_get_particles_set(sim).particles()
-            }
-            cumulative_type_counts.update(particles)
-            stages = [Stage(
-                sim,
-                None,
-                self,
-                StageInfoParam(
-                    "default",
-                    add_method=RandParticleAdder(particles=particles),
-                    steps=self.sim_get_param(sim, "steps"),
-                    allow_shortfall=True
-                )
-            )]
+            stages = self._gen_default_stage(sim, cumulative_type_counts)
 
         # assign box sizes
         for stage in stages:
@@ -950,6 +941,60 @@ class PatchySimulationEnsemble(Analyzable):
                 stage.set_box_size(np.array((box_side, box_side, box_side)))
 
         return stages
+
+    def _gen_default_stage(self, sim, cumulative_type_counts: Union[dict, None]=None) -> list[Stage]:
+        particles = {
+            p.name(): self.sim_get_param(sim, p.name())
+            for p in self.sim_get_particles_set(sim).particles()
+        }
+        if cumulative_type_counts is not None:
+            cumulative_type_counts.update(particles)
+        stages = [Stage(
+            sim,
+            None,
+            self,
+            StageInfoParam(
+                "default",
+                add_method=RandParticleAdder(particles=particles),
+                steps=self.sim_get_param(sim, "steps"),
+                allow_shortfall=True
+            )
+        )]
+        return stages
+
+    def sim_gen_stages(self, sim: PatchySimulation) -> list[Stage]:
+        """
+        generates staging information based on existing simulation data files, useful for more ad-hoc simulations
+        :param sim: a PatchySimulation for which to generate a stage list
+        """
+        sim_subfolders = []
+        for f in self.folder_path(sim).iterdir():
+            if f.is_dir():
+                try:
+                    # do last_conf first since it's more likely to be absent
+                    with (self.folder_path(sim) / f / self.sim_get_param(sim, "lastconf_file")).open("r") as f:
+                        t_end = int(f.readline().split("=")[1].strip())
+                    with (self.folder_path(sim) / f / self.sim_get_param(sim, "conf_file")).open("r") as f:
+                        t_start = int(f.readline().split("=")[1].strip())
+                except FileNotFoundError as e:
+                    self.get_logger().info(f"Folder {f} does not have file {e.filename}, skipping....")
+                sim_subfolders.append((f, t_start, t_end))
+        if len(sim_subfolders) == 0:
+            stages = self._gen_default_stage(sim)
+            with (self.folder_path(sim) / self.sim_get_param(sim, "lastconf_file")).open("r") as f:
+                last_step = int(f.readline().split("=")[1].strip())
+            stages[0].set_tend(last_step)
+            return stages
+        else:
+            return [Stage(
+                    sim,
+                    stages[i - 1] if i else None,
+                    self,
+                    StageInfoParam(f,
+                                   t=t_start,
+                                   steps=tend
+                                   )
+                ) for i, (f, tstart, tend) in sorted(sim_subfolders, key=lambda x: x[1])]
 
     def sim_get_stages_between(self, sim: PatchySimulation, tstart: int, tend: int) -> list[Stage]:
         """
@@ -2154,7 +2199,7 @@ class PatchySimulationEnsemble(Analyzable):
             self.get_logger().info(f"Caching data in file `{self._get_cache_file(step, sim)}`")
             if isinstance(sim, tuple):
                 assert not self.is_multiselect(sim)
-                sim = self.get_simulation(*sim)
+                sim = self.get_simulation(*sim) # please don't, idk why i even allwoed this
             step.cache_data(data, self._get_cache_file(step, sim))
         finally:
             if self.is_do_analysis_parallel():

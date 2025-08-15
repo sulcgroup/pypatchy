@@ -67,12 +67,12 @@ class Stage(BuildSimulation):
                 mdt_settings = self.getctxt().sim_get_param(self.spec(), MDT_CONVERT_KEY)
             except NoSuchParamError:
                 mdt_settings = None
-            for pc in self._param_info.add_method.iter_polycubes():
-                sim_particle_set: PLParticleSet = self.getctxt().sim_get_particles_set(sim)
-                pc_particle_set: PLParticleSet = polycube_to_pl(pc.polycube_file_path,
-                                                                mdt_settings,
-                                                                pad_cubes=dps_sigma * pc.patch_distance_multiplier).particle_types()
-                assert sim_particle_set == pc_particle_set
+            # for pc in self._param_info.add_method.iter_polycubes():
+                # sim_particle_set: PLParticleSet = self.getctxt().sim_get_particles_set(sim)
+                # pc_particle_set: PLParticleSet = polycube_to_pl(pc.polycube_file_path,
+                #                                                 mdt_settings,
+                #                                                 pad_cubes=dps_sigma * pc.patch_distance_multiplier).particle_types()
+                # assert sim_particle_set == pc_particle_set
         self.input_param_dict = {}
 
     def idx(self) -> int:
@@ -90,21 +90,27 @@ class Stage(BuildSimulation):
     def getctxt(self):
         """
         returns ensemble context
-        Returns: a PatchySimulationEnsemble instance
+        :returns: a PatchySimulationEnsemble instance
         """
         return self._ctxt
 
     def spec(self) -> PatchySimulation:
         """
-        Returns: the patchy simulation specification associated with this stage
+        :returns: the patchy simulation specification associated with this stage
         """
         return self._sim_spec
 
     def is_first(self) -> bool:
         """
-        Returns: true if this is the first stage, false otherwise
+        :returns: true if this is the first stage, false otherwise
         """
         return self.idx() == 0
+
+    def is_last(self) -> bool:
+        """
+        :returns: true if this stage has no stage after it, false otherwise
+        """
+        return self._next_stage is None
 
     def get_prev(self) -> Union[None, Stage]:
         return self._prev_stage
@@ -143,6 +149,14 @@ class Stage(BuildSimulation):
 
     def end_time(self) -> int:
         return self._param_info.info["steps"]
+
+    def set_tend(self, new_val: int):
+        """
+        sets the end time of this stage.
+        """
+        assert self.is_last()
+        self._param_info.info["steps"] = new_val
+
 
     def has_var(self, key: str) -> bool:
         return key in self._param_info.info

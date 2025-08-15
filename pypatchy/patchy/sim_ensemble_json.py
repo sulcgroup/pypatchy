@@ -72,7 +72,7 @@ class SimEnsembleJsonEncoder(PLJSONEncoder):
     def encode_param_value(self, obj: ParameterValue) -> dict:
         if isinstance(obj, ParamValueGroup):
             return {
-                "name": obj.param_name,
+                "name": obj.value_name(),
                 ** {
                     pv.param_name: self.encode_param_value(pv) for pv in obj.param_value.values()
                 }
