@@ -1,11 +1,14 @@
 import json
+
+from functools import cached_property
+
 from enum import Enum
 from typing import Union
 
 import networkx as nx
 import igraph as ig
 
-from pypatchy.util import get_input_dir
+from ..util import get_input_dir
 
 
 class ClusterCategory(Enum):
@@ -46,6 +49,10 @@ class YieldAnalysisTarget:
         """
         return len(self.graph)
 
+    @cached_property
+    def graph_ig(self) -> ig.Graph:
+        return ig.Graph.from_networkx(self.graph)
+
     def compare(self, g: nx.Graph) -> tuple[ClusterCategory, float]:
         """
         Compares a cluster graph to the analysis target and returns a classification of the cluster and its yield
@@ -58,17 +65,16 @@ class YieldAnalysisTarget:
         """
         # compute size fraction
         sizeFrac = len(g) / len(self)
+        if sizeFrac > 1:
+            return ClusterCategory.OVER, sizeFrac
         # check if g is a subgraph of the target graph
-        if len(ig.Graph.from_networkx(self.graph).get_subisomorphisms_vf2(ig.Graph.from_networkx(g))) > 0:
+        if len(self.graph_ig.get_subisomorphisms_vf2(ig.Graph.from_networkx(g))) > 0:
             if sizeFrac == 1:
                 cat = ClusterCategory.MATCH
             else:
                 cat = ClusterCategory.SUBSET
-        else:
-            if sizeFrac < 1:
-                cat = ClusterCategory.SMALLER_NOT_SUB
-            else:
-                cat = ClusterCategory.OVER
+        elif sizeFrac <= 1:
+            cat = ClusterCategory.SMALLER_NOT_SUB
         return cat, sizeFrac
 
 

@@ -2053,7 +2053,7 @@ class PatchySimulationEnsemble(Analyzable):
 
         """
         if type(time_steps) == int:
-            time_steps = range(0, 2 * time_steps, time_steps)  # 0, time_step
+            time_steps = range(time_steps, 2 * time_steps, time_steps)  # 0, time_step
 
         # preprocessing: MAKE SURE THIS IS A STEP OBJECT
         step = self.get_pipeline_step(step)
@@ -2331,7 +2331,7 @@ class PatchySimulationEnsemble(Analyzable):
                 stage = self.sim_get_stage(sim, stage)
             # make temporary directory to run dnaAnalysis
 
-            with tempfile.TemporaryDirectory(delete=False) as tmpdir:
+            with tempfile.TemporaryDirectory() as tmpdir:
                 shutil.copyfile(self.folder_path(sim, stage) / "input", tmpdir + "/input")
                 os.chdir(tmpdir)
                 with oxpy.Context():
