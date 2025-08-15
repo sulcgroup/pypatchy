@@ -366,10 +366,10 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
 
     # handle multidentate params
     if NUM_TEETH_KEY in cfg[CONST_PARAMS_KEY]:
-        if cfg[CONST_PARAMS_KEY][NUM_TEETH_KEY] > 1 :
+        if cfg[CONST_PARAMS_KEY][NUM_TEETH_KEY] > 1:
             raise Exception("DEPRECATED")
         else:
-            del cfg[NUM_TEETH_KEY]
+            del cfg[CONST_PARAMS_KEY][NUM_TEETH_KEY]
         # assert DENTAL_RADIUS_KEY in cfg[CONST_PARAMS_KEY]
         # num_teeth = cfg[CONST_PARAMS_KEY][NUM_TEETH_KEY]
         # dental_radius = cfg[CONST_PARAMS_KEY][DENTAL_RADIUS_KEY]
