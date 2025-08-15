@@ -366,7 +366,7 @@ def build_ensemble(cfg: dict[str], mdt: dict[str, Union[str, dict]],
 
     # handle multidentate params
     if NUM_TEETH_KEY in cfg[CONST_PARAMS_KEY]:
-        if cfg[NUM_TEETH_KEY] > 0:
+        if cfg[CONST_PARAMS_KEY][NUM_TEETH_KEY] > 0:
             raise Exception("DEPRECATED")
         else:
             del cfg[NUM_TEETH_KEY]
