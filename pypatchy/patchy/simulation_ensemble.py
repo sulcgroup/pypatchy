@@ -335,16 +335,22 @@ def build_ensemble(cfg: dict[str],
     if "ensemble_config" not in mdt:
         mdt["ensemble_config"] = cfg
 
-    if "analysis_file" in mdt:
-        analysis_file = mdt["analysis_file"]
-        if (get_input_dir() / analysis_file).is_file():
-            with open(get_input_dir() / analysis_file, "rb") as f:
-                analysis_pipeline = pickle.load(f)
-        else:
-            print(f"Analysis file specified in metadata but path {get_input_dir() / analysis_file} does not exist!")
-            analysis_pipeline = AnalysisPipeline()
+    # if "analysis_file" in mdt:
+    #     analysis_file = mdt["analysis_file"]
+    #     if (get_input_dir() / analysis_file).is_file():
+    #         with open(get_input_dir() / analysis_file, "rb") as f:
+    #             analysis_pipeline = pickle.load(f)
+    #     else:
+    #         print(f"Analysis file specified in metadata but path {get_input_dir() / analysis_file} does not exist!")
+    #         analysis_pipeline = AnalysisPipeline()
+    # else:
+    #     analysis_file = f"{export_name}_analysis_pipeline.pickle"
+    #     analysis_pipeline = AnalysisPipeline()
+
+    if "analysis_pipeline" in mdt:
+        analysis_pipeline = AnalysisPipeline(mdt["analysis_pipeline"])
+        del mdt["analysis_pipeline"]
     else:
-        analysis_file = f"{export_name}_analysis_pipeline.pickle"
         analysis_pipeline = AnalysisPipeline()
 
     if isinstance(mdt[ENSEMBLE_SETUP_DATE], datetime.datetime):
@@ -457,10 +463,15 @@ def build_ensemble(cfg: dict[str],
         for key, paramData in cfg[ENSEMBLE_PARAMS_KEY]
     ]
 
-    ensemble = PatchySimulationEnsemble(export_name, setup_date, mdtfile, analysis_pipeline,
-                                        const_parameters + default_param_set, ensemble_parameters, observables,
-                                        analysis_file, mdt,
-                                        server_settings)
+    ensemble = PatchySimulationEnsemble(export_name=export_name,
+                                        setup_date=setup_date,
+                                        metadata_file_name=mdtfile,
+                                        analysis_pipeline=analysis_pipeline,
+                                        const_params=const_parameters + default_param_set,
+                                        ensemble_params=ensemble_parameters,
+                                        observables=observables,
+                                        metadata_dict=mdt,
+                                        server_settings=server_settings)
 
     if "no_oxpy_check" in cfg:
         if cfg["no_oxpy_check"]:
@@ -532,7 +543,6 @@ class PatchySimulationEnsemble(Analyzable):
                  const_params: ParamSet,
                  ensemble_params: list[EnsembleParameter],
                  observables: dict[str, Observable],
-                 analysis_file: str,
                  metadata_dict: dict,
                  server_settings: Union[PatchyServerConfig, None] = None):
         """
@@ -543,11 +553,10 @@ class PatchySimulationEnsemble(Analyzable):
         :param const_params: the parameters that will be constant in all simulations
         :param ensemble_params: parameters which will be varied between different simulations
         :param observables: observables to use for this ensemble
-        :param analysis_file: name of a file from which to load analysis pipeline data
         :param metadata_dict: metadata for this simulation grouo
         :param server_settings: "server settings" (aka simulation group preset) for the simulations
         """
-        super().__init__(analysis_file, analysis_pipeline)
+        super().__init__(analysis_pipeline)
         self.export_name = export_name
         self.sim_init_date = setup_date
 
@@ -1799,7 +1808,6 @@ class PatchySimulationEnsemble(Analyzable):
         todo: make this comprehensive
         """
         self.metadata["slurm_log"] = self.slurm_log.to_list()
-        self.metadata["analysis_file"] = self.analysis_file
 
         # there's a bunch of metadata["ensemble_confg"] stuff that gets passed as raw text but should be saved as json to be comprehensive
         # todo: are there any more of these?
@@ -1807,16 +1815,12 @@ class PatchySimulationEnsemble(Analyzable):
         ec[OBSERABLES_KEY] = self.observables
         ec[CONST_PARAMS_KEY] = self.const_params
         ec[ENSEMBLE_PARAMS_KEY] = self.ensemble_params
+        ec["analysis_pipeline"] = self.analysis_pipeline.to_json()
 
         # dump metadata dict to file
         with open(get_input_dir() / self.metadata_file, "w") as f:
             # TODO: more encoders?
             json.dump(self.metadata, fp=f, indent=4, cls=SimEnsembleJsonEncoder)
-        # dump analysis pipevline as pickle
-        # if "analysis_file" not in self.metadata:
-        #     self.metadata["analysis_file"] = get_input_dir() / (self.export_name + "_analysis_pipeline.pickle")
-        with open(get_input_dir() / self.analysis_file, "wb") as f:
-            pickle.dump(self.analysis_pipeline, f)
 
     def sim_get_next_stage(self, sim: PatchySimulation) -> Stage:
         try:
@@ -2258,7 +2262,7 @@ class PatchySimulationEnsemble(Analyzable):
         try:
             self.get_logger().info(f"Caching data in file `{self._get_cache_file(step, sim)}`")
             if isinstance(sim, tuple):
-                assert not self.is_multiselect(sim)
+                assert not self.is_multiselect(sim), "Can't cache multiselected data in a single cache file!"
                 sim = self.get_simulation(*sim)
             step.cache_data(data, self._get_cache_file(step, sim))
         finally:

@@ -340,6 +340,9 @@ class AnalysisPipeline:
                 # reverse order but the same operation
                 self._add_pipe_between(new_node, other_graph[dest_name])
 
+    def to_json(self) -> dict:
+        return {}
+
     def __add__(self, other: AnalysisPipeline) -> AnalysisPipeline:
         """
         Joins this pipeline and the other pipeline and returns the merged pipelines
@@ -522,3 +525,6 @@ class AnalysisPipeline:
         drawing.width = x_max - x_min + 40
         drawing.height = y_max - y_min + 40
         return drawing
+
+def load_from_json(json_data: dict):
+    pass

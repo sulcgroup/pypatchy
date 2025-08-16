@@ -29,13 +29,11 @@ class Analyzable(ABC):
     analysis_file: str
 
     def __init__(self,
-                 analysis_file: str,
                  analysis_pipeline: AnalysisPipeline):
         """
         :param analysis_file: path to analysis file
         :param analysis_pipeline: analysis pipeline to use for this dataset
         """
-        self.analysis_file = analysis_file
         self.analysis_pipeline = analysis_pipeline
         # construct analysis data dict in case we need it
         self.analysis_data = dict()

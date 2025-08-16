@@ -13,7 +13,7 @@ import pickle
 from abc import ABC, abstractmethod
 from enum import Enum
 from pathlib import Path
-from typing import Union, Any
+from typing import Union, Any, Optional
 
 import numpy as np
 import pandas as pd
@@ -144,11 +144,12 @@ class PDPipelineData(PipelineData):
 
     data: pd.DataFrame
 
-    def __init__(self, data: Union[None, pd.DataFrame], tr: Union[None, np.ndarray]):
+    def __init__(self, data: Optional[pd.DataFrame], tr: Optional[np.ndarray]):
         """
         Constructor
         """
-        self._trange = tr
+        # require timepoint range to be
+        self._trange = tr.astype(int) if tr is not None else None
         self.data = data
 
     def get(self) -> pd.DataFrame:
