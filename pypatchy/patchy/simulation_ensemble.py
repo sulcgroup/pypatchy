@@ -25,7 +25,7 @@ from oxDNA_analysis_tools.UTILS.RyeReader import get_confs, describe, write_conf
 from oxDNA_analysis_tools.UTILS.data_structures import Configuration
 
 from ipy_oxdna.oxdna_simulation import SimulationManager, Simulation
-from ipy_oxdna.observable import Observable
+from ipy_oxdna.observable import Observable, ObservableColumn
 
 from .pl.plpotential import PLPotential, PLFRExclVolPotential, PLFRTorsionalPatchyPotential, PLLRPatchyPotential, \
     PLLRExclVolPotential, PLFRPatchyPotential
@@ -424,8 +424,15 @@ def build_ensemble(cfg: dict[str],
         # iter observables in cfg
         if all([type(obs) == dict for obs in cfg[OBSERABLES_KEY]]):
             for obs in cfg[OBSERABLES_KEY]:
-                obs_name = obs[0]
-                observables[obs_name] = Observable(*obs)
+                observable_obj = Observable(
+                    obs["name"],
+                    obs["print_every"],
+                    *[
+                        ObservableColumn(name=col["type"], **col)
+                        for col in obs["cols"]
+                    ]
+                )
+                observables[observable_obj.file_name] = observable_obj
         else:
             # oh no
             for obs in cfg[OBSERABLES_KEY]:
@@ -1812,7 +1819,7 @@ class PatchySimulationEnsemble(Analyzable):
         # there's a bunch of metadata["ensemble_confg"] stuff that gets passed as raw text but should be saved as json to be comprehensive
         # todo: are there any more of these?
         ec = self.metadata["ensemble_config"]
-        ec[OBSERABLES_KEY] = self.observables
+        ec[OBSERABLES_KEY] = list(self.observables.values())
         ec[CONST_PARAMS_KEY] = self.const_params
         ec[ENSEMBLE_PARAMS_KEY] = self.ensemble_params
         ec["analysis_pipeline"] = self.analysis_pipeline.to_json()
@@ -2242,7 +2249,8 @@ class PatchySimulationEnsemble(Analyzable):
                 self.get_logger().info(f"All data in file! That was easy!")
                 return cached_data
             else:
-                self.get_logger().info(f"Cache file missing data!")
+                self.get_logger().info(f"Cache file missing data! Missing timepoints are "
+                                       f"{np.argwhere(~cached_data.compare_tranges(time_steps)) * step.input_tstep} ")
         if self.is_do_analysis_parallel():
             lock = multiprocessing.Lock()
             lock.acquire()

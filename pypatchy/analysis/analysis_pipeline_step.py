@@ -168,6 +168,8 @@ class AnalysisPipelineHead(AnalysisPipelineStep, ABC):
     @abstractmethod
     def get_data_in_filenames(self) -> list[str]:
         """
+        todo: try to cut this method out, it should be possible to find datafiles
+        from args passed to the the __call__ method
         :return: a list of files containing the raw data that will be used by this step
         """
         pass

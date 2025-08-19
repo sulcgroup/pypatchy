@@ -138,8 +138,7 @@ class LoadParticlesTraj(AnalysisPipelineHead):
 
     def get_output_data_type(self):
         """
-        Returns:
-            PipelineDataType.PIPELINE_DATATYPE_DATAFRAME
+        :return: PipelineDataType.PIPELINE_DATATYPE_DATAFRAME
         """
         return PipelineDataType.PIPELINE_DATATYPE_RAWDATA
 
@@ -342,22 +341,39 @@ class GraphsFromClusterTxt(AnalysisPipelineHead):
         constructs a graphs from clusters.txt node
         """
         super().__init__(name, int(source.print_every), output_tstep)
-        assert (*source.get_cols(),)[0].get_type_name() == "PLClusterTopology"
+        if len(source) == 1:
+            assert (*source.get_cols(),)[0].get_type_name() == "PLClusterTopology", \
+                f"Observable column has incorrect type! Type should be PLClusterTopology, is {(*source.get_cols(),)[0].get_type_name()}"
+        elif len(source) == 2:
+            assert (*source.get_cols(),)[1].get_type_name() == "PLClusterTopology", \
+                f"Observable column has incorrect type! Type should be PLClusterTopology, is {(*source.get_cols(),)[1].get_type_name()}"
+            assert (*source.get_cols(),)[0].get_type_name() == "step", \
+                f"Observable column has incorrect type! Type should be step, is {(*source.get_cols(),)[0].get_type_name()}"
         self.source_observable = source
+
 
     load_cached_files = load_cached_object_data
 
     def __call__(self, _, __, stages: list[Stage], graphs_files: list[Path]) -> ObjectPipelineData:
         """
-        __call__utes analysis step
+        reads the output of the PLClusterTopology from a text file and converts
+        to networkx graphs
+        todo: a better way to do at least some of this
+        :param _: skip param to match expected signature
+        :param __: skip param to match expected signature
+        :param stages: list of stages
+        :param graphs_files: list of graph files
         """
-        graphs = {}
+        graphs: dict[int, list[nx.Graph]] = {}
         # iter stages
         for stage, graph_file in zip(stages, graphs_files):
             # open stage graph file
             with open(graph_file, "r") as f:
                 # find stage start time
-                stepcounter = stage.start_time()
+                # observable does not print at t=0
+                # introducing new option: two coulumn output where the first column ist the step
+                if len(self.source_observable) == 1:
+                    stepcounter = stage.start_time() + self.source_observable.print_every
                 # iterate lines in the graph file
                 # todo context mgr
                 w = stage.getctxt().writer
@@ -365,6 +381,11 @@ class GraphsFromClusterTxt(AnalysisPipelineHead):
                 # topology in the simulation sense (list of particles w/ typing info)
                 sim_top = w.read_top(stage.getctxt().sim_get_stage_top(stage.spec(), stage))
                 for line in f:
+                    # get timepoint; we will autogenerate them if no timepoints are in observable output
+                    if len(self.source_observable) == 2:
+                        # split first token from line
+                        stepcounter, line = line.split(maxsplit=1)
+                        stepcounter = int(stepcounter)
                     # skip timepoints that aren't multiples of the specified timestep
                     if stepcounter % self.output_tstep == 0:
                         clusterGraphs = []
@@ -392,7 +413,15 @@ class GraphsFromClusterTxt(AnalysisPipelineHead):
                                 G.nodes[particle_id]["particle_type"] = sim_top.get_particle_type(particle_id)
                             clusterGraphs.append(G)
                         graphs[stepcounter] = clusterGraphs
+                    # increment the stepcounter; we'll be hard-setting it at next loop if the timepoint is in the file
                     stepcounter += self.source_observable.print_every
+        # idk if this is a thing with all observables or just PLClusterTopology but
+        # it doesn't output anything at t=0
+        # so if we're starting at the first timestep and don't have a t=0 datapoint,
+        # add an empty one
+        # TODO: my god please anything else
+        if self.source_observable.print_every in graphs and 0 not in graphs:
+            graphs[0] = []
         return ObjectPipelineData(graphs)
 
     def get_data_in_filenames(self):
@@ -410,8 +439,6 @@ class GraphsFromClusterTxt(AnalysisPipelineHead):
         g.append(draw.Text("TODO: write description!", font_size=7, x=1, y=y + 7))
         y += 28
         return (w, y), g
-
-
 
 class MatchGraphToCrystal(AnalysisPipelineStep):
     """

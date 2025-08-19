@@ -44,7 +44,7 @@ class SimEnsembleJsonEncoder(PLJSONEncoder):
                 pvdict["type"] = MDT_CONVERT_KEY
             return pvdict
         elif isinstance(obj, Observable):
-            return obj.export()
+            return obj.export()["output"] # compatibility with ipy_oxDNA code
         # StageInfoParam should probably inherit from ParameterValue, but it doesn't right now
         # and i'm afraid to change that
         elif isinstance(obj, StageInfoParam):
