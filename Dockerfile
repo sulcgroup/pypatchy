@@ -46,32 +46,21 @@ RUN apt-get update && apt-get install -y bzip2 ca-certificates \
  && curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest \
     | tar -xjC /usr/local/bin --strip-components=1 bin/micromamba \
  && chmod +x /usr/local/bin/micromamba \
- && rm -rf /var/lib/apt/lists/*
-
-# confirm it’s on PATH
-RUN micromamba --version
-
+ && rm -rf /var/lib/apt/lists/* \
+ && micromamba --version &&\
 # clone oxDNA
 #RUN --mount=type=ssh git clone git@github.com:lorenzo-rovigatti/oxDNA.git /root/Github/oxDNA
 # todo: replace with the above line of code once i get the flavio code PR'd into Lorenzo's
 # get back to this
-RUN --mount=type=ssh git clone git@github.com:JeDeveloper/oxDNA.git /root/Github/oxDNA
-
-# clone the ipy_oxdna repo
-# this will use whatever keys your local ssh-agent has loaded
-# todo: stabilize the stack and make this point to matt's ipy_oxDNA version
-RUN --mount=type=ssh git clone git@github.com:JeDeveloper/ipy_oxDNA.git /root/Github/ipy_oxDNA
-
-# clone polycubes git repo
-RUN --mount=type=ssh git clone git@github.com:sulcgroup/polycubes-clone.git /root/Github/polycubes \
+git clone git@github.com:JeDeveloper/oxDNA.git /root/Github/oxDNA && \
+git clone git@github.com:JeDeveloper/ipy_oxDNA.git /root/Github/ipy_oxDNA && \
+git clone git@github.com:sulcgroup/polycubes-clone.git /root/Github/polycubes \
     && cd /root/Github/polycubes \
-    && git checkout nightmare
-
-
+    && git checkout nightmare && \
 # create & activate the pypatchy env, then pip‑install both packages
 # todo: check if we really need to install with -e in the docker version
-RUN micromamba create -y -n pypatchy -f /root/Github/pypatchy/pypatchy.yml --channel-priority flexible
-RUN micromamba run -n pypatchy micromamba install -y boost-cpp --channel conda-forge \
+micromamba create -y -n pypatchy -f /root/Github/pypatchy/pypatchy.yml --channel-priority flexible && \
+micromamba run -n pypatchy micromamba install -y boost-cpp --channel conda-forge \
  && micromamba clean --all --yes
 
 # update docker env so we can find micromamba stuff later
@@ -84,13 +73,8 @@ ENV PATH=$MAMBA_ROOT_PREFIX/envs/pypatchy/bin:$PATH
 RUN micromamba run -n pypatchy pip install -e /root/Github/ipy_oxDNA \
     && micromamba run -n pypatchy pip install -e /root/Github/pypatchy \
     && micromamba clean --all --yes \
-    && micromamba run -n pypatchy pip cache purge
-
-# set up pypatchy stuff
-#RUN micromamba run -n pypatchy python /root/Github/pypatchy/pypatchy/configure.py
-# configure.py is broken and i don't feel like fixing it when i can do the same things here
-# make .pypatchy directory structure
-RUN mkdir /root/.pypatchy  \
+    && micromamba run -n pypatchy pip cache purge \
+    && mkdir /root/.pypatchy  \
     && mkdir /root/.pypatchy/spec_files \
     && mkdir /root/.pypatchy/spec_files/server_configs \
     && mkdir /root/.pypatchy/spec_files/input_files \
@@ -107,37 +91,13 @@ RUN mkdir /root/.pypatchy  \
 
 # make pypatchy run directory
 # todo make this settable or something for systems with seperate home and scratch drives
-RUN mkdir /root/patchy_run
-# setup.py creates the .pypatchy directory
-# replace the default settings.cfg file with a custom one for docker setup
-run echo "[ANALYSIS] \n \
+RUN mkdir /root/patchy_run && \
+echo "[ANALYSIS] \n \
     simulation_data_dir = /root/patchy_run \
     tlm_data_dir = /home/josh/lab_data/tlm_data/raws \
     [SETUP] \
-    server_config = docker" > /root/.pypatchy/settings.cfg
-
-# create server configs
-# todo: make these settable outside dockerfile?
-# todo: sed the rovigatti .h file that has the max patches
-# todo: uncomment this when i set up cuda
-#RUN echo '{ \
-#	"input_file_params": { \
-#		"backend": "CUDA",\
-#        "backend_precision": "float", \
-#		"interaction_type": "DetailedPatchySwapInteraction", \
-#        "plugin_search_path": "/root/Github/oxDNA/contrib/rovigatti", \
-#        "DPS_interaction_matrix_file": "interactions.txt", \
-#		"max_density_multiplier": 10, \
-#		"DPS_normalise_patches": 0, \
-#		"DPS_sigma_ss": 0.082 \
-#	}, \
-#	"oxdna_path": "/root/Github/oxDNA/", \
-#	"is_slurm": false, \
-#	"patchy_format": "lorenzo", \
-#	"cuda_mps": false \
-#}' > /root/.pypatchy/spec_files/server_configs/lr.json
-
-RUN echo '{ \
+    server_config = docker" > /root/.pypatchy/settings.cfg && \
+echo '{ \
 	"input_file_params": { \
 		"backend": "CPU", \
         "backend_precision": "mixed", \
@@ -152,13 +112,11 @@ RUN echo '{ \
 	"is_slurm": false, \
 	"patchy_format": "flavio", \
 	"cuda_mps": false \
-' > /root/.pypatchy/spec_files/server_configs/fr.json
-
-RUN cp /root/Github/pypatchy/spec_files/input_files/default.json /root/.pypatchy/spec_files/input_files/
-RUN cp /root/Github/pypatchy/spec_files/observables/plclustertopology.json /root/.pypatchy/spec_files/observables/
-RUN cp /root/Github/pypatchy/spec_files/observables/plclustertopology.json /root/.pypatchy/spec_files/observables/
-
-RUN echo '{ \
+' > /root/.pypatchy/spec_files/server_configs/fr.json && \
+cp /root/Github/pypatchy/spec_files/input_files/default.json /root/.pypatchy/spec_files/input_files/ && \
+cp /root/Github/pypatchy/spec_files/observables/plclustertopology.json /root/.pypatchy/spec_files/observables/ && \
+cp /root/Github/pypatchy/spec_files/observables/plclustertopology.json /root/.pypatchy/spec_files/observables/ &&\
+echo '{ \
 	"name": "clusters.txt", \
 	"print_every": 1e7, \
 	"cols": [ \
@@ -176,28 +134,24 @@ RUN mkdir build
 WORKDIR build
 # cmake oxDNA
 # TODO: add -DCUDA=ON and make docker set up cuda
-RUN cmake .. -DPYTHON=ON
+RUN cmake .. -DPYTHON=ON && \
 # compile oxDNA + python bindings
-RUN make install -j$(nproc)
+make install -j$(nproc) && \
 # compile flavio romano patchy model
-RUN make romano -j$(nproc)
+make romano -j$(nproc) && \
 # compile lorenzo rovigatti patchy model
-RUN make rovigatti -j$(nproc)
+make rovigatti -j$(nproc) && \
 # TODO: compile Josh Evans patchy model
-
-
 # cmake and compile  polycubes library
-WORKDIR /root/Github/polycubes/cpp
-RUN mkdir build
-WORKDIR build
-RUN cmake .. \
+cd /root/Github/polycubes/cpp && \
+mkdir build && cd build && \
+cmake .. \
     -DCMAKE_BUILD_TYPE=Release \
     -DBUILD_PYTHON_BINDINGS=ON \
     -DPYBIND11_PYTHON_VERSION=3.9 \
     -DPYTHON_EXECUTABLE=$(which python) \
- && make polycubes_py -j$(nproc)
-
-RUN cp src/libtlm.so $(python -m site --user-site)
+ && make polycubes_py -j$(nproc) && \
+cp src/libtlm.so $(python -m site --user-site)
 
 
 
@@ -205,3 +159,7 @@ RUN cp src/libtlm.so $(python -m site --user-site)
 # start bash
 ENTRYPOINT ["/bin/bash", "-c"]
 CMD ["if [ $# -eq 0 ]; then echo \"Starting pYpatchy\" && /bin/bash; else exec \"$@\"; fi"]
+
+# One and build and upload with 
+# docker build -t pypatchy:latest .
+# docker run -it --rm --gpus all -v "$(pwd):/mnt" subhajitroy/private:pypatchy # To start the container with GPU support and will remove the container after exit or when the command finishes
