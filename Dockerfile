@@ -105,7 +105,7 @@ RUN mkdir /root/.pypatchy  \
     && mkdir /root/.pypatchy/output/logs/SAT
 
 
-# make pypatchy run directory
+# make pypENTRYPOINT ["bash", "-l"]atchy run directory
 # todo make this settable or something for systems with seperate home and scratch drives
 RUN mkdir /root/patchy_run
 # setup.py creates the .pypatchy directory
@@ -129,18 +129,7 @@ run echo "[ANALYSIS] \n \
 #        "DPS_interaction_matrix_file": "interactions.txt", \
 #		"max_density_multiplier": 10, \
 #		"DPS_normalise_patches": 0, \
-#		"DPS_sigma_ss": 0.082 \
-#	}, \
-#	"oxdna_path": "/root/Github/oxDNA/", \
-#	"is_slurm": false, \
-#	"patchy_format": "lorenzo", \
-#	"cuda_mps": false \
-#}' > /root/.pypatchy/spec_files/server_configs/lr.json
-
-RUN echo '{ \
-	"input_file_params": { \
-		"backend": "CPU", \
-        "backend_precision": "mixed", \
+#		"DENTRYPOINT ["bash", "-l"]ckend_precision": "mixed", \
 		"interaction_type": "PatchyShapeInteraction", \
         "plugin_search_path": "/root/Github/oxDNA/contrib/romano", \
         "patchy_file": "patches.txt", \
@@ -207,5 +196,4 @@ RUN cp src/libtlm.so $(python -m site --user-site)
 
 
 # start bash
-ENTRYPOINT ["bash", "-l"]
 
