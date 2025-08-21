@@ -105,7 +105,7 @@ RUN mkdir /root/.pypatchy  \
     && mkdir /root/.pypatchy/output/logs/SAT
 
 
-# make pypENTRYPOINT ["bash", "-l"]atchy run directory
+# make pypatchy run directory
 # todo make this settable or something for systems with seperate home and scratch drives
 RUN mkdir /root/patchy_run
 # setup.py creates the .pypatchy directory
@@ -129,11 +129,18 @@ run echo "[ANALYSIS] \n \
 #        "DPS_interaction_matrix_file": "interactions.txt", \
 #		"max_density_multiplier": 10, \
 #		"DPS_normalise_patches": 0, \
-#		"DENTRYPOINT ["bash", "-l"]ckend_precision": "mixed", \
-		"interaction_type": "PatchyShapeInteraction", \
-        "plugin_search_path": "/root/Github/oxDNA/contrib/romano", \
-        "patchy_file": "patches.txt", \
-        "particle_file": "particles.txt", \
+#		"DPS_sigma_ss": 0.082 \
+#	}, \
+#	"oxdna_path": "/root/Github/oxDNA/", \
+#	"is_slurm": false, \
+#	"patchy_format": "lorenzo", \
+#	"cuda_mps": false \
+#}' > /root/.pypatchy/spec_files/server_configs/lr.json
+
+RUN echo '{ \
+	"input_file_params": { \
+		"backend": "CPU", \
+        "backend_precision": "mixed", \
         "interaction_potentials": [ \
         	"fr_excl_vol", \
         	"fr_patchy" \
@@ -196,4 +203,5 @@ RUN cp src/libtlm.so $(python -m site --user-site)
 
 
 # start bash
-
+ENTRYPOINT ["/bin/bash", "-c"]
+CMD ["if [ $# -eq 0 ]; then echo \"Starting pYpatchy\" && /bin/bash; else exec \"$@\"; fi"]
