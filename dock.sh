@@ -1,6 +1,6 @@
 #!/bin/bash
 eval "$(ssh-agent -s)"
-ssh-add /home/subho/.ssh/id_ed25519
+ssh-add $HOME/.ssh/id_ed25519
 DOCKER_BUILDKIT=1 docker build -t patchy:latest --ssh default -f Dockerfile --no-cache .
 # # run polycubes tests
 # docker run --rm patchy:latest \
