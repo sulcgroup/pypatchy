@@ -30,7 +30,7 @@ class YieldAnalysisTarget:
     The yield of a cluster is the number of nodes in the largest possible subgraph of the target which
     is isomorphic to the cluster graph
     """
-    name: str
+    name: str # why?
     graph: nx.Graph
 
     def __init__(self, name: str, graph: Union[nx.Graph, None] = None):

@@ -1,5 +1,6 @@
 import matplotlib.colors
 
+COLORSCHEME = "GOLDEN_ANGLE" # todo: please more of these my god
 
 def get_particle_color(ptypeidx: int):
     """

@@ -57,6 +57,7 @@ class Stage(BuildSimulation):
         self._next_stage = None
         self._box_size = box_size
         self._param_info = paraminfo
+        self._param_info.info["steps"] = int(float(self._param_info.info["steps"]))
         self._allow_shortfall = False
 
         # check that add param info add method is valid
@@ -144,6 +145,7 @@ class Stage(BuildSimulation):
     def start_time(self) -> int:
         return self._param_info.start_time
 
+    # TODO: VERIFY THAT THIS WORKS CORRECTLY
     def time_length(self) -> int:
         return self._param_info.info["steps"] - self.start_time()
 

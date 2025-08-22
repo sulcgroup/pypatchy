@@ -10,7 +10,8 @@ import datetime
 
 from pypatchy.patchy.simulation_ensemble import build_ensemble
 from pypatchy.patchy.patchy_sim_observable import Observable
-from ipy_oxdna.observable import Observable
+from ipy_oxdna.observable import Observable, ObservableColumn
+from pypatchy.polycubeutil.polycubesRule import PolycubesRule
 
 rule = PolycubesRule("|1||-4||3:1_||||-3:3|-3:2_5||4:1|-1:2||_2:2||2:2||2:2|_-2:1|-2||-5:1||-5:2")
 particle_types = polycubes_rule_to_pl(rule)
@@ -30,12 +31,7 @@ e = build_ensemble(
             Observable(
                 name= "clusters.txt",
                 print_every= 1e7,
-                cols= [
-                    {
-                        "name": "PatchyBonds",
-                        "show_types": 1
-                    }
-                ]
+                ObservableColumn(name="PatchyBonds", show_types=1)
             )
         ],
         "server_config": PatchyServerConfig(),

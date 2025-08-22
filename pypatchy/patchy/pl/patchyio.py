@@ -235,7 +235,7 @@ class PLBaseWriter(ABC):
         rr.write_conf(str(self.directory() / p), conf)
 
     @abstractmethod
-    def read_particle_types(self, *args):
+    def read_particle_types(self, **kwargs):
         """
         Reads particle type data without scene data or (ideally) .top file data
         The arguements taken by this method should vary by writer but should

@@ -119,6 +119,34 @@ def plot_analysis_data(e: PatchySimulationEnsemble,
     fig.fig.suptitle(f"{e.export_name} - {analysis_data_source}", y=1)
     return fig
 
+# def plot_curve(
+#         e: PatchySimulationEnsemble,
+#         ax: plt.Axes,
+#         analysis_data_source: str,
+#         plot_params: dict[str, Any],
+#         trange: Optional[Tuple[float, float]] = None,
+#         data_params: Optional[tuple[ParameterValue]]=None,
+#         data_source_key: str = YIELD_KEY,
+#         norm: Optional[Union[str, int, float]] = None
+#         ):
+#     # lookup simulations involved in this simulation
+#     data = e.get_data(analysis_data_source, data_params, trange).get()
+#
+#     if norm:
+#         if isinstance(norm, int) or isinstance(norm, float):
+#             def normalize_row(row):
+#                 return row[data_source_key] / norm
+#
+#         else:
+#             def normalize_row(row):
+#                 sim = row.drop([TIMEPOINT_KEY, data_source_key]).to_dict()
+#                 sim = e.get_simulation(**sim)
+#                 return row[data_source_key] / e.sim_get_param(sim, norm)
+#         data[data_source_key] = data.apply(normalize_row, axis=1)
+#
+#     ax.plot(TIMEPOINT_KEY,
+#             data_source_key,
+#             data=data)
 
 def plot_compare_ensembles(es: list[PatchySimulationEnsemble],
                            analysis_data_source: str,

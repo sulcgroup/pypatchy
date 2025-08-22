@@ -11,7 +11,7 @@ import tempfile
 import time
 from collections import Counter
 from json import JSONDecodeError
-from typing import Generator
+from typing import Generator, Type
 
 import subprocess
 import re
@@ -174,6 +174,10 @@ def find_ensemble(*args: str, **kwargs) -> PatchySimulationEnsemble:
     if "set_server" not in kwargs:
         kwargs["set_server"] = None
 
+    # sometimes for custom pipeline we need custom read/write
+    if "loader" not in kwargs:
+        kwargs["loader"] = SimEnsembleJsonEncoder
+
     if len(args) > 0:
         simname = args[0]
         if len(args) == 2:
@@ -258,8 +262,8 @@ def find_ensemble(*args: str, **kwargs) -> PatchySimulationEnsemble:
             if kwargs["set_server"]:
                 cfg[SERVER_SETTINGS_KEY] = kwargs["set_server"]
             return build_ensemble(cfg, {
-                "setup_date": sim_init_date.strftime("%Y-%m-%d")
-            })
+                "setup_date": sim_init_date.strftime("%Y-%m-%d"),
+            }, encoder_decoder=kwargs["loader"])
 
     elif any([key in kwargs for key in ["metadata_file_name", "metadata_file", "mdf", "mdt", "metadata"]]):
         metadata_file_name: str = [kwargs[key] for key in ["metadata_file_name",
@@ -281,7 +285,8 @@ def find_ensemble(*args: str, **kwargs) -> PatchySimulationEnsemble:
                 return build_ensemble(
                     cfg,
                     mdt,
-                    metadata_file_path
+                    metadata_file_path,
+                    kwargs["loader"]
                 )
         else:
             # grab date arg
@@ -305,7 +310,8 @@ def find_ensemble(*args: str, **kwargs) -> PatchySimulationEnsemble:
 
 def build_ensemble(cfg: dict[str],
                    mdt: dict[str, Union[str, dict]],
-                   mdtfile: Union[Path, None] = None) -> PatchySimulationEnsemble:
+                   mdtfile: Union[Path, None] = None,
+                   encoder_decoder: Type = SimEnsembleJsonEncoder) -> PatchySimulationEnsemble:
     """
     External patchy simulation constructor
     :param cfg: a key-value dict
@@ -478,7 +484,8 @@ def build_ensemble(cfg: dict[str],
                                         ensemble_params=ensemble_parameters,
                                         observables=observables,
                                         metadata_dict=mdt,
-                                        server_settings=server_settings)
+                                        server_settings=server_settings,
+                                        json_rw=encoder_decoder)
 
     if "no_oxpy_check" in cfg:
         if cfg["no_oxpy_check"]:
@@ -542,6 +549,8 @@ class PatchySimulationEnsemble(Analyzable):
     # output writer
     writer: PLBaseWriter
 
+    json_rw: Type = SimEnsembleJsonEncoder
+
     def __init__(self,
                  export_name: str,
                  setup_date: datetime.datetime,
@@ -551,7 +560,8 @@ class PatchySimulationEnsemble(Analyzable):
                  ensemble_params: list[EnsembleParameter],
                  observables: dict[str, Observable],
                  metadata_dict: dict,
-                 server_settings: Union[PatchyServerConfig, None] = None):
+                 server_settings: Union[PatchyServerConfig, None] = None,
+                 json_rw: Type = SimEnsembleJsonEncoder):
         """
         :param export_name: the name to use for this ensemble.
         :param setup_date: the date that this group of simulations was set up
@@ -562,6 +572,8 @@ class PatchySimulationEnsemble(Analyzable):
         :param observables: observables to use for this ensemble
         :param metadata_dict: metadata for this simulation grouo
         :param server_settings: "server settings" (aka simulation group preset) for the simulations
+        :param json_rw: class type for JSON Encoder/Decoder. it's actually just an encoder, with class methods
+        specifically to convert dict -> AnalysisPipelineStep
         """
         super().__init__(analysis_pipeline)
         self.export_name = export_name
@@ -613,6 +625,7 @@ class PatchySimulationEnsemble(Analyzable):
             p.param_key: p for p in self.ensemble_params
         }
         self.observables = observables
+        self.json_rw = json_rw
 
     def __enter__(self):
         """
@@ -1026,7 +1039,20 @@ class PatchySimulationEnsemble(Analyzable):
         :param sim: a PatchySimulation for which to generate a stage list
         """
         sim_subfolders = []
-        stages = [self._gen_default_stage(sim)]
+        # generate first stage. we can't use the _gen_default_stage method
+        input_file_params = {}
+        with (self.folder_path(sim) / "input").open("r") as f:
+            for line in f:
+                key, value = line.split("=")
+                input_file_params[key.strip()] = value.strip()
+        stages = [Stage(sim,
+                    None,
+                    self,
+                    StageInfoParam("default",
+                                   t=0,
+                                   **input_file_params
+                                   ))
+        ]
         for fname in self.folder_path(sim).iterdir():
             if fname.is_dir() and (fname/"input").exists(): # we will open fname.input later
                 try:
@@ -1062,7 +1088,7 @@ class PatchySimulationEnsemble(Analyzable):
                     stages[i], # +1 offset to indexing, so i - 1 + 1 = i
                     self,
                     StageInfoParam(fp.name,
-                                   t=t_start,
+                                   t=tstart,
                                    **input_file_params
                                    )
                 ))
@@ -1447,23 +1473,32 @@ class PatchySimulationEnsemble(Analyzable):
         """
         if isinstance(stage, str):
             stage = self.sim_get_stage(sim, stage)
+        elif stage is None:
+            # if stage is not defined, auto-locate it
+            stage = self.sim_most_recent_stage(sim, True)
         self.writer.set_directory(self.folder_path(sim, stage))
 
         top_file, traj_file = self.sim_get_stage_top_traj(sim, stage)
+        particle_types = self.writer.read_particle_types(**{key: self.sim_stage_get_param(sim, stage, key)
+                                                            for key in self.writer.reqd_args()
+                                                            })
         # top_file, traj_file = self.sim_get_stage_top(sim, stage), self.sim_get_stage_last_conf(sim, stage)
         if traj_file.exists() and os.stat(traj_file).st_size > 0:
             if step is None:
                 step = self.time_length(sim)
+
             # if we have requested last conf
             if self.time_length(sim) == step:
                 traj_file = self.sim_get_stage_last_conf(sim, stage)
                 scene: PLPSimulation = self.writer.read_scene(top_file.name, traj_file.name,
-                                                              self.sim_get_particles_set(sim))
+                                                              # self.sim_get_particles_set(sim))
+                                                              particle_types)
             else:
                 conf_interval = int(self.sim_stage_get_param(sim, stage, "print_conf_interval"))
                 assert step % conf_interval == 0
                 scene: PLPSimulation = self.writer.read_scene(top_file.name, traj_file.name,
-                                                              self.sim_get_particles_set(sim),
+                                                              # self.sim_get_particles_set(sim),
+                                                              particle_types,
                                                               step // conf_interval - 1)
         else:
             assert step is None, f"Could not find trajectory file {str(traj_file)}, " \
@@ -1471,13 +1506,12 @@ class PatchySimulationEnsemble(Analyzable):
             conf_file = self.sim_stage_get_param(sim, stage, "conf_file")
             scene: PLPSimulation = self.writer.read_scene(top_file.name,
                                                           conf_file,
-                                                          self.sim_get_particles_set(sim))
+                                                          # self.sim_get_particles_set(sim))
+                                                          particle_types)
 
         # check particle files
         # todo: check that this line works for all writers
-        ptypes_dir = self.writer.read_particle_types(**{key: self.sim_stage_get_param(sim, stage, key)
-                                                        for key in self.writer.reqd_args()
-                                                        })
+
 
         # if ptypes_dir != self.sim_get_particles_set(sim):
         #     scene.set_particle_types(ptypes_dir)
@@ -1827,7 +1861,7 @@ class PatchySimulationEnsemble(Analyzable):
         # dump metadata dict to file
         with open(get_input_dir() / self.metadata_file, "w") as f:
             # TODO: more encoders?
-            json.dump(self.metadata, fp=f, indent=4, cls=SimEnsembleJsonEncoder)
+            json.dump(self.metadata, fp=f, indent=4, cls=self.json_rw)
 
     def sim_get_next_stage(self, sim: PatchySimulation) -> Stage:
         try:
@@ -2160,9 +2194,11 @@ class PatchySimulationEnsemble(Analyzable):
                  sim: Union[PatchySimDescriptor, None] = None,
                  time_steps: Union[range, None, int] = None) -> Union[PipelineData, list[PipelineData]]:
         """
-        horrific monster of a class method. Acquires data for a step in the analysis pipeline, doing any/all required calculations
+        horrific monster of a class method. Acquires data for a step in the analysis pipeline,
+        doing any/all required calculations. If passed a list of simultions, it will analyze
+         them and return a list of the data outputs. if passed a tuple, it will reutnr them as a single output
         :param step: an analysis step
-        :param sim" a patchy simulation object, descriptor of a PatchySimulation object, list of PatchySimulation
+        :param sim: a patchy simulation object, descriptor of a PatchySimulation object, list of PatchySimulation
         object, or tuple of ParameterValues that indicates a PatchySimulation object It's VERY important to note that
         the list and tuple options have DIFFERENT behaviors!!!
         :param time_steps: a range of timesteps to get data at. if None, the steps will be calculated automatically
@@ -2479,10 +2515,14 @@ class PatchySimulationEnsemble(Analyzable):
                         for key in infile.keys():
                             f.write(f"{key} = {infile[key]}\n")
                         f.write("analysis_data_output_1 = " + repr(obs))
-                    self.get_logger().info(self.bash_exec(self.server_settings.oxdna_path + "/build/bin/DNAnalysis input",
-                                                          cwd=tmpdir))
-                shutil.copyfile(tmpdir + f"/{obs.file_name}",
+                    cmd_out = self.bash_exec(self.server_settings.oxdna_path + "/build/bin/DNAnalysis input",
+                                                          cwd=tmpdir)
+                try:
+                    shutil.copyfile(tmpdir + f"/{obs.file_name}",
                                 self.folder_path(sim, stage) / obs.file_name)
+                except FileNotFoundError as e:
+                    self.get_logger().error(f"DNAnalysis of simulation {str(sim)}, stage {stage.name()} did not produce the expected file with name {obs.file_name}")
+                    raise e
 
 def process_simulation_data(args: tuple[PatchySimulationEnsemble, AnalysisPipelineStep, PatchySimulation, range]):
     ensemble, step, s, time_steps = args
