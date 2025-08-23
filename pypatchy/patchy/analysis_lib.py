@@ -17,7 +17,6 @@ from .pl.patchyio import PLBaseWriter
 from .pl.plparticle import PLPatchyParticle
 from .pl.plparticleset import PLParticleSet
 
-from .simulation_ensemble import PatchySimulationEnsemble
 from .stage import Stage
 from ..analysis.analysis_pipeline_step import *
 from .patchy_sim_observable import PatchySimObservable
@@ -76,7 +75,7 @@ class LoadParticlesTraj(AnalysisPipelineHead):
     DATA_IN_FILENAMES = ["topology", "conf_file", "trajectory_file"]
 
     def __call__(self,
-             ensemble: PatchySimulationEnsemble,
+             ensemble: Any, #PatchySimulationEnselble but we can't use the actual type hint because of circular imports
              sim: PatchySimulation,
              stages: list[Stage],
              *args: list[Path]) -> RawPipelineData:

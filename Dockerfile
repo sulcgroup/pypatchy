@@ -92,39 +92,39 @@ RUN micromamba run -n pypatchy pip install -e /root/Github/ipy_oxDNA \
 # make pypatchy run directory
 # todo make this settable or something for systems with seperate home and scratch drives
 RUN mkdir /root/patchy_run && \
-echo "[ANALYSIS] \n \
-    simulation_data_dir = /root/patchy_run \
-    tlm_data_dir = /home/josh/lab_data/tlm_data/raws \
-    [SETUP] \
+echo -e "[ANALYSIS] \n \
+    simulation_data_dir = /root/patchy_run \n \
+    tlm_data_dir = /home/josh/lab_data/tlm_data/raws \n \
+    [SETUP] \n \
     server_config = docker" > /root/.pypatchy/settings.cfg && \
-echo '{ \
-	"input_file_params": { \
-		"backend": "CPU", \
-        "backend_precision": "mixed", \
-        "interaction_potentials": [ \
-        	"fr_excl_vol", \
-        	"fr_patchy" \
-        ], \
-      "PATCHY_alpha": 0.082 \
-    }, \
-    "no_oxpy_check": true, \
-	"oxdna_path": "/root/Github/oxDNA/", \
-	"is_slurm": false, \
-	"patchy_format": "flavio", \
-	"cuda_mps": false \
+echo -e '{ \n \
+	"input_file_params": { \n \
+		"backend": "CPU", \n \
+        "backend_precision": "mixed", \n \
+        "interaction_potentials": [ \n \
+        	"fr_excl_vol",  \n \
+        	"fr_patchy" \n \
+        ], \n \
+      "PATCHY_alpha": 0.082 \n \
+    }, \n \
+    "no_oxpy_check": true, \n \
+	"oxdna_path": "/root/Github/oxDNA/", \n \
+	"is_slurm": false, \n \
+	"patchy_format": "flavio", \n \
+	"cuda_mps": false \n \
 ' > /root/.pypatchy/spec_files/server_configs/fr.json && \
 cp /root/Github/pypatchy/spec_files/input_files/default.json /root/.pypatchy/spec_files/input_files/ && \
 cp /root/Github/pypatchy/spec_files/observables/plclustertopology.json /root/.pypatchy/spec_files/observables/ && \
 cp /root/Github/pypatchy/spec_files/observables/plclustertopology.json /root/.pypatchy/spec_files/observables/ &&\
-echo '{ \
-	"name": "clusters.txt", \
-	"print_every": 1e7, \
-	"cols": [ \
-		{ \
-			"name": "PatchyBonds", \
-			"show_types": 1 \
-		} \
-	] \
+echo -e '{ \n \
+	"name": "clusters.txt", \n \
+	"print_every": 1e7, \n \
+	"cols": [ \n \
+		{ \n \
+			"name": "PatchyBonds", \n \
+			"show_types": 1 \n \
+		} \n \
+	] \n \
 }' > /root/Github/pypatchy/spec_files/observables/patchbonds.json
 
 # compile oxDNA, with python bindings associated with pypatchy
@@ -154,11 +154,13 @@ cmake .. \
 cp src/libtlm.so $(python -m site --user-site)
 
 
-
+# putting this at the end because initially i forgot to do it at all, and
+# running it later didn't blow anything up
+RUN pip install python-sat
 
 # start bash
 ENTRYPOINT ["/bin/bash", "-c"]
-CMD ["if [ $# -eq 0 ]; then echo \"Starting pYpatchy\" && /bin/bash; else exec \"$@\"; fi"]
+CMD ["if [ $# -eq 0 ]; then echo \"Starting pypatchy\" && /bin/bash; else exec \"$@\"; fi"]
 
 # One and build and upload with 
 # docker build -t pypatchy:latest .

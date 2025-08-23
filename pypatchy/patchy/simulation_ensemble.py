@@ -11,7 +11,7 @@ import tempfile
 import time
 from collections import Counter
 from json import JSONDecodeError
-from typing import Generator, Type
+from typing import Generator, Type, Optional
 
 import subprocess
 import re
@@ -31,6 +31,7 @@ from .pl.plpotential import PLPotential, PLFRExclVolPotential, PLFRTorsionalPatc
     PLLRExclVolPotential, PLFRPatchyPotential
 from .sim_ensemble_json import SimEnsembleJsonEncoder
 from .simulation_specification import get_param_set
+from ..analysis import analysis_pipeline
 from ..analysis.analyzable import Analyzable
 
 from ..patchy.patchy_scripts import lorenzian_to_flavian
@@ -308,9 +309,9 @@ def find_ensemble(*args: str, **kwargs) -> PatchySimulationEnsemble:
         raise Exception("Missing required identifier for simulation!")
 
 
-def build_ensemble(cfg: dict[str],
-                   mdt: dict[str, Union[str, dict]],
-                   mdtfile: Union[Path, None] = None,
+def build_ensemble(cfg: dict[str: Any],
+                   mdt: dict[str: Union[str, dict]],
+                   mdtfile: Optional[Path] = None,
                    encoder_decoder: Type = SimEnsembleJsonEncoder) -> PatchySimulationEnsemble:
     """
     External patchy simulation constructor
@@ -352,12 +353,6 @@ def build_ensemble(cfg: dict[str],
     # else:
     #     analysis_file = f"{export_name}_analysis_pipeline.pickle"
     #     analysis_pipeline = AnalysisPipeline()
-
-    if "analysis_pipeline" in mdt:
-        analysis_pipeline = AnalysisPipeline(mdt["analysis_pipeline"])
-        del mdt["analysis_pipeline"]
-    else:
-        analysis_pipeline = AnalysisPipeline()
 
     if isinstance(mdt[ENSEMBLE_SETUP_DATE], datetime.datetime):
         mdt[ENSEMBLE_SETUP_DATE] = setup_date.strftime("%Y-%m-%d")
@@ -475,17 +470,27 @@ def build_ensemble(cfg: dict[str],
         ])
         for key, paramData in cfg[ENSEMBLE_PARAMS_KEY]
     ]
+    analysis_pipeline_data = mdt["analysis_pipeline_data"] if "analysis_pipeline_data" in mdt else None
 
     ensemble = PatchySimulationEnsemble(export_name=export_name,
                                         setup_date=setup_date,
                                         metadata_file_name=mdtfile,
-                                        analysis_pipeline=analysis_pipeline,
                                         const_params=const_parameters + default_param_set,
                                         ensemble_params=ensemble_parameters,
                                         observables=observables,
                                         metadata_dict=mdt,
                                         server_settings=server_settings,
                                         json_rw=encoder_decoder)
+
+    # read pipeline data *after* constructing the ensemble object
+    if analysis_pipeline_data is not None:
+        # analysis pipeline is encoded in json as a mixed-type list
+        if isinstance(analysis_pipeline_data, list):
+            ensemble.analysis_pipeline = encoder_decoder().read_analysis_pipeline(analysis_pipeline_data, ensemble)
+        elif isinstance(analysis_pipeline_data, AnalysisPipeline):
+            ensemble.analysis_pipeline = analysis_pipeline_data
+        else:
+            raise TypeError(f"Invalid type {type(analysis_pipeline_data)} for analysis pipeline")
 
     if "no_oxpy_check" in cfg:
         if cfg["no_oxpy_check"]:
@@ -555,13 +560,13 @@ class PatchySimulationEnsemble(Analyzable):
                  export_name: str,
                  setup_date: datetime.datetime,
                  metadata_file_name: str,
-                 analysis_pipeline: AnalysisPipeline,
                  const_params: ParamSet,
                  ensemble_params: list[EnsembleParameter],
                  observables: dict[str, Observable],
                  metadata_dict: dict,
                  server_settings: Union[PatchyServerConfig, None] = None,
-                 json_rw: Type = SimEnsembleJsonEncoder):
+                 json_rw: Type = SimEnsembleJsonEncoder,
+                 analysis_pipeline: Optional[AnalysisPipeline] = None):
         """
         :param export_name: the name to use for this ensemble.
         :param setup_date: the date that this group of simulations was set up
@@ -575,7 +580,10 @@ class PatchySimulationEnsemble(Analyzable):
         :param json_rw: class type for JSON Encoder/Decoder. it's actually just an encoder, with class methods
         specifically to convert dict -> AnalysisPipelineStep
         """
+        if analysis_pipeline is None:
+            analysis_pipeline = AnalysisPipeline()
         super().__init__(analysis_pipeline)
+
         self.export_name = export_name
         self.sim_init_date = setup_date
 

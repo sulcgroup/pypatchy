@@ -321,6 +321,20 @@ class AnalysisPipeline:
             assert end_tstep % start_tstep == 0, "Inconsistant pipeline step time intervals between" \
                                                  f"{start_tstep} and {end_tstep}!"
 
+    def steps(self) -> list[AnalysisPipelineStep]:
+        """
+        :return: a list of all steps in the analysis pipeline
+        """
+        return list(self.name_map.values())
+
+    def pipes(self) -> list[tuple[str, str]]:
+        """
+        :return: a list of tuples of step names, representing connections betweens steps
+        """
+        return [
+            (step1, step2) for step1, step2 in self.pipeline_graph.edges
+        ]
+
     def _add_recursive(self,
                        other_graph: AnalysisPipeline,
                        other_start_node: AnalysisPipelineStep,
@@ -525,6 +539,3 @@ class AnalysisPipeline:
         drawing.width = x_max - x_min + 40
         drawing.height = y_max - y_min + 40
         return drawing
-
-def load_from_json(json_data: dict):
-    pass

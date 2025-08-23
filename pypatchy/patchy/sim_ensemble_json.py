@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Union
-
-from ipy_oxdna.observable import Observable
+from .analysis_lib import *
 
 from .ensemble_parameter import EnsembleParameter, ParameterValue, ParamValueGroup, MDTConvertParams, \
     ParticleSetParam, StagedAssemblyParam, StageInfoParam, PARTICLE_TYPES_KEY, STAGES_KEY, MDT_CONVERT_KEY
@@ -10,6 +8,12 @@ from .particle_adders import StageParticleAdder, RandParticleAdder, FromPolycube
 from .pl.pljsonrw import PLJSONEncoder
 from .pl.plparticleset import MultidentateConvertSettings
 from .simulation_specification import ParamSet
+from ..analysis.analysis_pipeline import AnalysisPipeline
+from ..analysis.analysis_pipeline_step import AnalysisPipelineStep
+from ..analysis.yield_analysis_target import YieldAnalysisTarget
+from ..polycubeutil.polycube_structure import PolycubeStructure
+from ..structure import GenericTypedStructure
+
 
 class SimEnsembleJsonEncoder(PLJSONEncoder):
     """
@@ -62,7 +66,7 @@ class SimEnsembleJsonEncoder(PLJSONEncoder):
         else:
             return super().default(obj)
 
-    def encode_ensemble_parameter(self, obj: EnsembleParameter) -> list[str, list[Any]]:
+    def encode_ensemble_parameter(self, obj: EnsembleParameter) -> list[Union[str, list[Any]]]:
         # important that dict keys match constructor args
         return [
             obj.param_key,
@@ -114,6 +118,155 @@ class SimEnsembleJsonEncoder(PLJSONEncoder):
         # default parameter value
         else:
             return obj.param_value
+    def read_analysis_pipeline(self, pipeline_data: list[Union[list, dict]], context) -> AnalysisPipeline:
+        """
+        read analysis pipeline data from a json
+        :param pipeline_data: a list of pipeline steps (represented by json objs) and pipes (represented by 2-length lists)
+        :param context: a PatchySimulationEnseble object
+        """
+        pipes = [tuple(pipe) for pipe in pipeline_data if isinstance(pipe, list)]
+        steps = [self.read_analysis_step(step,context) for step in pipeline_data if isinstance(step, dict)]
+        return AnalysisPipeline(*pipes, *steps)
+
+    def write_analysis_pipeline(self, pipeline: AnalysisPipeline) -> list:
+        """
+        write analysis pipeline data into a json
+        """
+        return [
+            *[
+                self.write_analysis_step(step) for step in pipeline.steps()
+            ],
+            *pipeline.pipes()
+        ]
+
+    def read_analysis_step(self, json_data: dict, context) -> AnalysisPipelineStep:
+        """
+        read data from json file
+        this method consists of a chained if-elif to determine step type aka which constructor
+        to call, going through each class in analysis_lib
+        override this method in a subclass of SimEnsembleJsonEncoder when
+        writing a subclass of AnalysisPipelineStep. add your own if-elif chain and then call super()
+        :param json_data: data about an analysis pipeline step, in json form
+        :param context: a PatchySimEnsemble object
+
+        """
+        step_type = json_data["type"]
+        if step_type == "LoadParticlesTraj":
+            return LoadParticlesTraj(
+                name=json_data["name"],
+                input_tstep=json_data["input_tstep"],
+                output_tstep=json_data["output_tstep"],
+                normalize_coords=json_data["normalize_coords"]
+            )
+        elif step_type == "LoadEnergies":
+            return LoadEnergies(
+                step_name=json_data["name"],
+                input_tstep=json_data["input_tstep"],
+                output_tstep=json_data["output_tstep"]
+            )
+        elif step_type == "BlobsFromClusters":
+            return BlobsFromClusters(
+                name=json_data["name"],
+                output_tstep=json_data["output_tstep"],
+                source=context.observables[json_data["source"]],
+            )
+        elif step_type == "GraphsFromPatchyBonds":
+            return GraphsFromPatchyBonds(
+                name=json_data["name"],
+                output_tstep=json_data["output_tstep"],
+                source=context.observables[json_data["source"]]
+            )
+        elif step_type == "GraphsFromClusterTxt":
+            return GraphsFromClusterTxt(
+                name=json_data["name"],
+                output_tstep=json_data["output_tstep"],
+                source=context.observables[json_data["source"]]
+            )
+        elif step_type == "MatchGraphToCrystal":
+            return MatchGraphToCrystal(
+                name=json_data["name"],
+                target=GenericTypedStructure(
+                    bindings=json_data["target"]["bindings"],
+                    types=json_data["target"]["types"],
+                ),
+                output_tstep=json_data["output_tstep"],
+                input_tstep=json_data["input_tstep"]
+            )
+        elif step_type == "ClassifyClusters":
+            return ClassifyClusters(
+                name=json_data["name"],
+                target=YieldAnalysisTarget(
+
+                ),
+                input_tstep=json_data["input_tstep"],
+                output_tstep=json_data["output_tstep"]
+            )
+        elif step_type == "ClassifyPolycubeClusters":
+            return ClassifyPolycubeClusters(
+                name=json_data["name"],
+                target_name=PolycubeStructure(**json_data["target_polycube"]),
+                expected_edge_length=json_data["expected_edge_length"],
+                edge_distance_tolerance=json_data["edge_distance_tolerance"],
+                input_tstep=json_data["input_tstep"],
+                output_tstep=json_data["output_tstep"]
+            )
+        elif step_type == "ComputeClusterYield":
+            return ComputeClusterYield(
+                name=json_data["name"],
+                input_tstep=json_data["input_tstep"],
+                output_tstep=json_data["output_tstep"],
+                cutoff=json_data["cutoff"],
+                overreach=json_data["overreach"]
+            )
+        elif step_type == "ComputeClusterSizeData":
+            return ComputeClusterSizeData(
+                name=json_data["name"],
+                input_tstep=json_data["input_tstep"],
+                output_tstep=json_data["output_tstep"],
+                minsize=json_data["minsize"]
+            )
+        elif step_type == "ComputeSpecGroupClusterYield":
+            return ComputeSpecGroupClusterYield(
+                name=json_data["name"],
+                input_tstep=json_data["input_tstep"],
+                output_tstep=json_data["output_tstep"],
+                aggregate_over=context.ensemble_param_name_map[json_data["aggregate_over"]],
+            )
+        else:
+            raise Exception(f"unknown step type: {step_type}")
+
+    def write_analysis_step(self, step: AnalysisPipelineStep):
+        """
+        writes an analysis step as a dict
+        in overriding classes, overload and include a super() call for non-custom step types
+        """
+        step_dict = {}
+        step_dict["type"] = type(step).name
+        step_dict["name"] = step.name
+        step_dict["input_tstep"] = step.input_tstep
+        step_dict["output_tstep"] = step.output_tstep
+        if type(step) == LoadParticlesTraj:
+            step_dict["normalize_coords"] = step.normalize_coords
+        elif type(step) == BlobsFromClusters or type(step) == GraphsFromPatchyBonds or type(step) == GraphsFromClusterTxt:
+            # my god how to load these
+            step_dict["source"] = step.source_observable.file_name
+        elif type(step) == MatchGraphToCrystal:
+            step_dict["target"] = step.target.to_json()
+        elif type(step) == ClassifyClusters:
+            step_dict["target"] = step.target.to_json()
+        elif type(step) == ClassifyPolycubeClusters:
+            step_dict["target"] = step.target_polycube.to_json()
+            step_dict["expected_edge_length"] = step.expected_edge_length
+            step_dict["edge_distance_tolerance"] = step.edge_distance_tolerance
+        elif type(step) == ComputeClusterYield:
+            step_dict["cutoff"] = step.cutoff
+            step_dict["overreach"] = step.overreach
+        elif type(step) == ComputeClusterSizeData:
+            step_dict["minsize"] = step.minsize
+        elif type(step) == ComputeSpecGroupClusterYield:
+            step_dict["aggregate_over"] = step.aggregate_over.param_key
+
+        return step_dict
 
 def encode_add_method(add_method: StageParticleAdder) -> dict:
     infodict = {}

@@ -43,7 +43,11 @@ class PolycubeStructure(TypedStructure, Scene):
 
     def __init__(self, **kwargs):
         """
-        Malliable constructor for a polycube structure.
+        Malliable constructor for a polycube structure. Accepts a bunch of different keyword arguement options
+        :param rule: polycube rule for the structure
+        :param cube_types: polycube rule, as a json object
+        :param structure:
+        :param cubes:
         """
         # TODO: refactor this constructor to be normal constructor, have make_polycube() method external
         super(PolycubeStructure, self).__init__()
@@ -167,11 +171,9 @@ class PolycubeStructure(TypedStructure, Scene):
         Group cycles in the list that contain the same cube type
         and same connection faces on types in the same pattern.
 
-        Parameters:
-        cycle_list (list): The list of cycles.
+        :param cycle_list: The list of cycles.
 
-        Returns:
-        list: List of homologous cycles.
+        :return: List of homologous cycles.
         """
         # Initialize a dictionary to store cycles by their patters
         cycles_by_pattern = defaultdict(list)
@@ -191,13 +193,11 @@ class PolycubeStructure(TypedStructure, Scene):
         """
         Find the next node in the cycle that is not in the set of processed nodes.
 
-        Parameters:
-        head_node: The current node, represented as an int.
-        cycle: The cycle, represented as a list of nodes (ints).
-        processed_nodes: The set of nodes already processed, as a list of ints.
+        :param head_node: The current node, represented as an int.
+        :param cycle: The cycle, represented as a list of nodes (ints).
+        :param processed_nodes: The set of nodes already processed, as a list of ints.
 
-        Returns:
-        tuple: The face connection to the previous node, the next node, and the face connection to the next node.
+        :param return: The face connection to the previous node, the next node, and the face connection to the next node.
         """
 
         # The faces connecting the current node to the previous and next nodes
@@ -321,6 +321,12 @@ class PolycubeStructure(TypedStructure, Scene):
     #     return False
 
     def transform(self, rot: np.ndarray, tran: np.ndarray) -> PolycubeStructure:
+        """
+        perform a spacial transform on a polycube structure
+        :return rot: a 3x3 rotation matrix
+        :return tran: a 3x translation vector
+        :return: a copy of the structure, with the spacial transform applied
+        """
         # assert transformation.shape == (4, 4), "Wrong shape for transformation"
         assert rot.shape == (3, 3)
         assert tran.shape[0] == 3
@@ -336,16 +342,23 @@ class PolycubeStructure(TypedStructure, Scene):
     def save_polycube(self, fp: Union[Path, str]):
         """
         saves a polycube as a JSON file which can be read by load_polycube or into the web app
+        :param fp: a file path at which to save the json file
         """
-        if isinstance(fp, str):
-            fp = Path(fp)
+        fp = process_path(fp, get_input_dir() / "scenes")
         with fp.open("w") as f:
-            json.dump({
-                'cube_types': self.rule.toJSON(),
-                'cubes': [
-                    cube.toJSON() for cube in self.particles()
-                ]
-            }, f)
+            json.dump(self.to_json(), f)
+
+    def to_json(self) -> dict:
+        """
+        converts the polycube structure into a form that can be json-serialized
+        :return: the polycube as a JSON object (aka a dict with only json-serializable values)
+        """
+        return {
+            'cube_types': self.rule.toJSON(),
+            'cubes': [
+                cube.toJSON() for cube in self.particles()
+            ]
+        }
 
     def substructure(self, nodes: tuple[int]) -> Structure:
         """
