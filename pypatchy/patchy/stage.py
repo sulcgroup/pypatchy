@@ -140,7 +140,7 @@ class Stage(BuildSimulation):
         return len(self.particles_to_add())
 
     def num_particles(self) -> int:
-        return self.num_particles_to_add() +(self.get_prev().num_particles() if self.get_prev() is not None else 0)
+        return self.num_particles_to_add() + (self.get_prev().num_particles() if self.get_prev() is not None else 0)
 
     def start_time(self) -> int:
         return self._param_info.start_time

@@ -781,7 +781,7 @@ class PatchySimulationEnsemble(Analyzable):
             desired_sim_length = self.sim_get_param(sim, "steps")
             last_entry = entries[-1]
             # get job info
-            jobinfo = self.bash_exec(f"scontrol show job {last_entry.job_id} | grep JobState")
+            jobinfo, _ = self.bash_exec(f"scontrol show job {last_entry.job_id} | grep JobState")
             job_stopped = len(jobinfo) == 0 or jobinfo.split()[0].split("=")[1] != "RUNNING"
             if job_stopped:
                 if self.time_length(sim) < desired_sim_length:
@@ -2125,7 +2125,8 @@ class PatchySimulationEnsemble(Analyzable):
             # always run async for submitting slurm jobs, optionally also run serially
             do_async = not self.server_settings.is_server_slurm() and not self.is_run_serial()
             # execute or sbatch slurm script
-            submit_txt = self.bash_exec(command,
+            # todo something with error
+            submit_txt, _ = self.bash_exec(command,
                                         is_async=do_async,
                                         cwd=self.folder_path(sim, stage)
                                         )
@@ -2449,7 +2450,7 @@ class PatchySimulationEnsemble(Analyzable):
             jobid = int(retr_id)
 
         for i in range(retries):
-            jobinfo = self.bash_exec(f"scontrol show job {jobid}")
+            jobinfo, _ = self.bash_exec(f"scontrol show job {jobid}")
 
             if jobinfo and jobinfo != "slurm_load_jobs error: Invalid job id specified":
                 jobinfo = jobinfo.split()
@@ -2478,7 +2479,7 @@ class PatchySimulationEnsemble(Analyzable):
                                       cwd=cwd)
         else:
             response = subprocess.Popen(command.split(), cwd=cwd)
-        return response.stdout
+        return response.stdout, response.stderr
 
     def sim_get_timepoint_stage(self, sim: PatchySimulation, timepoint: int) -> Union[Stage, None]:
         for stage in self.sim_get_stages(sim):
@@ -2523,7 +2524,7 @@ class PatchySimulationEnsemble(Analyzable):
                         for key in infile.keys():
                             f.write(f"{key} = {infile[key]}\n")
                         f.write("analysis_data_output_1 = " + repr(obs))
-                    cmd_out = self.bash_exec(self.server_settings.oxdna_path + "/build/bin/DNAnalysis input",
+                    cmd_out, cmd_err = self.bash_exec(self.server_settings.oxdna_path + "/build/bin/DNAnalysis input",
                                                           cwd=tmpdir)
                 try:
                     shutil.copyfile(tmpdir + f"/{obs.file_name}",

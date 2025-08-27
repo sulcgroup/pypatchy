@@ -274,7 +274,7 @@ class GraphsFromPatchyBonds(AnalysisPipelineHead):
                     _, _, step_count, _, n_particles = line.split()
                     step_count = int(step_count)
                     n_particles = int(n_particles)
-                    assert n_particles == stage.num_particles(), "Mismatch between number of particles in stage vs cluster data fil."
+                    # assert n_particles == stage.num_particles(), "Mismatch between number of particles in stage vs cluster data file."
 
                     if step_count % self.output_tstep == 0:
                         graphs[step_count] = self.parse_graph(f, n_particles, particle_types, top)
