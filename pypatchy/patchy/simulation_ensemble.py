@@ -2470,6 +2470,7 @@ class PatchySimulationEnsemble(Analyzable):
         :param is_async: whether to run the command asynchrously
         :param cwd: directory to change to before running the command, or None to not change the directory
         """
+        self.get_logger().info(f"Executing {command}, in working directory {cwd}")
         if not is_async:
             response = subprocess.run(command,
                                       shell=True,
