@@ -2505,7 +2505,6 @@ class PatchySimulationEnsemble(Analyzable):
             elif isinstance(stage, str):
                 stage = self.sim_get_stage(sim, stage)
             # make temporary directory to run dnaAnalysis
-
             with tempfile.TemporaryDirectory() as tmpdir:
                 shutil.copyfile(self.folder_path(sim, stage) / "input",
                                 tmpdir + "/input")
@@ -2530,6 +2529,7 @@ class PatchySimulationEnsemble(Analyzable):
                     shutil.copyfile(tmpdir + f"/{obs.file_name}",
                                 self.folder_path(sim, stage) / obs.file_name)
                 except FileNotFoundError as e:
+                    self.get_logger().error(cmd_err)
                     self.get_logger().error(f"DNAnalysis of simulation {str(sim)}, stage {stage.name()} did not produce the expected file with name {obs.file_name}")
                     raise e
 
