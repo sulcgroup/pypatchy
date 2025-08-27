@@ -2525,12 +2525,14 @@ class PatchySimulationEnsemble(Analyzable):
                         f.write("analysis_data_output_1 = " + repr(obs))
                     cmd_out, cmd_err = self.bash_exec(self.server_settings.oxdna_path + "/build/bin/DNAnalysis input",
                                                           cwd=tmpdir)
+                    self.get_logger().info("DNAnalysis OUT: " + cmd_out)
                 try:
                     shutil.copyfile(tmpdir + f"/{obs.file_name}",
                                 self.folder_path(sim, stage) / obs.file_name)
                 except FileNotFoundError as e:
-                    self.get_logger().error(cmd_err)
-                    self.get_logger().error(f"DNAnalysis of simulation {str(sim)}, stage {stage.name()} did not produce the expected file with name {obs.file_name}")
+                    self.get_logger().error("ERROR: " + cmd_err)
+                    self.get_logger().error(f"DNAnalysis of simulation {str(sim)}, stage {stage.name()} did not "
+                                            f"produce the expected file with name {obs.file_name}")
                     raise e
 
 def process_simulation_data(args: tuple[PatchySimulationEnsemble, AnalysisPipelineStep, PatchySimulation, range]):
