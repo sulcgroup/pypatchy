@@ -2505,7 +2505,7 @@ class PatchySimulationEnsemble(Analyzable):
                 stage = self.sim_get_stage(sim, stage)
             # make temporary directory to run dnaAnalysis
 
-            with tempfile.TemporaryDirectory(delete=False) as tmpdir:
+            with tempfile.TemporaryDirectory() as tmpdir:
                 shutil.copyfile(self.folder_path(sim, stage) / "input",
                                 tmpdir + "/input")
                 with oxpy.Context():
