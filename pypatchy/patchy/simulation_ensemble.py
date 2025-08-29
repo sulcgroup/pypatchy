@@ -603,13 +603,14 @@ class PatchySimulationEnsemble(Analyzable):
             for handler in logger.handlers[::-1]:
                 logger.removeHandler(handler)
         # setup logger file handler
-        file_handler = logging.FileHandler(
-            get_log_dir() / f"log_{self.export_name}_{self.datestr()}_at{datetime.datetime.now().strftime('%Y-%m-%d-%H-%M')}.log",
-            mode="a")
+        log_file_name = get_log_dir() / f"log_{self.export_name}_{self.datestr()}_at{datetime.datetime.now().strftime('%Y-%m-%d-%H-%M')}.log"
+
+        file_handler = logging.FileHandler( log_file_name, mode="a")
         file_handler.setLevel(logging.DEBUG)
         file_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
         file_handler.setFormatter(file_formatter)
         logger.addHandler(file_handler)
+        print(f"Appending logs to log file {str(log_file_name)}")
 
         # Stream handler with a lower level (INFO)
         stream_handler = logging.StreamHandler()
@@ -2247,17 +2248,23 @@ class PatchySimulationEnsemble(Analyzable):
         # check if this is a slurm job (should always be true I guess? even if it's a jupyter notebook)
         if is_slurm_job():
             slurm_job_info = self.slurm_job_info()
-            self.append_slurm_log(SlurmLogEntry(
-                job_type="analysis",
-                pid=int(slurm_job_info["JobId"]),
-                simulation=sim,
-                script_path=slurm_job_info["Command"],
-                start_date=datetime.datetime.strptime(slurm_job_info["SubmitTime"], "%Y-%m-%dT%H:%M:%S"),
-                log_path=slurm_job_info["StdOut"],
-                additional_metadata={
-                    "step": step.name
-                }
-            ))
+            if slurm_job_info is None:
+                # todo: a better exception type
+                raise Exception(f"Slurm job not found for {sim}")
+            try:
+                self.append_slurm_log(SlurmLogEntry(
+                    job_type="analysis",
+                    pid=int(slurm_job_info["JobId"]),
+                    simulation=sim,
+                    script_path=slurm_job_info["Command"],
+                    start_date=datetime.datetime.strptime(slurm_job_info["SubmitTime"], "%Y-%m-%dT%H:%M:%S"),
+                    log_path=slurm_job_info["StdOut"],
+                    additional_metadata={
+                        "step": step.name
+                    }
+                ))
+            except KeyError as e:
+                self.get_logger().error(f"Slurm job info missing key {e.args[0]}\nSlurm job keys = {str(slurm_job_info)}")
 
         # TIMESTEPS!!!!
         # if timesteps were not specified
@@ -2480,6 +2487,8 @@ class PatchySimulationEnsemble(Analyzable):
                                       cwd=cwd)
         else:
             response = subprocess.Popen(command.split(), cwd=cwd)
+        self.get_logger().info("Command Stdout" + response.stdout)
+        self.get_logger().error("Command Stderr" + response.stderr)
         return response.stdout, response.stderr
 
     def sim_get_timepoint_stage(self, sim: PatchySimulation, timepoint: int) -> Union[Stage, None]:
