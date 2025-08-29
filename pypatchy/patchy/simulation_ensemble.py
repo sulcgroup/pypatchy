@@ -556,6 +556,8 @@ class PatchySimulationEnsemble(Analyzable):
 
     json_rw: Type = SimEnsembleJsonEncoder
 
+    _log_file_name: Path
+
     def __init__(self,
                  export_name: str,
                  setup_date: datetime.datetime,
@@ -566,7 +568,8 @@ class PatchySimulationEnsemble(Analyzable):
                  metadata_dict: dict,
                  server_settings: Union[PatchyServerConfig, None] = None,
                  json_rw: Type = SimEnsembleJsonEncoder,
-                 analysis_pipeline: Optional[AnalysisPipeline] = None):
+                 analysis_pipeline: Optional[AnalysisPipeline] = None,
+                 log_file_name: Optional[Union[str, Path]] = None):
         """
         :param export_name: the name to use for this ensemble.
         :param setup_date: the date that this group of simulations was set up
@@ -579,6 +582,7 @@ class PatchySimulationEnsemble(Analyzable):
         :param server_settings: "server settings" (aka simulation group preset) for the simulations
         :param json_rw: class type for JSON Encoder/Decoder. it's actually just an encoder, with class methods
         specifically to convert dict -> AnalysisPipelineStep
+        :param log_file_name: name of file to log pypatchy stuff, or none to auto-generate
         """
         if analysis_pipeline is None:
             analysis_pipeline = AnalysisPipeline()
@@ -603,7 +607,9 @@ class PatchySimulationEnsemble(Analyzable):
             for handler in logger.handlers[::-1]:
                 logger.removeHandler(handler)
         # setup logger file handler
-        log_file_name = get_log_dir() / f"log_{self.export_name}_{self.datestr()}_at{datetime.datetime.now().strftime('%Y-%m-%d-%H-%M')}.log"
+        if not log_file_name:
+            log_file_name = get_log_dir() / f"log_{self.export_name}_{self.datestr()}_at{datetime.datetime.now().strftime('%Y-%m-%d-%H-%M')}.log"
+        self._log_file_name = log_file_name
 
         file_handler = logging.FileHandler( log_file_name, mode="a")
         file_handler.setLevel(logging.DEBUG)
@@ -2246,11 +2252,12 @@ class PatchySimulationEnsemble(Analyzable):
             return self.get_data_multiselector(sim, step, time_steps)
 
         # check if this is a slurm job (should always be true I guess? even if it's a jupyter notebook)
+        # I don't remember why this code even exists
         if is_slurm_job():
             slurm_job_info = self.slurm_job_info()
             if slurm_job_info is None:
                 # todo: a better exception type
-                raise Exception(f"Slurm job not found for {sim}")
+                raise Exception(f"Slurm job not found")
             try:
                 self.append_slurm_log(SlurmLogEntry(
                     job_type="analysis",
@@ -2258,13 +2265,14 @@ class PatchySimulationEnsemble(Analyzable):
                     simulation=sim,
                     script_path=slurm_job_info["Command"],
                     start_date=datetime.datetime.strptime(slurm_job_info["SubmitTime"], "%Y-%m-%dT%H:%M:%S"),
-                    log_path=slurm_job_info["StdOut"],
+                    log_path=self._log_file_name,
                     additional_metadata={
                         "step": step.name
                     }
                 ))
             except KeyError as e:
                 self.get_logger().error(f"Slurm job info missing key {e.args[0]}\nSlurm job keys = {str(slurm_job_info)}")
+                raise e
 
         # TIMESTEPS!!!!
         # if timesteps were not specified
@@ -2477,7 +2485,10 @@ class PatchySimulationEnsemble(Analyzable):
         :param is_async: whether to run the command asynchrously
         :param cwd: directory to change to before running the command, or None to not change the directory
         """
-        self.get_logger().info(f"Executing {command}, in working directory {cwd}")
+        if cwd:
+            self.get_logger().info(f"Executing `{command}`, in working directory {cwd}")
+        else:
+            self.get_logger().info(f"Executing `{command}`")
         if not is_async:
             response = subprocess.run(command,
                                       shell=True,
@@ -2487,8 +2498,8 @@ class PatchySimulationEnsemble(Analyzable):
                                       cwd=cwd)
         else:
             response = subprocess.Popen(command.split(), cwd=cwd)
-        self.get_logger().info("Command Stdout" + response.stdout)
-        self.get_logger().error("Command Stderr" + response.stderr)
+        self.get_logger().info(f"Command Stdout: `{response.stdout}`")
+        self.get_logger().error(f"Command Stderr: `{response.stderr}`")
         return response.stdout, response.stderr
 
     def sim_get_timepoint_stage(self, sim: PatchySimulation, timepoint: int) -> Union[Stage, None]:
