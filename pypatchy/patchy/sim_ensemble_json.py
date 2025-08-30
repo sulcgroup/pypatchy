@@ -53,7 +53,7 @@ class SimEnsembleJsonEncoder(PLJSONEncoder):
         # and i'm afraid to change that
         elif isinstance(obj, StageInfoParam):
             infodict = {
-                "stage_name": obj.stage_name,
+                # "stage_name": obj.stage_name,
                 **obj.info
             }
             if obj.start_time > 0:
@@ -111,9 +111,11 @@ class SimEnsembleJsonEncoder(PLJSONEncoder):
         elif isinstance(obj, ParticleSetParam):
             return super().default(obj.param_value)
         elif isinstance(obj, StagedAssemblyParam):
-            return [
-                self.default(stage) for stage in obj.param_value.values()
-            ]
+            return {
+                "stages": {
+                    stage.stage_name: self.default(stage) for stage in obj.param_value.values()
+                }
+            }
 
         # default parameter value
         else:

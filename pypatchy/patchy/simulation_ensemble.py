@@ -942,7 +942,7 @@ class PatchySimulationEnsemble(Analyzable):
         """
         Returns staging information parameters
         :param sim: the simulation to access, or None to access for the entire ensemble
-        :return: a map of
+        :return: a map of stage name to StageInfoParam object
         """
         if sim is not None:
             stages_info: dict[str, StageInfoParam] = self.sim_get_param(sim, STAGES_KEY)
@@ -1391,24 +1391,6 @@ class PatchySimulationEnsemble(Analyzable):
         might replace later with pydoc
         """
 
-        # this is something useful that will help us later
-        # def print_stages(stages_dict: dict, pad=0):
-        #     # stage dicts not stage objects!
-        #     stages = stages_dict["stages"]
-        #     for stage_name in stages:
-        #         stage = stages[stage_name]
-        #         print("\t" * pad + f"Stage {stage_name}:")
-        #         print("\t" * (pad + 1) + f"Starting Timestep: {stage['t']}")
-        #         if "tend" in stage:
-        #             print("\t" * (pad + 1) + f"Ending Timestep: {stage['tend']}")
-        #         print("\t" * (pad + 1) + f"Add Method: {stage['add_method']}")
-        #         if len(stage["particles"]) > 0:
-        #             print("\t" * (pad + 1) + "Particles to add per assembly unit:")
-        #             for particle_type_name in stage["particles"]:
-        #                 print("\t" * (pad + 1) + f"  {particle_type_name}: {stage['particles'][particle_type_name]}")
-        #         else:
-        #             print("No particles added")
-
         print(f"Ensemble of simulations of {self.export_name} set up on {self.sim_init_date.strftime('%Y-%m-%d')}")
         try:
             print(f"Particle info: {str(self.get_param('particle_types'))}")
@@ -1422,16 +1404,6 @@ class PatchySimulationEnsemble(Analyzable):
         print(f"Const Simulation Params")
         for param in self.const_params:
             print(param.str_verbose())
-            # if isinstance(param, ParamValueGroup):
-            # if param.param_name == "stages":
-            #     print_stages(param.param_value, 2)
-
-            # else:
-            # print(f"\t{param.param_name}:")
-            # for name in param.group_params_names():
-            #     print(f"\t\t{name}: {param.param_value[name].value_name()}")
-            # else:
-            #     print(f"\t{param.param_name}: {param.value_name()}")
 
         if len(self.analysis_pipeline) > 0:
             print(
@@ -1443,20 +1415,6 @@ class PatchySimulationEnsemble(Analyzable):
             print(f"Has {len(self.analysis_data)} entries of analysis data loaded (each entry is data for a specific "
                   f"analysis step and simulation)")
 
-        # print("\nHelpful analysis functions:")
-        # print("Function `has_pipeline`")
-        # print("\ttell me if there's an analysis pipeline")
-        # print("Function `show_pipeline_graph`")
-        # print("missing_analysis_data")
-        # print("\tdisplay a visual representation of the analysis pipeline graph")
-        # print("Function `show_analysis_status`")
-        # print("\tdisplay the status of the analysis pipeline")
-        # print("Function `ensemble`")
-        # print("Function `show_last_conf`")
-        # print("Function `all_folders_exist`")
-        # print("Function `folder_path`")
-        # print("Function `tld`")
-        # print("Function `list_folder_files`")
 
     def show_last_conf(self, sim: Union[PatchySimulation, None] = None, **kwargs):
         """
@@ -2498,8 +2456,10 @@ class PatchySimulationEnsemble(Analyzable):
                                       cwd=cwd)
         else:
             response = subprocess.Popen(command.split(), cwd=cwd)
-        self.get_logger().info(f"Command Stdout: `{response.stdout}`")
-        self.get_logger().error(f"Command Stderr: `{response.stderr}`")
+        if response.stdout:
+            self.get_logger().info(f"Command Stdout: `{response.stdout}`")
+        if response.stderr:
+            self.get_logger().error(f"Command Stderr: `{response.stderr}`")
         return response.stdout, response.stderr
 
     def sim_get_timepoint_stage(self, sim: PatchySimulation, timepoint: int) -> Union[Stage, None]:

@@ -214,6 +214,7 @@ class MDTConvertParams(ParameterValue):
 
 class StagedAssemblyParam(ParameterValue):
     """
+    A parameter value that describes a staged assembly protocol
     mostly just a grouped parameter system
     """
     param_value: dict[str, StageInfoParam]
@@ -259,6 +260,9 @@ class StagedAssemblyParam(ParameterValue):
 # todo: dataclass?
 # you should keep a const instance of this in a list of param vals but can clone them and edit
 class StageInfoParam(Mapping):
+    """
+    A simulation parameter that describes a single stage in a staged assembly protocol
+    """
     start_time: int
     stage_name: str
     add_method: Union[None, StageParticleAdder]
