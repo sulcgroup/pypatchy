@@ -18,7 +18,7 @@ from oxDNA_analysis_tools.UTILS.RyeReader import get_confs, describe, inbox
 from oxDNA_analysis_tools.UTILS.data_structures import Configuration
 
 # ipy_oxDNA imports
-from ipy_oxDNA.utils.observable import Observable
+from ipy_oxdna.utils.observable import Observable
 
 # pypatchy imports
 from .pl.patchyio import PLBaseWriter
