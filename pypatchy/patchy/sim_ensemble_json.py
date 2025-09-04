@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+# ipy_oxDNA imports
+from ipy_oxdna.utils.observable import Observable
+
 # pypatchy imports
 from .analysis_lib import *
 from .ensemble_parameter import EnsembleParameter, ParameterValue, ParamValueGroup, MDTConvertParams, \
