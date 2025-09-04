@@ -949,26 +949,11 @@ class TypedStructure(Structure, ABC):
                                                                  node_compare_fn=vertcompare,
                                                                  edge_compat_fn=edgecompare)
 
-    # def _validate_homomorphism(self,
-    #                            node_list_mapping: dict[int: int],
-    #                            node_list_src: list[int],
-    #                            node_list_target: list[int],
-    #                            rotation_mapping: dict[int: int],
-    #                            structure: TypedStructure) -> bool:
-    #     # type-wise filter:
-    #     for location in self.vertices():
-    #         if structure.particle_type(node_list_mapping[location]) != self.particle_type(location):
-    #             return False
-    #     return super()._validate_homomorphism(node_list_mapping,
-    #                                        node_list_src,
-    #                                        node_list_target,
-    #                                        rotation_mapping,
-    #                                        structure)
-
     def is_symmetric(self, axis: int) -> bool:
         """
         determines if structure has rotational symmetry on specified axis
         todo: impl in c++
+        :param axis: a number in RULE_ORDER representing an axis, positive and negative being functionally identical
         """
         assert -1 < axis < len(RULE_ORDER)
         # step 1: isolate edges that aren't along the specified axis
@@ -987,10 +972,8 @@ class TypedStructure(Structure, ABC):
     def draw(self, pos=None):
         """
         Draws the MultiDiGraph with matplotlib.
-        Parameters:
-            graph (nx.MultiDiGraph): The graph to draw.
-            pos (dict, optional): Dictionary defining the layout of nodes.
-                                  If None, the spring layout will be used.
+        :param: graph (nx.MultiDiGraph): The graph to draw.
+        :param: pos (dict, optional): Dictionary defining the layout of nodes. If None, the spring layout will be used.
         """
 
         # Get a list of available colors from matplotlib
@@ -1030,7 +1013,7 @@ class TypedStructure(Structure, ABC):
         """
         returns the result of Structure::matrix + other stuff
 
-        Returns: tuple where first element is an array of positions, second is an array of uids, third is an array of particle type ids
+        :returns: tuple where first element is an array of positions, second is an array of uids, third is an array of particle type ids
         """
 
         cubes_coords: dict[int, np.ndarray] = self._get_cubes_coords()
@@ -1044,9 +1027,11 @@ class TypedStructure(Structure, ABC):
         assert a.shape == (self.num_vertices(), 3)
         return a, np.array(uids), np.array(ptypes)
 
-    # @functools.cache
+    @functools.cache
     def to_igraph(self):
-        """Convert a NetworkX DiGraph to an igraph Graph (directed) with 'type' as a vertex attribute."""
+        """
+        Convert a NetworkX DiGraph to an igraph Graph (directed) with 'type' as a vertex attribute.
+        """
         ig_g = super().to_igraph()
         types = [self.particle_type(ig_g.vs['uid'][v]) for v in ig_g.vs.indices]
         ig_g.vs['type'] = types

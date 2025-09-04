@@ -25,7 +25,7 @@ from oxDNA_analysis_tools.UTILS.RyeReader import get_confs, describe, write_conf
 from oxDNA_analysis_tools.UTILS.data_structures import Configuration
 
 from ipy_oxdna.oxdna_simulation import SimulationManager, Simulation
-from ipy_oxdna.observable import Observable, ObservableColumn
+from ipy_oxdna.utils.observable import Observable, ObservableColumn
 
 from .pl.plpotential import PLPotential, PLFRExclVolPotential, PLFRTorsionalPatchyPotential, PLLRPatchyPotential, \
     PLLRExclVolPotential, PLFRPatchyPotential
