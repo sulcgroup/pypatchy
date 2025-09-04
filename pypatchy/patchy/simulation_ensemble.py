@@ -2516,8 +2516,8 @@ class PatchySimulationEnsemble(Analyzable):
                                             f"produce the expected file with name {obs.file_name}")
                     if not Path(tmpdir).exists():
                         self.get_logger().error(f"Temporary directory {tmpdir} does not exist! WHAT THE HELL")
-                    self.get_logger().error(f"Contents of temporary directory: {tmpdir}\n" +
-                                            "\n".join([str(p) for p in Path(tmpdir).iterdir()]))
+                    self.get_logger().error(f"Copying temporary directory to {get_output_dir() / 'logs' / Path(tmpdir).name}...")
+                    shutil.copytree(Path(tmpdir), get_output_dir() / "logs" / Path(tmpdir).name)
                     raise e
 
 def process_simulation_data(args: tuple[PatchySimulationEnsemble, AnalysisPipelineStep, PatchySimulation, range]):
