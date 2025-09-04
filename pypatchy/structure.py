@@ -939,6 +939,15 @@ class TypedStructure(Structure, ABC):
         """
         pass
 
+    def _candidate_homomorphisms(self, structure: TypedStructure, edgecompare: Callable) -> Generator[list[int]]:
+        """
+        wrapper for get_subisomorphisms_vf2 that can be overwritten in subclasses to add type constraints
+        """
+        def vertcompare(g1, g2, v1, v2):
+            return structure.particle_type(g1.vs[v1]['uid']) == self.particle_type(g2.vs[v2]['uid'])
+        yield from structure.to_igraph().get_subisomorphisms_vf2(self.to_igraph(),
+                                                                 node_compare_fn=vertcompare,
+                                                                 edge_compat_fn=edgecompare)
 
     # def _validate_homomorphism(self,
     #                            node_list_mapping: dict[int: int],
