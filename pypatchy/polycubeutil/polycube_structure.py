@@ -8,15 +8,16 @@ import copy
 import json
 from collections import defaultdict
 from pathlib import Path
-from typing import Union
+from typing import Union, Optional
 
 import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 
 from oxDNA_analysis_tools.UTILS.data_structures import Configuration
+from pypatchy.structure import GenericTypedStructure
 
-from ipy_oxdna.util import process_path
+from ipy_oxdna.structure_editor.util import process_path
 
 from ..cell_lists import CellLists
 
@@ -429,6 +430,14 @@ class PolycubeStructure(TypedStructure, Scene):
     def splice(self, other: Structure, splice_points: list[tuple[Binding,
                                                                  Binding]]) -> Structure:
         pass
+
+    def to_typed_structure(self, type_map: Optional[dict[int: int]]) -> TypedStructure:
+        if type_map is None:
+            type_map = {ct.type_id(): ct.type_id() for ct in self.rule}
+        return GenericTypedStructure(
+            bindings=self.bindings_list,
+            types={p.get_uid(): type_map[p.get_type()] for p in self.particles()},
+        )
 
 
 def load_polycube(file_path: Union[Path, str]) -> PolycubeStructure:
