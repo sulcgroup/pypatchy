@@ -245,77 +245,66 @@ class Structure:
     def homomorphisms(self, structure: Structure) -> Generator[StructuralHomomorphism]:
         """
         Constructs the graph injective homomorphism of self.graph -> structure.graph
-        Parameters:
-            structure (Structure) a structure object
-        Return:
-            a StructuralHomomorphism object if a homomorphism between the two graphs is possible
-            else False
+        Uses igraph's isomorphisms_vf2 for efficient mapping.
         """
 
-        # TODO: TEST
-        # if the structure is not an acceptable size, generator exit
+        # Only proceed if structure is at least as large as self
         if len(structure) >= len(self):
-            # for now, brute-force this
+            # Find all subgraph isomorphisms from g1 to g2
             for rmapidx, rotation_mapping in enumerateRotations().items():
-                # Ben would say rotation_mapping is a symmetry group of a cube or something
-                for node_list_target in itertools.permutations(structure.graph.nodes, r=len(self.graph.nodes)):
-                    # node lists aren't nessecarily indexed from 0
-                    # sometimes they are but it's not a safe assumption
+                def edgecompare(g1: ig.Graph, g2: ig.Graph, edge_1: int, edge_2: int) -> bool:
+                    e1 = g1.es[edge_1]
+                    e2 = g2.es[edge_2]
+                    return rotation_mapping[e1["dirIdx"]] == e2["dirIdx"]
+                # Optionally, could use edge/vertex attributes for more constraints
+                for mapping in self._candidate_homomorphisms(structure, edgecompare):
+                    # mapping: dict from g1 vertex idx to g2 vertex idx
                     node_list_src = list(self.graph.nodes)
+                    node_list_target = list(structure.graph.nodes)
+                    # igraph uses 0-based indices, so map back to node labels
+                    node_list_mapping = {node_list_src[i]: node_list_target[mapping[i]] for i in range(len(mapping))}
+                    reverse_mapping = {v: k for k, v in node_list_mapping.items()}
+                    yield StructuralHomomorphism(self, structure, rmapidx, node_list_mapping, reverse_mapping)
 
-                    node_list_mapping = {n1: n2 for n1, n2 in zip(node_list_src, node_list_target)}
-                    reverse_mapping = {n2: n1 for n1, n2 in zip(node_list_src, node_list_target)}
+        else:
+            raise TypeError("Cannot find homomorphism of a larger structure onto a smaller structure")
 
-                    # list of source node IDs
-                    if self._validate_homomorphism(node_list_mapping, node_list_src, node_list_target,
-                                                   rotation_mapping, structure):
-                        yield StructuralHomomorphism(self,
-                                                     structure,
-                                                     rmapidx,
-                                                     node_list_mapping,
-                                                     reverse_mapping)
+    def _candidate_homomorphisms(self, structure: Structure, edgecompare: Callable) -> Generator[list[int]]:
+        """
+        wrapper for get_subisomorphisms_vf2 that can be overwritten in subclasses to add type constraints
+        """
+        yield from structure.to_igraph().get_subisomorphisms_vf2(self.to_igraph(),
+                                                                 edge_compat_fn=edgecompare)
 
-    def _validate_homomorphism(self,
-                               node_list_mapping,
-                               node_list_src,
-                               node_list_target,
-                               rotation_mapping,
-                               structure: Structure):
-        homomorphism_is_valid = True
-        # loop pairs of nodes in this mapping
-        for n1, n2 in zip(node_list_src, node_list_target):
-            # loop outgoing edges for this node
-            if len(self.graph.out_edges(n1)) != len(structure.graph.out_edges(n2)):
-                homomorphism_is_valid = False
-            else:
-                # for any e1 in self.graph.out_edges(n1), an e2 exists
-                # in structure.graph.out_edges(n2) such that
-                # rotation_mapping[e1["dirIdx"]] == e2["dirIdx"]
-                for u1, v1, d1 in self.graph.out_edges.data("dirIdx"):
-                    if u1 != n1:
-                        continue
-                    # drop first element of tuple b/c it equals n1
-                    found_homologous_edge = False
-                    for u2, v2, d2 in structure.graph.out_edges.data("dirIdx"):
-                        if u2 != n2:
-                            continue
-                        # drop first element of tuple b/c it equals n2
-
-                        # edges match if the direction indexes map onto each other
-                        rot_map_valid = rotation_mapping[d1] == d2
-                        # and the destination nodes also map onto each other
-                        edges_same_node = node_list_mapping[v1] == v2
-                        found_homologous_edge |= rot_map_valid and edges_same_node
-                        if found_homologous_edge:
-                            break
-                    # if no homologous edge to e1 exists, homomorphism is invalid
-                    if not found_homologous_edge:
-                        homomorphism_is_valid = False
-                        break
-            # if we've invalidated the homomorphism
-            if not homomorphism_is_valid:
-                break
-        return homomorphism_is_valid
+    # def _validate_homomorphism(self,
+    #                            node_list_mapping: dict[int: int],
+    #                            node_list_src: list[int],
+    #                            node_list_target: list[int],
+    #                            rotation_mapping: dict[int: int],
+    #                            structure: Structure):
+    #     homomorphism_is_valid = True
+    #     for n1, n2 in zip(node_list_src, node_list_target):
+    #         if len(self.graph.out_edges(n1)) != len(structure.graph.out_edges(n2)):
+    #             homomorphism_is_valid = False
+    #         else:
+    #             for u1, v1, d1 in self.graph.out_edges.data("dirIdx"):
+    #                 if u1 != n1:
+    #                     continue
+    #                 found_homologous_edge = False
+    #                 for u2, v2, d2 in structure.graph.out_edges.data("dirIdx"):
+    #                     if u2 != n2:
+    #                         continue
+    #                     rot_map_valid = rotation_mapping[d1] == d2
+    #                     edges_same_node = node_list_mapping.get(v1, None) == v2
+    #                     found_homologous_edge |= rot_map_valid and edges_same_node
+    #                     if found_homologous_edge:
+    #                         break
+    #                 if not found_homologous_edge:
+    #                     homomorphism_is_valid = False
+    #                     break
+    #         if not homomorphism_is_valid:
+    #             break
+    #     return homomorphism_is_valid
 
     def edge_exists(self, v: int, delta: int) -> bool:
         """
@@ -597,6 +586,10 @@ class Structure:
         ig_g.add_vertices(len(index_to_label))
         ig_g.vs['uid'] = index_to_label
         ig_g.add_edges(edge_list)
+
+        # assign edge directions
+        for e in ig_g.es:
+            e["dirIdx"] = g_nx.get_edge_data(index_to_label[e.source], index_to_label[e.target])[0]["dirIdx"]
 
         # --- Perform checks on igraph ---
         for v in ig_g.vs:
@@ -946,40 +939,22 @@ class TypedStructure(Structure, ABC):
         """
         pass
 
-    def homomorphisms(self, structure: TypedStructure) -> Generator[StructuralHomomorphism]:
-        """
-        todo: test
-        :param structure:
-        """
-        assert len(structure) >= len(self)
 
-        # for now, brute-force this
-        for rmapidx, rotation_mapping in enumerateRotations().items():
-            # Ben would say rotation_mapping is a symmetry group of a cube or something
-            for node_list_target in itertools.permutations(structure.graph.nodes, r=len(self.graph.nodes)):
-                # node lists aren't nessecarily indexed from 0
-                # sometimes they are but it's not a safe assumption
-                node_list_src = list(self.graph.nodes)
-
-                node_list_mapping = {n1: n2 for n1, n2 in zip(node_list_src, node_list_target)}
-                reverse_mapping = {n2: n1 for n1, n2 in zip(node_list_src, node_list_target)}
-                homomorphism_is_valid = True
-
-                for location in self.vertices():
-                    if structure.particle_type(node_list_mapping[location]) != self.particle_type(location):
-                        homomorphism_is_valid = False
-                        break
-
-                if homomorphism_is_valid and self._validate_homomorphism(node_list_mapping,
-                                                                         node_list_src,
-                                                                         node_list_target,
-                                                                         rotation_mapping,
-                                                                         structure):
-                    yield StructuralHomomorphism(self,
-                                                 structure,
-                                                 rmapidx,
-                                                 node_list_mapping,
-                                                 reverse_mapping)
+    # def _validate_homomorphism(self,
+    #                            node_list_mapping: dict[int: int],
+    #                            node_list_src: list[int],
+    #                            node_list_target: list[int],
+    #                            rotation_mapping: dict[int: int],
+    #                            structure: TypedStructure) -> bool:
+    #     # type-wise filter:
+    #     for location in self.vertices():
+    #         if structure.particle_type(node_list_mapping[location]) != self.particle_type(location):
+    #             return False
+    #     return super()._validate_homomorphism(node_list_mapping,
+    #                                        node_list_src,
+    #                                        node_list_target,
+    #                                        rotation_mapping,
+    #                                        structure)
 
     def is_symmetric(self, axis: int) -> bool:
         """
