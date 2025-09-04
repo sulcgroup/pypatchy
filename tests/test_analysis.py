@@ -9,7 +9,7 @@ from pypatchy.server_config import load_server_settings
 from pypatchy.util import cfg, get_input_dir, simulation_run_dir
 from test_ensembles_basic import ensemble
 
-from pypatchy.patchy.analysis_lib import LoadEnergies
+from pypatchy.patchy.analysis_lib import LoadEnergies, ComputeClusterYield, ClassifyClusters, GraphsFromClusterTxt
 
 from pathlib import Path
 import pandas as pd
@@ -17,6 +17,8 @@ import pandas as pd
 from pypatchy.patchy.pl.patchyio import get_writer
 from pypatchy.patchy.pl.plscene import PLPSimulation
 from pypatchy.patchy.simulation_ensemble import find_ensemble
+
+from ipy_oxdna.utils.observable import Observable, ObservableColumn
 
 
 @pytest.fixture
@@ -100,8 +102,6 @@ def test_tile_4x4_clusters_match_pycluster(temp_dir: str, tile4x4: PatchySimulat
     assert len(set((cluster_graph_data.edges()) - set(G.edges()))) == 0
     assert len(set(G.edges()) - set(cluster_graph_data.edges())) == 0
 
-
-
 def test_split_cluster_lr(temp_dir: str):
     """
     tests that we can split a lorenzo style conf by clusters
@@ -159,21 +159,52 @@ def test_analysis(temp_dir: str, tile4x4: PatchySimulationEnsemble):
     """
     """
 
-    e = ensemble("4x4_tile", "2023-10-03", True)
-    # CODE: download files from remote file server to path returned by `e.tld()`
-    assert e.all_folders_exist()
-    assert all([e.sim_stage_done(sim, e.sim_most_recent_stage(sim)) for sim in e.ensemble()])
-    # more tests
+    with find_ensemble(src="4x4_tile", date="2023-10-03") as e:
+        # CODE: download files from remote file server to path returned by `e.tld()`
+        assert e.all_folders_exist()
+        assert all([e.sim_stage_done(sim, e.sim_most_recent_stage(sim)) for sim in e.ensemble()])
+        e.observables["clusters.txt"] = Observable(
+            "clusters.txt",
+            1e7,
+            ObservableColumn(
+                name="step"
+            ),
+            ObservableColumn(
+                name="PLClusterTopology",
+                show_types="1"
+            )
+        )
+        e.dnaAnalysis(e.observables["clusters.txt"])
+        # more tests
+        e.add_analysis_steps(
+            GraphsFromClusterTxt(
+                "graphs_from_clusters",
+                e.observables["clusters.txt"]
+            ),
+            ClassifyClusters(
+                "classify_clusters",
+                "4x4_tile"
+            ),
+            ComputeClusterYield(
+                "compute_cluster_yield",
+                cutoff=0.75,
+                overreach=False
+            ),
+            ("graphs_from_clusters", "classify_clusters"),
+            ("classify_clusters", "compute_cluster_yield")
+        )
+        data = e.get_data("compute_cluster_yield")
+
+def test_custom_pipeline_step(temp_dir: str, tile4x4: PatchySimulationEnsemble):
     pass
 
-
 def test_plot_energy(temp_dir: str):
-    e = find_ensemble(name="menger_crystal_n5", date="2024-03-18")
-    e.clear_pipeline()
-    e.add_analysis_steps(
-        LoadEnergies("load_energies", output_tstep=1)
-    )
-    e.lorenzian_to_flavian("~/lab_data/Simulations/")
-    plot_energy(e, data_identifier=(("staging", "denovo"),), e_type="pe")
+    with find_ensemble(name="menger_crystal_n5", date="2024-03-18") as e:
+        e.clear_pipeline()
+        e.add_analysis_steps(
+            LoadEnergies("load_energies", output_tstep=1)
+        )
+        e.lorenzian_to_flavian("~/lab_data/Simulations/")
+        plot_energy(e, data_identifier=(("staging", "denovo"),), e_type="pe")
     # plot_energies(e, e.get_simulation(T=0.0675))
 

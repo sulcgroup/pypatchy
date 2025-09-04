@@ -2,17 +2,25 @@
 This module contains a bunch of classes that extend AnalysisPipelineStep, for use
 in the pypatchy.analysis system
 """
+
+# python builtin imports
 from __future__ import annotations
 import json
 import re
 import warnings
 from typing import TextIO
 
+# third party imports
 import networkx as nx
 
-from ipy_oxdna.observable import Observable
+# oat/oxpy imports
 from oxDNA_analysis_tools.UTILS.RyeReader import get_confs, describe, inbox
 from oxDNA_analysis_tools.UTILS.data_structures import Configuration
+
+# ipy_oxDNA imports
+from ipy_oxDNA.utils.observable import Observable
+
+# pypatchy imports
 from .pl.patchyio import PLBaseWriter
 from .pl.plparticle import PLPatchyParticle
 from .pl.plparticleset import PLParticleSet

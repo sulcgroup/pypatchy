@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+# pypatchy imports
 from .analysis_lib import *
-
 from .ensemble_parameter import EnsembleParameter, ParameterValue, ParamValueGroup, MDTConvertParams, \
     ParticleSetParam, StagedAssemblyParam, StageInfoParam, PARTICLE_TYPES_KEY, STAGES_KEY, MDT_CONVERT_KEY
 from .particle_adders import StageParticleAdder, RandParticleAdder, FromPolycubeAdder, FromConfAdder

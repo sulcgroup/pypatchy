@@ -1,13 +1,16 @@
 from __future__ import annotations
 
+# python imports
 import shutil
 from pathlib import Path
 from typing import Union, Iterable
 
+# third party imports
 import numpy as np
 
+# pypatchy imports
 from .pl.plparticleset import PLParticleSet, MultidentateConvertSettings
-from pypatchy.patchy.pl.patchyio import get_writer, FWriter, LWriter, PLBaseWriter
+from .pl.patchyio import get_writer, FWriter, LWriter, PLBaseWriter
 from .pl.plpotential import PLFRPatchyPotential, PLFRExclVolPotential, PLLRExclVolPotential, PLLRPatchyPotential, \
     PLPotential
 from .pl.plscene import PLPSimulation

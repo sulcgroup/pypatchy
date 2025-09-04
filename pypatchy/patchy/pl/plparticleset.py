@@ -8,7 +8,7 @@ from typing import Union
 
 import numpy as np
 from scipy.spatial.transform import Rotation as R
-from ipy_oxdna.util import rotation_matrix
+from ipy_oxdna.structure_editor.util import rotation_matrix
 
 from .plparticle import PLPatchyParticle
 from .plpatch import PLPatch, make_interaction_matrix

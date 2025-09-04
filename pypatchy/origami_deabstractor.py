@@ -6,7 +6,7 @@ from pathlib import Path
 from random import choice
 from typing import Union
 
-from ipy_oxdna.dna_structure import DNAStructure, rc, construct_strands
+from ipy_oxdna.structure_editor.dna_structure import DNAStructure, rc, construct_strands
 
 from .patchy.dna_particle import DNAParticle
 from .patchy.pl.plparticle import PLPatchyParticle

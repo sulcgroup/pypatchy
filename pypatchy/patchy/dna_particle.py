@@ -11,7 +11,7 @@ from .pl.plparticle import PLPatchyParticle
 from .pl.plpatch import PLPatch
 from ..patchy_base_particle import PatchyBaseParticle
 
-from ipy_oxdna.dna_structure import DNAStructure, DNABase, DNAStructureStrand
+from ipy_oxdna.structure_editor.dna_structure import DNAStructure, DNABase, DNAStructureStrand
 
 
 class DNAParticle (DNAStructure):

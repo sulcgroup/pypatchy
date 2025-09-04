@@ -17,7 +17,7 @@ from .pl.plpatchylib import mgl_to_pl
 from .pl.plparticle import PLPatchyParticle
 from .pl.plpatch import PLPatch
 from .pl.plscene import PLPSimulation
-from ipy_oxdna.dna_structure import construct_strands, BASE_BASE, rc, POS_BASE, DNAStructureStrand, load_oxview, \
+from ipy_oxdna.structure_editor.dna_structure import construct_strands, BASE_BASE, rc, POS_BASE, DNAStructureStrand, load_oxview, \
     load_dna_structure
 
 import itertools

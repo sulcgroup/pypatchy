@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import IO, Union, Any
 
-from ipy_oxdna.observable import Observable, ObservableColumn
+from ipy_oxdna.utils.observable import Observable, ObservableColumn
 
 from .stage import Stage
 from ..util import get_spec_json

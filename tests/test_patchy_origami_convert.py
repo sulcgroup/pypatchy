@@ -2,8 +2,11 @@ import tempfile
 from pathlib import Path
 
 import pytest
-from ipy_oxdna.dna_structure import load_dna_structure, rand_seq
 
+# ipy_oxDNA imports
+from ipy_oxdna.structure_editor.dna_structure import load_dna_structure, rand_seq
+
+# pypatchy imports
 from pypatchy.patchy.dna_particle import DNAParticle
 from pypatchy.patchy.pl.patchyio import get_writer
 from pypatchy.patchy.pl.plparticle import PLPatchyParticle
@@ -61,7 +64,7 @@ def icosahedron() -> DNAParticle:
 def test_convert_wireframe_cube(temp_dir: str, cube:DNAParticle):
     from pypatchy.patchy.pl.plpatchylib import polycube_to_pl
 
-    from ipy_oxdna.dna_structure import load_dna_structure, rc
+    from ipy_oxdna.structure_editor.dna_structure import load_dna_structure, rc
     from pypatchy.patchy.dna_particle import DNAParticle
     from pypatchy.patchy.patchy_origami_convert import PatchyOrigamiConverter
     # from pypatchy.patchy.pl.patchio import get_writer
@@ -146,7 +149,7 @@ def test_convert_human(temp_dir: str, cube: DNAParticle):
     """
     from pypatchy.patchy.pl.plpatchylib import polycube_to_pl
 
-    from ipy_oxdna.dna_structure import load_dna_structure, rc
+    from ipy_oxdna.structure_editor.dna_structure import load_dna_structure, rc
     from pypatchy.patchy.dna_particle import DNAParticle
     from pypatchy.patchy.patchy_origami_convert import PatchyOrigamiConverter
     # from pypatchy.patchy.pl.patchio import get_writer
@@ -212,7 +215,7 @@ def test_convert_human(temp_dir: str, cube: DNAParticle):
 def test_convert_swan(temp_dir: str, multidentate_patchy_ducky: PLPSimulation, cube: DNAParticle):
     from pypatchy.patchy.pl.plpatchylib import polycube_to_pl
 
-    from ipy_oxdna.dna_structure import load_dna_structure, rc
+    from ipy_oxdna.structure_editor.dna_structure import load_dna_structure, rc
     from pypatchy.patchy.dna_particle import DNAParticle
     from pypatchy.patchy.patchy_origami_convert import PatchyOrigamiConverter
     # from pypatchy.patchy.pl.patchio import get_writer
