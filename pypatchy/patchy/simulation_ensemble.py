@@ -204,37 +204,6 @@ def find_ensemble(*args: str, **kwargs) -> PatchySimulationEnsemble:
                                  date=sim_init_date,
                                  set_server=kwargs["set_server"])
 
-    elif "name" in kwargs:
-        # flexable option. if name is provided, will look for metadata file but default to using the cfg file
-        simname: str = kwargs["name"]
-
-        if simname.endswith(".json"):
-            raise Exception("Do not pass file name as the `name` parameter in this method! "
-                            "Use `cfg_file` or `cfg` to specify a cfg file name.")
-
-        if any([key in kwargs for key in ["sim_date", "date"]]):
-            sim_init_date = normalize_date(
-                [kwargs[key] for key in ["sim_date", "date"] if key in kwargs][0])
-        # default: today
-        else:
-            sim_init_date: datetime.datetime = datetime.datetime.now()
-        if metadata_file_exist(simname, sim_init_date):
-            return find_ensemble(mdf=simname,
-                                 date=sim_init_date,
-                                 set_server=kwargs["set_server"])
-        else:
-            # try loading a cfg file with that name
-            if (get_input_dir() / (simname + ".json")).exists():
-                with open((get_input_dir() / (simname + ".json")), "r") as f:
-                    exportname = json.load(f)["export_name"]
-                if metadata_file_exist(exportname, sim_init_date):
-                    return find_ensemble(exportname, sim_init_date,
-                                         set_server=kwargs["set_server"])
-            print(f"Warning: could not find metadata file for {simname} at {sim_init_date.strftime('%Y-%m-%d')}")
-            return find_ensemble(cfg=simname,
-                                 date=sim_init_date,
-                                 set_server=kwargs["set_server"])
-
     elif any([key in kwargs for key in ["cfg_file_name", "cfg_file", "cfg"]]):
         # if the user is specifying a cfg file
         cfg_file_name: str = [kwargs[key] for key in ["cfg_file_name", "cfg_file", "cfg"] if key in kwargs][0]
@@ -268,6 +237,39 @@ def find_ensemble(*args: str, **kwargs) -> PatchySimulationEnsemble:
             return build_ensemble(cfg, {
                 "setup_date": sim_init_date.strftime("%Y-%m-%d"),
             }, encoder_decoder=kwargs["loader"])
+
+    elif "name" in kwargs:
+        # flexable option. if name is provided, will look for metadata file but default to using the cfg file
+        simname: str = kwargs["name"]
+
+        if simname.endswith(".json"):
+            raise Exception("Do not pass file name as the `name` parameter in this method! "
+                            "Use `cfg_file` or `cfg` to specify a cfg file name.")
+
+        if any([key in kwargs for key in ["sim_date", "date"]]):
+            sim_init_date = normalize_date(
+                [kwargs[key] for key in ["sim_date", "date"] if key in kwargs][0])
+        # default: today
+        else:
+            sim_init_date: datetime.datetime = datetime.datetime.now()
+        if metadata_file_exist(simname, sim_init_date):
+            return find_ensemble(mdf=simname,
+                                 date=sim_init_date,
+                                 set_server=kwargs["set_server"])
+        else:
+            # try loading a cfg file with that name
+            if (get_input_dir() / (simname + ".json")).exists():
+                with open((get_input_dir() / (simname + ".json")), "r") as f:
+                    exportname = json.load(f)["export_name"]
+                if metadata_file_exist(exportname, sim_init_date):
+                    return find_ensemble(exportname, sim_init_date,
+                                         set_server=kwargs["set_server"])
+            print(f"Warning: could not find metadata file for {simname} at {sim_init_date.strftime('%Y-%m-%d')}")
+            return find_ensemble(cfg=simname,
+                                 date=sim_init_date,
+                                 set_server=kwargs["set_server"])
+
+
 
     elif any([key in kwargs for key in ["metadata_file_name", "metadata_file", "mdf", "mdt", "metadata"]]):
         metadata_file_name: str = [kwargs[key] for key in ["metadata_file_name",
