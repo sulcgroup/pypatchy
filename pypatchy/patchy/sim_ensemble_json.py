@@ -1,7 +1,5 @@
 from __future__ import annotations
-
-# ipy_oxDNA imports
-from ipy_oxdna.utils.observable import Observable
+from dataclasses import asdict
 
 # pypatchy imports
 from .analysis_lib import *
@@ -15,6 +13,7 @@ from ..analysis.analysis_pipeline import AnalysisPipeline
 from ..analysis.analysis_pipeline_step import AnalysisPipelineStep
 from ..analysis.yield_analysis_target import YieldAnalysisTarget
 from ..polycubeutil.polycube_structure import PolycubeStructure
+from ..server_config import PatchyServerConfig
 from ..structure import GenericTypedStructure
 
 
@@ -41,6 +40,10 @@ class SimEnsembleJsonEncoder(PLJSONEncoder):
             }
         elif isinstance(obj, EnsembleParameter):
             return self.encode_ensemble_parameter(obj)
+        elif isinstance(obj, PolycubesRule):
+            return obj.toJSON()
+        elif isinstance(obj, PatchyServerConfig):
+            return asdict(obj)
         elif isinstance(obj, ParameterValue):
             pvdict = self.encode_param_value(obj)
             if isinstance(obj, ParticleSetParam):

@@ -262,6 +262,9 @@ def find_ensemble(*args: str, **kwargs) -> PatchySimulationEnsemble:
                                       pos=e.pos)
             if kwargs["set_server"]:
                 cfg[SERVER_SETTINGS_KEY] = kwargs["set_server"]
+            # if we pass a "name" arg, export as that name instead of whatever's in the cfg
+            if "name" in kwargs:
+                cfg[EXPORT_NAME_KEY]  = kwargs["name"]
             return build_ensemble(cfg, {
                 "setup_date": sim_init_date.strftime("%Y-%m-%d"),
             }, encoder_decoder=kwargs["loader"])
@@ -388,7 +391,12 @@ def build_ensemble(cfg: dict[str: Any],
                 particles = polycube_rule_to_PL(rule)
             elif "rule" in cfg:  # 'rule' tag assumes serialized rule string
                 # please for the love of god use this one
-                rule: PolycubesRule = PolycubesRule(rule_str=cfg["rule"])
+                if isinstance(cfg["rule"], str):
+                    rule: PolycubesRule = PolycubesRule(rule_str=cfg["rule"])
+                elif isinstance(cfg["rule"], PolycubesRule):
+                    rule = cfg["rule"]
+                else:
+                    raise TypeError("Invalid type for rule!")
             else:
                 raise Exception("wtf")
             particles = polycube_rule_to_PL(rule)
@@ -434,11 +442,16 @@ def build_ensemble(cfg: dict[str: Any],
                     ]
                 )
                 observables[observable_obj.file_name] = observable_obj
-        else:
+        elif all([type(obs) == str for obs in cfg[OBSERABLES_KEY]]):
             # oh no
             for obs in cfg[OBSERABLES_KEY]:
                 if isinstance(obs, str):
                     observables[obs] = observable_from_file(obs)
+        else:
+            assert all([type(obs) == Observable for obs in cfg[OBSERABLES_KEY]])
+            for obs in cfg[OBSERABLES_KEY]:
+                observables[obs.file_name] = obs
+
 
     # load server spec
     server_spec_file = next((cfg[key] for key in [SERVER_SETTINGS_KEY,
@@ -1058,7 +1071,13 @@ class PatchySimulationEnsemble(Analyzable):
         input_file_params = {}
         with (self.folder_path(sim) / "input").open("r") as f:
             for line in f:
-                key, value = line.split("=")
+                if not line: continue
+                if line.strip().startswith("#"): continue
+                try:
+                    key, value = line.split("=")
+                except ValueError as e:
+                    self.get_logger().warning(f"Could not parse line in input file: {line}")
+                    continue
                 input_file_params[key.strip()] = value.strip()
         stages = [Stage(sim,
                     None,

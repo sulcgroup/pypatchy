@@ -4,6 +4,7 @@ from typing import Union, Any
 from .plparticle import PLPatchyParticle
 from .plpatch import PLPatch
 from .plparticleset import PLParticleSet, PLSourceMap, PLMultidentateSourceMap, MultidentateConvertSettings
+from ...polycubeutil.polycubesRule import PolycubesRule
 
 
 # TODO: fully test these! right now they are VERY MUCH stopgaps!
