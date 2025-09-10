@@ -23,7 +23,7 @@ RUN ln -snf /usr/share/zoneinfo/America/Phoenix /etc/localtime && \
 # we will have a /root/Github
 # install stuff that is needed
 RUN apt-get install -y build-essential cmake git wget curl neovim python3 python3-pip python3-venv g++ gcc \
-    libeigen3-dev libboost-dev libboost-regex-dev libspdlog-dev libboost-graph-dev pybind11-dev python3-dev gfortran \
+    libeigen3-dev libboost-dev libboost-regex-dev libspdlog-dev libboost-graph-dev pybind11-dev python3-dev gfortran libopenblas-dev \
     openssh-client && \
     apt-get clean && \
     mkdir -p /root/Github
