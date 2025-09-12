@@ -946,7 +946,7 @@ class TypedStructure(Structure, ABC):
         def vertcompare(g1, g2, v1, v2):
             return structure.particle_type(g1.vs[v1]['uid']) == self.particle_type(g2.vs[v2]['uid'])
         yield from structure.to_igraph().get_subisomorphisms_vf2(self.to_igraph(),
-                                                                 node_compare_fn=vertcompare,
+                                                                 node_compat_fn=vertcompare,
                                                                  edge_compat_fn=edgecompare)
 
     def is_symmetric(self, axis: int) -> bool:
