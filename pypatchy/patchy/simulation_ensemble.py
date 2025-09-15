@@ -1920,12 +1920,10 @@ class PatchySimulationEnsemble(Analyzable):
                 ipysim.build(clean_build="force")  # todo: integrate stage assembly
                 mgr.queue_sim(ipysim)
             self.get_logger().info("Let the simulating commence!")
-            mgr.run(join=True, gpu_mem_block=False)
             # batch execution for CUDA + MPS
-
+            # matt says to use worker_manager instead of run
+            simulation_manager.worker_manager()
             # TODO: better slurm logging!
-
-        self.dump_metadata()
 
     def is_setup_done(self, sims: list[PatchySimulation], stage: Union[None, str, Stage]) -> bool:
         """
