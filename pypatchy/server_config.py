@@ -3,6 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, IO, Union, Generator
 
+from ipy_oxdna.oxdna_simulation import SimulationManager
+
+
 from .patchy.ensemble_parameter import parameter_value
 from .patchy.simulation_specification import ParamSet
 from .util import get_spec_json, cfg, get_local_dir
