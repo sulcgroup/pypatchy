@@ -1905,7 +1905,7 @@ class PatchySimulationEnsemble(Analyzable):
         else:
             # if the number of simulations to run requires more than one task
 
-            mgr = SimulationManager()
+            mgr = self.server_settings.cuda_mps
             for sim in e:
                 if stage is None:
                     sim_stage = self.sim_get_next_stage(sim)
@@ -1919,7 +1919,7 @@ class PatchySimulationEnsemble(Analyzable):
                 ipysim = self.ipy(sim, sim_stage)
                 ipysim.build(clean_build="force")  # todo: integrate stage assembly
                 mgr.queue_sim(ipysim)
-            print("Let the simulating commence!")
+            self.get_logger().info("Let the simulating commence!")
             mgr.run(join=True, gpu_mem_block=False)
             # batch execution for CUDA + MPS
 

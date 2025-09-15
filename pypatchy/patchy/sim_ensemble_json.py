@@ -6,12 +6,12 @@ from .analysis_lib import *
 from .ensemble_parameter import EnsembleParameter, ParameterValue, ParamValueGroup, MDTConvertParams, \
     ParticleSetParam, StagedAssemblyParam, StageInfoParam, PARTICLE_TYPES_KEY, STAGES_KEY, MDT_CONVERT_KEY
 from .particle_adders import StageParticleAdder, RandParticleAdder, FromPolycubeAdder, FromConfAdder
+from ..structure import Structure
 from .pl.pljsonrw import PLJSONEncoder
 from .pl.plparticleset import MultidentateConvertSettings
 from .simulation_specification import ParamSet
 from ..analysis.analysis_pipeline import AnalysisPipeline
 from ..analysis.analysis_pipeline_step import AnalysisPipelineStep
-from ..analysis.yield_analysis_target import YieldAnalysisTarget
 from ..polycubeutil.polycube_structure import PolycubeStructure
 from ..server_config import PatchyServerConfig
 from ..structure import GenericTypedStructure
@@ -203,9 +203,7 @@ class SimEnsembleJsonEncoder(PLJSONEncoder):
         elif step_type == "ClassifyClusters":
             return ClassifyClusters(
                 name=json_data["name"],
-                target=YieldAnalysisTarget(
-
-                ),
+                target=Structure(**json_data["target"]),
                 input_tstep=json_data["input_tstep"],
                 output_tstep=json_data["output_tstep"]
             )

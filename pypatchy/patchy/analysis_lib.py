@@ -8,15 +8,18 @@ from __future__ import annotations
 import json
 import re
 import warnings
+from functools import cached_property
 from typing import TextIO
 
 # third party imports
 import networkx as nx
+import igraph as ig
 
 # oat/oxpy imports
 from oxDNA_analysis_tools.UTILS.RyeReader import get_confs, describe, inbox
 from oxDNA_analysis_tools.UTILS.data_structures import Configuration
 
+from ipy_oxdna.structure_editor.util import process_path
 # ipy_oxDNA imports
 from ipy_oxdna.utils.observable import Observable
 
@@ -28,9 +31,6 @@ from .pl.plparticleset import PLParticleSet
 from .stage import Stage
 from ..analysis.analysis_pipeline_step import *
 from .patchy_sim_observable import PatchySimObservable
-from ..analysis.yield_analysis_target import ClusterCategory
-
-from ..analysis.yield_analysis_target import YieldAnalysisTarget
 
 from ..analysis.analysis_data import *
 
@@ -513,6 +513,26 @@ class MatchGraphToCrystal(AnalysisPipelineStep):
         y += 28
         return (w, y), g
 
+class ClusterCategory(Enum):
+    """
+    NEVER actually use one of these objects directly!
+    Otherwise comparisons will fail because Pandas is very badly coded!
+    [censored swearing profusely]
+    """
+    OVER = 0
+    SMALLER_NOT_SUB = 1
+    SUBSET = 2
+    MATCH = 3
+
+def graphShape(shapePath):
+    with open(shapePath, 'r') as f:
+        data = f.read()
+    solveSpec = json.loads(data)
+    G = nx.Graph()
+    for i, _, j, _ in solveSpec['bindings']:
+        G.add_edge(i, j)
+    return G
+
 
 class ClassifyClusters(AnalysisPipelineStep):
     """
@@ -526,22 +546,59 @@ class ClassifyClusters(AnalysisPipelineStep):
         category (see ClusterCategory enum at the top of this file)
     """
 
-    target: YieldAnalysisTarget
+    target: nx.Graph
 
     def __init__(self,
                  name: str,
                  target: Union[str, YieldAnalysisTarget],
                  input_tstep: Union[int, None] = None,
                  output_tstep: Union[int, None] = None):
+        """
+
+        """
         super().__init__(name, input_tstep, output_tstep)
-        if isinstance(target, str):
-            target = YieldAnalysisTarget(target)
+        if isinstance(target, Path):
+            target = graphShape(target)
+        elif isinstance(target, str):
+            process_path(target, get_input_dir() / "targets")
+            target = graphShape(target)
+        # elif not isinstance(target, nx.Graph):
+        #     raise TypeError("target must be a string path to a json file or a networkx graph")
         self.target = target
 
     CLUSTER_CATEGORY_KEY = "clustercategory"
     SIZE_RATIO_KEY = "sizeratio"
 
     load_cached_files = load_cached_pd_data
+
+    @cached_property
+    def graph_ig(self) -> ig.Graph:
+        return ig.Graph.from_networkx(self.target)
+
+    def compare(self, g: nx.Graph) -> tuple[ClusterCategory, float]:
+        """
+        Compares a cluster graph to the analysis target and returns a classification of the cluster and its yield
+        todo does this need to exist
+
+        :param g: a graph
+
+        :return: a tuple where the first element is the category of the cluster, and the seonc element is a float representation of the yield
+        """
+        # compute size fraction
+        sizeFrac = len(g) / len(self.target)
+        if sizeFrac > 1:
+            return ClusterCategory.OVER, sizeFrac
+        # check if g is a subgraph of the target graph
+        if len(self.graph_ig.get_subisomorphisms_vf2(ig.Graph.from_networkx(g))) > 0:
+            if sizeFrac == 1:
+                cat = ClusterCategory.MATCH
+            else:
+                cat = ClusterCategory.SUBSET
+        elif sizeFrac <= 1:
+            cat = ClusterCategory.SMALLER_NOT_SUB
+        return cat, sizeFrac
+
+
 
     def __call__(self, input_data: ObjectPipelineData) -> PDPipelineData:
         cluster_cats_data = {
@@ -581,7 +638,7 @@ class ClassifyClusters(AnalysisPipelineStep):
         return (w, y), g
 
 
-class ClassifyPolycubeClusters(AnalysisPipelineStep):
+class ClassifyPolycubeClusters(ClassifyClusters):
     """
     Modified version of ClassifyClusters that takes Polycube structure into account
     Compares graphs of clusters to a specified target graph, and
@@ -594,34 +651,22 @@ class ClassifyPolycubeClusters(AnalysisPipelineStep):
         category (see ClusterCategory enum at the top of this file)
     """
 
-    target: YieldAnalysisTarget
-    target_polycube: PolycubeStructure
+    target: PolycubeStructure
     graphedgelen: float
     graphedgetolerence: float
 
     def __init__(self,
                  name: str,
-                 target_name: Union[str, Path, PolycubeStructure],
+                 target_name: PolycubeStructure,
                  expected_edge_length: float = 1,
                  edge_distance_tolerance: float = 0.1,
                  input_tstep: Union[int, None] = None,
                  output_tstep: Union[int, None] = None):
-        super().__init__(name, input_tstep, output_tstep)
-        if isinstance(target_name, str):
-            with (get_input_dir() / "targets" / (target_name + ".json")).open("r") as f:
-                target_data = json.load(f)
-                rule = PolycubesRule(rule_json=target_data["cube_types"])
-                self.target_polycube = PolycubeStructure(rule=rule, structure=target_data["cubes"])
-                self.target = YieldAnalysisTarget(target_name, self.target_polycube.graph_undirected())
-        elif isinstance(target_name, Path):
-            with target_name.open('r') as f:
-                target_data = json.load(f)
-                rule = PolycubesRule(rule_json=target_data["cube_types"])
-                self.target_polycube = PolycubeStructure(rule=rule, structure=target_data["cubes"])
-                self.target = YieldAnalysisTarget(target_name.name, self.target_polycube.graph_undirected())
-        else:
-            self.target_polycube = target_name
-            self.target = YieldAnalysisTarget(target_name, self.target_polycube.graph_undirected())
+        """
+
+        """
+        super().__init__(name, target_name, input_tstep, output_tstep)
+
         self.graphedgelen = expected_edge_length
         self.graphedgetolerence = edge_distance_tolerance
 
@@ -648,19 +693,22 @@ class ClassifyPolycubeClusters(AnalysisPipelineStep):
             TIMEPOINT_KEY: [],
             self.CLUSTER_CATEGORY_KEY: [],
             self.SIZE_RATIO_KEY: [],
-            self.CLUSTER_EDGE_LEN_AVG_KEY: [],
-            self.CLUSTER_EDGE_LEN_STD_KEY: [],
-            self.CLUSTER_NUM_DROPPED_EDGES_KEY: []
+            # self.CLUSTER_EDGE_LEN_AVG_KEY: [],
+            # self.CLUSTER_EDGE_LEN_STD_KEY: [],
+            # self.CLUSTER_NUM_DROPPED_EDGES_KEY: []
         }
-        polycube_type_ids = [cube.get_type() for cube in self.target_polycube.particles()]
-        polycube_type_map = {
-            type_id: polycube_type_ids.count(type_id)
-            for type_id in set(polycube_type_ids)
-        }
+        # polycube_type_ids = [cube.get_type() for cube in self.target_polycube.particles()]
+        # polycube_type_map = {
+        #     type_id: polycube_type_ids.count(type_id)
+        #     for type_id in set(polycube_type_ids)
+        # }
         # loop timepoints in input graph data
         shared_timepoints = np.intersect1d(graph_input_data.trange(), traj_data.trange())
         if not len(shared_timepoints):
             raise MissingCommonDataError(graph_input_data, traj_data)
+
+        def compare_particle_types(g1: ig.Graph, g2: ig.Graph, v1:int, v2:int):
+            return g1.vs[v1]["type"] == g2.vs[v2]["particle_type"]
 
         for timepoint in shared_timepoints:
             # check output tstep
@@ -672,36 +720,55 @@ class ClassifyPolycubeClusters(AnalysisPipelineStep):
 
                 # loop cluster graphs at this timepoint
                 for g in graph_input_data.get()[timepoint]:
-                    g2, edge_lens = self.engage_filter(g, conf)
-                    if len(g2.edges) > 0:
+                    # if the graph isn't just "a particle":
+                    igg: ig.Graph = ig.Graph.from_networkx(g).as_directed()
+                    if len(igg.vs) > 2:
+                        size_frac = len(igg.vs) / len(self.target)
+                        if size_frac <= 1:
+                            try:
+                                subiso  = self.target.to_igraph().get_subisomorphisms_vf2(
+                                    igg,
+                                    node_compat_fn=compare_particle_types
+                                )[0]
+                                if size_frac == 1.:
+                                    cat = ClusterCategory.MATCH
+                                else:
+                                    cat = ClusterCategory.SUBSET
+                            except IndexError as e:
+                                cat = ClusterCategory.SMALLER_NOT_SUB
+                        else:
+                            cat = ClusterCategory.OVER
 
-                        # get particle ids for graph nodes
-                        particle_ids = [top[n] for n in g.nodes]
+                    # # OLD
+                    # g2, edge_lens = self.engage_filter(g, conf)
+                    # if len(g2.edges) > 0:
+                    #     # get particle ids for graph nodes
+                    #     particle_ids = [top[n] for n in g.nodes]
+                    #
+                    #     # get counts for particle ids
+                    #     particle_type_counts = {
+                    #         typeid: particle_ids.count(typeid) for typeid in set(particle_ids)
+                    #     }
+                    #
+                    #     # test that all particle types in the structure are in the polycube,
+                    #     # and are contained the same or fewer number of times
+                    #     if all(
+                    #             [type_id in polycube_type_map and particle_type_counts[type_id] <= polycube_type_map[
+                    #                 type_id]
+                    #              for type_id in particle_type_counts]
+                    #     ):
+                    #     avg_edge_len = np.mean(edge_lens)
+                    #     edge_len_std = np.std(edge_lens)
+                        # only then do the comparison
+                        # cat, sizeFrac = self.target.compare(g2)
 
-                        # get counts for particle ids
-                        particle_type_counts = {
-                            typeid: particle_ids.count(typeid) for typeid in set(particle_ids)
-                        }
-
-                        # test that all particle types in the structure are in the polycube,
-                        # and are contained the same or fewer number of times
-                        if all(
-                                [type_id in polycube_type_map and particle_type_counts[type_id] <= polycube_type_map[
-                                    type_id]
-                                 for type_id in particle_type_counts]
-                        ):
-                            avg_edge_len = np.mean(edge_lens)
-                            edge_len_std = np.std(edge_lens)
-                            # only then do the comparison
-                            cat, sizeFrac = self.target.compare(g2)
-
-                            # assign stuff
-                            cluster_cats_data[TIMEPOINT_KEY].append(timepoint)
-                            cluster_cats_data[self.CLUSTER_CATEGORY_KEY].append(cat)
-                            cluster_cats_data[self.SIZE_RATIO_KEY].append(sizeFrac)
-                            cluster_cats_data[self.CLUSTER_EDGE_LEN_AVG_KEY].append(avg_edge_len)
-                            cluster_cats_data[self.CLUSTER_EDGE_LEN_STD_KEY].append(edge_len_std)
-                            cluster_cats_data[self.CLUSTER_NUM_DROPPED_EDGES_KEY].append(len(g.edges) - len(g2.edges))
+                        # assign stuff
+                        cluster_cats_data[TIMEPOINT_KEY].append(timepoint)
+                        cluster_cats_data[self.CLUSTER_CATEGORY_KEY].append(cat)
+                        cluster_cats_data[self.SIZE_RATIO_KEY].append(size_frac)
+                        # cluster_cats_data[self.CLUSTER_EDGE_LEN_AVG_KEY].append(avg_edge_len)
+                        # cluster_cats_data[self.CLUSTER_EDGE_LEN_STD_KEY].append(edge_len_std)
+                        # cluster_cats_data[self.CLUSTER_NUM_DROPPED_EDGES_KEY].append(len(g.edges) - len(g2.edges))
 
         return PDPipelineData(pd.DataFrame.from_dict(data=cluster_cats_data),
                               graph_input_data.trange()[graph_input_data.trange() % self.output_tstep == 0])
@@ -743,57 +810,14 @@ class ClassifyPolycubeClusters(AnalysisPipelineStep):
         y += 28
         return (w, y), g
 
-
-# class SmartClassifyClusters(ClassifyClusters):
-#     """
-#     A "smart" version of ClassifyClusters, which incorporates trajectory data
-#     I wrote like half of this and then gave up
-#     """
-#     def get_output_data_type(self):
-#         return PipelineDataType.PIPELINE_DATATYPE_DATAFRAME
-#
-#     load_cached_files = load_cached_pd_data
-#
-#     def __call__(self,
-#              graph_data: GraphPipelineData,
-#              traj_data: PDPipelineData) -> PDPipelineData:
-#         traj = traj_data.get()
-#
-#         shared_timepoints = set(traj_data.trange()).intersection(graph_data.trange())
-#
-#         cluster_cats_data = {
-#             TIMEPOINT_KEY: [],
-#             self.CLUSTER_CATEGORY_KEY: [],
-#             self.SIZE_RATIO_KEY: []
-#         }
-#
-#         # loop timepoints in input graph data
-#         for timepoint in shared_timepoints:
-#             graphs = graph_data.get()[timepoint]
-#
-#             time_data = traj.loc[traj[TIMEPOINT_KEY] == timepoint]
-#
-#             # loop cluster graphs at this timepoint
-#             for g in graphs:
-#
-#                 g_particle_types = {node:
-#                     time_data.loc[time_data[LoadParticlesTraj.PARTICLE_IDX_KEY] == node][LoadParticlesTraj.P_TYPE_ID_KEY][0]
-#                     for node in g
-#                 }
-#                 cat, sizeFrac = self.target.compare(g)
-#
-#                 # assign stuff
-#                 cluster_cats_data[TIMEPOINT_KEY].append(timepoint)
-#                 cluster_cats_data[self.CLUSTER_CATEGORY_KEY].append(cat)
-#                 cluster_cats_data[self.SIZE_RATIO_KEY].append(sizeFrac)
-#
-#         return PDPipelineData(pd.DataFrame.from_dict(data=cluster_cats_data), graph_data.trange())
-
-
 YIELD_KEY = "yield"
 
-
 class ComputeClusterYield(AnalysisPipelineStep):
+    """
+    Computes the yield of cluster data produced by a step like ClassifyPolycubeClusters or ClassifyClusters
+    Yield is defined as the number of particles in clusters that are at least a certain size
+    Option whether to include clusters that are larger than the target structure
+    """
     cutoff: float
     overreach: bool
 
@@ -913,8 +937,7 @@ class ComputeClusterSizeData(AnalysisPipelineStep):
 
     def get_output_data_type(self) -> PipelineDataType:
         """
-        Returns:
-            PipelineDataType.PIPELINE_DATATYPE_DATAFRAME
+        :return: PipelineDataType.PIPELINE_DATATYPE_DATAFRAME
         """
         return PipelineDataType.PIPELINE_DATATYPE_DATAFRAME
 

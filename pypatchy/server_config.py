@@ -40,7 +40,7 @@ class PatchyServerConfig:
     input_file_params: ParamSet = field(default_factory=ParamSet)
     absolute_paths: bool = False
     is_slurm: bool = False
-    cuda_mps: bool = False
+    cuda_mps: Union[bool, SimulationManager] = False
     no_oxpy_check: bool = False
 
     # post_init function courtesy of chatGPT
@@ -51,6 +51,8 @@ class PatchyServerConfig:
                 for pkey, pval in (self.input_file_params.items() if isinstance(self.input_file_params, dict)
                                    else self.input_file_params)
             ])
+        if self.cuda_mps:
+            self.cuda_mps = SimulationManager(sleep_time=1)
 
     def write_sbatch_params(self, job_name: str, slurm_file: IO):
         slurm_file.write("#!/bin/bash\n") # TODO: other shells?
