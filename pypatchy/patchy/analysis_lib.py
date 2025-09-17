@@ -550,18 +550,19 @@ class ClassifyClusters(AnalysisPipelineStep):
 
     def __init__(self,
                  name: str,
-                 target: Union[str, YieldAnalysisTarget],
+                 target: nx.Graph,
                  input_tstep: Union[int, None] = None,
                  output_tstep: Union[int, None] = None):
         """
 
         """
         super().__init__(name, input_tstep, output_tstep)
-        if isinstance(target, Path):
-            target = graphShape(target)
-        elif isinstance(target, str):
-            process_path(target, get_input_dir() / "targets")
-            target = graphShape(target)
+        if isinstance(target, Path) or  isinstance(target, str):
+            raise Exception("String paths no longer supported")
+            # target = graphShape(target)
+        # elif:
+        #     process_path(target, get_input_dir() / "targets")
+        #     target = graphShape(target)
         # elif not isinstance(target, nx.Graph):
         #     raise TypeError("target must be a string path to a json file or a networkx graph")
         self.target = target
@@ -612,7 +613,7 @@ class ClassifyClusters(AnalysisPipelineStep):
             if timepoint % self.output_tstep == 0:
                 # loop cluster graphs at this timepoint
                 for g in input_data.get()[timepoint]:
-                    cat, sizeFrac = self.target.compare(g)
+                    cat, sizeFrac = self.compare(g)
 
                     # assign stuff
                     cluster_cats_data[TIMEPOINT_KEY].append(timepoint)
