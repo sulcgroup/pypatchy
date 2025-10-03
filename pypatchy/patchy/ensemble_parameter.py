@@ -57,14 +57,24 @@ class ParameterValue:
     def value_name(self):
         return str(self.param_value)
 
-    def __eq__(self, other: ParameterValue) -> bool:
-        return self.param_name == other.param_name and self.value_name() == other.value_name()
+    def __eq__(self, other: Union[ParameterValue, Any]) -> bool:
+        """
+        Tests equality. If arguement is a ParameterValue, tests if name and value are equal. Otherwise tests
+        if self.value == other
+        """
+        if not isinstance(other, ParameterValue):
+            return self.param_value == other
+        else:
+            return self.param_name == other.param_name and self.value_name() == other.value_name()
 
     def str_verbose(self) -> str:
         """
         Returns: a string describing the parameter value
         """
         return f"{self.param_name}: {self.value_name()}"
+
+    def __str__(self):
+        return f"{self.param_name}_{str(self.value_name())}"
 
     def __hash__(self) -> int:
         return hash((self.param_name, self.value_name(),))

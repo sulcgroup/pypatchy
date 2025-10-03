@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import pickle
 from abc import ABC, abstractmethod
 from pathlib import Path
@@ -79,17 +80,19 @@ class AnalysisPipelineStep(ABC):
         else:
             return f"{self.name}.h5"
 
+
     def cache_data(self, data: PipelineData, file_path: Path):
         if self.get_output_data_type() == PipelineDataType.PIPELINE_DATATYPE_DATAFRAME:
+            if os.path.exists(file_path):
+                with pd.HDFStore(str(file_path)) as f:
+                    if "data" in f:
+                        old_data = f["data"]
+                        if len(data.get()) < len(old_data):
+                            return  # Do not overwrite
             with pd.HDFStore(str(file_path)) as f:
                 f["data"] = data.get()
                 f["trange"] = pd.Series(data.trange())
-        elif self.get_output_data_type() in [PipelineDataType.PIPELINE_DATATYPE_GRAPH,
-                                             PipelineDataType.PIPELINE_DATATYPE_RAWDATA]:
-            with open(file_path, "wb") as f:
-                pickle.dump(data, f)
-        else:
-            raise Exception("Invalid data type!!!!")
+        # ... rest of method ...
 
     def config_io(self, input_tstep=None, output_tstep=None):
         """

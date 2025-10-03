@@ -423,8 +423,10 @@ def plot_energy(e: PatchySimulationEnsemble,
     quick function to plot energies
     """
 
+    load_energy_tstep = e.get_pipeline_step(load_energy_step_name).output_tstep
     if t_range is not None:
-        data = e.get_data(load_energy_step_name, data_identifier, time_steps=range(*t_range))
+        data = e.get_data(load_energy_step_name, data_identifier, time_steps=range(*t_range,
+                                                                                   load_energy_tstep))
     else:
         data = e.get_data(load_energy_step_name, data_identifier)
     df = data.get()
@@ -462,6 +464,9 @@ def plot_energy(e: PatchySimulationEnsemble,
                 groupby_keys.append(curve_stroke_w_param)
             if curve_stroke_style_param:
                 groupby_keys.append(curve_stroke_style_param)
+            # plot duplicates seperately
+            if "duplicate" in e.ensemble_param_name_map:
+                groupby_keys.append("duplicate")
 
             # If no groupby keys, wrap in a list with a dummy key to still iterate once
             group_iter = subset_param1.groupby(groupby_keys) if groupby_keys else [(None, subset_param1)]
@@ -482,7 +487,6 @@ def plot_energy(e: PatchySimulationEnsemble,
     plt.tight_layout(rect=[0, 0, 0.8, 1])  # leave space on right for legend
     plt.legend(loc='center left', bbox_to_anchor=(1.02, 0.5), borderaxespad=0.)
     plt.title('Energy vs Timepoint')
-    plt.xlabel(f'Timepoint (x {e.get_pipeline_step(load_energy_step_name).input_tstep * e.get_param("print_energy_every")})')
     if e_type == "te":
         y_label = 'Total Energy'
     elif e_type == "pe":
@@ -494,12 +498,12 @@ def plot_energy(e: PatchySimulationEnsemble,
     if log_x:
         plt.xlabel("log Timepoint")
         plt.xscale("log")
+    else:
+        plt.xlabel(f'Timepoint (x {e.get_pipeline_step(load_energy_step_name).input_tstep * e.get_param("print_energy_every")})')
     plt.ylabel(y_label)
     plt.grid(True)
     plt.tight_layout()
     plt.show()
-
-
 
 def plot_energies(e: PatchySimulationEnsemble, sim: PatchySimulation,
                   load_energy_step_name: str = "load_energies"):
@@ -617,3 +621,37 @@ class YieldCurveFigure(BaseYieldCurveFigure):
         if norm:
             self.fig.set(ylim=(0.0, 1.0))
         self.fig.fig.suptitle(f"{e.export_name} - {analysis_data_source}", y=1)
+
+def plot_last_conf_cluster_size_histograms(e: PatchySimulationEnsemble,
+                                           hist_ax: plt.Axes,
+                                           color_term: str,
+                                           x_step: int
+                                           ):
+    T_vals: EnsembleParameter = e.ensemble_param_name_map[color_term]
+    num_color_term_params = len(T_vals)
+    total_group_height = 0.9 * x_step
+    bar_height = total_group_height / max(num_color_term_params, 1)
+    offsets_y = (np.arange(num_color_term_params) - (num_color_term_params - 1) / 2.0) * bar_height
+
+    for i, T in enumerate(T_vals):
+        df = e.get_data("cluster_sizes", sim=(nt, T), time_steps=e.time_length()).get()
+        if df.empty:
+            continue
+        last_tp = df[TIMEPOINT_KEY].max()
+        sizes = df.loc[df[TIMEPOINT_KEY] == last_tp, "cluster_size"].astype(float).values
+
+        # warn if any out of range
+        too_large = sizes[sizes > 400]
+        if len(too_large):
+            print(f"Large Clusters for {nt}, T={T.value_name()}: {too_large}")
+
+        counts, _ = np.histogram(sizes, bins=edges)
+
+        y = centers + offsets_y[i]
+        hist_ax.barh(y, counts, height=bar_height, align="center", label=T.value_name())
+
+    hist_ax.set_title(str(nt))
+    hist_ax.set_xlabel("Count")
+    hist_ax.set_ylabel("Cluster size")
+    hist_ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+    hist_ax.grid(True, axis="x", linestyle=":", linewidth=0.8)

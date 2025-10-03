@@ -2198,11 +2198,14 @@ class PatchySimulationEnsemble(Analyzable):
         :return: data for a step in the analysis pipeline and a simulation, at the given time range
 
         """
-        if type(time_steps) == int:
-            time_steps = range(time_steps, 2 * time_steps, time_steps)  # 0, time_step
 
         # preprocessing: MAKE SURE THIS IS A STEP OBJECT
         step = self.get_pipeline_step(step)
+
+        # standardize timepoint input
+        if type(time_steps) == int:
+            time_steps = range(time_steps, time_steps+step.output_tstep, step.output_tstep)
+            assert len(time_steps) == 1
 
         #  if we've provided a list of simulations
         if sim is None:
@@ -2272,7 +2275,8 @@ class PatchySimulationEnsemble(Analyzable):
         # DATA CACHING
         # check if data is already loaded
         if self.is_data_loaded(sim, step, time_steps):
-            return self.get_cached_analysis_data(sim, step)
+            cached_data = self.get_cached_analysis_data(sim, step)
+            return cached_data[0:time_steps:step.output_tstep]
 
         # check if we have cached data for this step already
         if not self.analysis_pipeline.is_force_recompute(step) and self.has_data_file(step, sim):
@@ -2284,7 +2288,7 @@ class PatchySimulationEnsemble(Analyzable):
             if cached_data.matches_trange(time_steps):
                 # that was easy!
                 self.get_logger().info(f"All data in file! That was easy!")
-                return cached_data
+                return cached_data[time_steps]
             else:
                 self.get_logger().info(f"Cache file missing data! Missing timepoints are "
                                        f"{np.argwhere(~cached_data.compare_tranges(time_steps)) * step.input_tstep} ")
@@ -2301,7 +2305,8 @@ class PatchySimulationEnsemble(Analyzable):
         # TODO: make sure this can handle the amount of args we're feeding in here
         # execute the step!
         # TODO: handle existing data that's incomplete over the required time interval
-        data: PipelineData = step(*data_in)
+        self.get_logger().info(f"Executing computations for step {step.name} on simulation data {repr(sim)}...")
+        data: PipelineData = step(*data_in)[time_steps]
         if self.is_do_analysis_parallel():
             lock.acquire()
         try:
@@ -2334,10 +2339,11 @@ class PatchySimulationEnsemble(Analyzable):
         data: list[PipelineData] = self.get_data(step, simulations_list, time_steps)
         # ugh wish python had switch/case
         if step.get_output_data_type() == PipelineDataType.PIPELINE_DATATYPE_DATAFRAME:
-            self.get_logger().info(f"Merging data from simulations: {sim}")
+            self.get_logger().info(f"Merging data from simulations: {describe_param_vals(*sim)}")
             timerange = np.array(list(set.intersection(*[set(s.trange()) for s in data])))
             # iter simulation data
             for s, sim_data in zip(simulations_list, data):  # I'm GREAT at naming variables!
+                # todo: column dtypes?
                 for p in s.param_vals:
                     sim_data.get()[p.param_name] = p.value_name()
             df = pd.concat([d.get() for d in data], axis=0)

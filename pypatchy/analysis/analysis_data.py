@@ -132,11 +132,16 @@ class PipelineData(ABC):
         """
         pass
 
+    @abstractmethod
+    def __getitem__(self, item: Union[int, slice, range]):
+        pass
+
 
 class PDPipelineData(PipelineData):
     """
     Data stored in a pandas dataframe
     """
+
     # the time range from begin of data to end
     # store in np.ndarray to handle missing data at timepoints
     # _trange array length should match length of unique timepoints
@@ -158,6 +163,20 @@ class PDPipelineData(PipelineData):
         :returns: data as a pandas dataframe
         """
         return self.data
+
+    def __getitem__(self, item: Union[int, slice]):
+        """
+
+        """
+        if isinstance(item, int):
+            return PDPipelineData(self.data[self.data[TIMEPOINT_KEY] == item], np.array([item]))
+        elif isinstance(item, slice) or isinstance(item, range):
+            timepoints = np.arange(item.start, item.stop, item.step if item.step else 1)
+            filtered_data = self.data[self.data[TIMEPOINT_KEY].isin(timepoints)]
+            return PDPipelineData(filtered_data, timepoints)
+        else:
+            raise TypeError("Item must be int slice or range")
+
 
     def compare_tranges(self, tr: Union[range, list, np.ndarray]) -> np.array:
         """
@@ -302,10 +321,30 @@ class ObjectPipelineData(PipelineData):
             else:
                 raise OverlappingDataError(self, other)
 
+    def __getitem__(self, item: Union[int, slice, range]) -> ObjectPipelineData:
+        if isinstance(item, int):
+            return ObjectPipelineData({item: self.get()[item]})
+        elif isinstance(item, slice) or isinstance(item, range):
+            return ObjectPipelineData({timepoint: self.get()[timepoint]
+                                       for timepoint in np.arange(start=item.start, stop=item.stop, step=item.step)})
+        else:
+            raise TypeError(f"Invalid type {type(item)}")
+
 
 class RawPipelineData(ObjectPipelineData):
     # TODO: anything at all
     pass
+
+    def __getitem__(self, item: Union[int, slice, range]) -> RawPipelineData:
+        """ reimpl to ensure correct type
+        """
+        if isinstance(item, int):
+            return RawPipelineData({item: self.get()[item]})
+        elif isinstance(item, slice) or isinstance(item, range):
+            return RawPipelineData({timepoint: self.get()[timepoint]
+                                       for timepoint in np.arange(start=item.start, stop=item.stop, step=item.step)})
+        else:
+            raise TypeError(f"Invalid type {type(item)}")
 
 
 def load_cached_object_data(_, f: Path) -> ObjectPipelineData:
