@@ -1,6 +1,6 @@
 import numpy as np
 
-from pypatchy.patchy.ensemble_parameter import StagedAssemblyParam, StageInfoParam
+from pypatchy.patchy.param_val_types import StagedAssemblyParam, StageInfoParam
 from pypatchy.patchy.particle_adders import RandParticleAdder
 from pypatchy.patchy.simulation_ensemble import find_ensemble
 from concurrent.futures import ThreadPoolExecutor, as_completed

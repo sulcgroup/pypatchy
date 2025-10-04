@@ -4,14 +4,13 @@ import copy
 import datetime
 import itertools
 import multiprocessing
-import os
 import random
 import shutil
 import tempfile
 import time
 from collections import Counter
 from json import JSONDecodeError
-from typing import Generator, Type, Optional
+from typing import Generator, Type, Optional, Any
 
 import subprocess
 import re
@@ -24,14 +23,17 @@ from oxDNA_analysis_tools.file_info import file_info
 from oxDNA_analysis_tools.UTILS.RyeReader import get_confs, describe, write_conf
 from oxDNA_analysis_tools.UTILS.data_structures import Configuration
 
-from ipy_oxdna.oxdna_simulation import SimulationManager, Simulation
+from ipy_oxdna.oxdna_simulation import Simulation
 from ipy_oxdna.utils.observable import Observable, ObservableColumn
+from .param_val_types import StageInfoParam
+from .particle_adders import RandParticleAdder
 
+from .pl.plparticle import PLPatchyParticle, PLPatch
+from .pl.plparticleset import PLParticleSet
 from .pl.plpotential import PLPotential, PLFRExclVolPotential, PLFRTorsionalPatchyPotential, PLLRPatchyPotential, \
     PLLRExclVolPotential, PLFRPatchyPotential
 from .sim_ensemble_json import SimEnsembleJsonEncoder
 from .simulation_specification import get_param_set
-from ..analysis import analysis_pipeline
 from ..analysis.analyzable import Analyzable
 
 from ..patchy.patchy_scripts import lorenzian_to_flavian
@@ -538,7 +540,7 @@ class PatchySimulationEnsemble(Analyzable):
     # --------------- GENERAL MEMBER VARS -------------- #
 
     # metadata regarding execution and analysis (TBD)
-    metadata: dict[Any]
+    metadata: dict[str,Any]
     metadata_file: str
 
     # list of parameters that will be varied across this ensemble
@@ -547,9 +549,7 @@ class PatchySimulationEnsemble(Analyzable):
     # each simulation is defined by a list of ParameterValue objects where each
     # ParameterValue object corresponds to a value in a different EnsembleParameter
     # object in this list
-    # TODO: some sort of "skip" list for
-    ensemble_params: list[EnsembleParameter]
-    ensemble_param_name_map: dict[str, EnsembleParameter]
+    ensemble_params: EnsembleParameters
 
     observables: dict[str, Observable]
     # skip oxpy checking, reqd for interactions like Romano
@@ -642,7 +642,6 @@ class PatchySimulationEnsemble(Analyzable):
 
         self.metadata = metadata_dict
 
-
         # slurm log stuff currently deprecated
         self.slurm_log = SlurmLog()
 
@@ -650,10 +649,7 @@ class PatchySimulationEnsemble(Analyzable):
 
         self.const_params = const_params
 
-        self.ensemble_params = ensemble_params
-        self.ensemble_param_name_map = {
-            p.param_key: p for p in self.ensemble_params
-        }
+        self.ensemble_params = EnsembleParameters(ensemble_params)
         self.observables = observables
         self.json_rw = json_rw
 
@@ -710,7 +706,7 @@ class PatchySimulationEnsemble(Analyzable):
                         assert isinstance(a, tuple) and len(a) == 2, f"Invalid parameter {str(a)}!"
                         k, v = a
                         if k == pname:
-                            pv = self.ensemble_param_name_map[k].lookup(v)
+                            pv = self.ensemble_params[k].lookup(v)
                             # pv = ParameterValue(k, v)
                             assert pv in param_type
                             sim_params.append([pv])
@@ -1077,7 +1073,7 @@ class PatchySimulationEnsemble(Analyzable):
                 if line.strip().startswith("#"): continue
                 try:
                     key, value = line.split("=")
-                except ValueError as e:
+                except ValueError:
                     self.get_logger().warning(f"Could not parse line in input file: {line}")
                     continue
                 input_file_params[key.strip()] = value.strip()
@@ -1420,7 +1416,7 @@ class PatchySimulationEnsemble(Analyzable):
         print(f"Metadata stored in file {self.metadata_file}")
         print(f"Simulation TLD: {self.tld()}")
         print("Ensemble Params")
-        for param in self.ensemble_params:
+        for param in self.__ensemble_params:
             print("\t" + str(param))
         print(f"Const Simulation Params")
         for param in self.const_params:
@@ -1700,7 +1696,8 @@ class PatchySimulationEnsemble(Analyzable):
         stage.apply(scene)
 
         # Todo: cut next line once we have this working
-        scene_computed_energy = scene.get_potential_energy()
+        if not self.no_oxpy_check_energies:
+            scene_computed_energy = scene.get_potential_energy()
 
         # initialize a local writer from ensemble writer
         # todo: standardize this as the method to get writer object
@@ -1739,8 +1736,8 @@ class PatchySimulationEnsemble(Analyzable):
         if not self.no_oxpy_check_energies:
             with oxpy.Context():
                 assert (self.folder_path(sim, stage) / "input").exists()
-                os.chdir(self.folder_path(sim, stage))
-                manager = oxpy.OxpyManager("input")
+                # os.chdir(self.folder_path(sim, stage))
+                manager = oxpy.OxpyManager(str(self.folder_path(sim, stage))+"/input")
                 e = manager.system_energy()
                 del manager
 
@@ -1849,7 +1846,7 @@ class PatchySimulationEnsemble(Analyzable):
         ec = self.metadata["ensemble_config"]
         ec[OBSERABLES_KEY] = list(self.observables.values())
         ec[CONST_PARAMS_KEY] = self.const_params
-        ec[ENSEMBLE_PARAMS_KEY] = self.ensemble_params
+        ec[ENSEMBLE_PARAMS_KEY] = self.ensemble_params.to_list()
         ec["analysis_pipeline"] = self.analysis_pipeline.to_json()
 
         # dump metadata dict to file
@@ -1922,7 +1919,7 @@ class PatchySimulationEnsemble(Analyzable):
             self.get_logger().info("Let the simulating commence!")
             # batch execution for CUDA + MPS
             # matt says to use worker_manager instead of run
-            simulation_manager.worker_manager()
+            mgr.worker_manager()
             # TODO: better slurm logging!
 
     def is_setup_done(self, sims: list[PatchySimulation], stage: Union[None, str, Stage]) -> bool:
@@ -1982,13 +1979,13 @@ class PatchySimulationEnsemble(Analyzable):
                 return False
             else:
                 assert stage.idx() - most_recent_stage.idx() == 1
-        except IncompleteStageError as e:
+        except IncompleteStageError:
             # previous stage is incomplete; warn and return False
             self.get_logger().warning(
                 f"Cannot execute stage {stage.name()} for sim {repr(sim)} when stage {e.stage().name()}"
                 f" is incomplete! aborting!")
             return False
-        except NoStageTrajError as e:
+        except NoStageTrajError:
             # if most recent stage has no traj, that means current stage is first stage, which is completely fine
             pass
 
@@ -2161,7 +2158,7 @@ class PatchySimulationEnsemble(Analyzable):
         :param pv: parameter value
         :return: true if the ParameterValue exists in any of the ensemble parameters
         """
-        return any([pv in ep for ep in self.ensemble_params])
+        return any([pv in ep for ep in self.__ensemble_params])
 
     def is_multiselect(self, selector: PatchySimDescriptor, exceptions: tuple[EnsembleParameter, ...] = ()) -> bool:
         """
@@ -2497,7 +2494,13 @@ class PatchySimulationEnsemble(Analyzable):
                     obs: Observable, # todo: multiple observables, probably not hard but also not needed
                     sim: Union[None, PatchySimDescriptor] = None,
                     stage: Union[None, Stage, str] = None):
-
+        """
+        runs oxDNA's DNAnalysis tool on a simulation and stage, producing the output file(s)
+        specified by the observable
+        :param obs: an Observable object specifying the analysis to run
+        :param sim: a PatchySimulation object or a descriptor of one, or None to run on all simulations
+        :param stage: a Stage object or stage name string, or None to run on all stages
+        """
         if sim is None:
             sim = self.ensemble()
         if isinstance(sim, list):
@@ -2529,6 +2532,15 @@ class PatchySimulationEnsemble(Analyzable):
                         for key in infile.keys():
                             f.write(f"{key} = {infile[key]}\n")
                         f.write("analysis_data_output_1 = " + repr(obs))
+                    # if we are using lorenzo's format, this gets much harder because
+                    # of all the additional required files
+                    # hardcoding, but let me state for the record i hate it
+                    for i, _ in enumerate(self.sim_get_particles_set(sim)):
+                        patches_file = self.folder_path(sim, stage) / f"patches_{i}.dat"
+                        if not patches_file.exists():
+                            raise FileNotFoundError(f"Could not find patches file `patches_{i}.dat in {sim}")
+                        else:
+                            shutil.copyfile(patches_file, tmpdir + f"/patches_{i}.dat")
                     cmd_out, cmd_err = self.bash_exec(self.server_settings.oxdna_path + "/build/bin/DNAnalysis input",
                                                           cwd=tmpdir)
                     self.get_logger().info("DNAnalysis OUT: " + cmd_out)
@@ -2572,8 +2584,8 @@ def shared_ensemble(es: list[PatchySimulationEnsemble],
                 name_vals[param_key] = {e.const_params[param_key]}
             else:
                 name_vals[param_key] = name_vals[param_key].intersection([e.const_params[param_key]])
-        names.update([p.param_key for p in e.ensemble_params])
-        for p in e.ensemble_params:
+        names.update([p.param_key for p in e.__ensemble_params])
+        for p in e.__ensemble_params:
             if p.param_key not in name_vals:
                 name_vals[p.param_key] = {pv.value_name() for pv in p.param_value_set}
             else:
@@ -2588,7 +2600,7 @@ def shared_ensemble(es: list[PatchySimulationEnsemble],
     for e in es:
         valset: list[list[ParameterValue]] = []
         # make sure to order ensemble parameters correctly
-        for p in e.ensemble_params:
+        for p in e.__ensemble_params:
             union_vals = name_vals[p.param_key]
             vals = [pv for pv in p if pv.value_name() in union_vals]
             valset.append(vals)

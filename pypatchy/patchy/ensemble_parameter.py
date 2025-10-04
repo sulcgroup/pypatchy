@@ -1,130 +1,47 @@
 from __future__ import annotations
-from dataclasses import dataclass, field
-from typing import Union, Any, Mapping, Iterator
 
-from .particle_adders import StageParticleAdder, RandParticleAdder, FromPolycubeAdder
-from .pl.plparticleset import PLParticleSet, MultidentateConvertSettings, decode_particles_dict
+import copy
+from typing import Union
 
-# from ..patchyio import get_writer # TODO: sort out this spaghtii
+from .base_param_val import ParameterValue, ParamValueGroup
+from .param_val_types import PARTICLE_TYPES_KEY, MDT_CONVERT_KEY, STAGES_KEY, ParticleSetParam, MDTConvertParams, \
+    StagedAssemblyParam
+from .pl.plparticleset import MultidentateConvertSettings, decode_particles_dict
 
-PARTICLE_TYPES_KEY = "particle_types"
-MDT_CONVERT_KEY = "mdt_convert"
-STAGES_KEY = "staging"
-
-class InvalidParameterError(BaseException):
-    _param_name: str
-    _param_value: Any
-    _custom_msg: str
-
-    def __init__(self, param_name: str, param_value: Any, custom: Union[str, None] = None):
-        """
-        :param param_name: name of param with invalid value
-        :param param_value: value of param with invalid value. given the nature of this exception this won't
-        always be stringifyable
-        """
-        self._param_name = param_name
-        self._param_value = param_value
-
-    def msg(self) -> str:
-        return f"Parameter {self._param_name} has invalid value {self._param_value}. Value type is {type(self._param_value)}"
-
-    def __str__(self):
-        return self.msg() + self._custom_msg if self._custom_msg else self.msg()
-
-class InvalidParameterTypeError(InvalidParameterError, TypeError):
-    def __init__(self, param_name: str, param_value: Any, custom: Union[str, None] = None):
-        InvalidParameterError.__init__(param_name, param_value, custom)
-
-    def msg(self):
-        return f"Parameter {self._param_name} has invalid value type {type(self._param_value)}. Value is {self._param_value}"
-
-@dataclass
-class ParameterValue:
+def parameter_value(key: str, val: Union[dict, str, int, float, bool, list]) -> ParameterValue:
     """
-    A simple ParameterValue has a key that's a parameter (T, narrow_type, density, etc.) and
-    values that are ints, strs, or floats
-    Base class is only applicable to basic types (int, float, str, bool). groups of params need ParamValueGroup
-    others are also included
-    A more complex ParameterValue consists of a named group of multiple parameters
+    Constructs a ParameterValue object
     """
-    param_name: str = field()
-    param_value: Union[str, bool, float, int] = field()  # only basic types allowed here
-
-    def __post_init__(self):
-        if isinstance(self.param_value, ParameterValue):
-            raise InvalidParameterError(self.param_name, self.param_value, True)
-
-    def value_name(self):
-        return str(self.param_value)
-
-    def __eq__(self, other: Union[ParameterValue, Any]) -> bool:
-        """
-        Tests equality. If arguement is a ParameterValue, tests if name and value are equal. Otherwise tests
-        if self.value == other
-        """
-        if not isinstance(other, ParameterValue):
-            return self.param_value == other
+    if isinstance(val, dict):
+        if "name" in val:
+            param_name = val["name"]
         else:
-            return self.param_name == other.param_name and self.value_name() == other.value_name()
-
-    def str_verbose(self) -> str:
-        """
-        Returns: a string describing the parameter value
-        """
-        return f"{self.param_name}: {self.value_name()}"
-
-    def __str__(self):
-        return f"{self.param_name}_{str(self.value_name())}"
-
-    def __hash__(self) -> int:
-        return hash((self.param_name, self.value_name(),))
-
-
-@dataclass
-class ParamValueGroup(ParameterValue):
-    """
-    grouped params
-    """
-    param_value: dict[str, ParameterValue]
-    valname: str
-
-    def value_name(self):
-        return self.valname
-
-    def group_params_names(self) -> list[str]:
-        return list(self.param_value.keys())
-
-    def __getitem__(self, key: str):
-        return self.param_value[key].param_value
-
-    def has_param(self, param_name: str) -> bool:
-        return param_name in self.group_params_names()
-
-    def __contains__(self, val: Union[str, ParameterValue]):
-        if isinstance(val, str):
-            return val in self.param_value
-        else:
-            return val.param_name in self.param_value and self.param_value[val.param_name]
-
-    def __eq__(self, other: ParameterValue):
-        if self.param_name == other.param_name:
-            return self.value_name() == other.value_name()
-        else:
-            return isinstance(other, ParamValueGroup) and all([key in self and self[key] == val
-                                                           for key, val in other.param_value.items()])
-
-    def str_verbose(self) -> str:
-        return f"{self.param_name}: {self.value_name()}\n" + \
-               "\n".join([v.str_verbose().replace("\n", "\n\t") for v in self.param_value.values()])
-
-    def __iter__(self) -> Iterator[ParameterValue]:
-        for v in self.param_value.values():
-            if isinstance(v, ParamValueGroup):
-                yield from v
+            param_name = key  # acceptable for const params, catastrophic for ensemble params
+        # if type key is present, paramater is a particle set or mdt convert settings or something
+        if "type" in val:
+            if "value" in val:  # *sirens* BACKWARDS COMPATIBILITY DANGER ZONE
+                data = val["value"]
             else:
-                yield v
+                data = {k: val[k] for k in val if k not in ("type", "name")}
+            if val["type"] == MDT_CONVERT_KEY:
+                return MDTConvertParams(MultidentateConvertSettings(**data), param_name)
+            elif val["type"] == PARTICLE_TYPES_KEY:
 
-# probably a shorter, worse way to write this
+                return ParticleSetParam(decode_particles_dict(**data))
+            elif val["type"] == STAGES_KEY:
+                if not "stages" in data:
+                    raise TypeError(f"Missing key 'stages' in staging info param {data['name']}")
+                return StagedAssemblyParam(data["stages"], param_name, key)
+            else:
+                raise Exception(f"Invalid object-parameter type {val['type']}")
+        else:
+            # if no type is specified this is a parameter group
+            return ParamValueGroup(param_name=key, param_value={pkey: parameter_value(pkey, pval)
+                                                                for pkey, pval in val.items() if pkey != "name"}, valname=param_name)
+    else:
+        return ParameterValue(key, val)
+
+
 class EnsembleParameter:
     """
     Class for a varialbe parameter in a simulation ensemble
@@ -179,203 +96,58 @@ class EnsembleParameter:
     def __contains__(self, item: ParameterValue):
         return item in self.param_value_set
 
-
-class ParticleSetParam(ParameterValue, PLParticleSet):
-    set_name: str = field(init=False)
-
-    def __init__(self, particles: PLParticleSet, name=PARTICLE_TYPES_KEY):
-        ParameterValue.__init__(self, PARTICLE_TYPES_KEY, particles)
-        PLParticleSet.__init__(self, particles.get_src_map(), intmat=particles.particles())
-        self.set_name = name
-
-    def value_name(self):
-        return self.set_name
-
-    def str_verbose(self) -> str:
-        pset_str = f"Particle Set {self.set_name}"
-        pset_str += f"\n\tNum. Particle Types: {self.num_particle_types()}"
-        pset_str += f"\n\tNum. Colors: {len(self.patch_colors()) / 2}"
-
-
-class MDTConvertParams(ParameterValue):
-    convert_params_name: str
-
-    def __init__(self, cvt_settings: MultidentateConvertSettings, convert_params_name: str = MDT_CONVERT_KEY):
-        ParameterValue.__init__(self, MDT_CONVERT_KEY, cvt_settings)
-        if not isinstance(cvt_settings, MultidentateConvertSettings):
-            raise InvalidParameterTypeError(f"Invalid multidentate convert settings object type {type(cvt_settings)}")
-        self.convert_params_name = convert_params_name
-
-    def value_name(self) -> str:
-        return self.convert_params_name
-
-    def str_verbose(self) -> str:
-        cvt_params = f"Multidentate Convert Settings {self.convert_params_name}:\n" \
-                     f"\tNum Teeth: {self.param_value.n_teeth}\n" \
-                     f"\tDental Radius: {self.param_value.dental_radius}\n" \
-                     f"\tTorsion: {self.param_value.torsion}\n" \
-                     f"\tFollow Surface: {self.param_value.follow_surf}\n" \
-                     f"\tEnergy Scale: {self.param_value.energy_scale_method}\n"
-        # f"\tAlpha Scale: {self.param_value.alpha_scale_method}\n" # alpha scale is not used
-        return cvt_params
-
-
-# class StageInfo?
-
-class StagedAssemblyParam(ParameterValue):
+class EnsembleParameters:
     """
-    A parameter value that describes a staged assembly protocol
-    mostly just a grouped parameter system
+    class for managing a group of ensemble parameters
     """
-    param_value: dict[str, StageInfoParam]
-    staging_type_name: str
+    __ensemble_parameters: list[EnsembleParameter]
+    # map to indexes in ensemble_parameters to avoid duplicate object refs
+    __name_map: dict[str, int]
 
-    def __init__(self,
-                 staging_info: dict[str, Union[dict, StageInfoParam]],
-                 staging_val_name: str,
-                 staging_params_name: str = STAGES_KEY):
-        ParameterValue.__init__(self,
-                                param_name=staging_params_name,
-                                param_value={
-                                    stage_name: StageInfoParam(stage_name, **stage_info)
-                                    for stage_name, stage_info in staging_info.items()
-                                } if all([isinstance(v, dict) for v in staging_info.values()]) else staging_info)
-        # if isinstance(staging_info, dict):
-        # else:
-        #     if not isinstance(staging_info, list):
-        # TODO: MORE TYPE CHECKING
-        # if not isinstance(staging_info, dict) or staging_info:
-        #     raise TypeError("Incorrect type for stages info")
-        # if not all(["t" in stage for stage in staging_info.values()]):
-        #     raise TypeError("Missing start-time info for some stages")
-        self.staging_type_name = staging_val_name
+    def __init__(self, param_list: list[EnsembleParameter]):
+        self.__ensemble_parameters = param_list
+        self.__name_map = {p.param_key: i for i, p in enumerate(self.__ensemble_parameters)}
+        assert len(self.__name_map) == len(self.__ensemble_parameters), "Duplicate ensemble parameter names!"
 
-    def value_name(self) -> str:
-        return self.staging_type_name
-
-    def get_stages(self) -> dict[str, dict]:
-        return self.param_value
-
-    def stage(self, i: int) -> StageInfoParam:
-        return list(self.param_value.values())[i]
-
-    def str_verbose(self) -> str:
-        staging_desc = f"Staging {self.staging_type_name}"
-        for stage_name, stage_info in self.get_stages().items():
-            staging_desc += f"Stage: {stage_name}"
-
-        return staging_desc
-
-
-# todo: dataclass?
-# you should keep a const instance of this in a list of param vals but can clone them and edit
-class StageInfoParam(Mapping):
-    """
-    A simulation parameter that describes a single stage in a staged assembly protocol
-    """
-    start_time: int
-    stage_name: str
-    add_method: Union[None, StageParticleAdder]
-    info: dict[str, Any]  # TODO: more detail?
-    allow_shortfall: bool
-
-    def __init__(self, stage_name, **kwargs):
-        self.stage_name = stage_name
-        self.start_time = int(kwargs["t"]) if "t" in kwargs else 0
-        # if this stage adds particles
-        if "add_method" in kwargs:
-            add_method = kwargs["add_method"]
-            if isinstance(add_method, StageParticleAdder):
-                self.add_method = add_method
-            elif isinstance(add_method, str):
-                raise Exception("string-type add methods are no longer supported")
-            #     if kwargs["add_method"].upper() == "RANDOM":
-            #         self.add_method = RandParticleAdder(kwargs["density"])
-            #     # backwards-compatiility with string addition
-            #     elif "=" in kwargs["add_method"]:
-            #         self.add_method = FromPolycubeAdder(kwargs["add_method"].split("=")[1])
-            #     else:
-            #         raise TypeError(f"Invalid 'add_method' provided: {kwargs['add_method']}")
-            # require type specification
-            else:
-                if not isinstance(add_method, dict):
-                    raise InvalidParameterTypeError("add_method", add_method)
-                if "type" not in add_method:
-                    self.add_method = RandParticleAdder(**kwargs["add_method"])
-                    # change in behavior: if add method type is not specified, assume random
-                #     raise TypeError("No type specified for particle add method! Specify 'polycube', 'patchy', "
-                #                     "'random', 'fix', or. idk.")
-                else:
-                    add_type = add_method["type"]
-                    del add_method["type"] # delete type key so we can call constructor w/ arg unpacking
-                    if add_type == 'random':
-                        self.add_method = RandParticleAdder(**kwargs["add_method"])
-                    elif add_type == "polycube":
-                        self.add_method = FromPolycubeAdder(**kwargs["add_method"])
-                    elif add_type == "patchy":
-                        raise Exception("Not implemented yet")
-                    else:
-                        raise TypeError(f"Invalid 'add_method' provided: {kwargs['add_method']}")
+    def __getitem__(self, item: Union[str, int]) -> EnsembleParameter:
+        if isinstance(item, int):
+            return self.__ensemble_parameters[item]
         else:
-            self.add_method = None
+            return self.__ensemble_parameters[self.__name_map[item]]
 
-        if "allow_shortfall" in kwargs:
-            self.allow_shortfall = kwargs["allow_shortfall"]
+    def set_param(self, param: EnsembleParameter):
+        """
+        sets or adds an ensemble parameter
+        """
+        if param.param_key in self.__name_map:
+            self.__ensemble_parameters[self.__name_map[param.param_key]] = param
         else:
-            self.allow_shortfall = False
+            self.__name_map[param.param_key] = len(self.__ensemble_parameters)
+            self.__ensemble_parameters.append(param)
 
-        # add more params
-        self.info = {
-            key: value for key, value in kwargs.items() if key not in ("t", "add_method")
-        }
-
-    def set_end_time(self, newval: int):
-        self.info["steps"] = newval
-    def get_end_time(self) -> int:
-        return self.info["steps"]
-
-    def get_start_time(self) -> int:
-        return self.start_time
-
-    def __getitem__(self, item: str):
-        return self.info[item]
-
-    def __len__(self) -> int:
-        return len(self.info)
-
-    def __iter__(self) -> Iterator:
-        return iter(self.info)
-
-
-def parameter_value(key: str, val: Union[dict, str, int, float, bool, list]) -> ParameterValue:
-    """
-    Constructs a ParameterValue object
-    """
-    if isinstance(val, dict):
-        if "name" in val:
-            param_name = val["name"]
+    def __contains__(self, item: Union[str, EnsembleParameter]) -> bool:
+        if isinstance(item, str):
+            return item in self.__name_map
         else:
-            param_name = key  # acceptable for const params, catastrophic for ensemble params
-        # if type key is present, paramater is a particle set or mdt convert settings or something
-        if "type" in val:
-            if "value" in val:  # *sirens* BACKWARDS COMPATIBILITY DANGER ZONE
-                data = val["value"]
-            else:
-                data = {k: val[k] for k in val if k not in ("type", "name")}
-            if val["type"] == MDT_CONVERT_KEY:
-                return MDTConvertParams(MultidentateConvertSettings(**data), param_name)
-            elif val["type"] == PARTICLE_TYPES_KEY:
+            return item in self.__ensemble_parameters
 
-                return ParticleSetParam(decode_particles_dict(**data))
-            elif val["type"] == STAGES_KEY:
-                if not "stages" in data:
-                    raise TypeError(f"Missing key 'stages' in staging info param {data['name']}")
-                return StagedAssemblyParam(data["stages"], param_name, key)
-            else:
-                raise Exception(f"Invalid object-parameter type {val['type']}")
+    def __delitem__(self, key: str):
+        if key in self.__name_map:
+            idx = self.__name_map[key]
+            del self.__ensemble_parameters[idx]
+            del self.__name_map[key]
+            # update name map indexes
+            for k, v in self.__name_map.items():
+                if v > idx:
+                    self.__name_map[k] = v - 1
         else:
-            # if no type is specified this is a parameter group
-            return ParamValueGroup(param_name=key, param_value={pkey: parameter_value(pkey, pval)
-                                                                for pkey, pval in val.items() if pkey != "name"}, valname=param_name)
-    else:
-        return ParameterValue(key, val)
+            raise KeyError(f"Ensemble parameter {key} not found!")
+
+    def __len__(self):
+        return len(self.__ensemble_parameters)
+
+    def __iter__(self):
+        yield from self.__ensemble_parameters
+
+    def to_list(self) -> list[EnsembleParameter]:
+        return copy.deepcopy(self.__ensemble_parameters)

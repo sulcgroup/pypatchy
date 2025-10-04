@@ -14,7 +14,8 @@ from pypatchy.patchy.analysis_lib import GraphsFromClusterTxt, ClassifyClusters,
 from pypatchy.patchy.simulation_specification import PatchySimulation
 
 from ..analysis.analysis_data import TIMEPOINT_KEY, PipelineData, PDPipelineData
-from .ensemble_parameter import EnsembleParameter, ParameterValue
+from .base_param_val import ParameterValue
+from .ensemble_parameter import EnsembleParameter
 from .simulation_ensemble import PatchySimulationEnsemble, PipelineStepDescriptor, shared_ensemble, PatchySimDescriptor
 
 import seaborn as sb
@@ -465,7 +466,7 @@ def plot_energy(e: PatchySimulationEnsemble,
             if curve_stroke_style_param:
                 groupby_keys.append(curve_stroke_style_param)
             # plot duplicates seperately
-            if "duplicate" in e.ensemble_param_name_map:
+            if "duplicate" in e.ensemble_params:
                 groupby_keys.append("duplicate")
 
             # If no groupby keys, wrap in a list with a dummy key to still iterate once
@@ -627,7 +628,7 @@ def plot_last_conf_cluster_size_histograms(e: PatchySimulationEnsemble,
                                            color_term: str,
                                            x_step: int
                                            ):
-    T_vals: EnsembleParameter = e.ensemble_param_name_map[color_term]
+    T_vals: EnsembleParameter = e.ensemble_params[color_term]
     num_color_term_params = len(T_vals)
     total_group_height = 0.9 * x_step
     bar_height = total_group_height / max(num_color_term_params, 1)

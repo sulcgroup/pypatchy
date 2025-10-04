@@ -5,7 +5,7 @@ from typing import Union
 
 import numpy as np
 
-from ..ensemble_parameter import PARTICLE_TYPES_KEY
+from ..param_val_types import PARTICLE_TYPES_KEY
 from ..mgl import MGLScene, MGLParticleSet
 from .plparticle import PLPatchyParticle, PATCHY_NULL_A1, PATCHY_NULL_A3
 from .plparticleset import PLParticleSet, PLSourceMap, MultidentateConvertSettings, decode_particles_dict

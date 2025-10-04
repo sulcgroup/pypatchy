@@ -9,13 +9,15 @@ from pathlib import Path
 from typing import Union, Iterable, Any, Generator
 
 import numpy as np
+from weakref import ref, ReferenceType
 
 from ipy_oxdna.oxdna_simulation import BuildSimulation, Simulation, write_input_file
 
 from .patchy_scripts import add_standard_patchy_interaction
 from .pl.plparticleset import PLParticleSet
 
-from .ensemble_parameter import MDT_CONVERT_KEY, StageInfoParam, ParameterValue
+from .param_val_types import MDT_CONVERT_KEY, StageInfoParam
+from .base_param_val import ParameterValue
 from .particle_adders import RandParticleAdder, FromPolycubeAdder, FromConfAdder
 from .pl.plpatchylib import polycube_to_pl
 from ..patchy.simulation_specification import PatchySimulation, NoSuchParamError
@@ -29,7 +31,7 @@ class Stage(BuildSimulation):
     """
     # the name of this stage
     _stage_name: str
-    _ctxt: Any  # PatchySimulationEnsemble
+    _ctxt: ReferenceType  # PatchySimulationEnsemble
     _sim_spec: PatchySimulation
 
     # this is a class member because I do NOT want to deal with multiple inheritance rn
@@ -49,7 +51,7 @@ class Stage(BuildSimulation):
                  ):
         super().__init__(Simulation(ctxt.folder_path(sim)) if previous_stage is None
                          else Simulation(previous_stage.sim.sim_dir, ctxt.folder_path(sim) / paraminfo.stage_name))
-        self._ctxt = ctxt
+        self._ctxt = ref(ctxt)
         self._sim_spec = sim
         self._prev_stage = previous_stage
         if previous_stage is not None:
@@ -93,7 +95,7 @@ class Stage(BuildSimulation):
         returns ensemble context
         :returns: a PatchySimulationEnsemble instance
         """
-        return self._ctxt
+        return self._ctxt()
 
     def spec(self) -> PatchySimulation:
         """
@@ -313,11 +315,10 @@ class Stage(BuildSimulation):
                 assert self.idx() == 0, "Cannot use extern adder on stages after zero!"
                 # create temporary directory within the simulation directory
                 with tempfile.TemporaryDirectory(dir=self.getctxt().folder_path(self.spec())) as tmpdir:
-                    os.chdir(tmpdir)
                     # eventually this should be a context manager
                     w = self.getctxt().writer
                     w.set_directory(tmpdir)
-                    files = w.write(scene, conf_file="dummy.dat") # write scene, with bs locations. it's ok.
+                    files = w.write(scene, conf_file="dummy.dat")
                     inpdct = self.iter_input_dict()
                     inpdct.update(dict(w.get_input_file_data(scene)))
                     inpdct.update(files)
@@ -329,8 +330,9 @@ class Stage(BuildSimulation):
                             "input",
                            f"{self.getctxt().sim_stage_get_param(self.spec(), self, 'density')}"]
                     # run and capture everything
-                    result = subprocess.run(cmd, capture_output=True, text=True)
-                    assert not result.returncode, f"Failed to generate conf!"
+                    result = subprocess.run(cmd, capture_output=True, text=True, cwd=tmpdir)
+                    if result.returncode:
+                        raise Exception("Failed to generate conf!\n" + result.stderr)
 
                     # log stdout & sterr
                     for line in result.stdout.splitlines():
@@ -340,7 +342,7 @@ class Stage(BuildSimulation):
                     gend_conf = w.read_scene(inpdct["topology"], inpdct["conf_file"],
                                              scene.particle_types())
                     scene.clear_particles() # clear particles at the Singularity
-                    scene.add_particles(gend_conf.particles())
+                    scene.add_particles(gend_conf.particles(), False)
             else:
 
                 scene.add_particle_rand_positions(particles)
@@ -388,6 +390,16 @@ class Stage(BuildSimulation):
     def __str__(self) -> str:
         return f"Stage {self.name()} (#{self.idx()})"
 
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        # Remove the unpicklable weakref
+        state['_ctxt'] = None  # or store an id if needed
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        self._ctxt = None  # or restore from id if needed
+
 
 class StagedAssemblyError(Exception):
     _stage: Stage
@@ -432,6 +444,8 @@ class StageTrajFileError(StagedAssemblyError):
 
     def traj_file(self):
         return self._traj_file
+
+
 
 
 class NoStageTrajError(StageTrajFileError):

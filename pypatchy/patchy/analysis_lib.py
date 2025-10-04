@@ -14,13 +14,11 @@ from typing import TextIO
 # third party imports
 import networkx as nx
 import igraph as ig
-import numpy as np
 
 # oat/oxpy imports
 from oxDNA_analysis_tools.UTILS.RyeReader import get_confs, describe, inbox
 from oxDNA_analysis_tools.UTILS.data_structures import Configuration
 
-from ipy_oxdna.structure_editor.util import process_path
 # ipy_oxDNA imports
 from ipy_oxdna.utils.observable import Observable
 
@@ -35,10 +33,8 @@ from .patchy_sim_observable import PatchySimObservable
 
 from ..analysis.analysis_data import *
 
-from ..polycubeutil.polycubesRule import PolycubesRule
 from ..polycubeutil.polycube_structure import PolycubeStructure
 from ..structure import TypedStructure
-from ..util import get_input_dir
 
 
 # this file contains classes that are useful in analysis, but aren't required by other PyPatchy modules

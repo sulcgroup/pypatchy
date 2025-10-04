@@ -9,7 +9,8 @@ from typing import Union
 import pandas as pd
 
 from ..patchy.simulation_specification import PatchySimulation
-from ..patchy.ensemble_parameter import EnsembleParameter, ParameterValue
+from ..patchy.base_param_val import ParameterValue
+from ..patchy.ensemble_parameter import EnsembleParameter
 from .analysis_data import PipelineData, PipelineDataType
 
 import drawsvg as draw

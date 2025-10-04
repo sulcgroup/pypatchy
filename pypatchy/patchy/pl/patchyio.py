@@ -1426,19 +1426,19 @@ class MalformedSimulationException(BaseException):
 
 
 __writers = {
-    "flavio": FWriter(),
-    "josh_flavio": JFWriter(),
+    "flavio": FWriter,
+    "josh_flavio": JFWriter,
     # "josh_lorenzo": JLWriter(),
-    "lorenzo": LWriter(),
-    "subhajit": SWriter(),
-    "raspberry": RWriter()
+    "lorenzo": LWriter,
+    "subhajit": SWriter,
+    "raspberry": RWriter
 }
 
 
 def get_writer(writer_key: Union[str, None] = None) -> PLBaseWriter:
     if writer_key is None:
         writer_key = get_server_config().patchy_format
-    return __writers[writer_key]
+    return __writers[writer_key]()
 
 
 def register_writer(writer_name: str, writer_obj: PLBaseWriter):
