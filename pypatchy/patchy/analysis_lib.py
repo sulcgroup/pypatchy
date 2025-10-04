@@ -183,8 +183,8 @@ class LoadEnergies(AnalysisPipelineHead):
         if not np.array_equal(df[TIMEPOINT_KEY].values, np.arange(0,
                                                                   df[TIMEPOINT_KEY].values.max()+1,
                                                                   sim_tstep) ):
-            raise Exception(f"Mismatch between timepoint set found in energy files(s) {",".join(['`'+str(ef)+'`' for ef in energy_files])},"
-                            f"and expected timepoints based on simulation parameters. ")
+            raise Exception(f"Mismatch between timepoint set found in energy files(s)" + ",".join(['`'+str(ef)+'`' for ef in energy_files])
+                            + f" and expected timepoints based on simulation parameters. ")
         df = df[np.mod(df[TIMEPOINT_KEY].astype(int), int(self.output_tstep)) == 0]
         return PDPipelineData(df, df[TIMEPOINT_KEY].values)
 
