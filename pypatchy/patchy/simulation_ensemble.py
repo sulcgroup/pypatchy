@@ -1484,7 +1484,7 @@ class PatchySimulationEnsemble(Analyzable):
                 step = self.time_length(sim)
 
             # if we have requested last conf
-            if self.time_length(sim) == step or self.sim_stage_get_param(sim, stage, "step") == step:
+            if self.time_length(sim) == step or self.sim_stage_get_param(sim, stage, "steps") == step:
                 traj_file = self.sim_get_stage_last_conf(sim, stage)
                 scene: PLPSimulation = self.writer.read_scene(top_file.name, traj_file.name,
                                                               # self.sim_get_particles_set(sim))
