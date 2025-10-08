@@ -1484,14 +1484,16 @@ class PatchySimulationEnsemble(Analyzable):
                 step = self.time_length(sim)
 
             # if we have requested last conf
-            if self.time_length(sim) == step:
+            if self.time_length(sim) == step or self.sim_stage_get_param(sim, stage, "step") == step:
                 traj_file = self.sim_get_stage_last_conf(sim, stage)
                 scene: PLPSimulation = self.writer.read_scene(top_file.name, traj_file.name,
                                                               # self.sim_get_particles_set(sim))
                                                               particle_types)
             else:
                 conf_interval = int(self.sim_stage_get_param(sim, stage, "print_conf_interval"))
-                assert step % conf_interval == 0
+                assert step % conf_interval == 0, (f"Attempting to get a conf at a timepoint {step} that is not a "
+                                                   f"multiple of the conf interval "
+                                                   f"{self.sim_stage_get_param(sim, stage, 'print_conf_interval')}")
                 scene: PLPSimulation = self.writer.read_scene(top_file.name, traj_file.name,
                                                               # self.sim_get_particles_set(sim),
                                                               particle_types,

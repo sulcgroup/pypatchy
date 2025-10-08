@@ -196,7 +196,8 @@ class PLBaseWriter(ABC):
         if isinstance(filename, Path) and filename.is_absolute():
             return filename.open(access)
         else:
-            assert access != "r" or (self.directory() / filename).exists()
+            if access == "r" and not (self.directory() / filename).exists():
+                raise FileNotFoundError(f"No file called {filename} in directory {self.directory()}")
             return (self.directory() / filename).open(access)
 
     @abstractmethod
