@@ -46,7 +46,7 @@ class SimEnsembleJsonEncoder(PLJSONEncoder):
         elif isinstance(obj, PolycubesRule):
             return obj.toJSON()
         elif isinstance(obj, PatchyServerConfig):
-            return asdict(obj)
+            return obj.to_dict()
         elif isinstance(obj, ParameterValue):
             pvdict = self.encode_param_value(obj)
             if isinstance(obj, ParticleSetParam):

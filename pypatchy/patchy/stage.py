@@ -286,7 +286,7 @@ class Stage(BuildSimulation):
                 # if cluter bond eneregy isn't specified, include all interactions w/ bond ene  rgy
                 scene.alter_box_size(self.box_size(), 0)
 
-        if scene.num_particles() > 0:
+        if scene.num_particles() > 0 and self.num_particles_to_add() > 0:
             e_start = scene.get_potential_energy()
             assert e_start < 1., f"Scene energy {e_start} too high!!"
         else:

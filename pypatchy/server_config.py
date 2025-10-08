@@ -97,7 +97,19 @@ class PatchyServerConfig:
             return bashflags["ntasks"]
         return 1  # default value
 
-
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "name": self.name,
+            "oxdna_path": self.oxdna_path,
+            "patchy_format": self.patchy_format,
+            "slurm_bash_flags": self.slurm_bash_flags,
+            "slurm_includes": self.slurm_includes,
+            "input_file_params": self.input_file_params,
+            "absolute_paths": self.absolute_paths,
+            "is_slurm": bool(self.is_slurm),
+            "cuda_mps": bool(self.cuda_mps),
+            "no_oxpy_check": self.no_oxpy_check
+        }
 def get_server_config() -> PatchyServerConfig:
     return load_server_settings(cfg["SETUP"]["server_config"])
 

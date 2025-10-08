@@ -809,7 +809,9 @@ class LWriter(PLBaseWriter):
         topology = kwargs["topology"]
         DPS_interaction_matrix_file = kwargs["DPS_interaction_matrix_file"]
         top = self.read_top(topology)
+        # interaction matrices are encoded by patch type ID, rather than "color" so we kinda need to work backwards
         interaction_matrix = self.read_interaction_matrix(DPS_interaction_matrix_file)
+        # recolor interaction matrix to minimize number of colors used
         interaction_matrix, new_colors = assign_colors(interaction_matrix, top.particle_types.patches())
         for color, patch in zip(new_colors, top.particle_types.patches()):
             patch.set_color(color)

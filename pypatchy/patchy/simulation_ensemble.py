@@ -670,6 +670,11 @@ class PatchySimulationEnsemble(Analyzable):
         :param exc_tb: traceback
         """
         # TODO: do we need to handle exceptions better?
+        # if we had a simulation manager, turn it off.
+        if self.server_settings.cuda_mps:
+            # todo: make sure this is adeqquate
+            self.server_settings.cuda_mps.manager.shutdown()
+            self.server_settings.cuda_mps = True
         # on exit, dump metadata file
         self.dump_metadata()
         # if this block exited by raising an exception, re-raise it here
@@ -695,7 +700,8 @@ class PatchySimulationEnsemble(Analyzable):
         for i_counter, param_type in enumerate(self.ensemble_params):
             pname = param_type.param_key
             if pname in kwargs:
-                sim_params.append([param_type[kwargs[pname]]])
+                # use string to look up param value name
+                sim_params.append([param_type[str(kwargs[pname])]])
             else:
                 for a in args:
                     if isinstance(a, ParameterValue):
@@ -1848,6 +1854,7 @@ class PatchySimulationEnsemble(Analyzable):
         ec[CONST_PARAMS_KEY] = self.const_params
         ec[ENSEMBLE_PARAMS_KEY] = self.ensemble_params.to_list()
         ec["analysis_pipeline"] = self.analysis_pipeline.to_json()
+        ec[SERVER_SETTINGS_KEY] = self.server_settings
 
         # dump metadata dict to file
         with open(get_input_dir() / self.metadata_file, "w") as f:
@@ -2158,7 +2165,7 @@ class PatchySimulationEnsemble(Analyzable):
         :param pv: parameter value
         :return: true if the ParameterValue exists in any of the ensemble parameters
         """
-        return any([pv in ep for ep in self.__ensemble_params])
+        return any([pv in ep for ep in self.ensemble_params])
 
     def is_multiselect(self, selector: PatchySimDescriptor, exceptions: tuple[EnsembleParameter, ...] = ()) -> bool:
         """

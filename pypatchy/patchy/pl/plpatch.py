@@ -183,6 +183,8 @@ def assign_colors_one_to_one(interaction_matrix: InteractionMatrix, patches: lis
         a tuple where the first element is an interaction matrix for the new color set, and the second element is
         a list of colors to assign to the patches
     """
+
+
     num_patches = interaction_matrix.num_colors()
     assert all([patch.get_id() == i for i, patch in enumerate(patches)])
     if num_patches != len(patches):
@@ -190,10 +192,12 @@ def assign_colors_one_to_one(interaction_matrix: InteractionMatrix, patches: lis
                                         f"with length of patches array {len(patches)}!")
 
     # colors = np.zeros(num_patches, dtype=int)  # Color 0 means uncolored
-    patch_colors: list[int] = [None for _ in patches]
+    # colors for each patch ID
+    patch_colors: list[int] = [0 for _ in patches]
+    color_counter = 1
     # depth-first search which assigns colors
-    def dfs(patch_id: int, color: int):
-        if patch_colors[patch_id] != 0 and patch_colors[patch_id] is not None:
+    def dfs(patch_id: int, color: int) -> bool:
+        if patch_colors[patch_id] != 0:
             return patch_colors[patch_id] == color
         patch_colors[patch_id] = color
         for neighbor in range(num_patches):
@@ -202,10 +206,19 @@ def assign_colors_one_to_one(interaction_matrix: InteractionMatrix, patches: lis
                     return False
         return True
 
+    # Process each uncolored patch as potential start of new component
     for patch in range(num_patches):
-        if (patch_colors[patch] == 0 or patch_colors[patch] is None) and not dfs(patch, 1):
-            raise ColorSetNotOneToOneException("Cannot assign colors such that interacting patches add to zero")
-    return make_int_mat_for_colors(max(patch_colors)), patch_colors
+        if patch_colors[patch] == 0:
+            if not dfs(patch, color_counter):
+                raise ColorSetNotOneToOneException("Cannot assign colors such that interacting patches add to zero")
+            # Only increment color pair index if we actually colored something
+            if any(abs(c) == color_counter for c in patch_colors):
+                color_counter += 1
+    max_color = max(patch_colors)
+    new_interaction_matrix = InteractionMatrix([
+        ((-c, c), interaction_matrix[patch_colors.index(c), patch_colors.index(-c)]) for c in range(1, max_color + 1)
+    ])
+    return new_interaction_matrix, patch_colors
 
 def assign_colors(interaction_matrix: InteractionMatrix, patches: list[PLPatch]) -> tuple[InteractionMatrix, list[int]]:
     """
