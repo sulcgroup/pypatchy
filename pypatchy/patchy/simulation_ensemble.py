@@ -2079,6 +2079,9 @@ class PatchySimulationEnsemble(Analyzable):
         else:
             stage = self.check_stage(sim)
 
+        if not isinstance(script_name, str):
+            raise TypeError("script_name must be a string")
+
         if not self.is_setup_done([sim], stage):
             self.do_setup([sim], stage)
 
@@ -2092,6 +2095,9 @@ class PatchySimulationEnsemble(Analyzable):
         else:
             raise Exception("Since implementing this I have learned that dnaAnalysis doesn't work for patchy particles")
 
+        if not (self.folder_path(sim, stage) / script_name).exists():
+            raise FileNotFoundError(f"No executable file {str(self.folder_path(sim, stage) / script_name)}")
+        
         if self.server_settings.is_server_slurm():
             command = f"sbatch --chdir={self.folder_path(sim)}"
         # for non-slurm servers
@@ -2113,7 +2119,7 @@ class PatchySimulationEnsemble(Analyzable):
         # for nonslurm servers retries should equal 1
         for i in range(retries):
             # always run async for submitting slurm jobs, optionally also run serially
-            do_async = not self.server_settings.is_server_slurm() and not self.is_run_serial()
+            do_async = not self.server_settings.is_server_slurm() and not secatlf.is_run_serial()
             # execute or sbatch slurm script
             # todo something with error
             submit_txt, _ = self.bash_exec(command,
@@ -2143,6 +2149,9 @@ class PatchySimulationEnsemble(Analyzable):
             return -1
 
     def is_run_serial(self):
+        """
+        what the fucking shit is this
+        """
         try:
             # if param exists, return serial param val
             return self.get_param("run_serial")
