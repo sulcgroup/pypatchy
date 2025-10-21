@@ -52,7 +52,7 @@ RUN apt-get update && apt-get install -y bzip2 ca-certificates \
 #RUN --mount=type=ssh git clone git@github.com:lorenzo-rovigatti/oxDNA.git /root/Github/oxDNA
 # todo: replace with the above line of code once i get the flavio code PR'd into Lorenzo's
 # get back to this
-RUN --mount=type=ssh git clone git@github.com:JeDeveloper/oxDNA.git /root/Github/oxDNA && \
+RUN --mount=type=ssh git clone git@github.com:lorenzo-rovigatti/oxDNA.git /root/Github/oxDNA && \
 git clone git@github.com:JeDeveloper/ipy_oxDNA.git /root/Github/ipy_oxDNA && \
 git clone git@github.com:sulcgroup/polycubes-clone.git /root/Github/polycubes \
     && cd /root/Github/polycubes \
