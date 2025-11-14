@@ -426,8 +426,8 @@ def plot_energy(e: PatchySimulationEnsemble,
 
     load_energy_tstep = e.get_pipeline_step(load_energy_step_name).output_tstep
     if t_range is not None:
-        data = e.get_data(load_energy_step_name, data_identifier, time_steps=range(*t_range,
-                                                                                   load_energy_tstep))
+        data = e.get_data(load_energy_step_name, data_identifier,
+                          time_steps=range(*t_range, load_energy_tstep))
     else:
         data = e.get_data(load_energy_step_name, data_identifier)
     df = data.get()

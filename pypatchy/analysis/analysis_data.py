@@ -325,8 +325,14 @@ class ObjectPipelineData(PipelineData):
         if isinstance(item, int):
             return ObjectPipelineData({item: self.get()[item]})
         elif isinstance(item, slice) or isinstance(item, range):
-            return ObjectPipelineData({timepoint: self.get()[timepoint]
-                                       for timepoint in np.arange(start=item.start, stop=item.stop, step=item.step)})
+            try:
+                return ObjectPipelineData({timepoint: self.get()[timepoint]
+                      for timepoint in np.arange(start=item.start, stop=item.stop, step=item.step)})
+            except KeyError as e:
+                raise MissingDataError(np.array([timepoint
+                                    for timepoint in np.arange(start=item.start, stop=item.stop, step=item.step)
+                                        if timepoint not in self.get()]),
+                                       self)
         else:
             raise TypeError(f"Invalid type {type(item)}")
 
@@ -352,6 +358,24 @@ def load_cached_object_data(_, f: Path) -> ObjectPipelineData:
     with f.open("rb") as datafile:
         return pickle.load(datafile)
 
+class MissingDataError(Exception):
+    """
+    Exception to be thrown when some required timepoints are missing from a dataset
+    """
+    _missing_timepoints: np.ndarray
+    _data_set: PipelineData
+    other:str # additional notes, for simulation info etc
+
+    def __init__(self, missing_timepoints: np.ndarray, data_set: PipelineData):
+        self._missing_timepoints = missing_timepoints
+        self._data_set = data_set
+        self.other = ""
+
+    def missing_timepoints(self) -> np.ndarray:
+        return self._missing_timepoints
+
+    def __str__(self):
+        return f"Missing timepoints: {self.missing_timepoints()}. Data set has timepoints: {self._data_set.trange()}\n{self.other}"
 
 class MissingCommonDataError(Exception):
     """

@@ -177,14 +177,19 @@ class LoadEnergies(AnalysisPipelineHead):
         # todo: catch empty csv problem, raise custom exception
         stages_data = [pd.read_csv(stage_energy_file, sep="\s+", header=None) for stage_energy_file in energy_files]
         df = pd.concat(stages_data)
+        dt = e.sim_get_param(sim, "dt")
         # set columns names
         df.columns = [TIMEPOINT_KEY, self.POTENTIAL_ENERGY_KEY, self.KINETIC_ENERGY_KEY, self.TOTAL_ENERGY_KEY]
-        sim_tstep = e.sim_get_param(sim, "print_energy_every") * e.sim_get_param(sim, "dt")
-        if not np.array_equal(df[TIMEPOINT_KEY].values, np.arange(0,
-                                                                  df[TIMEPOINT_KEY].values.max()+1,
-                                                                  sim_tstep) ):
-            raise Exception(f"Mismatch between timepoint set found in energy files(s)" + ",".join(['`'+str(ef)+'`' for ef in energy_files])
-                            + f" and expected timepoints based on simulation parameters. ")
+        df[TIMEPOINT_KEY] = df[TIMEPOINT_KEY] / dt  # convert to timepoints
+        print_energy_every = e.sim_get_param(sim, "print_energy_every")
+        sim_tstep = print_energy_every / dt
+        # todo: if the step length isn't a multple of the energy print interval, this will fail
+        # if not np.array_equal(df[TIMEPOINT_KEY].values, np.arange(0,
+        #                                                           df[TIMEPOINT_KEY].values.max()+1,
+        #                                                           sim_tstep) ):
+        #     raise Exception(f"Mismatch between timepoint set found in energy files(s)" + ",".join(['`'+str(ef)+'`' for ef in energy_files])
+        #                     + f" and expected timepoints based on simulation parameters. ")
+        # filter to output tstep
         df = df[np.mod(df[TIMEPOINT_KEY].astype(int), int(self.output_tstep)) == 0]
         return PDPipelineData(df, df[TIMEPOINT_KEY].values)
 

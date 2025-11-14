@@ -72,6 +72,8 @@ class SimEnsembleJsonEncoder(PLJSONEncoder):
             if obj.add_method is not None:
                 infodict["add_method"] = encode_add_method(obj.add_method)
             return infodict
+        elif isinstance(obj, AnalysisPipeline):
+            return self.write_analysis_pipeline(obj)
         else:
             return super().default(obj)
 
@@ -141,7 +143,8 @@ class SimEnsembleJsonEncoder(PLJSONEncoder):
 
     def write_analysis_pipeline(self, pipeline: AnalysisPipeline) -> list:
         """
-        write analysis pipeline data into a json
+        write analysis pipeline data into a json'
+        :return: a list of pipeline steps (represented by json objs) and pipes (represented by 2-length lists)
         """
         return [
             *[
@@ -172,7 +175,7 @@ class SimEnsembleJsonEncoder(PLJSONEncoder):
         elif step_type == "LoadEnergies":
             return LoadEnergies(
                 step_name=json_data["name"],
-                input_tstep=json_data["input_tstep"],
+                # don't and can't set input tstep!
                 output_tstep=json_data["output_tstep"]
             )
         elif step_type == "BlobsFromClusters":
@@ -250,8 +253,9 @@ class SimEnsembleJsonEncoder(PLJSONEncoder):
         in overriding classes, overload and include a super() call for non-custom step types
         """
         step_dict = {}
-        step_dict["type"] = type(step).name
+        step_dict["type"] = type(step).__name__
         step_dict["name"] = step.name
+        # can still write input/output tsteps for steps that don't use them
         step_dict["input_tstep"] = step.input_tstep
         step_dict["output_tstep"] = step.output_tstep
         if type(step) == LoadParticlesTraj:
@@ -262,7 +266,8 @@ class SimEnsembleJsonEncoder(PLJSONEncoder):
         elif type(step) == MatchGraphToCrystal:
             step_dict["target"] = step.target.to_json()
         elif type(step) == ClassifyClusters:
-            step_dict["target"] = step.target.to_json()
+            # TODO: replace ClassifyClusters.target with Structure object
+            step_dict["target"] = Structure(bindings=step.target.edges).to_json()
         elif type(step) == ClassifyPolycubeClusters:
             step_dict["target"] = step.target_polycube.to_json()
             step_dict["expected_edge_length"] = step.expected_edge_length

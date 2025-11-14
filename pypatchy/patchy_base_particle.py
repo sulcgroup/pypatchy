@@ -222,6 +222,9 @@ class BaseParticleSet:
     def __iter__(self):
         return iter(self.particles())
 
+    def __getitem__(self, item: int):
+        return self._particle_types[item]
+
 
 class PatchyBaseParticle(ABC):
     """Abstract base class for particle instances"""

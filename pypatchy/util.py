@@ -245,6 +245,23 @@ def getSignedAngle(v1: np.ndarray,
         a *= -1
     return a
 
+def rotation_from_to(v1: np.ndarray, v2: np.ndarray) -> R:
+    """ Returns a scipy Rotation that rotates vector v1 to vector v2. """
+    v1_u = normalize(v1)
+    v2_u = normalize(v2)
+    cross_prod = np.cross(v1_u, v2_u)
+    dot_prod = np.dot(v1_u, v2_u)
+    if np.isclose(dot_prod, 1.0):
+        return R.from_quat([0, 0, 0, 1])  # No rotation needed
+    elif np.isclose(dot_prod, -1.0):
+        # 180 degree rotation around any axis perpendicular to v1
+        perp_axis = np.array([1, 0, 0]) if not np.allclose(v1_u, [1, 0, 0]) else np.array([0, 1, 0])
+        rotation_axis = normalize(np.cross(v1_u, perp_axis))
+        return R.from_rotvec(np.pi * rotation_axis)
+    else:
+        angle = np.arccos(np.clip(dot_prod, -1.0, 1.0))
+        rotation_axis = normalize(cross_prod)
+        return R.from_rotvec(angle * rotation_axis)
 
 def angle_between(v1: np.ndarray, v2: np.ndarray) -> float:
     """ Returns the angle in radians between vectors 'v1' and 'v2'::

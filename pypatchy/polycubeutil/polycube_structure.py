@@ -26,7 +26,7 @@ from ..vis_util import get_particle_color
 
 from ..patchy_base_particle import PatchyBaseParticle, BaseParticleSet
 from ..scene import Scene
-from .polycubesRule import PolycubesRule, diridx, PolycubesPatch
+from .polycubesRule import PolycubesRule, diridx, PolycubesPatch, RULE_ORDER
 
 from ..structure import TypedStructure, Structure, Binding, StructuralHomomorphism
 from ..util import from_xyz, get_input_dir
@@ -135,9 +135,13 @@ class PolycubeStructure(TypedStructure, Scene):
                                 p1 = cube1.patch(d1)
                                 p2 = cube2.patch(d2)
                                 if p1.color() == -p2.color():
-                                    align1 = cube1.rotation().apply(p1.alignDir()).round()
-                                    align2 = cube2.rotation().apply(p2.alignDir()).round()
-                                    if (align1 == align2).all():
+                                    if p1.has_torsion():
+                                        assert p2.has_torsion(), "One patch has torsion but the other doesn't!"
+                                        align1 = p1.alignDir().round()
+                                        align2 = p2.alignDir().round()
+                                        align_good = (align1 == align2).all()
+                                    else: align_good=True
+                                    if align_good:
                                         if not self.graph.has_edge(cube1.get_uid(), cube2.get_uid()):
                                             if cube1.state(p1.state_var()) and cube2.state(p2.state_var()):
                                                 self.graph.add_edge(cube1.get_uid(), cube2.get_uid(), dirIdx=diridx(d1))
@@ -211,11 +215,16 @@ class PolycubeStructure(TypedStructure, Scene):
                 next_node,
                 self.get_arrow_local_diridx(n, next_node))
 
-    def cubeAtPosition(self, v) -> PolycubesStructureCube:
-        return self.cubeMap[v.tobytes()]
+    def cubeAtPosition(self, v: np.ndarray) -> PolycubesStructureCube:
+        return self.cubeMap[v.astype(int).tobytes()]
 
     def has_cube_at(self, v: np.ndarray) -> bool:
-        return v.tobytes() in self.cubeMap
+        """
+        tests if the polycube has a cube at a given position in space
+        :param v: spacial position to check
+        :return: true if the polycube has a cube at position v, false oterwise
+        """
+        return v.astype(int).tobytes() in self.cubeMap
 
     def get_arrow_diridx(self, node: int, adj: int) -> int:
         return self.graph.get_edge_data(node, adj)["dirIdx"]
@@ -321,15 +330,20 @@ class PolycubeStructure(TypedStructure, Scene):
     #                                               reverse_mapping)
     #     return False
 
-    def transform(self, rot: np.ndarray, tran: np.ndarray) -> PolycubeStructure:
+    def transform(self, rot: Optional[np.ndarray]=None, tran: Optional[np.ndarray]=None) -> PolycubeStructure:
         """
         perform a spacial transform on a polycube structure
         :return rot: a 3x3 rotation matrix
         :return tran: a 3x translation vector
         :return: a copy of the structure, with the spacial transform applied
         """
+        assert rot is not None or tran is not None, "Must provide at least one of rot or tran"
         # assert transformation.shape == (4, 4), "Wrong shape for transformation"
+        if rot is None:
+            rot = np.identity(3)
         assert rot.shape == (3, 3)
+        if tran is None:
+            tran = np.zeros(shape=(3,))
         assert tran.shape[0] == 3
         # todo: check transform is legal
         transformed_structure = copy.deepcopy(self)
@@ -418,18 +432,20 @@ class PolycubeStructure(TypedStructure, Scene):
         return len(self.graph.edges) // 2  # divide by 2 b/c graph is bidirerctional
 
     def get_particle_types(self) -> dict[int, int]:
-        # TODO OOOO!!!!!
-        pass
+        return {
+            p.get_uid(): p.get_type() for p in self.particles()
+        }
+
 
     def centroid(self):
         return np.round(super().centroid())
 
     def rotate(self, rotation_map: dict[int, int]) -> StructuralHomomorphism:
-        pass
+        raise Exception("Not implemented yet")
 
     def splice(self, other: Structure, splice_points: list[tuple[Binding,
                                                                  Binding]]) -> Structure:
-        pass
+        raise Exception("Not valid for this subclass")
 
     def to_typed_structure(self, type_map: Optional[dict[int: int]]) -> TypedStructure:
         if type_map is None:
@@ -439,6 +455,50 @@ class PolycubeStructure(TypedStructure, Scene):
             types={p.get_uid(): type_map[p.get_type()] for p in self.particles()},
         )
 
+    def add_particle(self, new_cube: PolycubesStructureCube):
+        self._particles.append(new_cube)
+        self.cubeMap[new_cube.position().astype(int).tobytes()] = new_cube
+        self.graph.add_node(new_cube.get_uid(), cube=new_cube)
+        self.update_graph_for(new_cube.get_uid())
+
+    def update_graph_for(self, p_uid: int):
+        """
+        update the internal graph structure for a given particle
+        """
+        cube = self.get_cube(p_uid)
+        n_cubes_start = self.num_particles()
+        for dir_idx, direction in enumerate(RULE_ORDER):
+            if self.has_cube_at(cube.position() + direction):
+                other_cube = self.cubeAtPosition(cube.position() + direction)
+                has_edge = self.particles_bound(self.get_cube(p_uid), other_cube)
+                try:
+                    is_bound = self.patches_bound(self.get_cube(p_uid),
+                                                  self.get_cube(p_uid).patch(direction),
+                                                  other_cube,
+                                                  other_cube.patch(-direction)
+                    )
+                except IndexError as e:
+                    is_bound = False
+                if has_edge != is_bound:
+                    if not is_bound:
+                        self.graph.remove_edge(p_uid, dir_idx)
+                    else:
+                        self.graph.add_edge(p_uid, other_cube.get_uid(), dir_idx)
+        assert self.num_particles() == n_cubes_start, \
+            "update_graph_for modified number of particles! (should not do this)"
+
+    def __iadd__(self, other: PolycubeStructure):
+        assert isinstance(other, PolycubeStructure), "Can only add PolycubeStructure to PolycubeStructure"
+        assert self.rule == other.rule, "Can only add PolycubeStructures with the same rule"
+        # offset uids
+        uid_offset = len(self._particles)
+        for cube in other._particles:
+            new_cube = copy.deepcopy(cube)
+            new_cube.set_uid(new_cube.get_uid() + uid_offset)
+            self.add_particle(new_cube)
+            self.update_graph_for(new_cube.get_uid())
+
+        return self
 
 def load_polycube(file_path: Union[Path, str]) -> PolycubeStructure:
     """

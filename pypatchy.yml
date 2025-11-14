@@ -2,7 +2,7 @@ channels:
   - defaults
   - conda-forge
 dependencies:
-  - python
+  - python=3.12
   - jupyter
   - nb_conda_kernels
   - networkx
@@ -17,3 +17,4 @@ dependencies:
   - h5py
   - seaborn # deprecate?
   - paramiko # for pytests
+  - pygltflib

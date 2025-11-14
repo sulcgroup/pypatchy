@@ -40,7 +40,7 @@ from ..patchy.patchy_scripts import lorenzian_to_flavian
 from ..analysis.analysis_pipeline import AnalysisPipeline
 from .pl.plscene import PLPSimulation
 from .stage import Stage, NoStageTrajError, IncompleteStageError, StageTrajFileEmptyError
-from ..analysis.analysis_data import PDPipelineData, TIMEPOINT_KEY
+from ..analysis.analysis_data import PDPipelineData, TIMEPOINT_KEY, MissingDataError
 from ..analysis.analysis_pipeline_step import *
 from .patchy_sim_observable import PatchySimObservable, observable_from_file
 from .pl.patchyio import get_writer, PLBaseWriter, FWriter
@@ -264,7 +264,8 @@ def find_ensemble(*args: str, **kwargs) -> PatchySimulationEnsemble:
                 with open((get_input_dir() / (simname + ".json")), "r") as f:
                     exportname = json.load(f)["export_name"]
                 if metadata_file_exist(exportname, sim_init_date):
-                    return find_ensemble(exportname, sim_init_date,
+                    return find_ensemble(exportname,
+                                         sim_init_date,
                                          set_server=kwargs["set_server"])
             print(f"Warning: could not find metadata file for {simname} at {sim_init_date.strftime('%Y-%m-%d')}")
             return find_ensemble(cfg=simname,
@@ -487,7 +488,6 @@ def build_ensemble(cfg: dict[str: Any],
         ])
         for key, paramData in cfg[ENSEMBLE_PARAMS_KEY]
     ]
-    analysis_pipeline_data = mdt["analysis_pipeline_data"] if "analysis_pipeline_data" in mdt else None
 
     ensemble = PatchySimulationEnsemble(export_name=export_name,
                                         setup_date=setup_date,
@@ -499,15 +499,20 @@ def build_ensemble(cfg: dict[str: Any],
                                         server_settings=server_settings,
                                         json_rw=encoder_decoder)
 
-    # read pipeline data *after* constructing the ensemble object
-    if analysis_pipeline_data is not None:
-        # analysis pipeline is encoded in json as a mixed-type list
-        if isinstance(analysis_pipeline_data, list):
-            ensemble.analysis_pipeline = encoder_decoder().read_analysis_pipeline(analysis_pipeline_data, ensemble)
-        elif isinstance(analysis_pipeline_data, AnalysisPipeline):
-            ensemble.analysis_pipeline = analysis_pipeline_data
-        else:
-            raise TypeError(f"Invalid type {type(analysis_pipeline_data)} for analysis pipeline")
+
+    if "analysis_pipeline" in mdt:
+        ensemble.analysis_pipeline = SimEnsembleJsonEncoder().read_analysis_pipeline(mdt["analysis_pipeline"],
+                                                                                     ensemble)
+        analysis_pipeline_data = mdt["analysis_pipeline_data"] if "analysis_pipeline_data" in mdt else None
+        # read pipeline data *after* constructing the ensemble object
+        if analysis_pipeline_data is not None:
+            # analysis pipeline is encoded in json as a mixed-type list
+            if isinstance(analysis_pipeline_data, list):
+                ensemble.analysis_pipeline = encoder_decoder().read_analysis_pipeline(analysis_pipeline_data, ensemble)
+            elif isinstance(analysis_pipeline_data, AnalysisPipeline):
+                ensemble.analysis_pipeline = analysis_pipeline_data
+            else:
+                raise TypeError(f"Invalid type {type(analysis_pipeline_data)} for analysis pipeline")
 
     if "no_oxpy_check" in cfg:
         if cfg["no_oxpy_check"]:
@@ -515,18 +520,8 @@ def build_ensemble(cfg: dict[str: Any],
     else:
         ensemble.no_oxpy_check_energies = server_settings.no_oxpy_check
 
-    # TODO: verify presence of required params
-    # if "slurm_log" in mdt:
-    #     for entry in mdt["slurm_log"]:
-    #         sim = ensemble.get_simulation(**entry["simulation"])
-    #         assert isinstance(sim,
-    #                           PatchySimulation), f"Selector {entry['simulation']} selects more than one simulation."
-    #         assert sim is not None, f"Slurm log included a record for invalid simulation {str(entry['simulation'])}"
-    #         entry["simulation"] = sim
-    #     ensemble.slurm_log = SlurmLog(*[SlurmLogEntry(**e) for e in mdt["slurm_log"]])
-
     # I've removed dump_metadata from the initializer, can dump metadata later as needed
-    # ensemble.dump_metadata()
+
     return ensemble
 
 
@@ -1133,7 +1128,7 @@ class PatchySimulationEnsemble(Analyzable):
             return stages
 
 
-    def sim_get_stages_between(self, sim: PatchySimulation, tstart: int, tend: int, auto: bool=False) -> list[Stage]:
+    def sim_get_stages_between(self, sim: PatchySimulation, tstart: int, tend: int, auto: bool=False, inclusive: bool=False) -> list[Stage]:
         """
         todo a unit test for this?
         :param sim: simulation descriptor
@@ -1141,7 +1136,8 @@ class PatchySimulationEnsemble(Analyzable):
         :param tend: end time
         :return: list of stages for the provided simulation between the start and end
         """
-        return [stage for stage in self.sim_get_stages(sim, auto) if stage.end_time() >= tstart and stage.start_time() < tend]
+        return [stage for stage in self.sim_get_stages(sim, auto) if stage.end_time() >= tstart
+                and (stage.start_time() < tend or (inclusive and stage.start_time() == tend))]
 
     def sim_get_stage(self, sim: PatchySimulation, stage_name: Union[str, int]) -> Stage:
         """
@@ -1422,7 +1418,7 @@ class PatchySimulationEnsemble(Analyzable):
         print(f"Metadata stored in file {self.metadata_file}")
         print(f"Simulation TLD: {self.tld()}")
         print("Ensemble Params")
-        for param in self.__ensemble_params:
+        for param in self.ensemble_params:
             print("\t" + str(param))
         print(f"Const Simulation Params")
         for param in self.const_params:
@@ -1847,7 +1843,6 @@ class PatchySimulationEnsemble(Analyzable):
         Also saves the analysis pathway
         todo: make this comprehensive
         """
-        self.metadata["slurm_log"] = self.slurm_log.to_list()
 
         # there's a bunch of metadata["ensemble_confg"] stuff that gets passed as raw text but should be saved as json to be comprehensive
         # todo: are there any more of these?
@@ -1855,13 +1850,16 @@ class PatchySimulationEnsemble(Analyzable):
         ec[OBSERABLES_KEY] = list(self.observables.values())
         ec[CONST_PARAMS_KEY] = self.const_params
         ec[ENSEMBLE_PARAMS_KEY] = self.ensemble_params.to_list()
-        ec["analysis_pipeline"] = self.analysis_pipeline.to_json()
         ec[SERVER_SETTINGS_KEY] = self.server_settings
 
         # dump metadata dict to file
         with open(get_input_dir() / self.metadata_file, "w") as f:
             # TODO: more encoders?
-            json.dump(self.metadata, fp=f, indent=4, cls=self.json_rw)
+            json.dump({
+                "analysis_pipeline": self.analysis_pipeline,
+                "slurm_log": self.slurm_log.to_list(),
+                       **self.metadata
+           }, fp=f, indent=4, cls=self.json_rw)
 
     def sim_get_next_stage(self, sim: PatchySimulation) -> Stage:
         try:
@@ -2281,9 +2279,13 @@ class PatchySimulationEnsemble(Analyzable):
                 int(step.output_tstep))
             self.get_logger().info(f"Constructed time steps {time_steps}")
         else:
-            assert time_steps.step % step.output_tstep == 0, f"Specified step interval {time_steps} " \
-                                                             f"not consistant with {step} output time " \
-                                                             f"interval {step.output_tstep}"
+            if not isinstance(time_steps, range) or isinstance(time_steps, slice):
+                raise TypeError(f"Invalid type `{type(time_steps).__name__} for parameter `time_steps`")
+            if (time_steps.step % step.output_tstep != 0
+                    or time_steps.start % step.output_tstep != 0
+                    or time_steps.stop % step.output_tstep != 0):
+                raise ValueError(f"Specified step interval {time_steps} not consistant with {step} output time " \
+                                                             f"interval {step.output_tstep}")
 
         self.get_logger().info(
             f"Retrieving data for analysis step {step.name} and simulation(s) {str(sim)} over timeframe {time_steps}")
@@ -2312,7 +2314,7 @@ class PatchySimulationEnsemble(Analyzable):
             lock.acquire()
         try:
             # compute data for previous steps
-            self.get_logger().info(f"Computing data for step {step.name} for simulation {repr(sim)}...")
+            self.get_logger().info(f"Computing input data for step {step.name} for simulation {repr(sim)}...")
             data_in = self._get_step_input_data(step, sim, time_steps)
         finally:
             if self.is_do_analysis_parallel():
@@ -2321,7 +2323,11 @@ class PatchySimulationEnsemble(Analyzable):
         # execute the step!
         # TODO: handle existing data that's incomplete over the required time interval
         self.get_logger().info(f"Executing computations for step {step.name} on simulation data {repr(sim)}...")
-        data: PipelineData = step(*data_in)[time_steps]
+        try:
+            data: PipelineData = step(*data_in)[time_steps]
+        except MissingDataError as e:
+            e.other = f" while processing simulation {repr(sim)} for step {step.name}"
+            raise e
         if self.is_do_analysis_parallel():
             lock.acquire()
         try:
@@ -2400,7 +2406,8 @@ class PatchySimulationEnsemble(Analyzable):
                                                               time_steps.start,
                                                               time_steps.stop,
             # autogenerate stages, since we're trying to read actual data
-                                                              auto=True)
+                                                              auto=True,
+                                                              inclusive=True)
             files = [self, sim, stages]
             # get list of files that are needed for this file
             for file_name_in in step.get_data_in_filenames():

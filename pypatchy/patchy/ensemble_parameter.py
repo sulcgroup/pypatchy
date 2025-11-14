@@ -71,6 +71,8 @@ class EnsembleParameter:
         return any(isinstance(p, ParamValueGroup) for p in self.param_value_set)
 
     def lookup(self, key: str) -> ParameterValue:
+        if not isinstance(key, str):
+            key = str(key)
         return self.param_value_map[key]
 
     def __getitem__(self, item) -> ParameterValue:

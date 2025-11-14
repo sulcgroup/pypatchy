@@ -31,6 +31,9 @@ class PolycubesStructureCube(PatchyBaseParticle):
         if isinstance(cube_rotation, np.ndarray) and len(cube_rotation) == 4:
             # if rotation hsa been passed as a quaternion
             self._rot = Rotation.from_quat(cube_rotation)
+        elif isinstance(cube_rotation, np.ndarray) and cube_rotation.shape == (3, 3):
+            # if rotation has been passed as a rotation matrix
+            self._rot = Rotation.from_matrix(cube_rotation)
         elif isinstance(cube_rotation, int):
             # if rotation is a an integer, representing an index in rotation enumeration
             self._rot = Rotation.from_matrix(getRotations()[cube_rotation])
@@ -66,7 +69,10 @@ class PolycubesStructureCube(PatchyBaseParticle):
         return self.get_cube_type().has_patch(self.typedir(direction))
 
     def patch(self, direction: Union[int, np.ndarray]) -> PolycubesPatch:
-        return self.get_cube_type().patch(self.typedir(direction))
+        """
+        :return: the patch on this cube in the given global direction
+        """
+        return self.get_cube_type().patch(self.typedir(direction)).rotate(self.rotation().as_matrix())
 
     def num_patches(self) -> int:
         return self.get_cube_type().num_patches()

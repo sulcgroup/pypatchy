@@ -150,8 +150,8 @@ cmake .. \
     -DBUILD_PYTHON_BINDINGS=ON \
     -DPYBIND11_PYTHON_VERSION=3.9 \
     -DPYTHON_EXECUTABLE=$(which python) \
- && make polycubes_py -j$(nproc) && \
-cp src/libtlm.so $(python -m site --user-site)
+    && make polycubes_py -j$(nproc) && \
+    cp src/libtlm.so $(python -m site --user-site) 
 
 
 # putting this at the end because initially i forgot to do it at all, and
@@ -160,7 +160,7 @@ RUN pip install python-sat
 
 # start bash
 ENTRYPOINT ["/bin/bash", "-c"]
-CMD ["if [ $# -eq 0 ]; then echo \"Starting pypatchy\" && /bin/bash; else exec \"$@\"; fi"]
+CMD ["if [ $# -eq 0 ]; then echo \"Starting pypatchy\" && eval \"$(micromamba shell hook --shell bash)\" && /bin/bash; else exec \"$@\"; fi"]
 
 # One and build and upload with 
 # docker build -t pypatchy:latest .

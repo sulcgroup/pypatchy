@@ -5,7 +5,7 @@ import functools
 import math
 from collections import Counter
 from pathlib import Path
-from typing import Union
+from typing import Union, Optional
 
 import drawsvg
 import networkx as nx
@@ -111,12 +111,15 @@ class PolycubesPatch(BasePatchType):
                  uid: Union[int, None],
                  color: int,
                  direction: Union[int, np.ndarray],
-                 orientation: Union[int, np.ndarray],
+                 orientation: Optional[Union[int, np.ndarray]]=None,
                  stateVar: int = 0,
                  activationVar: int = 0):
         super().__init__(uid, color)
-        self._key_points = [direction if isinstance(direction, np.ndarray) else RULE_ORDER[direction],
-                            orientation if isinstance(orientation, np.ndarray) else (RULE_ORDER[orientation])]
+        if orientation:
+            self._key_points = [direction if isinstance(direction, np.ndarray) else RULE_ORDER[direction],
+                                orientation if isinstance(orientation, np.ndarray) else (RULE_ORDER[orientation])]
+        else:
+            self._key_points = [direction if isinstance(direction, np.ndarray) else RULE_ORDER[direction]]
         self._stateVar = stateVar
         self._activationVar = activationVar
 
@@ -191,7 +194,7 @@ class PolycubesPatch(BasePatchType):
         p = PolycubesPatch(self.get_id(),
                            self.color(),
                            np.matmul(rotation, self.direction()).round(),
-                           np.matmul(rotation, self.alignDir()).round(),
+                           np.matmul(rotation, self.alignDir()).round() if self.has_torsion() else None,
                            self.state_var(),
                            self.activation_var())
         p.check_valid()
@@ -207,13 +210,16 @@ class PolycubesPatch(BasePatchType):
 
     def check_valid(self):
         assert self.color()
-        assert np.dot(self.direction(), self.alignDir()) == 0
+        assert not self.has_torsion() or np.dot(self.direction(), self.alignDir()) == 0
 
     def can_bind(self, other: BasePatchType):
         return self.color() == other.color()
 
     def has_torsion(self):
         return self.num_key_points() == 2
+
+    def remove_torsion(self):
+        self._key_points = [self.direction()]
 
 
 class PolycubeRuleCubeType(PatchyBaseParticleType):
@@ -848,7 +854,8 @@ class PolycubesRule(BaseParticleSet):
             "typeName": ct.name(),
             "patches": [{
                 "dir": to_xyz(p.direction()),
-                "alignDir": to_xyz(p.alignDir()),
+                # insane syntax
+                **({'alignDir': to_xyz(p.alignDir())} if p.has_torsion() else {}),
                 "color": p.color(),
                 "state_var": p.state_var(),
                 "activation_var": p.activation_var()
