@@ -159,9 +159,10 @@ cmake .. \
 RUN pip install python-sat
 
 # start bash
-ENTRYPOINT ["/bin/bash", "-c"]
-CMD ["if [ $# -eq 0 ]; then echo \"Starting pypatchy\" && eval \"$(micromamba shell hook --shell bash)\" && /bin/bash; else exec \"$@\"; fi"]
+#ENTRYPOINT ["/bin/bash", "-c"]
+#CMD ["if [ $# -eq 0 ]; then echo \"Starting pypatchy\" && eval \"$(micromamba shell hook --shell bash)\" && /bin/bash; else exec \"$@\"; fi"]
+ENTRYPOINT ["/bin/bash", "-c", "eval \"$(micromamba shell hook --shell bash)\" && micromamba activate pypatchy && exec /bin/bash \"$@\"", "--"]
 
-# One and build and upload with 
+# One and build and upload with
 # docker build -t pypatchy:latest .
 # docker run -it --rm --gpus all -v "$(pwd):/mnt" subhajitroy/private:pypatchy # To start the container with GPU support and will remove the container after exit or when the command finishes
