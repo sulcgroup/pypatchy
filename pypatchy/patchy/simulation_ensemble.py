@@ -453,7 +453,8 @@ def build_ensemble(cfg: dict[str: Any],
                 if isinstance(obs, str):
                     observables[obs] = observable_from_file(obs)
         else:
-            assert all([type(obs) == Observable for obs in cfg[OBSERABLES_KEY]])
+            assert all([type(obs) == Observable for obs in cfg[OBSERABLES_KEY]]), \
+                f"Unrecognized type {str(type(next(o for o in cfg[OBSERABLES_KEY] if not isinstance(o, (str, dict)))))}"
             for obs in cfg[OBSERABLES_KEY]:
                 observables[obs.file_name] = obs
 
@@ -1409,7 +1410,6 @@ class PatchySimulationEnsemble(Analyzable):
         prints help text, for non-me people or if I forget
         might replace later with pydoc
         """
-
         print(f"Ensemble of simulations of {self.export_name} set up on {self.sim_init_date.strftime('%Y-%m-%d')}")
         try:
             print(f"Particle info: {str(self.get_param('particle_types'))}")
@@ -1427,13 +1427,11 @@ class PatchySimulationEnsemble(Analyzable):
         if len(self.analysis_pipeline) > 0:
             print(
                 f"Has analysis pipeline with {self.analysis_pipeline.num_pipeline_steps()} steps and {self.analysis_pipeline.num_pipes()} pipes.")
-            print(f"Pipeline is saved in file {self.analysis_file}")
             print(f"Pipeline steps")
 
         if len(self.analysis_data) > 0:
             print(f"Has {len(self.analysis_data)} entries of analysis data loaded (each entry is data for a specific "
                   f"analysis step and simulation)")
-
 
     def show_last_conf(self, sim: Union[PatchySimulation, None] = None, **kwargs):
         """
@@ -1486,14 +1484,15 @@ class PatchySimulationEnsemble(Analyzable):
                                                               # self.sim_get_particles_set(sim))
                                                               particle_types)
             else:
-                conf_interval = int(self.sim_stage_get_param(sim, stage, "print_conf_interval"))
+                conf_interval = int(float(self.sim_stage_get_param(sim, stage, "print_conf_interval")))
                 assert step % conf_interval == 0, (f"Attempting to get a conf at a timepoint {step} that is not a "
                                                    f"multiple of the conf interval "
                                                    f"{self.sim_stage_get_param(sim, stage, 'print_conf_interval')}")
+
                 scene: PLPSimulation = self.writer.read_scene(top_file.name, traj_file.name,
                                                               # self.sim_get_particles_set(sim),
                                                               particle_types,
-                                                              step // conf_interval - 1)
+                                                              (step - stage.start_time()) // conf_interval)
         else:
             assert step is None, f"Could not find trajectory file {str(traj_file)}, " \
                                  f"but timestep was explicitly specified."
@@ -1852,14 +1851,25 @@ class PatchySimulationEnsemble(Analyzable):
         ec[ENSEMBLE_PARAMS_KEY] = self.ensemble_params.to_list()
         ec[SERVER_SETTINGS_KEY] = self.server_settings
 
-        # dump metadata dict to file
-        with open(get_input_dir() / self.metadata_file, "w") as f:
-            # TODO: more encoders?
-            json.dump({
-                "analysis_pipeline": self.analysis_pipeline,
-                "slurm_log": self.slurm_log.to_list(),
-                       **self.metadata
-           }, fp=f, indent=4, cls=self.json_rw)
+        # dump metadata dict to file, using temp file for atomic write
+        metadata_path = get_input_dir() / self.metadata_file
+        temp_path = metadata_path.with_suffix('.tmp')
+
+        try:
+            with open(temp_path, "w") as f:
+                json.dump({
+                    "analysis_pipeline": self.analysis_pipeline,
+                    "slurm_log": self.slurm_log.to_list(),
+                    **self.metadata
+                }, fp=f, indent=4, cls=self.json_rw)
+
+            # Only replace the original file if serialization succeeded
+            temp_path.replace(metadata_path)
+        except Exception:
+            # Clean up temp file if it exists
+            if temp_path.exists():
+                temp_path.unlink()
+            raise
 
     def sim_get_next_stage(self, sim: PatchySimulation) -> Stage:
         try:
@@ -1875,7 +1885,10 @@ class PatchySimulationEnsemble(Analyzable):
         :return: an ipy_oxdna simulation object for a simulation
         """
         if stage is None:
-            stage = self.sim_get_next_stage(sim)
+            try:
+                stage = self.sim_most_recent_stage(sim, True)
+            except IncompleteStageError as e: # totally allowed
+                stage = e.stage()
         if self.sim_num_stages(sim) == 1 or stage.idx() == 0:
             sim_obj = Simulation(str(self.folder_path(sim, stage)))
         else:
@@ -1989,7 +2002,7 @@ class PatchySimulationEnsemble(Analyzable):
         except IncompleteStageError:
             # previous stage is incomplete; warn and return False
             self.get_logger().warning(
-                f"Cannot execute stage {stage.name()} for sim {repr(sim)} when stage {e.stage().name()}"
+                f"Cannot execute stage {stage.name()} for sim {repr(sim)} when stage {self.stage().name()}"
                 f" is incomplete! aborting!")
             return False
         except NoStageTrajError:
@@ -2117,7 +2130,7 @@ class PatchySimulationEnsemble(Analyzable):
         # for nonslurm servers retries should equal 1
         for i in range(retries):
             # always run async for submitting slurm jobs, optionally also run serially
-            do_async = not self.server_settings.is_server_slurm() and not secatlf.is_run_serial()
+            do_async = not self.server_settings.is_server_slurm() and not self.is_run_serial()
             # execute or sbatch slurm script
             # todo something with error
             submit_txt, _ = self.bash_exec(command,
@@ -2557,15 +2570,16 @@ class PatchySimulationEnsemble(Analyzable):
                         for key in infile.keys():
                             f.write(f"{key} = {infile[key]}\n")
                         f.write("analysis_data_output_1 = " + repr(obs))
-                    # if we are using lorenzo's format, this gets much harder because
-                    # of all the additional required files
-                    # hardcoding, but let me state for the record i hate it
-                    for i, _ in enumerate(self.sim_get_particles_set(sim)):
-                        patches_file = self.folder_path(sim, stage) / f"patches_{i}.dat"
-                        if not patches_file.exists():
-                            raise FileNotFoundError(f"Could not find patches file `patches_{i}.dat in {sim}")
-                        else:
-                            shutil.copyfile(patches_file, tmpdir + f"/patches_{i}.dat")
+                    if any([column.type_name == "PatchyBonds" for column in obs.cols]):
+                        # if we are using lorenzo's format, this gets much harder because
+                        # of all the additional required files
+                        # hardcoding, but let me state for the record i hate it
+                        for i, _ in enumerate(self.sim_get_particles_set(sim)):
+                            patches_file = self.folder_path(sim, stage) / f"patches_{i}.dat"
+                            if not patches_file.exists():
+                                raise FileNotFoundError(f"Could not find patches file `patches_{i}.dat in {sim}")
+                            else:
+                                shutil.copyfile(patches_file, tmpdir + f"/patches_{i}.dat")
                     cmd_out, cmd_err = self.bash_exec(self.server_settings.oxdna_path + "/build/bin/DNAnalysis input",
                                                           cwd=tmpdir)
                     self.get_logger().info("DNAnalysis OUT: " + cmd_out)

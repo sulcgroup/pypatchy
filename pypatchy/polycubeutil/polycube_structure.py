@@ -17,7 +17,7 @@ import numpy as np
 from oxDNA_analysis_tools.UTILS.data_structures import Configuration
 from pypatchy.structure import GenericTypedStructure
 
-from ipy_oxdna.structure_editor.util import process_path
+from ipy_oxdna.utils.util import process_path
 
 from ..cell_lists import CellLists
 

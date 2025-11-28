@@ -14,7 +14,7 @@ import re
 
 from scipy.spatial.transform import Rotation as R
 
-from ipy_oxdna.structure_editor.util import rotation_matrix
+from ipy_oxdna.utils.util import rotation_matrix
 
 from .effect import Effect, StringConditionalEffect, DynamicEffect, EFFECT_CLASSES
 from ..util import rotAroundAxis, powerset
@@ -101,7 +101,6 @@ def getRotationMap(axis: int, angle: int) -> dict[int, int]:
     }
 
 
-# TODO: inherit from a klossar-type patch class and/or PL Patch
 class PolycubesPatch(BasePatchType):
     """
     A patch on a patchy particle.
@@ -115,7 +114,7 @@ class PolycubesPatch(BasePatchType):
                  stateVar: int = 0,
                  activationVar: int = 0):
         super().__init__(uid, color)
-        if orientation:
+        if orientation is not None:
             self._key_points = [direction if isinstance(direction, np.ndarray) else RULE_ORDER[direction],
                                 orientation if isinstance(orientation, np.ndarray) else (RULE_ORDER[orientation])]
         else:

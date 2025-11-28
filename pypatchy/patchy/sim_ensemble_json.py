@@ -269,9 +269,9 @@ class SimEnsembleJsonEncoder(PLJSONEncoder):
             # TODO: replace ClassifyClusters.target with Structure object
             step_dict["target"] = Structure(bindings=step.target.edges).to_json()
         elif type(step) == ClassifyPolycubeClusters:
-            step_dict["target"] = step.target_polycube.to_json()
-            step_dict["expected_edge_length"] = step.expected_edge_length
-            step_dict["edge_distance_tolerance"] = step.edge_distance_tolerance
+            step_dict["target"] = step.target.to_json()
+            step_dict["expected_edge_length"] = step.graphedgetolerence
+            step_dict["edge_distance_tolerance"] = step.graphedgelen
         elif type(step) == ComputeClusterYield:
             step_dict["cutoff"] = step.cutoff
             step_dict["overreach"] = step.overreach
