@@ -1855,7 +1855,10 @@ class PatchySimulationEnsemble(Analyzable):
         metadata_path = get_input_dir() / self.metadata_file
         temp_path = metadata_path.with_suffix('.tmp')
 
+
         try:
+            if "analysis_pipeline" in self.metadata:
+                del self.metadata["analysis_pipeline"]
             with open(temp_path, "w") as f:
                 json.dump({
                     "analysis_pipeline": self.analysis_pipeline,
@@ -2306,7 +2309,7 @@ class PatchySimulationEnsemble(Analyzable):
         # check if data is already loaded
         if self.is_data_loaded(sim, step, time_steps):
             cached_data = self.get_cached_analysis_data(sim, step)
-            return cached_data[0:time_steps:step.output_tstep]
+            return cached_data[time_steps:step.output_tstep]
 
         # check if we have cached data for this step already
         if not self.analysis_pipeline.is_force_recompute(step) and self.has_data_file(step, sim):
@@ -2341,6 +2344,8 @@ class PatchySimulationEnsemble(Analyzable):
         except MissingDataError as e:
             e.other = f" while processing simulation {repr(sim)} for step {step.name}"
             raise e
+        except TypeError as e:
+            raise TypeError(f"Pipeline configuration error: incorrect number of arguements passed to __call__ method for step {step.name}") from e
         if self.is_do_analysis_parallel():
             lock.acquire()
         try:

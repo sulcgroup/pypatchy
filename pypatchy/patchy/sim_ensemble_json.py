@@ -260,18 +260,14 @@ class SimEnsembleJsonEncoder(PLJSONEncoder):
         step_dict["output_tstep"] = step.output_tstep
         if type(step) == LoadParticlesTraj:
             step_dict["normalize_coords"] = step.normalize_coords
-        elif type(step) == BlobsFromClusters or type(step) == GraphsFromPatchyBonds or type(step) == GraphsFromClusterTxt:
+        elif isinstance(step, (BlobsFromClusters, GraphsFromPatchyBonds, GraphsFromClusterTxt)):
             # my god how to load these
             step_dict["source"] = step.source_observable.file_name
-        elif type(step) == MatchGraphToCrystal:
+        elif isinstance(step, (MatchGraphToCrystal, ClassifyClusters, ClassifyPolycubeClusters)):
             step_dict["target"] = step.target.to_json()
-        elif type(step) == ClassifyClusters:
-            # TODO: replace ClassifyClusters.target with Structure object
-            step_dict["target"] = Structure(bindings=step.target.edges).to_json()
-        elif type(step) == ClassifyPolycubeClusters:
-            step_dict["target"] = step.target.to_json()
-            step_dict["expected_edge_length"] = step.graphedgetolerence
-            step_dict["edge_distance_tolerance"] = step.graphedgelen
+            if type(step) == ClassifyPolycubeClusters:
+                step_dict["expected_edge_length"] = step.graphedgetolerence
+                step_dict["edge_distance_tolerance"] = step.graphedgelen
         elif type(step) == ComputeClusterYield:
             step_dict["cutoff"] = step.cutoff
             step_dict["overreach"] = step.overreach

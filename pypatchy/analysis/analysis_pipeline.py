@@ -169,7 +169,7 @@ class AnalysisPipeline:
         # test that all steps either have a source node or are pipeline head nodes
         for step in stepqueue:
             assert issubclass(type(step), AnalysisPipelineHead) or any(
-                [v == step.op for _, v in edgeset]), f"Missing data source for step {step.op}"
+                [v == step.name for _, v in edgeset]), f"Missing data source for step {step.op}"
 
         while len(stepqueue) > 0 and count < math.pow(len(newSteps), 2):
             step = stepqueue[0]
@@ -179,7 +179,7 @@ class AnalysisPipeline:
             else:
                 found_pipe = False
                 for u, v in newPipes:
-                    if v == step.op and u in newpipe:
+                    if v == step.name and u in newpipe:
                         newpipe.add_step(newpipe[u], step)
                         stepqueue = stepqueue[1:]
                         found_pipe = True

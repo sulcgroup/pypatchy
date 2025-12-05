@@ -34,7 +34,7 @@ from .patchy_sim_observable import PatchySimObservable
 from ..analysis.analysis_data import *
 
 from ..polycubeutil.polycube_structure import PolycubeStructure
-from ..structure import TypedStructure
+from ..structure import TypedStructure, Structure, read_topology
 
 
 # this file contains classes that are useful in analysis, but aren't required by other PyPatchy modules
@@ -555,26 +555,26 @@ class ClassifyClusters(AnalysisPipelineStep):
         category (see ClusterCategory enum at the top of this file)
     """
 
-    target: nx.Graph
+    target: Structure
 
     def __init__(self,
                  name: str,
-                 target: nx.Graph,
+                 target: Union[nx.Graph, Structure],
                  input_tstep: Union[int, None] = None,
                  output_tstep: Union[int, None] = None):
         """
-
+        :param name: name of step
+        :param target: target graph or structure to compare clusters to
+        :param input_tstep: input timepoint interval
+        :param output_tstep: output timepoint interval
         """
         super().__init__(name, input_tstep, output_tstep)
         if isinstance(target, Path) or  isinstance(target, str):
             raise Exception("String paths no longer supported")
-            # target = graphShape(target)
-        # elif:
-        #     process_path(target, get_input_dir() / "targets")
-        #     target = graphShape(target)
-        # elif not isinstance(target, nx.Graph):
-        #     raise TypeError("target must be a string path to a json file or a networkx graph")
-        self.target = target
+        if not isinstance(target, Structure):
+            self.target = read_topology(target)
+        else:
+            self.target = target
 
     CLUSTER_CATEGORY_KEY = "clustercategory"
     SIZE_RATIO_KEY = "sizeratio"

@@ -90,6 +90,11 @@ class Structure:
         # if bindings aren't provided, the object is initialized empty
         # (useful for calls from subconstructor, see below)
 
+    def to_json(self) -> list[list[int]]:
+        return [
+            [u, du, v, dv] for u, du, v, dv in self.bindings_list
+        ]
+
     @property
     @functools.cache
     def bindings_list(self) -> set[tuple[int, int, int, int]]:
@@ -275,36 +280,6 @@ class Structure:
         """
         yield from structure.to_igraph().get_subisomorphisms_vf2(self.to_igraph(),
                                                                  edge_compat_fn=edgecompare)
-
-    # def _validate_homomorphism(self,
-    #                            node_list_mapping: dict[int: int],
-    #                            node_list_src: list[int],
-    #                            node_list_target: list[int],
-    #                            rotation_mapping: dict[int: int],
-    #                            structure: Structure):
-    #     homomorphism_is_valid = True
-    #     for n1, n2 in zip(node_list_src, node_list_target):
-    #         if len(self.graph.out_edges(n1)) != len(structure.graph.out_edges(n2)):
-    #             homomorphism_is_valid = False
-    #         else:
-    #             for u1, v1, d1 in self.graph.out_edges.data("dirIdx"):
-    #                 if u1 != n1:
-    #                     continue
-    #                 found_homologous_edge = False
-    #                 for u2, v2, d2 in structure.graph.out_edges.data("dirIdx"):
-    #                     if u2 != n2:
-    #                         continue
-    #                     rot_map_valid = rotation_mapping[d1] == d2
-    #                     edges_same_node = node_list_mapping.get(v1, None) == v2
-    #                     found_homologous_edge |= rot_map_valid and edges_same_node
-    #                     if found_homologous_edge:
-    #                         break
-    #                 if not found_homologous_edge:
-    #                     homomorphism_is_valid = False
-    #                     break
-    #         if not homomorphism_is_valid:
-    #             break
-    #     return homomorphism_is_valid
 
     def edge_exists(self, v: int, delta: int) -> bool:
         """
@@ -532,38 +507,6 @@ class Structure:
                 continue
 
         return False  # No directional loops → structure is crystalline
-
-    # def is_crystal(self) -> bool:
-    #     """
-    #     caveat: this code is from chatGPT
-    #     Determines if the structure forms a Euclidean crystal by checking if
-    #     the nodes form a consistent lattice according to the directional rules in RULE_ORDER.
-    #     Returns:
-    #         True if the structure is Euclidean, False otherwise.
-    #     """
-    #     assert self.is_bindings_euclidian()
-    #     try:
-    #         # Get the node positions
-    #         node_positions = self.matrix()
-    #
-    #         # Calculate distances between connected nodes
-    #         for v1, d1, v2, d2 in self.bindings_list:
-    #             # Calculate the expected position difference based on the RULE_ORDER
-    #             expected_position_diff = RULE_ORDER[d1]
-    #
-    #             # Actual position difference between the nodes
-    #             actual_position_diff = node_positions[v2] - node_positions[v1]
-    #
-    #             # Check if the actual difference matches the expected difference
-    #             if not np.allclose(actual_position_diff, expected_position_diff):
-    #                 return False
-    #
-    #         # If all connections match their expected Euclidean positions
-    #         return True
-    #
-    #     except AssertionError:
-    #         # If the structure is not connected or matrix calculation fails, it's not Euclidean
-    #         return False
 
     @functools.cache
     def to_igraph(self):
