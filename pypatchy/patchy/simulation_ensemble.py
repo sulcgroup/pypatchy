@@ -2055,6 +2055,7 @@ class PatchySimulationEnsemble(Analyzable):
             if stage.idx() + 1 < self.sim_num_stages(sim):
                 stage = self.sim_get_stage(sim, stage.idx() + 1)
             else:
+                # TODO: replace with proper exception
                 self.get_logger().info(f"Simulation {sim} has no more stages to execute!")
                 return -1
         except NoStageTrajError:
@@ -2092,6 +2093,7 @@ class PatchySimulationEnsemble(Analyzable):
             stage = self.sim_get_stage(sim, stage_name)
         else:
             stage = self.check_stage(sim)
+        assert isinstance(stage, Stage)
 
         if not isinstance(script_name, str):
             raise TypeError("script_name must be a string")

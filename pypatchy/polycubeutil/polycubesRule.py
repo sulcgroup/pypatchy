@@ -799,21 +799,31 @@ class PolycubesRule(BaseParticleSet):
                         vars_set.add(state_var)
                         color = patch_json["color"]
                         if color:
-                            alignDir = diridx(from_xyz(patch_json["alignDir"]))
-                            # add patch
-                            patch = PolycubesPatch(self.num_patches(),
-                                                   color,
-                                                   dirIdx,
-                                                   alignDir,
-                                                   state_var,
-                                                   activation_var)
-                            patches.append(patch)
-                            self.add_patch(patch)
                             # handle conditionals
                             if "conditionals" in ct_dict and ct_dict["conditionals"][dirIdx]:
                                 # if conditionals are inluded alongside a patch list, they'll be indexed by RULE_ORDER
                                 # corresponding to the patch_list
                                 effects.append(StringConditionalEffect(ct_dict["conditionals"][j], activation_var))
+                            if "alignDir" in patch_json:
+                                alignDir = diridx(from_xyz(patch_json["alignDir"]))
+                                # add patch
+                                patch = PolycubesPatch(self.num_patches(),
+                                                       color,
+                                                       dirIdx,
+                                                       alignDir,
+                                                       state_var,
+                                                       activation_var)
+                                patches.append(patch)
+                                self.add_patch(patch)
+
+                            else:
+                                patch = PolycubesPatch(self.num_patches(),
+                                                       color,
+                                                       dirIdx,
+                                                       stateVar=state_var,
+                                                       activationVar=activation_var)
+                                patches.append(patch)
+                                self.add_patch(patch)
                 else:
                     # shittiest version. should always be len(RULE_ORDER) of these
                     activationVarCounter = 0

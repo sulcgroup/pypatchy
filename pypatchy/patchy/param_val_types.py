@@ -98,6 +98,11 @@ class StagedAssemblyParam(ParameterValue):
 
         return staging_desc
 
+    def add_stage(self, stage: StageInfoParam):
+        assert stage.stage_name in self.param_value
+        self.param_value[stage.stage_name] = stage
+
+
 
 class StageInfoParam(Mapping):
     """

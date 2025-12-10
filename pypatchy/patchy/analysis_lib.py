@@ -572,7 +572,7 @@ class ClassifyClusters(AnalysisPipelineStep):
         if isinstance(target, Path) or  isinstance(target, str):
             raise Exception("String paths no longer supported")
         if not isinstance(target, Structure):
-            self.target = read_topology(target)
+            self.target = Structure(target)
         else:
             self.target = target
 
