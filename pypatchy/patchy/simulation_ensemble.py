@@ -1738,7 +1738,6 @@ class PatchySimulationEnsemble(Analyzable):
         if not self.no_oxpy_check_energies:
             with oxpy.Context():
                 assert (self.folder_path(sim, stage) / "input").exists()
-                # os.chdir(self.folder_path(sim, stage))
                 manager = oxpy.OxpyManager(str(self.folder_path(sim, stage))+"/input")
                 e = manager.system_energy()
                 del manager
@@ -2114,7 +2113,7 @@ class PatchySimulationEnsemble(Analyzable):
             raise FileNotFoundError(f"No executable file {str(self.folder_path(sim, stage) / script_name)}")
         
         if self.server_settings.is_server_slurm():
-            command = f"sbatch --chdir={self.folder_path(sim)}"
+            command = f"sbatch --chdir={self.folder_path(sim, stage)}"
         # for non-slurm servers
         else:
             command = f"bash {script_name} > simulation.log"

@@ -231,15 +231,6 @@ class Stage(BuildSimulation):
                                                                       " with observiables! Get on it Josh!!!"
             for obs in self.getctxt().observables.values():
                 self.sim.add_observable(obs)
-            # if EXTERNAL_OBSERVABLES:
-            #     self.sim.input["observables_file"] = self.adjfn("observables.json")
-            # else:
-            #     for i, obsrv in enumerate(self.getctxt().observables.values()):
-            #         obsrv.write_input_dict(self.input_param_dict, i)
-
-        # already ran adjfn on input_json_name, ignore stage info
-        # with open(self.getctxt().folder_path(self.spec()) / input_json_name, "w+") as f:
-        #     json.dump(self.input_param_dict, f)
 
         self.sim.input.write_input(production=production)
 
