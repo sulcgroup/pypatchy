@@ -999,7 +999,7 @@ class PatchySimulationEnsemble(Analyzable):
                     # if stage is not final stage, last step of this stage will be first step of next stage
                     # assign stage endtime
                     stage_info.set_end_time(stages_info[i + 1].get_start_time())
-                else:
+                elif "steps" not in stage_info:
                     # if the stage is the final stage, last step will be end of simulation
                     stage_info.set_end_time(self.sim_get_param(sim, "steps"))
                 # construct stage objects
@@ -1091,12 +1091,11 @@ class PatchySimulationEnsemble(Analyzable):
             if fname.is_dir() and (fname/"input").exists(): # we will open fname.input later
                 try:
                     # do last_conf first since it's more likely to be absent
-                    with (self.folder_path(sim) / fname / self.sim_get_param(sim,
-                 "lastconf_file")).open("r") as f:
+                    with (fname / self.sim_get_param(sim, "lastconf_file")).open("r") as f:
                         t_end = int(f.readline().split("=")[1].strip())
-                    with (self.folder_path(sim) / fname / self.sim_get_param(sim,
-                 "trajectory_file")).open("r") as f:
-                        t_start = int(f.readline().split("=")[1].strip())
+                    with (fname / self.sim_get_param(sim, "trajectory_file")).open("r") as f:
+                        first_line = f.readline()
+                        t_start = int(first_line.split("=")[1].strip())
                 except FileNotFoundError as e:
                     self.get_logger().info(f"Folder {fname} does not have file {e.filename}, skipping....")
                     continue
@@ -2240,6 +2239,7 @@ class PatchySimulationEnsemble(Analyzable):
 
         #  if we've provided a list of simulations
         if sim is None:
+            # TODO: SHOULD DEFAULT BEHAVIOR BE E.ENSEMBLE() INSTEAD ??
             return self.get_data(step, tuple(), time_steps)
 
         if isinstance(sim, list):
@@ -2343,6 +2343,9 @@ class PatchySimulationEnsemble(Analyzable):
         self.get_logger().info(f"Executing computations for step {step.name} on simulation data {repr(sim)}...")
         try:
             data: PipelineData = step(*data_in)[time_steps]
+            if step.get_output_data_type() == PipelineDataType.PIPELINE_DATATYPE_DATAFRAME:
+                for p in sim.param_vals:
+                    data.get()[p.param_name] = p.value_name()
         except MissingDataError as e:
             e.other = f" while processing simulation {repr(sim)} for step {step.name}"
             raise e
@@ -2383,10 +2386,7 @@ class PatchySimulationEnsemble(Analyzable):
             self.get_logger().info(f"Merging data from simulations: {describe_param_vals(*sim)}")
             timerange = np.array(list(set.intersection(*[set(s.trange()) for s in data])))
             # iter simulation data
-            for s, sim_data in zip(simulations_list, data):  # I'm GREAT at naming variables!
-                # todo: column dtypes?
-                for p in s.param_vals:
-                    sim_data.get()[p.param_name] = p.value_name()
+            # todo: custom exception for merging data with inconsistant sim params
             df = pd.concat([d.get() for d in data], axis=0)
             df = df.loc[np.isin(df[TIMEPOINT_KEY], timerange)]
             return PDPipelineData(df, timerange)

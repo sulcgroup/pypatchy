@@ -111,7 +111,8 @@ class StageInfoParam(Mapping):
     start_time: int
     stage_name: str
     add_method: Union[None, StageParticleAdder]
-    info: dict[str, Any]  # TODO: more detail?
+    # input file params for stage
+    info: dict[str, Any]  # TODO: more detail in type hint?
     allow_shortfall: bool
 
     def __init__(self, stage_name, **kwargs):
@@ -123,15 +124,7 @@ class StageInfoParam(Mapping):
             if isinstance(add_method, StageParticleAdder):
                 self.add_method = add_method
             elif isinstance(add_method, str):
-                raise Exception("string-type add methods are no longer supported")
-            #     if kwargs["add_method"].upper() == "RANDOM":
-            #         self.add_method = RandParticleAdder(kwargs["density"])
-            #     # backwards-compatiility with string addition
-            #     elif "=" in kwargs["add_method"]:
-            #         self.add_method = FromPolycubeAdder(kwargs["add_method"].split("=")[1])
-            #     else:
-            #         raise TypeError(f"Invalid 'add_method' provided: {kwargs['add_method']}")
-            # require type specification
+                raise TypeError("string-type add methods are no longer supported")
             else:
                 if not isinstance(add_method, dict):
                     raise InvalidParameterTypeError("add_method", add_method)
@@ -148,7 +141,7 @@ class StageInfoParam(Mapping):
                     elif add_type == "polycube":
                         self.add_method = FromPolycubeAdder(**kwargs["add_method"])
                     elif add_type == "patchy":
-                        raise Exception("Not implemented yet")
+                        raise NotImplementedError("Not implemented yet")
                     else:
                         raise TypeError(f"Invalid 'add_method' provided: {kwargs['add_method']}")
         else:
@@ -166,6 +159,7 @@ class StageInfoParam(Mapping):
 
     def set_end_time(self, newval: int):
         self.info["steps"] = newval
+
     def get_end_time(self) -> int:
         return self.info["steps"]
 
@@ -173,6 +167,10 @@ class StageInfoParam(Mapping):
         return self.start_time
 
     def __getitem__(self, item: str):
+        """
+        gets the value for an input file param specific to this stage
+        :return: value for given stage info key
+        """
         return self.info[item]
 
     def __len__(self) -> int:
@@ -180,3 +178,6 @@ class StageInfoParam(Mapping):
 
     def __iter__(self) -> Iterator:
         return iter(self.info)
+
+    def __contains__(self, item: str) -> bool:
+        return item in self.info

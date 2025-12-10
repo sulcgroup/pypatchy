@@ -77,10 +77,13 @@ class Stage(BuildSimulation):
                 #                                                 pad_cubes=dps_sigma * pc.patch_distance_multiplier).particle_types()
                 # assert sim_particle_set == pc_particle_set
         self.input_param_dict = {}
+        assert self.time_length() > 0, \
+                f"Stage cannot have zero (or negative) steps. Stage start time: {self.start_time()}, end time: {self.end_time()}"
 
     def idx(self) -> int:
         """
         returns index of this stage within staging
+        :return: index of this stage
         """
         return self._prev_stage.idx() + 1 if self._prev_stage is not None else 0
 
