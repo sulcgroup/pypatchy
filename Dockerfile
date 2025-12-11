@@ -161,7 +161,11 @@ RUN pip install python-sat
 # start bash
 #ENTRYPOINT ["/bin/bash", "-c"]
 #CMD ["if [ $# -eq 0 ]; then echo \"Starting pypatchy\" && eval \"$(micromamba shell hook --shell bash)\" && /bin/bash; else exec \"$@\"; fi"]
-ENTRYPOINT ["/bin/bash", "-c", "eval \"$(micromamba shell hook --shell bash)\" && micromamba activate pypatchy && exec /bin/bash \"$@\"", "--"]
+RUN echo 'eval "$(micromamba shell hook --shell bash)"' >> /root/.bashrc && \
+    echo 'micromamba activate pypatchy' >> /root/.bashrc
+
+ENTRYPOINT ["/bin/bash"]
+CMD ["--login"]
 
 # One and build and upload with
 # docker build -t pypatchy:latest .
