@@ -59,7 +59,7 @@ class PLPatchyPotential(PLPotential, ABC):
 class PLLRExclVolPotential(PLPotential):
     """
     Lorenzo's excluded-volume potential
-    TODO: find paper this was based on!
+    from 
     """
     __particle_radius: float  # TODO: make settable!
     # repulsive radial cutoff???
