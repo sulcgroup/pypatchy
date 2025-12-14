@@ -209,7 +209,7 @@ class SimEnsembleJsonEncoder(PLJSONEncoder):
         elif step_type == "ClassifyClusters":
             return ClassifyClusters(
                 name=json_data["name"],
-                target=Structure(**json_data["target"]),
+                target=Structure(*json_data["target"]),
                 input_tstep=json_data["input_tstep"],
                 output_tstep=json_data["output_tstep"]
             )
