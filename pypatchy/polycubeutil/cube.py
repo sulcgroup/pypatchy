@@ -7,7 +7,7 @@ from scipy.spatial.transform import Rotation
 
 from pypatchy.patchy_base_particle import PatchyBaseParticle
 from pypatchy.polycubeutil.polycubesRule import PolycubeRuleCubeType, RULE_ORDER, PolycubesPatch
-from pypatchy.util import getRotations, to_xyz
+from pypatchy.util import getRotations, to_xyz, from_xyz
 
 
 class PolycubesStructureCube(PatchyBaseParticle):
@@ -15,21 +15,48 @@ class PolycubesStructureCube(PatchyBaseParticle):
     _rot: Rotation
     _state: list[bool]
 
-    def __init__(self,
-                 uid: int,
-                 cube_position: np.ndarray,
-                 cube_rotation: Union[np.ndarray, int],
-                 cube_type: PolycubeRuleCubeType,
-                 state: list[bool] = [True]):
+    def __init__(self, *args, **kwargs):
+                 # uid: int,
+                 # cube_position: np.ndarray,
+                 # cube_rotation: Union[np.ndarray, int],
+                 # cube_type: PolycubeRuleCubeType,
+                 # state: list[bool] = [True]):
         """
+        unfortunately this needs to be kind of a mess to accept dicts processed directly from JSON
         Parameters:
             uid (int): a unique identifier for this cube
             cube_position (np.ndarray): the position of the particle, as a 3-length integer vector
             cube_rotation (np.ndarray, int): a quaternion or integer represtation of cube rotation
         """
+        if len(args) > 0:
+            # args order assumed to be uid, position, rotation, type, state
+            uid = args[0]
+            if len(args) > 1:
+                cube_position = args[1]
+            if len(args) > 2:
+                cube_rotation = args[2]
+            if len(args) > 3:
+                cube_type = args[3]
+            if len(args) > 4:
+                state = args[4]
+        if "cube_position" in kwargs or "position" in kwargs:
+            cube_position = kwargs["cube_position"] if "cube_position" in kwargs else kwargs["position"]
+        if "cube_rotation" in kwargs or "rotation" in kwargs:
+            cube_rotation = kwargs["cube_rotation"] if "cube_rotation" in kwargs else kwargs["rotation"]
+        if "cube_type" in kwargs or "type" in kwargs:
+            cube_type = kwargs["cube_type"] if "cube_type" in kwargs else kwargs["type"]
+        if "uid" in kwargs:
+            uid = kwargs["uid"]
+        if "state" in kwargs:
+            state = kwargs["state"] if "state" in kwargs else [True]
+        if isinstance(cube_position, dict):
+            cube_position = from_xyz(cube_position)
         super(PolycubesStructureCube, self).__init__(uid, cube_type.type_id(), cube_position)
-        if isinstance(cube_rotation, np.ndarray) and len(cube_rotation) == 4:
+        if isinstance(cube_rotation, (np.ndarray, dict)) and len(cube_rotation) == 4:
             # if rotation hsa been passed as a quaternion
+            if isinstance(cube_rotation, dict):
+                # scalar-last
+                cube_rotation = np.array([cube_rotation[k] for k in ["x", "y", "z", "w"]])
             self._rot = Rotation.from_quat(cube_rotation)
         elif isinstance(cube_rotation, np.ndarray) and cube_rotation.shape == (3, 3):
             # if rotation has been passed as a rotation matrix

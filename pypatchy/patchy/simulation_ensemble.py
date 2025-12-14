@@ -2288,11 +2288,12 @@ class PatchySimulationEnsemble(Analyzable):
         # if timesteps were not specified
         # todo: replace with a better descriptor
         if time_steps is None:
+            simlength = self.time_length(sim)
             # time steps generally do not start from step 0
             time_steps = range(
                 # step.output_tstep,
                 0,
-                self.time_length(sim),
+                simlength - (simlength % int(step.output_tstep)),
                 int(step.output_tstep))
             self.get_logger().info(f"Constructed time steps {time_steps}")
         else:
@@ -2310,7 +2311,7 @@ class PatchySimulationEnsemble(Analyzable):
         # check if data is already loaded
         if self.is_data_loaded(sim, step, time_steps):
             cached_data = self.get_cached_analysis_data(sim, step)
-            return cached_data[time_steps:step.output_tstep]
+            return cached_data[time_steps]
 
         # check if we have cached data for this step already
         if not self.analysis_pipeline.is_force_recompute(step) and self.has_data_file(step, sim):

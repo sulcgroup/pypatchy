@@ -106,9 +106,11 @@ class PolycubeStructure(TypedStructure, Scene):
                 self.graph.add_node(cube_idx, cube=cubeObj)
         elif "cubes" in kwargs:
             # structure passed as list of cube objects
-            for cube in kwargs["cubes"]:
+            for cube_uid, cube in enumerate(kwargs["cubes"]):
                 if isinstance(cube, dict):
-                    cube = PolycubesStructureCube(**cube)
+                    if isinstance(cube["type"], int):
+                        cube_type = self.rule.particle(cube["type"])
+                    cube = PolycubesStructureCube(**cube, uid=cube_uid, cube_type=cube_type)
                 assert cube.get_type() in [ct.type_id() for ct in self.rule.particles()], "Cube type not found in rule!"
                 self._particles.append(cube)
                 self.cubeMap[cube.position().tobytes()] = cube

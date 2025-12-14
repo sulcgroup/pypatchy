@@ -216,7 +216,7 @@ class SimEnsembleJsonEncoder(PLJSONEncoder):
         elif step_type == "ClassifyPolycubeClusters":
             return ClassifyPolycubeClusters(
                 name=json_data["name"],
-                target_name=PolycubeStructure(**json_data["target_polycube"]),
+                target_name=PolycubeStructure(**json_data["target"]),
                 expected_edge_length=json_data["expected_edge_length"],
                 edge_distance_tolerance=json_data["edge_distance_tolerance"],
                 input_tstep=json_data["input_tstep"],
