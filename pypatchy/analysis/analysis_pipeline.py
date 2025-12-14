@@ -119,7 +119,7 @@ class AnalysisPipeline:
 
     def ancestors(self, step: AnalysisPipelineStep) -> list[AnalysisPipelineStep]:
         """
-        Returns: a list of steps that provide data - perhaps through intermediaries - to the passed step
+        :return: a list of steps that provide data - perhaps through intermediaries - to the passed step
         """
         return [self.name_map[n] for n in nx.ancestors(self.pipeline_graph, step.name)]
 
@@ -128,8 +128,7 @@ class AnalysisPipeline:
 
     def is_force_recompute(self, step: Union[AnalysisPipelineStep, str]) -> bool:
         """
-        Returns:
-            true if the passed step requires a recompute, false otherwise
+        :return: true if the passed step requires a recompute, false otherwise
         """
         if isinstance(step, str):
             return self.is_force_recompute(self.get_pipeline_step(step))
@@ -138,8 +137,7 @@ class AnalysisPipeline:
 
     def head_nodes(self) -> list[AnalysisPipelineHead]:
         """
-        :return:
-            a list of steps in the pipeline that don't recieve data from other steps
+        :return: a list of steps in the pipeline that don't recieve data from other steps
         """
         return [self.name_map[n] for n in self.pipeline_graph.nodes
                 if isinstance(self.name_map[n], AnalysisPipelineHead)]
@@ -391,23 +389,21 @@ class AnalysisPipeline:
 
     def __getitem__(self, item: str) -> AnalysisPipelineStep:
         """
-        Args:
-            item: the name of a step in the pipeline
-        Returns:
-            pipeline step with the given name
+        :param item: the name of a step in the pipeline
+        :return: pipeline step with the given name
         """
         return self.name_map[item]
 
     def __len__(self):
         """
-        Returns:
-            the number of steps in the pipeline
+        :return: the number of steps in the pipeline
         """
         return len(self.pipeline_graph)
 
     def __getstate__(self) -> dict:
         """
         Pickles pipeline
+        :return: pickle-compatible dict state of the pipeline
         """
         return {
             "nodes": self.name_map,

@@ -122,7 +122,7 @@ class Analyzable(ABC):
 
     def link_analysis_pipeline(self, other: Analyzable):
         """
-        links this ensembles's analysis pipeline to another ensemble
+        links this analyzable's analysis pipeline to another ensemble
         :param other: another set of analyzable data to link with this Analyzable's pipeline
         """
         if len(self.analysis_pipeline) != 0:

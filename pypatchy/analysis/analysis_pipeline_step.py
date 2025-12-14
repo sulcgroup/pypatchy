@@ -73,8 +73,7 @@ class AnalysisPipelineStep(ABC):
 
     def get_cache_file_name(self) -> str:
         """
-        Returns:
-            the filename for where this step will cache data
+        :returns: the filename for where this step will cache data
         """
         if self.get_output_data_type() == PipelineDataType.PIPELINE_DATATYPE_GRAPH:
             return f"{self.name}.pickle"
@@ -83,6 +82,9 @@ class AnalysisPipelineStep(ABC):
 
 
     def cache_data(self, data: PipelineData, file_path: Path):
+        """
+        Caches data to a file at file_path
+        """
         if self.get_output_data_type() == PipelineDataType.PIPELINE_DATATYPE_DATAFRAME:
             if os.path.exists(file_path):
                 with pd.HDFStore(str(file_path)) as f:
@@ -121,8 +123,7 @@ class AnalysisPipelineStep(ABC):
         Override this method to tell stuff what kind of data this step will spit out
         It's assumed that whatever it does will be constant
 
-        Returns:
-            the data type produced by this pipeline, represented by an enum
+        :returns: the data type produced by this pipeline, represented by an enum
         """
         pass
 
