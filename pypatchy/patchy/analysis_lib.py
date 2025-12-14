@@ -583,7 +583,7 @@ class ClassifyClusters(AnalysisPipelineStep):
 
     @cached_property
     def graph_ig(self) -> ig.Graph:
-        return ig.Graph.from_networkx(self.target)
+        return ig.Graph.from_networkx(self.target.graph.to_undirected())
 
     def compare(self, g: nx.Graph) -> tuple[ClusterCategory, float]:
         """
@@ -599,7 +599,8 @@ class ClassifyClusters(AnalysisPipelineStep):
         if sizeFrac > 1:
             return ClusterCategory.OVER, sizeFrac
         # check if g is a subgraph of the target graph
-        if len(self.graph_ig.get_subisomorphisms_vf2(ig.Graph.from_networkx(g))) > 0:
+        g_ig = ig.Graph.from_networkx(g.to_undirected())
+        if len(self.graph_ig.get_subisomorphisms_vf2(g_ig)) > 0:
             if sizeFrac == 1:
                 cat = ClusterCategory.MATCH
             else:
