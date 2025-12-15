@@ -88,7 +88,7 @@ def plot_analysis_data(e: PatchySimulationEnsemble,
     for col in data.columns:
         if col not in ["duplicate", TIMEPOINT_KEY, data_source_key] and col not in plt_args.values():
             if len(data[col].unique()) != 1:
-                print(f"Warning: ensemble parameter {col} not accounted for in visualization! problems may arise!")
+                print(f"Warning: ensemble parameter {col} not accounted for in visualization! pro   blems may arise!")
 
     if norm:
         if isinstance(norm, int) or isinstance(norm, float):

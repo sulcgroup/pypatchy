@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Union, Any, Iterator
 
+from joblib.testing import raises
+
 
 @dataclass
 class ParameterValue:
@@ -44,6 +46,16 @@ class ParameterValue:
 
     def __hash__(self) -> int:
         return hash((self.param_name, self.value_name(),))
+
+    def __lt__(self, other: Union[ParameterValue, int, float, bool, str]) -> bool:
+        if isinstance(other, ParameterValue):
+            if self.param_name != other.param_name:
+                raise ValueError(f"Cannot compare ParameterValues with different names. Trying to compare {self.param_name} and {other.param_name}")
+            return self < other.param_value
+        else:
+            if not isinstance(other, (int, float, str, bool)):
+                raise ValueError(f"Cannot compare ParameterValue to type {type(other)}")
+            return self.param_value < other
 
 
 class InvalidParameterError(BaseException):

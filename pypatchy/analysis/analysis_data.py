@@ -332,7 +332,7 @@ class ObjectPipelineData(PipelineData):
                 raise MissingDataError(np.array([timepoint
                                     for timepoint in np.arange(start=item.start, stop=item.stop, step=item.step)
                                         if timepoint not in self.get()]),
-                                       self)
+                                       self) from e
         else:
             raise TypeError(f"Invalid type {type(item)}")
 
@@ -375,7 +375,7 @@ class MissingDataError(Exception):
         return self._missing_timepoints
 
     def __str__(self):
-        return f"Missing timepoints: {self.missing_timepoints()}. Data set has timepoints: {self._data_set.trange()}\n{self.other}"
+        return f"Missing timepoints: {self.missing_timepoints()}.\n Data set has timepoints: {self._data_set.trange()}\n{self.other}"
 
 class MissingCommonDataError(Exception):
     """
