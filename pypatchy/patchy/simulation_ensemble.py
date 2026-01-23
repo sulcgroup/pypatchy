@@ -350,18 +350,6 @@ def build_ensemble(cfg: dict[str: Any],
     if "ensemble_config" not in mdt:
         mdt["ensemble_config"] = cfg
 
-    # if "analysis_file" in mdt:
-    #     analysis_file = mdt["analysis_file"]
-    #     if (get_input_dir() / analysis_file).is_file():
-    #         with open(get_input_dir() / analysis_file, "rb") as f:
-    #             analysis_pipeline = pickle.load(f)
-    #     else:
-    #         print(f"Analysis file specified in metadata but path {get_input_dir() / analysis_file} does not exist!")
-    #         analysis_pipeline = AnalysisPipeline()
-    # else:
-    #     analysis_file = f"{export_name}_analysis_pipeline.pickle"
-    #     analysis_pipeline = AnalysisPipeline()
-
     if isinstance(mdt[ENSEMBLE_SETUP_DATE], datetime.datetime):
         mdt[ENSEMBLE_SETUP_DATE] = setup_date.strftime("%Y-%m-%d")
 
@@ -2211,6 +2199,15 @@ class PatchySimulationEnsemble(Analyzable):
         except TypeError as e:
             raise Exception(f"{selector} is not iterable!")
 
+    def last_timestep_for(self, analysis_step: AnalysisPipelineStep, sim: Optional[PatchySimDescriptor]=None) -> int:
+        """
+        :param analysis_step: an analysis pipeline step
+        :param sim: a patchy simulation descriptor
+        :return: the last timestep for which data is available for this step and simulation
+        """
+        simlength = self.time_length(sim)
+        return simlength - (simlength % int(analysis_step.output_tstep))
+
     def get_data(self,
                  step: PipelineStepDescriptor,
                  sim: Union[PatchySimDescriptor, None] = None,
@@ -2288,12 +2285,11 @@ class PatchySimulationEnsemble(Analyzable):
         # if timesteps were not specified
         # todo: replace with a better descriptor
         if time_steps is None:
-            simlength = self.time_length(sim)
             # time steps generally do not start from step 0
             time_steps = range(
                 # step.output_tstep,
                 0,
-                simlength - (simlength % int(step.output_tstep)),
+                self.last_timestep_for(step, sim),
                 int(step.output_tstep))
             self.get_logger().info(f"Constructed time steps {time_steps}")
         else:

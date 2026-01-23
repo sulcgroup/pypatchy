@@ -708,8 +708,9 @@ class PLPSimulation(Scene, CellLists):
         scene.compute_cell_size(n_particles=len(scene_particles))
         scene.apportion_cells()
         # add particles
-        for p in scene_particles:
+        for i, p in enumerate(scene_particles):
             scene.add_particle(p)
+            p.set_uid(i) # set uid to index in new scene
         # inbox scene
         scene.inbox()
         scene.translate(-np.stack([p.position() for p in scene.particles()]).min(axis=0))

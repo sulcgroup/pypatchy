@@ -18,6 +18,13 @@ from pypatchy.polycubeutil.polycube_structure import PolycubeStructure
 from test_polycube_lib import ducky
 
 @pytest.fixture
+def temp_dir() -> str:
+    # construct temporary directory to run
+
+    with tempfile.TemporaryDirectory() as td:
+        yield td
+
+@pytest.fixture
 def cross_fr():
     """
     tests flavio-format writer
@@ -46,11 +53,29 @@ def cross_mgl():
     pass  # TODO
 
 
-@pytest.fixture
-def cross_sr():
+# @pytest.fixture
+def test_cross_sr(temp_dir, cross_fr):
     """tests subhajit-format writer"""
     writer = get_writer("subhajit")
-    # TODO: subhajit test 
+    writer.set_directory(temp_dir)
+    writer.write(
+        cross_fr,
+        topology="topology.top",
+        conf_file="last_conf.dat",
+    )
+    pass
+
+
+def test_cross_raspberry(temp_dir, cross_fr):
+    """tests subhajit-format writer"""
+    writer = get_writer("raspberry")
+    writer.set_directory(temp_dir)
+    writer.write(
+        cross_fr,
+        topology="topology.top",
+        conf_file="last_conf.dat",
+    )
+    pass
 
 
 def test_fwriter_read(cross_fr):

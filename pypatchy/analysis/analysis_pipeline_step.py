@@ -140,14 +140,14 @@ class AnalysisPipelineStep(ABC):
         y += 16
         # draw step input
         g.append(draw.Rectangle(0, y, w/2, 16, stroke="black", stroke_width=1, fill="beige"))
-        tstep = "{:e}".format(self.input_tstep)
+        tstep = "{:g}".format(self.input_tstep)
         g.append(draw.Text(f"Input Freq: {tstep}", text_anchor='begin', font_size=7, x=1, y=y+7))
         # if not isinstance(self, AnalysisPipelineHead):
         #     input_dt = ["Raw", "Observable", "DataFrame", "Graph"][self.input_data.value]
         #     g.append(draw.Text(f"Input Data Type: {input_dt}", text_anchor='begin', font_size="14", x=0, y=28))
         # draw step output
         g.append(draw.Rectangle(w/2, y, w/2, 16, stroke="black", stroke_width=1, fill="beige"))
-        tstep = "{:e}".format(self.output_tstep)
+        tstep = "{:g}".format(self.output_tstep)
         g.append(draw.Text(f"Output Freq: {tstep}", text_anchor='end', font_size=7, x=w-1, y=y+7))
         output_dt = ["Raw", "Observable", "DataFrame", "Graph"][self.get_output_data_type().value]
         g.append(draw.Text(f"Output DT: {output_dt}", text_anchor='end', font_size=7, x=w-1, y=y+15))

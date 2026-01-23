@@ -297,8 +297,10 @@ class GraphsFromPatchyBonds(AnalysisPipelineHead):
                         graphs[step_count] = self.parse_graph(f, n_particles, particle_types, top)
 
                     else:
-                        f.seek(2 * n_particles + 1,
-                               1)  # if we are not reading    this timepoint, jump ahead to the next one
+                        # if we are not reading this timepoint, jump ahead to the next one
+                        for _ in range(2 * n_particles + 1):
+                            if not f.readline():
+                                break
         return ObjectPipelineData(graphs)
 
     def parse_graph(self, f: TextIO, n_particles: int, particle_types: PLParticleSet,
@@ -572,7 +574,7 @@ class ClassifyClusters(AnalysisPipelineStep):
         if isinstance(target, Path) or  isinstance(target, str):
             raise Exception("String paths no longer supported")
         if not isinstance(target, Structure):
-            self.target = Structure(target)
+            self.target = Structure(graph=target)
         else:
             self.target = target
 
@@ -638,14 +640,12 @@ class ClassifyClusters(AnalysisPipelineStep):
     def draw(self) -> tuple[tuple[int, int], draw.Group]:
         (w, y), g = super().draw()
         g.append(draw.Rectangle(0, y, w, 40, stroke="black", stroke_width=1, fill="tan"))
-        g.append(draw.Text(f"Target topology: {self.target.name}", font_size=7, x=1, y=y + 7))
-        y += 12
         g.append(draw.Text("This step classifies cluster graphs as 'match', 'smaller subset',\n"
                            "'smaller not subset', or 'non-match'. The step uses igraph's \n"
                            "`get_subisomorphisms_vf2` function. The step produces a dataframe \n"
                            "where each row is a cluster with columns for category, size ratio, \n"
                            "and timepoint.", font_size=7, x=1, y=y + 7))
-        y += 28
+        y += 35
         return (w, y), g
 
 
@@ -805,20 +805,18 @@ class ClassifyPolycubeClusters(ClassifyClusters):
     def get_output_data_type(self):
         return PipelineDataType.PIPELINE_DATATYPE_DATAFRAME
 
-    def draw(self) -> tuple[tuple[int, int], draw.Group]:
-        (w, y), g = super().draw()
-        g.append(draw.Rectangle(0, y, w, 40, stroke="black", stroke_width=1, fill="tan"))
-        g.append(draw.Text(f"Target topology: {self.target.name}", font_size=7, x=1, y=y + 7))
-        y += 12
-        g.append(draw.Text("This step classifies cluster graphs as 'match', 'smaller subset',\n"
-                           "'smaller not subset', or 'non-match'. The step uses igraph's \n"
-                           "`get_subisomorphisms_vf2` function.\n "
-                           "The function oeperates by TODO EXPLAIN\n"
-                           "The step produces a dataframe \n"
-                           "where each row is a cluster with columns for category, size ratio, \n"
-                           "average node distance, stdev of node distances, and timepoint.", font_size=7, x=1, y=y + 7))
-        y += 28
-        return (w, y), g
+    # def draw(self) -> tuple[tuple[int, int], draw.Group]:
+    #     (w, y), g = super().draw()
+    #     g.append(draw.Rectangle(0, y, w, 40, stroke="black", stroke_width=1, fill="tan"))
+    #     g.append(draw.Text("This step classifies cluster graphs as 'match', 'smaller subset',\n"
+    #                        "'smaller not subset', or 'non-match'. The step uses igraph's \n"
+    #                        "`get_subisomorphisms_vf2` function.\n "
+    #                        "The function oeperates by TODO EXPLAIN\n"
+    #                        "The step produces a dataframe \n"
+    #                        "where each row is a cluster with columns for category, size ratio, \n"
+    #                        "average node distance, stdev of node distances, and timepoint.", font_size=7, x=1, y=y + 7))
+    #     y += 28
+    #     return (w, y), g
 
 YIELD_KEY = "yield"
 

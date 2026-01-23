@@ -9,10 +9,13 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 
 import numpy as np
+from scipy.spatial.transform import Rotation as R
 import oxDNA_analysis_tools.UTILS.RyeReader as rr
 from Bio.SVDSuperimposer import SVDSuperimposer
 from oxDNA_analysis_tools.UTILS.data_structures import Configuration, TrajInfo, TopInfo
 
+
+from ipy_oxdna.utils.observable import particle_position
 from .plpatch import PLPatch, assign_colors_one_to_one, assign_colors
 from .plparticle import PLPatchyParticle
 from .plparticleset import PLParticleSet
@@ -1450,3 +1453,58 @@ def register_writer(writer_name: str, writer_obj: PLBaseWriter):
 
 def writer_options() -> list[str]:
     return [*__writers.keys()]
+
+def to_gsd(writer: PLBaseWriter,
+           directory: Path,
+           top_file: str,
+           traj_file: str,
+           write_to: Path,
+           ptype_kwargs: dict[str, str],
+           hoomd_write_type: str="w"):
+    """
+    writes the trajectory specified by top_file and traj_file in directory to a gsd file at write_to
+    using the provided writer to read the data
+
+    :param hoomd_write_type: wb for write, ab for append
+
+    """
+    top, traj = rr.describe(str(directory / top_file), str(directory / traj_file))
+    writer.set_directory(directory)
+    try:
+        import gsd.hoomd as gsd_hoomd
+    except Exception as e:
+        raise RuntimeError("gsd package required: pip install gsd") from e
+
+    with gsd_hoomd.open(write_to, hoomd_write_type) as hoomd_traj:
+        for i in range(traj.nconfs):
+            scene: PLPSimulation = writer.read_scene(top_file,
+                                                     traj_file,
+                                                     writer.read_particle_types(**ptype_kwargs),
+                                                     conf_idx=i)
+            positions = np.array([p.position() for p in scene.particles()]).astype(np.float32)
+            velocities = np.array([p.v for p in scene.particles()]).astype(np.float32)
+            types = np.array([p.type_id() for p in scene.particles()])
+            orientations = np.array([R.from_matrix(p.rotmatrix()).as_quat(scalar_first=False)
+                                     for p in scene.particles()])
+
+
+            # build gsd frame
+            f = gsd_hoomd.Frame()
+            # configuration: box
+            f.configuration.box = [*scene.box_size(), 0.0, 0.0, 0.0]
+
+            # particles: required fields
+            f.particles.N = scene.num_particles()
+            f.particles.position = positions
+            if np.isnan(velocities).any():
+                velocities = np.zeros_like(positions)
+            else:
+                f.particles.velocity = velocities
+
+            f.particles.typeid = types.astype(np.uint32)
+            f.particles.types = [p.name() for p in scene.particle_types()]
+
+                # gsd/hommad expects orientation shape (N,4)
+            f.particles.orientation = orientations.astype(np.float64)
+            # todo: angular momentum? would need to figure out mass
+            hoomd_traj.append(f)

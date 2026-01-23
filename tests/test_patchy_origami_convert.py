@@ -110,9 +110,9 @@ def test_convert_wireframe_cube(temp_dir: str, cube:DNAParticle):
         assert 4 * cube_bindngs_count ==  len(pl_bindings),\
             f"Mismatch between number bonds between {cube1.get_uid()} and {cube2.get_uid()} " \
             f"from polycube to patchy."
-
-    get_writer("flavio").set_directory(temp_dir)
-    get_writer("flavio").write(wireframe_multidentate,
+    writer = get_writer("flavio")
+    writer.set_directory(temp_dir)
+    writer.write(wireframe_multidentate,
                                topology="topology.top",
                                conf_file="conformation.dat",
                                particle_file="particles.txt",
@@ -125,7 +125,7 @@ def test_convert_wireframe_cube(temp_dir: str, cube:DNAParticle):
     dna_particle = DNAParticle(dna, patch_positions)
 
     converter = PatchyOrigamiConverter(wireframe_multidentate,
-                                       padding=2,
+                                       padding=1.1,
                                        spacer_length=12,
                                        expected_num_edges=4 * wireframe_polycube.num_connections(),
                                        sticky_length=None,

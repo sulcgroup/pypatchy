@@ -453,40 +453,37 @@ class AnalysisPipeline:
                                height=dh,
                                origin=(-120, -dh / 2))
         levels = {}
-        level = 0
         levelpops = {}
         ys = {}
-        to_visit = [n.name for n in self.head_nodes()]
-        lvlidx = 0
         x_max = 0
         y_max = 0
         x_min = math.inf
         y_min = math.inf
-        while to_visit:
-            next_level = []
-            for node in to_visit:
-                levels[node] = level
-                lvlidx += 1
-                if level not in levelpops:
-                    levelpops[level] = 1
-                else:
-                    levelpops[level] += 1
-                if len(list(self.pipeline_graph.predecessors(node))) > 0:
-                    parent = list(self.pipeline_graph.predecessors(node))[0]
-                    sibs = list(self.pipeline_graph.successors(parent))
-                    ys[node] = (sibs.index(node) - (len(sibs) - 1) / 2) + ys[parent]
-                else:
-                    ys[node] = 0
-                next_level.extend([n for n in self.pipeline_graph.successors(node) if n not in levels])
-            to_visit = next_level
-            level += 1
-            lvlidx = 0
-        pos = {}
-        for node in self.pipeline_graph.nodes():
-            x = levels[node]
-            pos[node] = (levels[node], ys[node])
 
-        # pos = nx.spring_layout(self.pipeline_graph, pos=pos, iterations=40) # k=1/self.num_pipeline_steps())
+        # Use topological generations to get nodes by level; works for multiple roots.
+        # For nodes with no predecessors in a generation, distribute them vertically by their index.
+        for level, gen in enumerate(nx.topological_generations(self.pipeline_graph)):
+            gen_list = list(gen)
+            levelpops[level] = len(gen_list)
+            for idx, node in enumerate(gen_list):
+                levels[node] = level
+                preds = list(self.pipeline_graph.predecessors(node))
+                if preds:
+                    # prefer a predecessor that already has a y assigned
+                    parent = next((p for p in preds if p in ys), preds[0])
+                    sibs = list(self.pipeline_graph.successors(parent))
+                    # if node not listed among siblings (defensive), fall back to parent's y
+                    if node in sibs:
+                        sib_idx = sibs.index(node)
+                        ys[node] = (sib_idx - (len(sibs) - 1) / 2) + ys.get(parent, 0)
+                    else:
+                        ys[node] = ys.get(parent, 0)
+                else:
+                    # distribute root / independent nodes vertically across the generation
+                    ys[node] = (idx - (len(gen_list) - 1) / 2)
+
+        pos = {node: (levels[node], ys[node]) for node in self.pipeline_graph.nodes()}
+
         ws = {}
         hs = {}
         # draw steps
@@ -507,16 +504,18 @@ class AnalysisPipeline:
             y_min = min(y_min, y)
             x_max = max(x_max, x + w)
             y_max = max(y_max, y + h)
+
         arrow = draw.Marker(-0.8, -0.51, 0.2, 0.5, scale=4, orient='auto')
         arrow.append(draw.Lines(-0.8, 0.5, -1.0, -0.5, 0.2, 0, fill='black', close=True))
         drawing.append(arrow)
+
         # draw pipes
         for u, v in self.pipeline_graph.edges:
             # start of path
             x0, y0 = pos[u]
             x0 = x0 + ws[u] / 2
             y0 = y0 - hs[u] / 2 + 0.1 * ws[u]
-            # first crtl pt
+            # first control pt
             cx1, cy1 = x0 + 50, y0
             # end of path
             ex, ey = pos[v]
@@ -529,6 +528,7 @@ class AnalysisPipeline:
             p.M(x=x0, y=y0)
             p.C(cx1, cy1, cx2, cy2, ex, ey)
             drawing.append(p)
+
         drawing.width = x_max - x_min + 40
         drawing.height = y_max - y_min + 40
         return drawing
