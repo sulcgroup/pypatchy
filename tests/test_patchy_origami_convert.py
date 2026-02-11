@@ -240,7 +240,7 @@ def test_convert_swan(temp_dir: str, multidentate_patchy_ducky: PLPSimulation, c
     dna_particle = DNAParticle(cube, patch_positions)
 
     converter = PatchyOrigamiConverter(multidentate_patchy_ducky,
-                                       padding=1.5,
+                                       padding=1.05,
                                        spacer_length=12,
                                        expected_num_edges=4*7,
                                        sticky_length=9,

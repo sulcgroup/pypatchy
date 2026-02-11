@@ -155,6 +155,8 @@ cmake .. \
 # running it later didn't blow anything up
 RUN pip install python-sat
 
+RUN cd ~/Github/oxDNA/analysis && bash build.sh
+
 # start bash
 #ENTRYPOINT ["/bin/bash", "-c"]
 #CMD ["if [ $# -eq 0 ]; then echo \"Starting pypatchy\" && eval \"$(micromamba shell hook --shell bash)\" && /bin/bash; else exec \"$@\"; fi"]

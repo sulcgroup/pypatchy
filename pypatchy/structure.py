@@ -1126,8 +1126,10 @@ def read_topology(top: Union[str, dict, Path], pt_idxs: set[int] = set()) -> Gen
             top = get_input_dir() / "topologies" / Path(top)
         else:
             top = Path(top)
-    with top.open("r") as f:
-        top = json.load(f)
+    if isinstance(top, Path):
+        assert top.exists(), f"Topology file {top} does not exist!"
+        with top.open("r") as f:
+            top = json.load(f)
     assert isinstance(top, dict), "Invalid topology"
     bindings = copy.deepcopy(top["bindings"])
     if "extraConnections" in top:
