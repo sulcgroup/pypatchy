@@ -557,6 +557,42 @@ class Structure:
             for _, du, _, dv in self.bindings_list
         ])
 
+    def export_periodic_topology(self) -> dict:
+        """
+        Export this (periodic) structure in the topology format used by read_topology:
+          {
+            "bindings": [[u, du, v, dv], ...],
+            "extraConnections": [[u, du, v, dv], ...]   # optional
+          }
+
+        - A binding is placed in "bindings" iff the coordinates obey:
+              coords[v] == coords[u] + RULE_ORDER[du]
+          Otherwise it is placed in "extraConnections".
+        - Uses self._get_cubes_coords() (the same coordinate system used by matrix()).
+        - Assumes integer (or exactly-equal) coordinates. If you need floating tolerance,
+          we can switch to a tolerance-based check.
+        """
+        # get canonical coordinates for each vertex
+        cubes_coords = self._get_cubes_coords()  # dict: uid -> np.ndarray (D,)
+        # prepare lists
+        internal_bindings = []
+        extra_bindings = []
+
+        # iterate declared bindings (bindings_list yields unique entries)
+        for (u, du, v, dv) in self.bindings_list:
+            coord_u = cubes_coords[u]
+            coord_v = cubes_coords[v]
+            expected_v = coord_u + RULE_ORDER[du]  # RULE_ORDER imported in this module
+            # exact equality test (int coordinates expected)
+            if np.array_equal(expected_v, coord_v):
+                internal_bindings.append([int(u), int(du), int(v), int(dv)])
+            else:
+                extra_bindings.append([int(u), int(du), int(v), int(dv)])
+
+        out = {"bindings": internal_bindings}
+        if len(extra_bindings) > 0:
+            out["extraConnections"] = extra_bindings
+        return out
 
 class FiniteLatticeStructure(Structure):
     __cube_positions: np.ndarray
@@ -1115,6 +1151,37 @@ class GenericTypedStructure(TypedStructure):
         return GenericTypedStructure(bindings=[(u, du, v, dv) for u, du, v, dv in self.bindings_list
                                                if du not in (axis, rdir(axis)) and dv not in (axis, rdir(axis))],
                                      types=self.get_particle_types())
+
+    def export_periodic_topology(self) -> dict:
+        """
+        Extension of Structure.export_periodic_topology that also records particle typing
+        using the 'nanoparticles' JSON tag expected by read_topology.
+
+        The written format will be:
+          {
+            "bindings": [...],
+            "extraConnections": [...],         # optional
+            "nanoparticles": { "<uid>": type_minus_1, ... }   # optional
+          }
+
+        'nanoparticles' keys are strings (so JSON-friendly); values are `type_value - 1`
+        so that read_topology will reconstruct the original type_value via (+1).
+        Type 0 (empty) is omitted.
+        """
+        out = super(GenericTypedStructure, self).export_periodic_topology()
+        # get particle type mapping (vertex -> type)
+        ptypes = self.get_particle_types()  # dict[int, int]
+        if ptypes:
+            # produce mapping uid-string -> (type - 1), omitting zeros
+            nanoparticles = {}
+            for uid, tp in ptypes.items():
+                if int(tp) == 0:
+                    continue
+                # ensure round-trip: read_topology will do top["nanoparticles"][k] + 1
+                nanoparticles[str(int(uid))] = int(tp) - 1
+            if nanoparticles:
+                out["nanoparticles"] = nanoparticles
+        return out
 
 
 def read_topology(top: Union[str, dict, Path], pt_idxs: set[int] = set()) -> GenericTypedStructure:
