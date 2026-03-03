@@ -49,7 +49,7 @@ RUN apt-get update && apt-get install -y bzip2 ca-certificates \
  && rm -rf /var/lib/apt/lists/* \
  && micromamba --version
 # clone oxDNA
-RUN --mount=type=ssh git clone git@github.com:lorenzo-rovigatti/oxDNA.git /root/Github/oxDNA && cd /root/Github/oxDNA && git checkout 6fb59d7
+RUN --mount=type=ssh git clone git@github.com:lorenzo-rovigatti/oxDNA.git /root/Github/oxDNA && cd /root/Github/oxDNA
 RUN --mount=type=ssh git clone git@github.com:JeDeveloper/ipy_oxDNA.git /root/Github/ipy_oxDNA
 RUN --mount=type=ssh git clone git@github.com:sulcgroup/polycubes-clone.git /root/Github/polycubes \
     && cd /root/Github/polycubes \
