@@ -1249,17 +1249,23 @@ class RWriter(PLBaseWriter):
                 f.write(f"iR {position} {r}\n")
             f.write("\n# Particle Types\n")
             for particle_type in topology.particle_types.particles():
-                patch_ids_str = ','.join([str(patch.get_id()) for patch in particle_type.patches()])
+                if particle_type.num_patches() == 0:
+                    patch_ids_str = "-1"
+                else:
+                    patch_ids_str = ','.join([str(patch.get_id()) for patch in particle_type.patches()])
                 f.write(f"iC {particle_type.type_id()} {topology.particle_type_count(particle_type.type_id())} {patch_ids_str} {','.join([str(i) for i in range(len(topology.particle_repulsion_sites))])}\n")
 
     def read_top(self, top_file: str) -> RWriter.RPatchyTopology:
         particle_types = self.read_particle_types(top_file)
         repulsion_sites = []
         type_counts = dict()
+        type_repulsion_sites = dict()
         with self.file(top_file, 'r') as f:
             for line in f:
                 if line.startswith("iC"):
-                    _, type_id, count, _, _ = line.split()
+                    _, type_id, count, _, repulsion_site_list = line.split()
+                    repulsion_site_list = map( int, repulsion_site_list.split(','))
+                    type_repulsion_sites[int(type_id)] = list(repulsion_site_list)
                     type_counts[int(type_id)] = int(count)
                 if line.startswith("iR"):
                     # read repulsion site info
@@ -1270,6 +1276,8 @@ class RWriter(PLBaseWriter):
 
         top = RWriter.RPatchyTopology(particle_types, type_counts)
         top.particle_repulsion_sites = repulsion_sites
+        for particle_type in particle_types:
+            top.type_rsite_lists[particle_type.type_id()] = type_repulsion_sites[particle_type.type_id()]
         return top
 
     def read_particle_types(self, particle_type_file: str) -> PLParticleSet:
@@ -1341,8 +1349,9 @@ class RWriter(PLBaseWriter):
     class RPatchyTopology(PLBaseWriter.PatchyTopology):
         # todo: better interaction site resolution
         # todo: actually optimize this for cube
-        particle_repulsion_sites: list[tuple[list, float]]
+        particle_repulsion_sites: list[tuple[tuple[float,float,float], float]]
         type_counts: dict[int, int]  # particle type ID -> count
+        type_rsite_lists: dict[int, [list[int]]]
         particle_types: PLParticleSet
 
         def __init__(self, particles: PLParticleSet, type_counts: dict[int, int]):
@@ -1353,8 +1362,9 @@ class RWriter(PLBaseWriter):
                 [0.25, -0.25],
                 [0.25, -0.25],
                 [0.25, -0.25]
-            )
-        ]
+                )
+            ]
+            self.type_rsite_lists = {ptype.type_id(): list(range(len(self.particle_repulsion_sites))) for ptype in self.particle_types}
 
         def info(self, fp: str="") -> TopInfo:
             # can use dummy fp if it doesn't matter
@@ -1402,7 +1412,8 @@ class RWriter(PLBaseWriter):
             particle_color = selectColor(particle_type.type_id(), fmt='arr')
             particle_color = ",".join([str(i) for i in particle_color])
             # write repulsion sites
-            for (repulsion_pt_position, r) in top.particle_repulsion_sites:
+            for idx in top.type_rsite_lists[p.type_id()]:
+                repulsion_pt_position, r = top.particle_repulsion_sites[idx]
                 repulsion_pt_position = p.position() + repulsion_pt_position @ p.rotmatrix()
                 repulsion_pt_position_str = np.array2string(repulsion_pt_position,
                                               suppress_small=True,
