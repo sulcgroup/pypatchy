@@ -1199,7 +1199,7 @@ class RWriter(PLBaseWriter):
         return ["conf_file", "topology"]
 
     def write(self, scene: PLPSimulation, **kwargs) -> dict[str, str]:
-        init_top = kwargs["topology"]
+        init_top = kwargs["topology"] if "topology" in kwargs else "topology.top"
         init_conf = kwargs["conf_file"]
         # raspberry format requires that particles be sorted by type
         scene_sorted = copy.deepcopy(scene)
@@ -1254,6 +1254,13 @@ class RWriter(PLBaseWriter):
                 else:
                     patch_ids_str = ','.join([str(patch.get_id()) for patch in particle_type.patches()])
                 f.write(f"iC {particle_type.type_id()} {topology.particle_type_count(particle_type.type_id())} {patch_ids_str} {','.join([str(i) for i in range(len(topology.particle_repulsion_sites))])}\n")
+
+            # write patch groups
+            if topology.particle_types.is_multidentate():
+                f.write("\n# Patch Groups\n")
+                for patch in topology.particle_types.get_src_map().src_set().patches():
+                    f.write("iG " + " ".join([str(p.get_id()) for p in topology.particle_types.mdt_rep(patch.get_id())]) + "\n")
+
 
     def read_top(self, top_file: str) -> RWriter.RPatchyTopology:
         particle_types = self.read_particle_types(top_file)
