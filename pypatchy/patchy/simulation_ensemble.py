@@ -1761,6 +1761,7 @@ class PatchySimulationEnsemble(Analyzable):
 
     def run_simulation(self, sim: PatchySimulation):
         """
+        todo: use ipy_oxDNA
         Runs a patchy simulation using oxpy
         :param sim: simulation descriptor
         """
@@ -1928,7 +1929,7 @@ class PatchySimulationEnsemble(Analyzable):
             self.get_logger().info("Let the simulating commence!")
             # batch execution for CUDA + MPS
             # matt says to use worker_manager instead of run
-            mgr.worker_manager()
+            mgr.worker_manager(cpu_run=self.server_settings.input_file_params["backend"] == "CPU")
             # TODO: better slurm logging!
 
     def is_setup_done(self, sims: list[PatchySimulation], stage: Union[None, str, Stage]) -> bool:
