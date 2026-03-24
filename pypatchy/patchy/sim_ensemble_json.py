@@ -244,6 +244,12 @@ class SimEnsembleJsonEncoder(PLJSONEncoder):
                 output_tstep=json_data["output_tstep"],
                 aggregate_over=context.ensemble_params[json_data["aggregate_over"]],
             )
+        elif step_type == "GraphsFromRaspberryPatchyBonds":
+            return GraphsFromRaspberryPatchyBonds(
+                name=json_data["name"],
+                output_tstep=json_data["output_tstep"],
+                source=context.observables[json_data["source"]]
+            )
         else:
             raise Exception(f"unknown step type: {step_type}")
 
@@ -275,6 +281,8 @@ class SimEnsembleJsonEncoder(PLJSONEncoder):
             step_dict["minsize"] = step.minsize
         elif type(step) == ComputeSpecGroupClusterYield:
             step_dict["aggregate_over"] = step.aggregate_over.param_key
+        elif type(step) == GraphsFromRaspberryPatchyBonds:
+            step_dict["source"] = step.source_observable.file_name
 
         return step_dict
 

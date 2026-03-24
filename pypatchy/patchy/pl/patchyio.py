@@ -1261,7 +1261,6 @@ class RWriter(PLBaseWriter):
                 for patch in topology.particle_types.get_src_map().src_set().patches():
                     f.write("iG " + " ".join([str(p.get_id()) for p in topology.particle_types.mdt_rep(patch.get_id())]) + "\n")
 
-
     def read_top(self, top_file: str) -> RWriter.RPatchyTopology:
         particle_types = self.read_particle_types(top_file)
         repulsion_sites = []
@@ -1371,7 +1370,12 @@ class RWriter(PLBaseWriter):
                 [0.25, -0.25]
                 )
             ]
-            self.type_rsite_lists = {ptype.type_id(): list(range(len(self.particle_repulsion_sites))) for ptype in self.particle_types}
+            self.type_rsite_lists = {ptype.type_id(): list(range(len(self.particle_repulsion_sites)))
+                                     for ptype in self.particle_types}
+
+            self.particle_ids = list(itertools.chain.from_iterable([
+                [ptype for _ in range(pcount)] for ptype, pcount in self.type_counts.items()
+            ]))
 
         def info(self, fp: str="") -> TopInfo:
             # can use dummy fp if it doesn't matter

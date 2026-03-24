@@ -1021,3 +1021,81 @@ class ComputeSpecGroupClusterYield(AggregateAnalysisPipelineStep):
             PipelineDataType.PIPELINE_DATATYPE_DATAFRAME
         """
         return PipelineDataType.PIPELINE_DATATYPE_DATAFRAME
+
+class GraphsFromRaspberryPatchyBonds(AnalysisPipelineHead):
+    """
+    Analysis operation that reads the output of the RaspberryPatchyBonds observable.
+
+    Each line of the file contains all bonds at a timestep, encoded as:
+        ((particle_i patch_j), (particle_k, patch_l)) ...
+
+    Produces an ObjectPipelineData whose values are nx.MultiDiGraph instances
+    keyed by simulation step, matching the structure produced by GraphsFromPatchyBonds.
+    """
+
+    source_observable: Observable
+
+    _BOND_RE = re.compile(r'\(\((\d+) (\d+)\), \((\d+), (\d+)\)\)')
+
+    def __init__(self,
+                 name: str,
+                 source: Observable,
+                 output_tstep: Union[int, None] = None):
+        super().__init__(name, int(source.print_every), output_tstep)
+        self.source_observable = source
+
+    def get_output_data_type(self) -> PipelineDataType:
+        return PipelineDataType.PIPELINE_DATATYPE_GRAPH
+
+    def get_data_in_filenames(self) -> list[str]:
+        return [self.source_observable.file_name]
+
+    load_cached_files = load_cached_object_data
+
+    def __call__(self, _, __, stages: list[Stage], graphs_files: list[Path]) -> ObjectPipelineData:
+        graphs: dict[int, nx.MultiDiGraph] = {}
+        for stage, graph_file in zip(stages, graphs_files):
+            stage.getctxt().writer.set_directory(
+                stage.getctxt().folder_path(stage.spec(), stage))
+            top: PLBaseWriter.PatchyTopology = stage.getctxt().writer.read_top(
+                stage.getctxt().sim_stage_get_param(stage.spec(), stage, "topology"))
+            particle_types: PLParticleSet = stage.getctxt().sim_get_particles_set(stage.spec())
+            n_particles = len(top.get_particles_types())
+
+            if len(self.source_observable) == 1:
+                stepcounter = stage.start_time()
+
+            with open(graph_file, "r") as f:
+                for line in f:
+                    if len(self.source_observable) == 2:
+                        stepcounter, line = line.split(maxsplit=1)
+                        stepcounter = int(stepcounter)
+
+                    if stepcounter % self.output_tstep == 0:
+                        G = nx.MultiDiGraph()
+                        G.add_nodes_from(range(n_particles))
+                        for p_idx in range(n_particles):
+                            particle_type: PLPatchyParticle = particle_types.particle(
+                                top.get_particles_types()[p_idx])
+                            G.nodes[p_idx]["particle_type"] = particle_type
+
+                        for m in self._BOND_RE.finditer(line):
+                            p_i, patch_j, p_k, patch_l = (
+                                int(m.group(1)), int(m.group(2)),
+                                int(m.group(3)), int(m.group(4)))
+                            p_i_type: PLPatchyParticle = particle_types.particle(
+                                top.get_particles_types()[p_i])
+                            p_k_type: PLPatchyParticle = particle_types.particle(
+                                top.get_particles_types()[p_k])
+                            G.add_edge(p_i, p_k, patch=p_i_type.patches()[patch_j])
+                            G.add_edge(p_k, p_i, patch=p_k_type.patches()[patch_l])
+
+                        graphs[stepcounter] = G
+
+                    stepcounter += self.source_observable.print_every
+
+        if self.source_observable.print_every in graphs and 0 not in graphs:
+            graphs[0] = nx.MultiDiGraph()
+
+        return ObjectPipelineData(graphs)
+
