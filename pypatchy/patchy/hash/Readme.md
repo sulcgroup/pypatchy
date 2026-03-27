@@ -1,0 +1,1 @@
+Module for compatibility with [#-Cad](https://github.com/mattaq31/Hash-CAD)
