@@ -9,14 +9,16 @@ from ...polycubeutil.polycubesRule import PolycubesRule
 
 # TODO: fully test these! right now they are VERY MUCH stopgaps!
 def encode_patch(patch: PLPatch) -> dict:
-    return {
+    patch_dict = {
         "id": patch.type_id(),
         "strength": patch.strength(),
         "position": patch.position().tolist(),
         "a1": patch.a1().tolist(),
-        "a2": patch.a2().tolist(),
         "color": patch.color()
     }
+    if patch.a2() is not None:
+        patch_dict["a2"] = patch.a2().tolist()
+    return patch_dict
 
 
 def decode_patch(patch_dict: dict[str, Any]) -> PLPatch:
