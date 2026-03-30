@@ -4,6 +4,7 @@ import copy
 import datetime
 import itertools
 import multiprocessing
+import os
 import random
 import shutil
 import tempfile
@@ -1726,7 +1727,10 @@ class PatchySimulationEnsemble(Analyzable):
         if not self.no_oxpy_check_energies:
             with oxpy.Context():
                 assert (self.folder_path(sim, stage) / "input").exists()
+                curr_dir = os.getcwd()
+                os.chdir(str(self.folder_path(sim, stage)))
                 manager = oxpy.OxpyManager(str(self.folder_path(sim, stage))+"/input")
+                os.chdir(curr_dir)
                 e = manager.system_energy()
                 del manager
 
