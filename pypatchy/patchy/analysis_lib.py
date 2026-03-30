@@ -1053,7 +1053,7 @@ class GraphsFromRaspberryPatchyBonds(AnalysisPipelineHead):
     load_cached_files = load_cached_object_data
 
     def __call__(self, _, __, stages: list[Stage], graphs_files: list[Path]) -> ObjectPipelineData:
-        graphs: dict[int, nx.MultiDiGraph] = {}
+        graphs: dict[int, list[nx.Graph]] = {}
         for stage, graph_file in zip(stages, graphs_files):
             stage.getctxt().writer.set_directory(
                 stage.getctxt().folder_path(stage.spec(), stage))
@@ -1090,12 +1090,16 @@ class GraphsFromRaspberryPatchyBonds(AnalysisPipelineHead):
                             G.add_edge(p_i, p_k, patch=p_i_type.patches()[patch_j])
                             G.add_edge(p_k, p_i, patch=p_k_type.patches()[patch_l])
 
-                        graphs[stepcounter] = G
+                        graphs[stepcounter] = [
+                            G.subgraph(component).copy()
+                            for component in nx.weakly_connected_components(G)
+                            if len(component) > 1
+                        ]
 
                     stepcounter += self.source_observable.print_every
 
         if self.source_observable.print_every in graphs and 0 not in graphs:
-            graphs[0] = nx.MultiDiGraph()
+            graphs[0] = []
 
         return ObjectPipelineData(graphs)
 
