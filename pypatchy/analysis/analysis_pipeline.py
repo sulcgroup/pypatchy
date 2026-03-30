@@ -63,9 +63,10 @@ class AnalysisPipeline:
 
         """
         self.pipeline_graph.add_edge(first.name, second.name)
-        # if the child node we're adding has no specified input timestep
-        if second.input_tstep is None:
-            assert first.output_tstep is not None
+        # if the child node we're adding has no specified input timestep, propagate from parent
+        # (parent may have output_tstep=None when building a partial pipeline that will later be
+        # merged with the full pipeline via extend(); tstep propagation happens there instead)
+        if second.input_tstep is None and first.output_tstep is not None:
             second.config_io(input_tstep=first.output_tstep)
 
     def num_pipeline_steps(self) -> int:
