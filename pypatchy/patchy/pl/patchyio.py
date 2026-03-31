@@ -1261,6 +1261,12 @@ class RWriter(PLBaseWriter):
                 for patch in topology.particle_types.get_src_map().src_set().patches():
                     f.write("iG " + " ".join([str(p.get_id()) for p in topology.particle_types.mdt_rep(patch.get_id())]) + "\n")
 
+            # write interaction matrix
+            f.write("\n# Interactions\n")
+            for (c1, c2), strength in topology.particle_types.interaction_matrix().intmap().items():
+                if c1 <= c2:
+                    f.write(f"iI {c1} {c2} {strength}\n")
+
     def read_top(self, top_file: str) -> RWriter.RPatchyTopology:
         particle_types = self.read_particle_types(top_file)
         repulsion_sites = []
@@ -1289,6 +1295,7 @@ class RWriter(PLBaseWriter):
     def read_particle_types(self, particle_type_file: str) -> PLParticleSet:
         particle_type_info = []
         patches = dict()
+        interactions = []
         with self.file(particle_type_file, 'r') as f:
             for line in f:
                 if line.startswith("iC"):
@@ -1298,7 +1305,6 @@ class RWriter(PLBaseWriter):
                     patches_list = [int(i) for i in patches_list.split(",")]
                     repulsion_sites = [int(i) for i in repulsion_sites.split(",")]
                     particle_type_info.append((type_id, patches_list, repulsion_sites))
-
 
                 elif line.startswith("iP"):
                     # read patch info
@@ -1315,7 +1321,13 @@ class RWriter(PLBaseWriter):
                                            position,
                                            a1,
                                            strength=strength)
-        # todo: read interaction matrix
+
+                elif line.startswith("iI"):
+                    # read interaction between two colors
+                    _, c1, c2, strength = line.split()
+                    interactions.append(((int(c1), int(c2)), float(strength)))
+
+        intmat = InteractionMatrix(interactions) if interactions else None
         # assert all particle types have same repulsion sites
         # todo: impl different shapes?
         assert all([tuple(rss) == tuple(particle_type_info[0][2]) for _, _, rss in particle_type_info])
@@ -1323,7 +1335,7 @@ class RWriter(PLBaseWriter):
             PLPatchyParticle([patches[i] for i in patches_list],
                              type_id=type_id)
             for type_id, patches_list, repulsion_sites in particle_type_info
-        ])
+        ], intmat=intmat)
 
     def read_scene(self, top_file: Union[Path, str], traj_file: Union[Path, str], particle_types: PLParticleSet,
                    conf_idx=None) -> PLPSimulation:
