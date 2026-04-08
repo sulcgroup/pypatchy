@@ -8,13 +8,17 @@ further goals: should use other external jsons (e.g. observables and server spec
 
 import datetime
 
-from pypatchy.patchy.simulation_ensemble import build_ensemble
+from pypatchy.patchy.param_val_types import PARTICLE_TYPES_KEY
+from pypatchy.patchy.simulation_ensemble import build_ensemble, EXPORT_NAME_KEY, PARTICLE_TYPE_LVLS_KEY, OBSERABLES_KEY, \
+    DEFAULT_PARAM_SET_KEY
+from pypatchy.patchy.pl.plpatchylib import polycube_rule_to_PL
 from pypatchy.patchy.patchy_sim_observable import Observable
 from ipy_oxdna.utils.observable import Observable, ObservableColumn
 from pypatchy.polycubeutil.polycubesRule import PolycubesRule
+from pypatchy.server_config import PatchyServerConfig
 
 rule = PolycubesRule("|1||-4||3:1_||||-3:3|-3:2_5||4:1|-1:2||_2:2||2:2||2:2|_-2:1|-2||-5:1||-5:2")
-particle_types = polycubes_rule_to_pl(rule)
+particle_types = polycube_rule_to_pl(rule)
 
 # hardcode interaction strengths
 particle_types.interaction_matrix()[(-21, 21)] = 2.
@@ -25,9 +29,9 @@ particle_types.interaction_matrix()[(-24, 24)] = 2.
 
 e = build_ensemble(
     cfg={
-        EXPORT_NAME: "menger_crystal",
-        PARTICLE_TYPES: particle_types,
-        OBSERVABLES_KEY: [
+        EXPORT_NAME_KEY: "menger_crystal",
+        PARTICLE_TYPES_KEY: particle_types,
+        OBSERABLES_KEY: [
             Observable(
                 name= "clusters.txt",
                 print_every= 1e7,
