@@ -61,7 +61,7 @@ def test_example_basic_3DX(temp_dir: str):
     test basic 3d cross
     """
     e = ensemble("example_basic")
-    e.set_server_settings(load_server_settings("test_fr"))
+    e.set_server_settings(load_server_settings("test_fr_integrated"))
     print("Performing setup")
     e.do_setup()
     print("Running test simulation")
@@ -88,8 +88,9 @@ def test_multidentate(temp_dir: str):
 def test_multiinit(temp_dir: str):
     # copy required polycube to scenes dir
     (get_input_dir() / "scenes").mkdir(exist_ok=True)
-    shutil.copy(Path(__file__).parent / "test_files" / "particle_sets",
-                get_input_dir() / "scenes")
+    shutil.copytree(Path(__file__).parent / "test_files" / "particle_sets",
+                    get_input_dir() / "scenes" / "particle_sets",
+                    dirs_exist_ok=True)
     e = ensemble("example_multiinit")
     e.set_server_settings(load_server_settings("test_lr"))
     e.do_setup()

@@ -6,10 +6,11 @@ import pytest
 from pypatchy.patchy.simulation_ensemble import find_ensemble, build_ensemble, PatchySimulationEnsemble
 from pypatchy.patchy.vis_lib import plot_energy
 from pypatchy.server_config import load_server_settings
+from pypatchy.structure import read_topology
 from pypatchy.util import cfg, get_input_dir, simulation_run_dir
 from test_ensembles_basic import ensemble
 
-from pypatchy.patchy.analysis_lib import LoadEnergies, ComputeClusterYield, ClassifyClusters, GraphsFromClusterTxt
+from pypatchy.patchy.analysis_lib import LoadEnergies, ComputeClusterYield, ClassifyClusters, GraphsFromClusterTxt, graphShape
 
 from pathlib import Path
 import pandas as pd
@@ -37,7 +38,7 @@ def test_split_cluster_fr():
     pass
 
 @pytest.fixture
-def tile4x4():
+def tile4x4(temp_dir: str):
     """
     downloads 4x4 tile test data. this can take a bit so avoid unnessecary calls
     """
@@ -48,16 +49,9 @@ def test_tile_4x4_clusters_match_pycluster(temp_dir: str, tile4x4: PatchySimulat
     test that the clusters.txt file for
     """
     import networkx as nx
-    from matplotlib import pyplot as plt
 
-    from pypatchy.patchy.pl.patchyio import get_writer
-
-    from pypatchy.patchy.pl.plpotential import PLFRTorsionalPatchyPotential, PLFRPatchyPotential
-    from pypatchy.patchy.simulation_ensemble import find_ensemble
-    from pypatchy.patchy.analysis_lib import GraphsFromClusterTxt, LoadParticlesTraj, ClassifyClusters, \
-        ClassifyPolycubeClusters, ComputeClusterYield
-
-    tile4x4 = find_ensemble("4x4_tile", "2023-10-03")
+    from pypatchy.patchy.pl.plpotential import PLFRTorsionalPatchyPotential
+    from pypatchy.patchy.analysis_lib import GraphsFromClusterTxt
 
     # double check we are not accidentally loading an existing anaylsis pipeline
     tile4x4.clear_pipeline()
@@ -68,6 +62,7 @@ def test_tile_4x4_clusters_match_pycluster(temp_dir: str, tile4x4: PatchySimulat
         "graphs_from_clusters",
         tile4x4.observables["plclustertopology"]
     )
+    graphs_from_clusters_node.force_recompute = True
 
     tile4x4.add_analysis_steps(
         graphs_from_clusters_node
@@ -98,10 +93,15 @@ def test_tile_4x4_clusters_match_pycluster(temp_dir: str, tile4x4: PatchySimulat
     # convert to multidentate, see if that makes our confs make any more sense
     G: nx.Graph = scene.compute_scene_graph()
 
-    # Compare edges
-    assert len(set((cluster_graph_data.edges()) - set(G.edges()))) == 0
-    assert len(set(G.edges()) - set(cluster_graph_data.edges())) == 0
+    # Compare edges (normalize direction since graphs are undirected)
+    cluster_edges = {frozenset(e) for e in cluster_graph_data.edges()}
+    scene_edges = {frozenset(e) for e in G.edges()}
+    assert len(cluster_edges.difference(scene_edges)) == 0, \
+        f"Edges in clusters.txt but not in scene graph: {sorted(tuple(sorted(e)) for e in cluster_edges.difference(scene_edges))}"
+    assert len(scene_edges.difference(cluster_edges)) == 0, \
+        f"Edges in scene graph but not in clusters.txt: {sorted(tuple(sorted(e)) for e in scene_edges.difference(cluster_edges))}"
 
+@pytest.mark.skip(reason="requires menger_cube_2024-04-16 simulation data which is not publicly available")
 def test_split_cluster_lr(temp_dir: str):
     """
     tests that we can split a lorenzo style conf by clusters
@@ -159,10 +159,11 @@ def test_analysis(temp_dir: str, tile4x4: PatchySimulationEnsemble):
     """
     """
 
-    with find_ensemble(src="4x4_tile", date="2023-10-03") as e:
+    with find_ensemble(name="4x4_tile", date="2023-10-03") as e:
         # CODE: download files from remote file server to path returned by `e.tld()`
         assert e.all_folders_exist()
-        assert all([e.sim_stage_done(sim, e.sim_most_recent_stage(sim)) for sim in e.ensemble()])
+        incomplete = [sim for sim in e.ensemble() if not e.sim_stage_done(sim, e.sim_most_recent_stage(sim))]
+        assert not incomplete, f"{len(incomplete)} simulations have incomplete data: {incomplete}"
         e.observables["clusters.txt"] = Observable(
             "clusters.txt",
             1e7,
@@ -183,7 +184,7 @@ def test_analysis(temp_dir: str, tile4x4: PatchySimulationEnsemble):
             ),
             ClassifyClusters(
                 "classify_clusters",
-                "4x4_tile"
+                read_topology(Path(__file__).parent / "test_files" / "cube_structures" / "4x4tile.json")
             ),
             ComputeClusterYield(
                 "compute_cluster_yield",
@@ -193,11 +194,13 @@ def test_analysis(temp_dir: str, tile4x4: PatchySimulationEnsemble):
             ("graphs_from_clusters", "classify_clusters"),
             ("classify_clusters", "compute_cluster_yield")
         )
+        e.get_analysis_step("graphs_from_clusters").force_recompute = True
         data = e.get_data("compute_cluster_yield")
 
 def test_custom_pipeline_step(temp_dir: str, tile4x4: PatchySimulationEnsemble):
     pass
 
+@pytest.mark.skip(reason="requires menger_crystal_n5_2024-03-18 simulation data which is not publicly available")
 def test_plot_energy(temp_dir: str):
     with find_ensemble(name="menger_crystal_n5", date="2024-03-18") as e:
         e.clear_pipeline()

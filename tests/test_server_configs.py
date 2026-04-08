@@ -19,10 +19,10 @@ def test_server_configs():
     """
     for config in list_server_configs():
         # check if oxDNA executable exists
-        test_config(config)
+        check_config(config)
 
 
-def test_config(config: PatchyServerConfig):
+def check_config(config: PatchyServerConfig):
     if not Path(config.oxdna_path).exists():
         raise Exception(f"Config {config.name} specifies {config.oxdna_path} which"
                         f"does not exist.")

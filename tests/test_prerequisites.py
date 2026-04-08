@@ -2,6 +2,7 @@
 Tests that all prerequisites are installed and that all directory structures exist
 """
 import os.path
+from pathlib import Path
 
 def test_oxpy_oat():
     # test oxpy and oat installation
@@ -45,3 +46,23 @@ def test_directory_structure():
         e.msg = e.msg + "\nTry running configure.py to automatically set up your pypatchy working" \
                         "directories"
         raise e
+
+
+def test_patchy_plugins():
+    """
+    For each server config that uses PatchyShapeInteraction, check that the plugin .so is compiled
+    and present in the configured plugin_search_path.
+    """
+    from pypatchy.server_config import list_server_configs
+
+    missing = []
+    for server_cfg in list_server_configs():
+        params = server_cfg.input_file_params
+        so_path = Path(params["plugin_search_path"]) / (params["interaction_type"]+".so")
+        if not so_path.exists():
+            missing.append(
+                f"{server_cfg.name}: {params['interaction_type']}.so not found at {so_path}\n"
+                f"  Build it by compiling the appropriate contrib plugin in your oxDNA build."
+            )
+
+    assert not missing, "Missing compiled oxDNA plugins:\n" + "\n".join(missing)

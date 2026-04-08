@@ -1,51 +1,40 @@
-# TODO: ANY ALTERNATERIVE TO THIS GOD PLEASE
-import os
-import stat
-
+import tarfile
+import urllib.request
+from pathlib import Path
 
 from pypatchy.patchy.simulation_ensemble import PatchySimulationEnsemble
 
-try:
-    from paramiko.sftp_client import SFTPClient
-    from paramiko.client import SSHClient
+RELEASE_BASE_URL = "https://github.com/sulcgroup/pypatchy-testdata/releases/download/test-data-v1"
 
-except ImportError as e:
-    print("`paramiko` python package not installed! `paramiko` is not required for pypatchy as a whole but is for the test scrits")
-    raise e
+# Map ensemble long names to their release asset filenames
+RELEASE_ASSETS = {
+    "4x4_tile_2023-10-03": "4x4_tile_2023-10-03.tar.gz",
+}
 
-SERVER_IP = "10.126.22.12"
-TEST_USER_NAME = "testdata_user"
-# extaordinarily bad practive to store password here but this user acct has like
-# no privelages
-TEST_USER_PWD = "test_user"
-
-
-# for some incomprehensible reason paramiko doesn't already have this functionality????
-# maybe it's some kind of strange security issue
-# code by chatGPT
-def download_directory(sftp, remote_dir, local_dir):
-    os.makedirs(local_dir, exist_ok=True)
-    for filename in sftp.listdir(remote_dir):
-        remote_path = f"{remote_dir}/{filename}"
-        local_path = os.path.join(local_dir, filename)
-
-        if is_file(sftp, remote_path):
-            sftp.get(remote_path, local_path)
-        else:
-            download_directory(sftp, remote_path, local_path)
-
-
-def is_file(sftp: SFTPClient, path: str):
-    try:
-        return stat.S_ISREG(sftp.stat(path).st_mode)
-    except IOError:
-        return False
 
 def get_data(e: PatchySimulationEnsemble, copy_to: str):
-    ssh = SSHClient()
-    ssh.load_system_host_keys()
-    ssh.connect(SERVER_IP, username=TEST_USER_NAME, password=TEST_USER_PWD)
+    """
+    Downloads test data for the given ensemble from the pypatchy GitHub release
+    and extracts it to copy_to.
+    """
+    long_name = e.long_name()
+    if long_name not in RELEASE_ASSETS:
+        raise ValueError(
+            f"No release asset registered for ensemble '{long_name}'. "
+            f"Available: {list(RELEASE_ASSETS.keys())}"
+        )
 
-    with ssh.open_sftp() as sftp:
-        sftp.chdir("./pypatchy_test_data")
-        download_directory(sftp, f"{e.long_name()}", copy_to)
+    asset_filename = RELEASE_ASSETS[long_name]
+    url = f"{RELEASE_BASE_URL}/{asset_filename}"
+    archive_path = Path(copy_to).parent / asset_filename
+
+    print(f"Downloading {asset_filename} from GitHub releases...")
+    urllib.request.urlretrieve(url, archive_path)
+
+    print(f"Extracting to {copy_to}...")
+    with tarfile.open(archive_path, "r:gz") as tar:
+        # Extract into the parent of copy_to; the archive contains the ensemble dir
+        tar.extractall(path=Path(copy_to).parent, filter="data")
+
+    archive_path.unlink()
+    print("Done.")

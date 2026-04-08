@@ -27,28 +27,32 @@
 						"default": {
 							"name": "default",
 							"t": 0,
-							"add_method": "RANDOM",
+							"add_method": {
+								"particles": {
+									"CT3": 8,
+									"CT4": 12,
+									"CT2": 8,
+									"CT1": 4,
+									"CT0": 8
+								}
+							},
 							"density": 0.1,
-							"particles" : {
-						         "CT3" : 8,
-						         "CT4" : 12,
-						         "CT2" : 8,
-						         "CT1" : 4,
-						         "CT0" : 8
-						    },
 							"num_assemblies": 10
 						}
 					}
 				},
 				{
 					"name": "crystal",
+					"type": "staging",
 					"stages": {
 						"default": {
+							"density": 0.1,
+							"num_assemblies": 1,
 							"add_method": {
 								"type": "polycube",
 								"polycubes": [{
 									"polycube_file_path": "scenes/menger_crystal_small.json",
-									"num_assemblies": 1
+									"n_copies": 1
 								}]
 							}
 						}

@@ -1,9 +1,22 @@
+import tempfile
+
+import pytest
+
 from pypatchy.server_config import load_server_settings
+from pypatchy.util import cfg
 from test_ensembles_basic import ensemble
 
+
+@pytest.fixture
+def temp_dir() -> str:
+    with tempfile.TemporaryDirectory() as td:
+        cfg.set('ANALYSIS', 'simulation_data_dir', str(td))
+        yield td
+
+
+@pytest.mark.skip(reason="3x3_wireframe test data not yet available")
 def test_clustering():
     fmt = "flavio"
-    # extract and copy 3x3 wireframe cube data to temp directory
     test_data_date = ""
     e = ensemble("3x3_wireframe")
 

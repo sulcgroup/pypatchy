@@ -134,7 +134,7 @@ def test_read_loro_test():
     pass
 
 
-def test_convert_duck(ducky: PolycubeStructure) -> PLPSimulation:
+def test_convert_duck(ducky: PolycubeStructure):
     scene: PLPSimulation = polycube_to_pl(ducky)
     scene.add_potential(
         PLFRPatchyPotential(
@@ -151,7 +151,6 @@ def test_convert_duck(ducky: PolycubeStructure) -> PLPSimulation:
                      particle_file="particles.txt",
                      patchy_file="patches.txt")
         print(td)
-        return scene
 
 # todo: put this in a different file
 @pytest.fixture
