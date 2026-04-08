@@ -220,7 +220,7 @@ class PDPipelineData(PipelineData):
         saves the data to a cache file using pd.HDFStore
         :param p: Path to the data cache file
         """
-        with pd.HDFStore(str(p)) as f:
+        with pd.HDFStore(str(p), mode='w') as f:
             f["data"] = self.data
             f["trange"] = pd.Series(self.trange())
 
