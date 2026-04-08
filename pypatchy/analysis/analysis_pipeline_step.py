@@ -88,10 +88,13 @@ class AnalysisPipelineStep(ABC):
         if self.get_output_data_type() == PipelineDataType.PIPELINE_DATATYPE_DATAFRAME:
             if os.path.exists(file_path):
                 with pd.HDFStore(str(file_path)) as f:
-                    if "data" in f:
-                        old_data = f["data"]
-                        if len(data.get()) < len(old_data):
-                            return  # Do not overwrite
+                    try:
+                        if "data" in f:
+                            old_data = f["data"]
+                            if len(data.get()) < len(old_data):
+                                return  # Do not overwrite
+                    except ModuleNotFoundError:
+                        pass # data is from older incompatible pypatchy version. ignore.
             with pd.HDFStore(str(file_path)) as f:
                 f["data"] = data.get()
                 f["trange"] = pd.Series(data.trange())
