@@ -536,6 +536,8 @@ class ClusterCategory(Enum):
     MATCH = 3
 
 def graphShape(shapePath):
+    warnings.warn("graphShape is deprecated; load the graph manually and pass it directly to ClassifyClusters",
+                  DeprecationWarning, stacklevel=2)
     with open(shapePath, 'r') as f:
         data = f.read()
     solveSpec = json.loads(data)
