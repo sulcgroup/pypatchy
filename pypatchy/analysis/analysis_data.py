@@ -171,7 +171,7 @@ class PDPipelineData(PipelineData):
         if isinstance(item, int):
             return PDPipelineData(self.data[self.data[TIMEPOINT_KEY] == item], np.array([item]))
         elif isinstance(item, slice) or isinstance(item, range):
-            timepoints = np.arange(item.start, item.stop, item.step if item.step else 1)
+            timepoints = np.arange(item.start, item.stop, item.step)
             filtered_data = self.data[self.data[TIMEPOINT_KEY].isin(timepoints)]
             return PDPipelineData(filtered_data, timepoints)
         else:

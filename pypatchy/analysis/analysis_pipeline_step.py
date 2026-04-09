@@ -26,7 +26,7 @@ class AnalysisPipelineStep(ABC):
     # interval in timesteps between input data points
     input_tstep: int
 
-    # interval in timesteps between input data points
+    # interval in timesteps between output data points
     output_tstep: int
 
     # flag which allows the user to temporarily disable loading cached data
