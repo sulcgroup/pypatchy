@@ -108,9 +108,16 @@ class PolycubeStructure(TypedStructure, Scene):
             # structure passed as list of cube objects
             for cube_uid, cube in enumerate(kwargs["cubes"]):
                 if isinstance(cube, dict):
-                    if isinstance(cube["type"], int):
-                        cube_type = self.rule.particle(cube["type"])
-                    cube = PolycubesStructureCube(**cube, uid=cube_uid, cube_type=cube_type)
+                    # accept both "type" and "cube_type" key names
+                    type_val = cube.get("type", cube.get("cube_type"))
+                    if isinstance(type_val, int):
+                        cube_type = self.rule.particle(type_val)
+                    else:
+                        cube_type = type_val
+                    # strip keys that would cause duplicate-argument errors
+                    cube_filtered = {k: v for k, v in cube.items()
+                                     if k not in ("type", "cube_type", "uid")}
+                    cube = PolycubesStructureCube(**cube_filtered, uid=cube_uid, cube_type=cube_type)
                 assert cube.get_type() in [ct.type_id() for ct in self.rule.particles()], "Cube type not found in rule!"
                 self._particles.append(cube)
                 self.cubeMap[cube.position().tobytes()] = cube

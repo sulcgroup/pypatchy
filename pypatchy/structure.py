@@ -944,8 +944,13 @@ class TypedStructure(Structure, ABC):
         for layer in layers.iter_components():
             for rot in range(4):  # todo: smarter rotation code
                 rotation = getRotationMap(axis, rot)
-                layer = layer.rotate(rotation)
-            # help
+                rotational_homomorphism = layer.rotate(rotation)
+                # todo: check if this works
+                if not all([
+                    layer.particle_type(vert) == rotational_homomorphism.target.particle_type(vert) for vert in layer.vertices()
+                ]):
+                    return False
+
         return True
 
     def draw(self, pos=None):

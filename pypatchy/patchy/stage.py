@@ -351,7 +351,7 @@ class Stage(BuildSimulation):
             # add polycubes
             # self._param_info.add_method.iter_polycubes() does NOT incorporate num_assemblies
             # so be explicit about that!
-            for _ in range(self.getctxt().sim_get_param(self.spec(), "num_assemblies")):
+            for _ in range(self.getctxt().sim_stage_get_param(self.spec(), self, "num_assemblies")):
                 scene.add_conf_clusters([
                     polycube_to_pl(pc.polycube_file_path,
                                    mdt_settings,
