@@ -97,6 +97,16 @@ class PatchyServerConfig:
             return bashflags["ntasks"]
         return 1  # default value
 
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        # SimulationManager contains a multiprocessing.Manager with an AuthenticationString
+        # that cannot be pickled; workers only need to know whether cuda_mps is enabled
+        state['cuda_mps'] = bool(state['cuda_mps'])
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,

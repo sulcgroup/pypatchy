@@ -733,7 +733,7 @@ class PatchySimulationEnsemble(Analyzable):
         """
         :returns: true if the analysis is set up to run in parallel using multiprocessing.Pool and false otherwise.
         """
-        return "parallel" in self.metadata and self.metadata["parallel"]
+        return "parallel" in self.metadata and self.metadata["parallel"] > 1
 
     def n_processes(self) -> int:
         """
