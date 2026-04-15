@@ -458,10 +458,10 @@ class PolycubeStructure(TypedStructure, Scene):
 
     def to_typed_structure(self, type_map: Optional[dict[int: int]]) -> TypedStructure:
         if type_map is None:
-            type_map = {ct.type_id(): ct.type_id() for ct in self.rule}
+            type_map = {ct.type_id(): ct.type_id()  for ct in self.rule}
         return GenericTypedStructure(
             bindings=self.bindings_list,
-            types={p.get_uid(): type_map[p.get_type()] for p in self.particles()},
+                types={p.get_uid(): (type_map[p.get_type()] if p.get_type() in type_map else 0) for p in self.particles()},
         )
 
     def add_particle(self, new_cube: PolycubesStructureCube):
@@ -520,8 +520,6 @@ def load_polycube(file_path: Union[Path, str]) -> PolycubeStructure:
         data = json.load(f)
     rule = PolycubesRule(rule_json=data["cube_types"])
     return PolycubeStructure(rule=rule, structure=data["cubes"])
-
-
 
 # these next two methods were written by chatGPT to help make topologies faster
 def create_spatial_hash(particles):

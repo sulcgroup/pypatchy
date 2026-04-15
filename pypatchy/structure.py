@@ -928,6 +928,19 @@ class TypedStructure(Structure, ABC):
                                                                  node_compat_fn=vertcompare,
                                                                  edge_compat_fn=edgecompare)
 
+    def to_tlm_topology(self):
+        """
+        Convert this TypedStructure to a libtlm.TLMTopology for use with the C++
+        homomorphism check.  Python direction indices (0-5) map directly onto C++
+        DirIdx enum values (LEFT=0 … FRONT=5).
+        """
+        import libtlm
+        bindings = {
+            ((u, libtlm.DirIdx(du)), (v, libtlm.DirIdx(dv)))
+            for u, du, v, dv in self.bindings_list
+        }
+        return libtlm.TLMTopology(bindings, self.get_particle_types())
+
     def is_symmetric(self, axis: int) -> bool:
         """
         determines if structure has rotational symmetry on specified axis
