@@ -120,7 +120,7 @@ class PolycubeStructure(TypedStructure, Scene):
                     cube = PolycubesStructureCube(**cube_filtered, uid=cube_uid, cube_type=cube_type)
                 assert cube.get_type() in [ct.type_id() for ct in self.rule.particles()], "Cube type not found in rule!"
                 self._particles.append(cube)
-                self.cubeMap[cube.position().tobytes()] = cube
+                self.cubeMap[cube.position().astype(int).tobytes()] = cube
                 self.graph.add_node(cube.get_uid(), cube=cube)
         else:
             # empty structure
@@ -359,7 +359,7 @@ class PolycubeStructure(TypedStructure, Scene):
         transformed_structure.cubeMap = {}
         for cube in transformed_structure._particles:
             cube.set_position(cube.position() @ rot + tran)
-            transformed_structure.cubeMap[cube.position().tobytes()] = cube
+            transformed_structure.cubeMap[cube.position().astype(int).tobytes()] = cube
 
         return transformed_structure
 
