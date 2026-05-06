@@ -1895,6 +1895,98 @@ class PatchySimulationEnsemble(Analyzable):
     def ipy_all(self, sim: PatchySimulation) -> list[Simulation]:
         return [self.ipy(sim, stage) for stage in self.sim_get_stages(sim)]
 
+    def is_ready(self, e: Union[None, list[PatchySimulation]] = None) -> bool:
+        """
+        Checks whether start_simulations() is likely to succeed without errors.
+        Emits a warnings.warn() for each problem found.
+        :param e: list of simulations to check, or None to check the full ensemble
+        :return: True if no problems were found
+        """
+        import warnings
+        ok = True
+
+        if e is None:
+            e = self.ensemble()
+
+        if self.server_settings is None:
+            warnings.warn("server_settings is None — call set_server_settings() before starting")
+            return False
+
+        if self.server_settings.is_batched() and not self.server_settings.cuda_mps:
+            warnings.warn("server_settings reports batched mode but cuda_mps manager is not initialised")
+            ok = False
+
+        if not self.tld().parent.exists():
+            warnings.warn(f"Simulation run directory parent does not exist: {self.tld().parent}")
+            ok = False
+
+        for sim in e:
+            prefix = f"sim {repr(sim)}: "
+
+            # --- particle_types ---
+            try:
+                particles = self.sim_get_particles_set(sim)
+                if not isinstance(particles, PLParticleSet):
+                    warnings.warn(f"{prefix}'{PARTICLE_TYPES_KEY}' has type {type(particles).__name__}, expected PLParticleSet")
+                    ok = False
+            except NoSuchParamError:
+                warnings.warn(f"{prefix}missing required param '{PARTICLE_TYPES_KEY}'")
+                ok = False
+
+            # --- steps ---
+            steps = None
+            try:
+                steps = self.sim_get_param(sim, "steps")
+                if not isinstance(steps, (int, float)):
+                    warnings.warn(f"{prefix}'steps' has type {type(steps).__name__}, expected int or float")
+                    ok = False
+                    steps = None
+                elif steps <= 0:
+                    warnings.warn(f"{prefix}'steps' must be positive, got {steps}")
+                    ok = False
+                    steps = None
+            except NoSuchParamError:
+                warnings.warn(f"{prefix}missing required param 'steps'")
+                ok = False
+
+            # --- print_conf_interval ---
+            try:
+                conf_interval = self.sim_get_param(sim, "print_conf_interval")
+                if not isinstance(conf_interval, (int, float)):
+                    warnings.warn(f"{prefix}'print_conf_interval' has type {type(conf_interval).__name__}, expected int or float")
+                    ok = False
+                elif steps is not None and conf_interval >= steps:
+                    warnings.warn(f"{prefix}'print_conf_interval' ({conf_interval}) must be less than 'steps' ({steps})")
+                    ok = False
+            except NoSuchParamError:
+                warnings.warn(f"{prefix}missing required param 'print_conf_interval'")
+                ok = False
+
+            # --- density ---
+            try:
+                density = self.sim_get_param(sim, "density")
+                if not isinstance(density, (int, float)):
+                    warnings.warn(f"{prefix}'density' has type {type(density).__name__}, expected int or float")
+                    ok = False
+                elif density <= 0:
+                    warnings.warn(f"{prefix}'density' must be positive, got {density}")
+                    ok = False
+            except NoSuchParamError:
+                warnings.warn(f"{prefix}missing required param 'density'")
+                ok = False
+
+            # --- T (temperature) ---
+            try:
+                T = self.sim_get_param(sim, "T")
+                if not isinstance(T, (int, float, str)):
+                    warnings.warn(f"{prefix}'T' has type {type(T).__name__}, expected int, float, or str")
+                    ok = False
+            except NoSuchParamError:
+                warnings.warn(f"{prefix}missing required param 'T'")
+                ok = False
+
+        return ok
+
     def start_simulations(self,
                           e: Union[None, list[PatchySimulation]] = None,
                           stage: Union[str, None] = None):

@@ -271,8 +271,7 @@ class Structure:
                     reverse_mapping = {v: k for k, v in node_list_mapping.items()}
                     yield StructuralHomomorphism(self, structure, rmapidx, node_list_mapping, reverse_mapping)
 
-        else:
-            raise TypeError("Cannot find homomorphism of a larger structure onto a smaller structure")
+        # self is larger than structure — no homomorphism possible, yield nothing
 
     def _candidate_homomorphisms(self, structure: Structure, edgecompare: Callable) -> Generator[list[int]]:
         """
@@ -676,25 +675,27 @@ class StructuralMapping:
 class StructuralHomomorphism(StructuralMapping):
     # index in enumerateRotations of the rotation mapping in this sturctural homomorphism
     _rmapidx: int
+    __rotation_map: dict[int, int] # cache this here to speed up
 
     def __init__(self, source_structure: Structure, target_structure: Structure
                  , rotation_mapping_idx: int, location_mapping: dict[int:int], reverse_location_mapping=None):
         super().__init__(source_structure, target_structure, location_mapping, reverse_location_mapping)
         self._rmapidx = rotation_mapping_idx
+        self.__rotation_map = enumerateRotations()[rotation_mapping_idx]
 
     def map_direction(self, d: Union[int, np.ndarray]) -> int:
         if isinstance(d, np.ndarray):
             d = diridx(d)
         assert d > -1
         assert d < len(RULE_ORDER)
-        return enumerateRotations()[self._rmapidx][d]
+        return self.__rotation_map[d]
 
     def rmap_direction(self, d: Union[int, np.ndarray]) -> int:
         if isinstance(d, np.ndarray):
             d = diridx(d)
         assert d > -1
         assert d < len(RULE_ORDER)
-        for k, v in enumerateRotations()[self._rmapidx].items():
+        for k, v in self.__rotation_map.items():
             if v == d:
                 return k
         raise Exception("Good god what did you DO???")
@@ -735,6 +736,12 @@ class StructuralHomomorphism(StructuralMapping):
             (self.map_location(u), self.map_direction(du), self.map_location(v), self.map_direction(dv))
             for u, du, v, dv in bindings
         ]
+
+    def get_rot_map_idx(self) -> int:
+        return self._rmapidx
+
+    def get_rot_map(self) -> dict[int, int]:
+        return self.__rotation_map
 
 class Tiling:
     source_structure: Structure

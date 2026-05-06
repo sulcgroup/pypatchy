@@ -182,7 +182,7 @@ class BaseParticleSet:
     def num_particle_types(self):
         return len(self._particle_types)
 
-    def patches(self):
+    def patches(self) -> list[BasePatchType]:
         return self._patch_types
 
     def patch(self, i: int) -> Any:

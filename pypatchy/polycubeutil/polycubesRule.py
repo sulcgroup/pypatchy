@@ -200,7 +200,7 @@ class PolycubesPatch(BasePatchType):
         return p
 
     def to_string(self) -> str:
-        if self.get_align_rot_num() == 0 and self.state_var() == 0 and self.activation_var() == 0:
+        if not self.has_torsion() or (self.get_align_rot_num() == 0 and self.state_var() == 0 and self.activation_var() == 0):
             return f"{self.color()}"
         elif self.state_var() == 0 and self.activation_var() == 0:
             return f"{self.color()}:{self.get_align_rot_num()}"

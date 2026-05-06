@@ -430,8 +430,9 @@ class PolycubeStructure(TypedStructure, Scene):
             return False
         if (particle1.position() != particle2.position() + p2.direction()).any():
             return False
-        if ((p1.alignDir() - p2.alignDir()) > 1e-6).any():
-            return False
+        if p1.has_torsion() and p2.has_torsion():
+            if ((p1.alignDir() - p2.alignDir()) > 1e-6).any():
+                return False
         return True
 
     def num_connections(self):
