@@ -434,9 +434,9 @@ class Structure:
         # TODO: compute this on init? idk
         assert self.is_connected(), "Please don't try to get a matrix for a non connected structure. " \
                                     "It's not invalid I just hate it."
-        # start with zeroes
-        processed_coords = {0}
-        cubes_coords = {0: np.array([0, 0, 0])}
+        start = self.vertices()[0]
+        processed_coords = {start}
+        cubes_coords = {start: np.array([0, 0, 0])}
         # loop until we've processed all coords
         loopcount = 0
         while len(processed_coords) < len(self):
@@ -469,6 +469,10 @@ class Structure:
 
     def __len__(self) -> int:
         return len(self.graph.nodes)
+
+    def __add__(self, other: Structure) -> Structure:
+        hom = other.remap_vert_ids(self.vertices())
+        return Structure(bindings=list(self.bindings_list) + list(hom.target.bindings_list))
 
     def __str__(self) -> str:
         return f"Structure with {len(self.vertices())} particles and {len(self.bindings_list)} connections"
@@ -1117,11 +1121,19 @@ class GenericTypedStructure(TypedStructure):
             })
 
     def substructure(self, nodes: tuple[int]) -> GenericTypedStructure:
+        # Build the same lmap the base uses (original id → 0-based counter) so we
+        # can remap particle_types into the new vertex-ID space.
+        nodes_set = set(nodes)
+        lmap = {}
+        counter = 0
+        for n in self.vertices():
+            if n in nodes_set:
+                lmap[n] = counter
+                counter += 1
         sub = super(GenericTypedStructure, self).substructure(nodes)
-        sub = GenericTypedStructure(graph=sub.graph, types={
-            k: v for k, v in self.particle_types.items() if k in sub.vertices()
+        return GenericTypedStructure(graph=sub.graph, types={
+            lmap[k]: v for k, v in self.particle_types.items() if k in lmap
         })
-        return sub
 
     def iter_components(self) -> Generator[Structure, None, None]:
         for cc in nx.connected_components(self.graph.to_undirected()):
@@ -1130,6 +1142,12 @@ class GenericTypedStructure(TypedStructure):
 
     def __str__(self) -> str:
         return f"{self.bindings_list}\nParticle Typing: {self.get_particle_types()}"
+
+    def __add__(self, other: GenericTypedStructure) -> GenericTypedStructure:
+        hom = other.remap_vert_ids(self.vertices())
+        combined_bindings = list(self.bindings_list) + list(hom.target.bindings_list)
+        combined_types = {**self.particle_types, **hom.target.particle_types}
+        return GenericTypedStructure(bindings=combined_bindings, types=combined_types)
 
     def splice(self, other: GenericTypedStructure,
                splice_points: list[tuple[Binding, Binding]]) -> GenericTypedStructure:
@@ -1228,10 +1246,13 @@ def read_topology(top: Union[str, dict, Path], pt_idxs: set[int] = set()) -> Gen
         bindings += top["extraConnections"]
 
     type_id_map = dict()
+    local_used = set(pt_idxs)  # track taken IDs without mutating caller's set
     for pt1, _, pt2, _ in bindings:
         for pt in [pt1, pt2]:
-            if pt in pt_idxs:
-                type_id_map[pt] = next(itertools.filterfalse(pt_idxs.__contains__, itertools.count(1)))
+            if pt in pt_idxs and pt not in type_id_map:
+                new_id = next(itertools.filterfalse(local_used.__contains__, itertools.count(1)))
+                type_id_map[pt] = new_id
+                local_used.add(new_id)
     bindings = [
         [
             type_id_map[pt1] if pt1 in type_id_map else pt1,
@@ -1243,7 +1264,8 @@ def read_topology(top: Union[str, dict, Path], pt_idxs: set[int] = set()) -> Gen
     ]
 
     nps = {
-        int(k): top["nanoparticles"][k] + 1 for k in top["nanoparticles"]
+        (type_id_map[int(k)] if int(k) in type_id_map else int(k)): top["nanoparticles"][k] + 1
+        for k in top["nanoparticles"]
     } if "nanoparticles" in top else {}
     assert len(set(nps.values())) <= 1, "god please no"
     return GenericTypedStructure(bindings=bindings, types=nps, fill_type=0)
