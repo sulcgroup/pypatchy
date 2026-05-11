@@ -384,6 +384,14 @@ class PolycubeStructure(TypedStructure, Scene):
             ]
         }
 
+    def __reduce__(self):
+        # Serialize via to_json() so only plain dicts/lists cross the pickle boundary;
+        # the networkx graph is rebuilt from scratch by the constructor on the other side.
+        return (PolycubeStructure, (), self.to_json())
+
+    def __setstate__(self, state):
+        self.__init__(**state)
+
     def substructure(self, nodes: tuple[int]) -> Structure:
         """
         Returns:

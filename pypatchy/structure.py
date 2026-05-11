@@ -1140,6 +1140,18 @@ class GenericTypedStructure(TypedStructure):
             yield GenericTypedStructure(graph=self.graph.subgraph(cc),
                                         types={v: t for v, t in self.particle_types.items() if v in cc})
 
+    def __reduce__(self):
+        # Serialize only raw picklable data so that networkx subgraph views
+        # (which hold unpicklable closures) never cross the pickle boundary.
+        return (
+            GenericTypedStructure,
+            (),
+            {'bindings': list(self.bindings_list), 'types': dict(self.particle_types)},
+        )
+
+    def __setstate__(self, state):
+        self.__init__(**state)
+
     def __str__(self) -> str:
         return f"{self.bindings_list}\nParticle Typing: {self.get_particle_types()}"
 
