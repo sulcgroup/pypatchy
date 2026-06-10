@@ -56,7 +56,7 @@ RUN --mount=type=ssh git clone git@github.com:sulcgroup/polycubes-clone.git /roo
     && git checkout nightmare && \
 # create & activate the pypatchy env, then pip‑install both packages
 # todo: check if we really need to install with -e in the docker version
-micromamba create -y -n pypatchy -f /root/Github/pypatchy/pypatchy.yml --channel-priority flexible && \
+micromamba create -y -n pypatchy -f /root/Github/pypatchy/pypatchy.yml && \
 micromamba run -n pypatchy micromamba install -y boost-cpp --channel conda-forge \
  && micromamba clean --all --yes
 

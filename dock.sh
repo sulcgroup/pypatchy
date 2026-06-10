@@ -20,4 +20,4 @@ DOCKER_BUILDKIT=1 docker build -t patchy:latest --ssh default -f Dockerfile --no
 #     micromamba activate pypatchy && \
 #     cd /root/Github/pypatchy && pytest --maxfail=1 -q"
 docker tag patchy:latest joshuaevanslowell/oxdna-pypatchy:latest;
- docker push joshuaevanslowell/oxdna-pypatchy:latest;
+docker push joshuaevanslowell/oxdna-pypatchy:latest;
