@@ -25,6 +25,7 @@ from ipy_oxdna.utils.observable import Observable
 # pypatchy imports
 from .pl.patchyio import PLBaseWriter
 from .pl.plparticle import PLPatchyParticle
+from .pl.plpatch import PLPatch
 from .pl.plparticleset import PLParticleSet
 
 from .stage import Stage
@@ -1083,6 +1084,14 @@ class GraphsFromRaspberryPatchyBonds(AnalysisPipelineHead):
                                 top.get_particles_types()[p_idx])
                             G.nodes[p_idx]["particle_type"] = particle_type
 
+                        # Map global patch ID → PLPatch so bonds can be looked up
+                        # by the global IDs the observable reports (not local per-type indices).
+                        patch_by_id: dict[int, PLPatch] = {
+                            p.get_id(): p
+                            for pt in particle_types.particles()
+                            for p in pt.patches()
+                        }
+
                         for m in self._BOND_RE.finditer(line):
                             p_i, patch_j, p_k, patch_l = (
                                 int(m.group(1)), int(m.group(2)),
@@ -1091,8 +1100,8 @@ class GraphsFromRaspberryPatchyBonds(AnalysisPipelineHead):
                                 top.get_particles_types()[p_i])
                             p_k_type: PLPatchyParticle = particle_types.particle(
                                 top.get_particles_types()[p_k])
-                            G.add_edge(p_i, p_k, patch=p_i_type.patches()[patch_j])
-                            G.add_edge(p_k, p_i, patch=p_k_type.patches()[patch_l])
+                            G.add_edge(p_i, p_k, patch=patch_by_id[patch_j])
+                            G.add_edge(p_k, p_i, patch=patch_by_id[patch_l])
 
                         graphs[stepcounter] = [
                             G.subgraph(component).copy()

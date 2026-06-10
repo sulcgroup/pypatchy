@@ -26,7 +26,6 @@ def parameter_value(key: str, val: Union[dict, str, int, float, bool, list]) -> 
             if val["type"] == MDT_CONVERT_KEY:
                 return MDTConvertParams(MultidentateConvertSettings(**data), param_name)
             elif val["type"] == PARTICLE_TYPES_KEY:
-
                 return ParticleSetParam(decode_particles_dict(**data))
             elif val["type"] == STAGES_KEY:
                 if not "stages" in data:

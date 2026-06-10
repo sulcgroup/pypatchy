@@ -1143,8 +1143,8 @@ class SWriter(PLBaseWriter):
         assert top.num_particles() == nparticles, "Didn't load particles correctly, somehow"
         return top
 
-    def read_particle_types(self, topology) -> PLParticleSet:
-        return self.read_top(topology).particle_set()
+    def read_particle_types(self, **kwargs) -> PLParticleSet:
+        return self.read_top(kwargs["topology"]).particle_set()
 
     def read_scene(self, top_file: Union[Path, str], traj_file: Union[Path, str], particle_types: PLParticleSet,
                    conf_idx=None) -> PLPSimulation:
@@ -1268,7 +1268,7 @@ class RWriter(PLBaseWriter):
                     f.write(f"iI {c1} {c2} {strength}\n")
 
     def read_top(self, top_file: str) -> RWriter.RPatchyTopology:
-        particle_types = self.read_particle_types(top_file)
+        particle_types = self.read_particle_types(topology=top_file)
         repulsion_sites = []
         type_counts = dict()
         type_repulsion_sites = dict()
@@ -1292,7 +1292,8 @@ class RWriter(PLBaseWriter):
             top.type_rsite_lists[particle_type.type_id()] = type_repulsion_sites[particle_type.type_id()]
         return top
 
-    def read_particle_types(self, particle_type_file: str) -> PLParticleSet:
+    def read_particle_types(self, **kwargs) -> PLParticleSet:
+        particle_type_file = kwargs["topology"]
         particle_type_info = []
         patches = dict()
         interactions = []

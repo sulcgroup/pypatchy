@@ -1091,7 +1091,10 @@ class PatchySimulationEnsemble(Analyzable):
                 sim_subfolders.append((fname, t_start, t_end))
         if len(sim_subfolders) == 0:
             with (self.folder_path(sim) / self.sim_get_param(sim, "lastconf_file")).open("r") as f:
-                last_step = int(f.readline().split("=")[1].strip())
+                try:
+                    last_step = int(f.readline().split("=")[1].strip())
+                except IndexError as e:
+                    raise ValueError(f"Malformed or empty last configuration file: {str(self.folder_path(sim) / self.sim_get_param(sim, 'lastconf_file'))}") from e
             stages[0].set_tend(last_step)
             return stages
         else:
