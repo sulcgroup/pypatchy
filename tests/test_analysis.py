@@ -1,16 +1,15 @@
 import shutil
-import tempfile
 
 import pytest
 
-from pypatchy.patchy.simulation_ensemble import find_ensemble, build_ensemble, PatchySimulationEnsemble
+from pypatchy.patchy.simulation_ensemble import PatchySimulationEnsemble
 from pypatchy.patchy.vis_lib import plot_energy
 from pypatchy.server_config import load_server_settings
 from pypatchy.structure import read_topology
-from pypatchy.util import cfg, get_input_dir, simulation_run_dir
+from pypatchy.util import get_input_dir
 from test_ensembles_basic import ensemble
 
-from pypatchy.patchy.analysis_lib import LoadEnergies, ComputeClusterYield, ClassifyClusters, GraphsFromClusterTxt, graphShape
+from pypatchy.patchy.analysis_lib import LoadEnergies, ComputeClusterYield, ClassifyClusters, GraphsFromClusterTxt
 
 from pathlib import Path
 import pandas as pd
@@ -18,17 +17,9 @@ import pandas as pd
 from pypatchy.patchy.pl.patchyio import get_writer
 from pypatchy.patchy.pl.plscene import PLPSimulation
 from pypatchy.patchy.simulation_ensemble import find_ensemble
+from tests.ptutils import temp_dir
 
 from ipy_oxdna.utils.observable import Observable, ObservableColumn
-
-
-@pytest.fixture
-def temp_dir() -> str:
-    # construct temporary directory to run
-
-    with tempfile.TemporaryDirectory() as td:
-        cfg.set('ANALYSIS', 'simulation_data_dir', str(td))
-        yield td
 
 
 def test_split_cluster_fr():

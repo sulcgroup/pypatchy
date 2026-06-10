@@ -1,8 +1,11 @@
 import tarfile
+import tempfile
 import urllib.request
 from pathlib import Path
 
+import pytest
 from pypatchy.patchy.simulation_ensemble import PatchySimulationEnsemble
+from pypatchy.util import cfg
 
 RELEASE_BASE_URL = "https://github.com/sulcgroup/pypatchy-testdata/releases/download/test-data-v1"
 
@@ -10,7 +13,6 @@ RELEASE_BASE_URL = "https://github.com/sulcgroup/pypatchy-testdata/releases/down
 RELEASE_ASSETS = {
     "4x4_tile_2023-10-03": "4x4_tile_2023-10-03.tar.gz",
 }
-
 
 def get_data(e: PatchySimulationEnsemble, copy_to: str):
     """
@@ -38,3 +40,12 @@ def get_data(e: PatchySimulationEnsemble, copy_to: str):
 
     archive_path.unlink()
     print("Done.")
+
+
+@pytest.fixture
+def temp_dir() -> str:
+    # construct temporary directory to run
+
+    with tempfile.TemporaryDirectory() as td:
+        cfg.set('ANALYSIS', 'simulation_data_dir', str(td))
+        yield td
