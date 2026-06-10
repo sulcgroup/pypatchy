@@ -193,27 +193,31 @@ class Structure:
             pos (dict, optional): Dictionary defining the layout of nodes.
                                   If None, the spring layout will be used.
         """
+        rad = 0.2
 
-        # If no position is provided, use spring layout
         if pos is None:
             pos = nx.spring_layout(self.graph)
 
-        # Draw nodes
-        nx.draw_networkx_nodes(self.graph, pos, node_size=700, node_color='lightblue')
-
-        # Draw edges, distinguishing direction with arrows
+        fig, ax = plt.subplots()
+        nx.draw_networkx_nodes(self.graph, pos, node_size=700, node_color='lightblue', ax=ax)
         nx.draw_networkx_edges(self.graph, pos, edgelist=self.graph.edges, edge_color='black', arrows=True,
-                               connectionstyle='arc3,rad=0.2')
+                               connectionstyle=f'arc3,rad={rad}',
+                               min_source_margin=15, min_target_margin=15, ax=ax)
+        nx.draw_networkx_labels(self.graph, pos, font_size=12, font_color='black', ax=ax)
 
-        # Add edge labels for direction (dirIdx)
-        edge_labels = {(u, v, k): d['dirIdx'] for u, v, k, d in self.graph.edges(keys=True, data=True)}
-        nx.draw_networkx_edge_labels(self.graph, pos, edge_labels=edge_labels)
+        # Place labels at the true arc midpoint: for arc3 bezier, midpoint at t=0.5 is
+        # (p1+p2)/2 + rad/2 * perp, where perp = 90° CCW of (p2-p1).
+        for u, v, k, d in self.graph.edges(keys=True, data=True):
+            p1 = np.array(pos[u])
+            p2 = np.array(pos[v])
+            diff = p2 - p1
+            perp = np.array([-diff[1], diff[0]])
+            label_xy = (p1 + p2) / 2 + rad / 2 * perp
+            ax.annotate(str(d['dirIdx']), xy=label_xy, ha='center', va='center', fontsize=9,
+                        bbox=dict(boxstyle='round,pad=0.1', fc='white', ec='none', alpha=0.7))
 
-        # Add node labels
-        nx.draw_networkx_labels(self.graph, pos, font_size=12, font_color='black')
-
-        # Display the graph
         plt.show()
+        return fig
 
     def substructures(self) -> Generator[Structure]:
         # iterate possible sets of nodes in this graph
@@ -310,6 +314,9 @@ class Structure:
 
     def num_vertices(self) -> int:
         return len(self.graph.nodes)
+
+    def num_edges(self) -> int:
+        return len(self.graph.edges)
 
     def splice(self, other: Structure,
                splice_points: Collection[tuple[Binding, Binding]]) -> Structure:
@@ -467,8 +474,7 @@ class Structure:
         else:
             raise Exception()
 
-    def __len__(self) -> int:
-        return len(self.graph.nodes)
+    __len__ = num_vertices
 
     def __add__(self, other: Structure) -> Structure:
         hom = other.remap_vert_ids(self.vertices())
@@ -981,41 +987,39 @@ class TypedStructure(Structure, ABC):
         """
         Draws the MultiDiGraph with matplotlib.
         :param: graph (nx.MultiDiGraph): The graph to draw.
-        :param: pos (dict, optional): Dictionary defining the layout of nodes. If None, the spring layout will be used.
+        :param: pos (dict, Cuoptional): Dictionary defining the layout of nodes. If None, the spring layout will be used.
         """
+        rad = 0.2
 
-        # Get a list of available colors from matplotlib
         available_colors = list(mcolors.TABLEAU_COLORS.values())
-
         if len(set(self.get_particle_types().values())) > len(available_colors):
             raise ValueError(f"Too many particle types for available colors! Max is {len(available_colors)}.")
-
-        # Generate a color map assigning a color to each particle type
         color_map = {i: available_colors[i] for i in set(self.get_particle_types().values())}
 
-        # If no position is provided, use spring layout
         if pos is None:
             pos = nx.spring_layout(self.graph)
 
-        # Draw nodes
-        nx.draw_networkx_nodes(self.graph,
-                               pos,
-                               node_size=700,
-                               node_color=[color_map[self.particle_type(v)] for v in self.graph.nodes])
-
-        # Draw edges, distinguishing direction with arrows
+        fig, ax = plt.subplots()
+        nx.draw_networkx_nodes(self.graph, pos, node_size=700,
+                               node_color=[color_map[self.particle_type(v)] for v in self.graph.nodes], ax=ax)
         nx.draw_networkx_edges(self.graph, pos, edgelist=self.graph.edges, edge_color='black', arrows=True,
-                               connectionstyle='arc3,rad=0.2')
+                               connectionstyle=f'arc3,rad={rad}',
+                               min_source_margin=15, min_target_margin=15, ax=ax)
+        nx.draw_networkx_labels(self.graph, pos, font_size=12, font_color='black', ax=ax)
 
-        # Add edge labels for direction (dirIdx)
-        edge_labels = {(u, v, k): d['dirIdx'] for u, v, k, d in self.graph.edges(keys=True, data=True)}
-        nx.draw_networkx_edge_labels(self.graph, pos, edge_labels=edge_labels)
+        # Place labels at the true arc midpoint: for arc3 bezier, midpoint at t=0.5 is
+        # (p1+p2)/2 + rad/2 * perp, where perp = 90° CCW of (p2-p1).
+        for u, v, k, d in self.graph.edges(keys=True, data=True):
+            p1 = np.array(pos[u])
+            p2 = np.array(pos[v])
+            diff = p2 - p1
+            perp = np.array([-diff[1], diff[0]])
+            label_xy = (p1 + p2) / 2 + rad / 2 * perp
+            ax.annotate(str(d['dirIdx']), xy=label_xy, ha='center', va='center', fontsize=9,
+                        bbox=dict(boxstyle='round,pad=0.1', fc='white', ec='none', alpha=0.7))
 
-        # Add node labels
-        nx.draw_networkx_labels(self.graph, pos, font_size=12, font_color='black')
-
-        # Display the graph
         plt.show()
+        return fig
 
     def matrix_etc(self) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
