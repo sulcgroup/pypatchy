@@ -1,4 +1,7 @@
 from __future__ import annotations
+
+import re
+
 """utility.py
 ================
 General purpose helper functions used across the PyPatchy codebase.
@@ -361,3 +364,8 @@ PATCHY_FILE_FORMAT_KEY = "patchy_format"
 EXTERNAL_OBSERVABLES = False  # TODO real talk this should be in server config
 NUM_TEETH_KEY = "num_teeth"
 DENTAL_RADIUS_KEY = "dental_radius"
+
+
+def natural_sort_key(path: Path) -> list:
+    """Sort key that orders path names numerically (sim2 < sim10)."""
+    return [int(c) if c.isdigit() else c for c in re.split(r"(\d+)", path.name)]
