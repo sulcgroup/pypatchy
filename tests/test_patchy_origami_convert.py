@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 # ipy_oxDNA imports
-from ipy_oxdna.structure_editor.dna_structure import load_dna_structure, rand_seq
+from oxpy_utils.structure_editor.dna_structure import load_dna_structure, rand_seq
 
 # pypatchy imports
 from pypatchy.patchy.dna_particle import DNAParticle
@@ -64,7 +64,7 @@ def icosahedron() -> DNAParticle:
 def test_convert_wireframe_cube(temp_dir: str, cube:DNAParticle):
     from pypatchy.patchy.pl.plpatchylib import polycube_to_pl
 
-    from ipy_oxdna.structure_editor.dna_structure import load_dna_structure, rc
+    from oxpy_utils.structure_editor.dna_structure import load_dna_structure, rc
     from pypatchy.patchy.dna_particle import DNAParticle
     from pypatchy.patchy.patchy_origami_convert import PatchyOrigamiConverter
     # from pypatchy.patchy.pl.patchio import get_writer
@@ -149,7 +149,7 @@ def test_convert_human(temp_dir: str, cube: DNAParticle):
     """
     from pypatchy.patchy.pl.plpatchylib import polycube_to_pl
 
-    from ipy_oxdna.structure_editor.dna_structure import load_dna_structure, rc
+    from oxpy_utils.structure_editor.dna_structure import load_dna_structure, rc
     from pypatchy.patchy.dna_particle import DNAParticle
     from pypatchy.patchy.patchy_origami_convert import PatchyOrigamiConverter
     # from pypatchy.patchy.pl.patchio import get_writer
@@ -215,7 +215,7 @@ def test_convert_human(temp_dir: str, cube: DNAParticle):
 def test_convert_swan(temp_dir: str, multidentate_patchy_ducky: PLPSimulation, cube: DNAParticle):
     from pypatchy.patchy.pl.plpatchylib import polycube_to_pl
 
-    from ipy_oxdna.structure_editor.dna_structure import load_dna_structure, rc
+    from oxpy_utils.structure_editor.dna_structure import load_dna_structure, rc
     from pypatchy.patchy.dna_particle import DNAParticle
     from pypatchy.patchy.patchy_origami_convert import PatchyOrigamiConverter
     # from pypatchy.patchy.pl.patchio import get_writer
@@ -318,7 +318,7 @@ def test_convert_swan(temp_dir: str, multidentate_patchy_ducky: PLPSimulation, c
 #                                patchy_file="patches.txt")
 #
 #     # imports
-#     from ipy_oxdna.dna_structure import load_dna_structure
+#     from oxpy_utils.dna_structure import load_dna_structure
 #     from pypatchy.util import get_input_dir
 #     writer = get_writer("lorenzo")
 #     writer.set_directory("/home/josh/git/pypatchy/tests/test_files/patchy_scenes/loro_eg")

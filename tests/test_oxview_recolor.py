@@ -1,8 +1,8 @@
 import tempfile
 
 # ipy_oxDNA imports
-from ipy_oxdna.structure_editor.dna_structure import load_dna_structure, rand_seq, recolor_top_dat
-from ipy_oxdna.oxdna_simulation import Simulation
+from oxpy_utils.structure_editor.dna_structure import load_dna_structure, rand_seq, recolor_top_dat
+from oxpy_utils.oxdna_simulation import Simulation
 
 from pypatchy.patchy.dna_particle import DNAParticle
 from pypatchy.patchy.patchy_origami_convert import PatchyOrigamiConverter

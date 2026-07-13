@@ -17,6 +17,88 @@ from ...polycubeutil.polycubesRule import PolycubesRule
 from ...util import to_xyz, halfway_vector, normalize, get_input_dir
 
 
+# Default oxDNA PatchyShapeInteraction (contrib/romano) parameters, in the
+# narrow-well limit that _patchy_interaction_notorsion actually implements
+# (patch_alpha, PATCHY_alpha input key) and default patch strength (K).
+PL_DEFAULT_PATCH_ALPHA = 0.12
+PL_DEFAULT_PATCH_STRENGTH = 1.0
+# default per-bond energy in the VMMC lattice model (libtlm interaction_matrix entry)
+VMMC_DEFAULT_BOND_ENERGY = 1.0
+
+
+def _log_bonding_volume(patch_alpha: float) -> float:
+    """
+    ln of the narrow-well bonding volume v_b = (4*pi/3) * alpha^3 for a single
+    patch-patch pair in PatchyShapeInteraction's _patchy_interaction_notorsion,
+    which binds purely on patch-center distance (the angular modulation terms
+    are disabled in that code path). See the derivation this accompanies.
+    """
+    return 3 * np.log(patch_alpha) + np.log(4 * np.pi / 3)
+
+
+def vmmc_temperature_to_pl(
+        T_vmmc: float,
+        patch_strength: float = PL_DEFAULT_PATCH_STRENGTH,
+        patch_alpha: float = PL_DEFAULT_PATCH_ALPHA,
+        bond_energy_vmmc: float = VMMC_DEFAULT_BOND_ENERGY,
+) -> float:
+    """
+    Approximate the PatchyShapeInteraction (oxDNA/contrib/romano) temperature that
+    corresponds to a given VMMC polycube-lattice temperature, by matching the
+    single-bond equilibrium constant of the two models in the narrow/deep-well
+    limit:
+        exp(bond_energy_vmmc / T_vmmc) == (4*pi/3)*patch_alpha^3 * exp(patch_strength / T_pl)
+    i.e. the continuum model must run colder than the lattice model to make up
+    for the entropic cost of localizing two patches to within ~patch_alpha of
+    each other (a cost the lattice model, where "bonded" is a single discrete
+    microstate, doesn't pay).
+
+    Only valid in the regime bond_energy_vmmc / T_vmmc >> 1 (deep, well-defined
+    bonds) -- not meaningful as T_vmmc -> infinity.
+
+    :param T_vmmc: temperature used in the VMMC polycube simulation
+    :param patch_strength: PatchyShapeInteraction `strength` parameter (K)
+    :param patch_alpha: PatchyShapeInteraction `PATCHY_alpha` parameter
+    :param bond_energy_vmmc: per-bond energy used in the VMMC interaction_matrix
+    :return: the approximately-equivalent PatchyShapeInteraction temperature
+    """
+    if T_vmmc <= 0:
+        return 0.0
+    denom = bond_energy_vmmc / T_vmmc - _log_bonding_volume(patch_alpha)
+    if denom <= 0:
+        raise ValueError(
+            f"T_vmmc={T_vmmc} is too high for the narrow-well approximation to hold "
+            f"(bond_energy_vmmc/T_vmmc must exceed ln(1/v_b)={-_log_bonding_volume(patch_alpha):.3f})"
+        )
+    return patch_strength / denom
+
+
+def pl_temperature_to_vmmc(
+        T_pl: float,
+        patch_strength: float = PL_DEFAULT_PATCH_STRENGTH,
+        patch_alpha: float = PL_DEFAULT_PATCH_ALPHA,
+        bond_energy_vmmc: float = VMMC_DEFAULT_BOND_ENERGY,
+) -> float:
+    """
+    Inverse of `vmmc_temperature_to_pl`: approximate the VMMC polycube-lattice
+    temperature corresponding to a given PatchyShapeInteraction temperature.
+
+    Because T_pl -> patch_strength / (-ln(v_b)) as T_vmmc -> infinity, there is a
+    finite ceiling on T_pl that this mapping can invert; above it, no T_vmmc
+    corresponds (raises ValueError).
+    """
+    if T_pl <= 0:
+        return 0.0
+    denom = patch_strength / T_pl + _log_bonding_volume(patch_alpha)
+    if denom <= 0:
+        raise ValueError(
+            f"T_pl={T_pl} is at or above the asymptotic ceiling "
+            f"patch_strength/-ln(v_b)={patch_strength / -_log_bonding_volume(patch_alpha):.4f} "
+            f"that this narrow-well approximation can invert"
+        )
+    return bond_energy_vmmc / denom
+
+
 def polycube_rule_to_PL(particle_set: PolycubesRule) -> PLParticleSet:
     """
     converts a polycubes rule to a patchy particle set

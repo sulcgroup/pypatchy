@@ -14,7 +14,7 @@ import re
 
 from scipy.spatial.transform import Rotation as R
 
-from ipy_oxdna.utils.util import rotation_matrix
+from oxpy_utils.utils.util import rotation_matrix
 
 from .effect import Effect, StringConditionalEffect, DynamicEffect, EFFECT_CLASSES
 from ..util import rotAroundAxis, powerset

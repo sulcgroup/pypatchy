@@ -37,7 +37,8 @@ class MDTConvertParams(ParameterValue):
     def __init__(self, cvt_settings: MultidentateConvertSettings, convert_params_name: str = MDT_CONVERT_KEY):
         ParameterValue.__init__(self, MDT_CONVERT_KEY, cvt_settings)
         if not isinstance(cvt_settings, MultidentateConvertSettings):
-            raise InvalidParameterTypeError(f"Invalid multidentate convert settings object type {type(cvt_settings)}")
+            raise InvalidParameterTypeError(MDT_CONVERT_KEY, cvt_settings,
+                                            f"Invalid multidentate convert settings object type {type(cvt_settings)}")
         self.convert_params_name = convert_params_name
 
     def value_name(self) -> str:

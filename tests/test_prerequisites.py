@@ -14,12 +14,12 @@ def test_oxpy_oat():
                         "See https://lorenzo-rovigatti.github.io/oxDNA/install.html#python-bindings for more info\n"
                         "Common issues here: oat or oxpy bindings installed in a different python env than pypatchy")
 
-def test_ipy_oxdna():
-    # test installation of ipy_oxdna
+def test_oxpy_utils():
+    # test installation of oxpy_utils
     try:
-        import ipy_oxdna
+        import oxpy_utils
     except ImportError as e:
-        raise ImportError("ipy_oxDNA not installed! Install from https://github.com/mlsample/ipy_oxDNA")
+        raise ImportError("oxpy_utils not installed! Install from https://github.com/sulcgroup/oxpy-utils")
 
 def test_directory_structure():
     # test directory structure

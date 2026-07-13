@@ -15,7 +15,7 @@ from Bio.SVDSuperimposer import SVDSuperimposer
 from oxDNA_analysis_tools.UTILS.data_structures import Configuration, TrajInfo, TopInfo
 
 
-from ipy_oxdna.utils.observable import particle_position
+from oxpy_utils.utils.observable import particle_position
 from .plpatch import PLPatch, assign_colors_one_to_one, assign_colors
 from .plparticle import PLPatchyParticle
 from .plparticleset import PLParticleSet

@@ -24,8 +24,8 @@ from oxDNA_analysis_tools.file_info import file_info
 from oxDNA_analysis_tools.UTILS.RyeReader import get_confs, describe, write_conf
 from oxDNA_analysis_tools.UTILS.data_structures import Configuration
 
-from ipy_oxdna.oxdna_simulation import Simulation
-from ipy_oxdna.utils.observable import Observable, ObservableColumn
+from oxpy_utils.oxdna_simulation import Simulation
+from oxpy_utils.utils.observable import Observable, ObservableColumn
 from .param_val_types import StageInfoParam
 from .particle_adders import RandParticleAdder
 
@@ -40,7 +40,7 @@ from ..analysis.analyzable import Analyzable
 from ..patchy.patchy_scripts import lorenzian_to_flavian
 from ..analysis.analysis_pipeline import AnalysisPipeline
 from .pl.plscene import PLPSimulation
-from .stage import Stage, NoStageTrajError, IncompleteStageError, StageTrajFileEmptyError
+from .stage import Stage, NoStageTrajError, IncompleteStageError, StageTrajFileEmptyError, AllStagesCompleteError
 from ..analysis.analysis_data import PDPipelineData, TIMEPOINT_KEY, MissingDataError
 from ..analysis.analysis_pipeline_step import *
 from .patchy_sim_observable import PatchySimObservable, observable_from_file
@@ -142,7 +142,7 @@ def metadata_file(name: str, date: datetime.datetime) -> Path:
 def normalize_date(d):
     return d if isinstance(d, datetime.datetime) else datetime.datetime.strptime(d, "%Y-%m-%d")
 
-class MissingEnembleSetupInfoError(BaseException):
+class MissingEnembleSetupInfoError(Exception):
     """
     custom exception for trying to construct a simulation ensemble without a required setup value (e.g. name, date)
     Note that this is distinct from issues with simulation parameters, which are handled by MissingSimParamError
@@ -156,7 +156,7 @@ class MissingEnembleSetupInfoError(BaseException):
     def __str__(self):
         return f"Missing ensemble setup key {self.__missing_info_key}"
 
-class MissingSimParamError(BaseException):
+class MissingSimParamError(Exception):
     """
     Exception for missing simulation parameters (e.g. temperature, particle types, etc.
     """
@@ -191,21 +191,25 @@ def find_ensemble(*args: str, **kwargs) -> PatchySimulationEnsemble:
                 [kwargs[key] for key in ["sim_date", "date"] if key in kwargs][0])
         else:
             return find_ensemble(name=simname,
-                                 set_server=kwargs["set_server"])
+                                 set_server=kwargs["set_server"],
+                                 loader=kwargs["loader"])
         if not simname.endswith(".json"):
             return find_ensemble(name=simname,
                                  date=sim_init_date,
-                                 set_server=kwargs["set_server"])
+                                 set_server=kwargs["set_server"],
+                                 loader=kwargs["loader"])
         elif metadata_file_exist(simname, sim_init_date):
             # if metadata file exists, load from it
             return find_ensemble(metadata=simname,
                                  date=sim_init_date,
-                                 set_server=kwargs["set_server"])
+                                 set_server=kwargs["set_server"],
+                                 loader=kwargs["loader"])
         else:
             # load from cfg file
             return find_ensemble(cfg=simname,
                                  date=sim_init_date,
-                                 set_server=kwargs["set_server"])
+                                 set_server=kwargs["set_server"],
+                                 loader=kwargs["loader"])
 
     elif any([key in kwargs for key in ["cfg_file_name", "cfg_file", "cfg"]]):
         # if the user is specifying a cfg file
@@ -224,7 +228,7 @@ def find_ensemble(*args: str, **kwargs) -> PatchySimulationEnsemble:
             cfg_file_name = cfg_file_name + ".json"
         cfg_file_path = (get_input_dir() / cfg_file_name)
         if not cfg_file_path.exists():
-            raise FileNotFoundError("Ensamble configureation file ")
+            raise FileNotFoundError(f"Ensemble configuration file {str(cfg_file_path)} does not exist!")
         with cfg_file_path.open("r") as cfg_file:
             try:
                 cfg = json.load(cfg_file)
@@ -258,7 +262,8 @@ def find_ensemble(*args: str, **kwargs) -> PatchySimulationEnsemble:
         if metadata_file_exist(simname, sim_init_date):
             return find_ensemble(mdf=simname,
                                  date=sim_init_date,
-                                 set_server=kwargs["set_server"])
+                                 set_server=kwargs["set_server"],
+                                 loader=kwargs["loader"])
         else:
             # try loading a cfg file with that name
             if (get_input_dir() / (simname + ".json")).exists():
@@ -267,11 +272,13 @@ def find_ensemble(*args: str, **kwargs) -> PatchySimulationEnsemble:
                 if metadata_file_exist(exportname, sim_init_date):
                     return find_ensemble(exportname,
                                          sim_init_date,
-                                         set_server=kwargs["set_server"])
+                                         set_server=kwargs["set_server"],
+                                         loader=kwargs["loader"])
             print(f"Warning: could not find metadata file for {simname} at {sim_init_date.strftime('%Y-%m-%d')}")
             return find_ensemble(cfg=simname,
                                  date=sim_init_date,
-                                 set_server=kwargs["set_server"])
+                                 set_server=kwargs["set_server"],
+                                 loader=kwargs["loader"])
 
 
 
@@ -313,13 +320,14 @@ def find_ensemble(*args: str, **kwargs) -> PatchySimulationEnsemble:
                 metadata_file_name = metadata_file_name + "_" + sim_init_date.strftime("%Y-%m-%d") + "_metadata"
             metadata_file_name += ".json"
             return find_ensemble(mdt=metadata_file_name,
-                                 set_server=kwargs["set_server"])  # recurse to strong literal behavior
+                                 set_server=kwargs["set_server"],
+                                 loader=kwargs["loader"])  # recurse to strong literal behavior
     else:
         raise Exception("Missing required identifier for simulation!")
 
 
-def build_ensemble(cfg: dict[str: Any],
-                   mdt: dict[str: Union[str, dict]],
+def build_ensemble(cfg: dict[str, Any],
+                   mdt: dict[str, Union[str, dict]],
                    mdtfile: Optional[Path] = None,
                    encoder_decoder: Type = SimEnsembleJsonEncoder) -> PatchySimulationEnsemble:
     """
@@ -357,7 +365,7 @@ def build_ensemble(cfg: dict[str: Any],
     # too difficult to make this one a ParamSet object
     # todo: kill this, replace with server config
     default_param_set_key = cfg[DEFAULT_PARAM_SET_KEY] if DEFAULT_PARAM_SET_KEY in cfg else "default"
-    default_param_set = get_param_set(default_param_set_key) if default_param_set_key else {}
+    default_param_set = get_param_set(default_param_set_key) if default_param_set_key else ParamSet([])
 
     params = []
 
@@ -412,16 +420,27 @@ def build_ensemble(cfg: dict[str: Any],
 
     # load const params from cfg
     if CONST_PARAMS_KEY in cfg:
-        for key, val in cfg[CONST_PARAMS_KEY].items():
+        for key, val in list(cfg[CONST_PARAMS_KEY].items()):
             if key == NUM_TEETH_KEY or key == DENTAL_RADIUS_KEY:
                 del cfg[CONST_PARAMS_KEY][key] # for compatability, please do not
                 continue  # skip in const_params
+            if key == PARTICLE_TYPE_LVLS_KEY and isinstance(val, list):
+                # list form: interpret positionally against the particle set's actual type
+                # order, using each particle's own .name() (e.g. "CT0" for rule-derived types,
+                # "particletype_0" for particles with no explicit name)
+                if "particles" not in locals():
+                    raise Exception(f"Cannot use list form for '{PARTICLE_TYPE_LVLS_KEY}' "
+                                    f"without particle type info specified!")
+                ptypes = particles.particles()
+                assert len(val) == len(ptypes), \
+                    f"'{PARTICLE_TYPE_LVLS_KEY}' list has {len(val)} entries but particle set has {len(ptypes)} types"
+                val = {ptypes[i].name(): count for i, count in enumerate(val)}
             param_val = parameter_value(key, val)
             params.append(param_val)
     const_parameters = ParamSet(params)
 
     # observables are optional
-    observables: dict[str: PatchySimObservable] = {}
+    observables: dict[str, PatchySimObservable] = {}
 
     if OBSERABLES_KEY in cfg:
         # iter observables in cfg
@@ -549,7 +568,7 @@ class PatchySimulationEnsemble(Analyzable):
     slurm_log: SlurmLog
 
     # customizable server settings
-    server_settings = PatchyServerConfig
+    server_settings: PatchyServerConfig
 
     # output writer
     writer: PLBaseWriter
@@ -592,7 +611,7 @@ class PatchySimulationEnsemble(Analyzable):
         self.sim_init_date = setup_date
 
         # load server settings ASAP
-        if self.server_settings is not None:
+        if server_settings is not None:
             self.set_server_settings(server_settings)
         else:
             self.server_settings = get_server_config()
@@ -891,14 +910,6 @@ class PatchySimulationEnsemble(Analyzable):
                 yield pv
         # iter server params
         for pv in self.server_settings.input_file_params:
-            if isinstance(pv, ParamValueGroup):
-                for pvv in pv:
-                    pvs.add(pvv)
-                    yield pvv
-            else:
-                pvs.add(pv)
-                yield pv
-            # iter defaultsa
             if isinstance(pv, ParamValueGroup):
                 for pvv in pv:
                     pvs.add(pvv)
@@ -1305,6 +1316,13 @@ class PatchySimulationEnsemble(Analyzable):
             potentials.append(potential)
         return potentials
 
+    def sim_done(self, sim: PatchySimulation) -> bool:
+        try:
+            self.sim_most_recent_stage(sim)
+            return True
+        except IncompleteStageError:
+            return False
+
     def sim_stage_done(self, sim: PatchySimulation, stage: Stage) -> bool:
         """
         :param sim: simulation descriptor
@@ -1523,9 +1541,14 @@ class PatchySimulationEnsemble(Analyzable):
         """
         if stage is None:
             stage = self.sim_get_stages(sim)[0]
-        traj_file = stage.adjfn(self.sim_get_param(sim, "trajectory_file"))
+        traj_file = self.folder_path(sim) / stage.adjfn(self.sim_get_param(sim, "trajectory_file"))
         num_particles = self.sim_get_total_stage_particles(sim, stage)
         assert num_particles > 0
+        if not traj_file.is_file():
+            return False
+        with traj_file.open("r") as f:
+            num_lines = sum(1 for _ in f)
+        return num_lines % (num_particles + 3) == 0
 
     def get_conf(self, sim: PatchySimulation, timepoint: int = -1) -> Configuration:
         """
@@ -1594,11 +1617,16 @@ class PatchySimulationEnsemble(Analyzable):
     # ----------------------- Setup Methods ----------------------------------- #
     def do_setup(self,
                  sims: Union[list[PatchySimulation], None] = None,
-                 stage: Union[None, str, Stage] = None):
+                 stage: Union[None, str, Stage] = None,
+                 clean_build: Union[bool, str] = False):
         """
         Performs setup, for the entire ensemble or for specific simulations.
         :param sims: None, or a list of simulation descriptors, If None, will use self.ensemble()
-        :param stage: None, a stage name string, or a Stage object
+        :param stage: None, a stage name string, or a Stage object. If None and clean_build == "force",
+        rebuilds from stage 0 rather than inferring a "next stage" from state that's about to be wiped.
+        :param clean_build: passed through to oxpy_utils's Simulation.build(). False (default) leaves
+        an existing, already-built stage directory alone; "force" wipes and rebuilds it. Avoid passing
+        bare True - Simulation.build() will prompt interactively for confirmation in that case.
         """
 
         # check for mps stuff
@@ -1606,141 +1634,56 @@ class PatchySimulationEnsemble(Analyzable):
             sims = self.ensemble()
         self.get_logger().info("Setting up folder / file structure...")
         for sim in sims:
-            assert isinstance(sim, PatchySimulation), "Invalid type!"
+            if not isinstance(sim, PatchySimulation):
+                raise ValueError(f"Invalid type for arg `sim`: {type(sim)}!")
             assert self.sim_get_param(sim, "print_conf_interval") < self.sim_get_param(sim, "steps")
             self.get_logger().info(f"Setting up folder / file structure for {repr(sim)}...")
-            # create nessecary folders
+
             if isinstance(stage, str):
                 stage_obj = self.sim_get_stage(sim, stage)
-            else:
+            elif stage is not None:
                 stage_obj = stage
-            if not os.path.isdir(self.folder_path(sim, stage_obj)):
-                self.get_logger().info(f"Creating folder {self.folder_path(sim, stage_obj)}")
-                Path(self.folder_path(sim, stage_obj)).mkdir(parents=True)
+            elif clean_build == "force":
+                # no stage specified + force-rebuilding: start over from stage 0, rather than
+                # trying to infer a "next stage" from state we're about to wipe out
+                stages = self.sim_get_stages(sim)
+                stage_obj = stages[0]
+                # Simulation.build()'s clean_build="force" path unlinks files one at a time in
+                # stage 0's directory and can't handle a later stage's subdirectory living inside
+                # it - clear those out ourselves first
+                for other_stage in stages[1:]:
+                    other_dir = self.folder_path(sim, other_stage)
+                    if other_dir.exists():
+                        shutil.rmtree(other_dir)
             else:
-                self.get_logger().info(f"Folder {self.folder_path(sim, stage_obj)} already exists. Continuing...")
+                # figure out which stage to build: the one after the most recently-completed one,
+                # or stage 0 if nothing has run yet - same resolution start_simulation() uses to
+                # figure out which stage to run next
+                try:
+                    stage_obj = self.check_stage(sim)
+                except AllStagesCompleteError as e:
+                    self.get_logger().info(str(e))
+                    continue
+                except IncompleteStageError as e:
+                    self.get_logger().error(f"{e.stage().name()} incomplete!")
+                    continue
 
-            # write requisite top, patches, particles files
-            self.get_logger().info("Writing .top, .txt, input, etc. files...")
-            self.write_setup_files(sim, stage_obj)
+            # build the stage directory, .top/.dat, and input file via oxpy_utils's Simulation.build(),
+            # which Stage plugs into via build_dat_top()/build_input()
+            self.get_logger().info("Building simulation directory, .top/.dat, and input files...")
+            self.ipy(sim, stage_obj).build(clean_build=clean_build)
+
             # write observables.json if applicble
             if EXTERNAL_OBSERVABLES:
                 self.get_logger().info("Writing observable json, as nessecary...")
                 self.write_sim_observables(sim)
             # skip writing sbatch script if mps is off
             # write .sh script
-            self.get_logger().info("Writing sbatch scripts...")
-            self.write_run_script(sim, stage_obj)
+            if self.server_settings.is_server_slurm():
+                self.get_logger().info("Writing sbatch scripts...")
+                self.write_run_script(sim, stage_obj)
         # save metadata to file
         self.dump_metadata()
-
-    def write_setup_files(self,
-                          sim: PatchySimulation,
-                          stage: Union[str, Stage, None] = None):
-        """
-        Writes any/all nessecary files for a simulation
-        :param sim: A simulation descriptor
-        :param stage: a stage object, or None
-        """
-        if stage is None:
-            try:
-                # get most recent stage
-                stage = self.sim_most_recent_stage(sim)
-                # stage 0 will produce a NoStageTrajError (caught below)
-                stages = self.sim_get_stages(sim)
-                if stage.idx() + 1 != len(stages):
-                    stage = stages[stage.idx() + 1]
-                else:
-                    self.get_logger().info(f"Final stage {stage.name()} is already complete!")
-            # if no stage exists
-            except NoStageTrajError:
-                # stage 0
-                stage = self.sim_get_stages(sim)[0]
-            except IncompleteStageError:
-                self.get_logger().error(f"{stage.name()} incomplete!")
-                return
-
-        elif isinstance(stage, str):
-            stage = self.sim_get_stage(sim, stage)
-
-        # if this is the first conf
-        if stage.idx() == 0:
-            assert stage.start_time() == 0, f"Stage {stage} has idx 0 but nonzero start time!"
-
-            # generate conf
-            scene = PLPSimulation()
-
-            particle_set = self.sim_get_particles_set(sim)
-            # patches will be added automatically
-            scene.set_particle_types(particle_set)
-
-        else:
-            last_complete_stage = stage.get_prev()
-            # don't catch exxeption here
-            step = last_complete_stage.end_time()
-            scene = self.get_scene(sim, last_complete_stage, step)
-        scene.set_temperature(self.sim_stage_get_param(sim, stage, "T"))
-
-        nTries = 0
-        # what should be the energy cutoff???
-        # if we're doing this right it should be the outer end of statistical distribution dependant
-        # on kB * T, with the variance dependant on the simulation size
-        # or we can just make up a coefficient like 3
-        # in oxDNA units kB = 1
-        stage.apply(scene)
-
-        # Todo: cut next line once we have this working
-        if not self.no_oxpy_check_energies:
-            scene_computed_energy = scene.get_potential_energy()
-
-        # initialize a local writer from ensemble writer
-        # todo: standardize this as the method to get writer object
-        writer = copy.deepcopy(self.writer)
-
-        # grab args required by writer
-        reqd_extra_args = {
-            a: self.sim_stage_get_param(sim, stage, a) for a in writer.reqd_args()
-        }
-        for key, value in writer.get_input_file_data(scene):
-            # if we assign to input directly it will update input file, causing its own issues
-            stage.sim.input.input_dict[key] = value
-
-        assert "conf_file" in reqd_extra_args, "Missing conf file info!"
-
-        # write top, conf, and others
-        # set writer directory to simulation folder path
-        writer.set_directory(self.folder_path(sim, stage))
-        writer.set_abs_paths(self.server_settings.absolute_paths)
-        self.folder_path(sim, stage).mkdir(exist_ok=True)
-        files = writer.write(scene,
-                             **reqd_extra_args)
-
-        # update top and dat files in replacer dict
-        # replacer_dict.update(files)
-        # replacer_dict["steps"] = stage.end_time()
-        # replacer_dict["trajectory_file"] = self.sim_get_param(sim, "trajctory_file")
-
-        # add additional scene-specific args required b writer
-
-        # create input file
-        stage.build_input()
-        # self.write_input_file(sim, stage, replacer_dict, extras, analysis)
-
-        # check energies
-        if not self.no_oxpy_check_energies:
-            with oxpy.Context():
-                assert (self.folder_path(sim, stage) / "input").exists()
-                curr_dir = os.getcwd()
-                os.chdir(str(self.folder_path(sim, stage)))
-                manager = oxpy.OxpyManager(str(self.folder_path(sim, stage))+"/input")
-                os.chdir(curr_dir)
-                e = manager.system_energy()
-                del manager
-
-                # oxpy manager gets total energy rather than per particle
-                if e > 0 and abs(e / scene.num_particles() - scene_computed_energy) > 1e-4:
-                    print(
-                        f"Mismatch between python-computed energy {scene_computed_energy} and oxDNA-computed energy {e}")
 
     def write_run_script(self, sim: PatchySimulation, stage: Stage, input_file="input"):
         """
@@ -1824,7 +1767,7 @@ class PatchySimulationEnsemble(Analyzable):
         """
         DEPRECATED
         write observables for a simulation in an observables.json file
-        todo: use ipy_oxdna methods
+        todo: use oxpy_utils methods
         """
         if len(self.observables) > 0:
             with open(self.folder_path(sim) / "observables.json", "w+") as f:
@@ -1879,7 +1822,7 @@ class PatchySimulationEnsemble(Analyzable):
         """
         :param sim: simulation descriptor
         :param stage: stage object or None
-        :return: an ipy_oxdna simulation object for a simulation
+        :return: an oxpy_utils simulation object for a simulation
         """
         if stage is None:
             try:
@@ -2088,10 +2031,10 @@ class PatchySimulationEnsemble(Analyzable):
                 return False
             else:
                 assert stage.idx() - most_recent_stage.idx() == 1
-        except IncompleteStageError:
+        except IncompleteStageError as e:
             # previous stage is incomplete; warn and return False
             self.get_logger().warning(
-                f"Cannot execute stage {stage.name()} for sim {repr(sim)} when stage {self.stage().name()}"
+                f"Cannot execute stage {stage.name()} for sim {repr(sim)} when stage {e.stage().name()}"
                 f" is incomplete! aborting!")
             return False
         except NoStageTrajError:
@@ -2141,9 +2084,7 @@ class PatchySimulationEnsemble(Analyzable):
             if stage.idx() + 1 < self.sim_num_stages(sim):
                 stage = self.sim_get_stage(sim, stage.idx() + 1)
             else:
-                # TODO: replace with proper exception
-                self.get_logger().info(f"Simulation {sim} has no more stages to execute!")
-                return -1
+                raise AllStagesCompleteError(stage, sim)
         except NoStageTrajError:
             # default to stage 0 if no previous stages found
             stage = self.sim_get_stage(sim, 0)
@@ -2160,9 +2101,9 @@ class PatchySimulationEnsemble(Analyzable):
         """
         Starts an oxDNA simulation. direct invocation is not suggested; run from start_simulations()
 
-        NOTE: even for non-slurm jobs we use subprocess.run on an execution file rather than
-        oxpy.run for backwards compatibility with oxDNA_torsion, which isn't compatible with oxpy
-        because oxDNA versions are a horrible nightmare world
+        NOTE: slurm jobs are submitted via sbatch and this method returns as soon as the job is
+        queued. Non-slurm (local) runs are executed in-process via oxpy and this method blocks
+        until the run completes.
 
         todo: clean this up
 
@@ -2178,7 +2119,14 @@ class PatchySimulationEnsemble(Analyzable):
         if stage_name is not None:
             stage = self.sim_get_stage(sim, stage_name)
         else:
-            stage = self.check_stage(sim)
+            try:
+                stage = self.check_stage(sim)
+            except AllStagesCompleteError as e:
+                self.get_logger().info(str(e))
+                return -1
+            except IncompleteStageError as e:
+                self.get_logger().error(f"{e.stage().name()} incomplete!")
+                return -1
         assert isinstance(stage, Stage)
 
         if not isinstance(script_name, str):
@@ -2197,43 +2145,25 @@ class PatchySimulationEnsemble(Analyzable):
         else:
             raise Exception("Since implementing this I have learned that dnaAnalysis doesn't work for patchy particles")
 
-        if not (self.folder_path(sim, stage) / script_name).exists():
-            raise FileNotFoundError(f"No executable file {str(self.folder_path(sim, stage) / script_name)}")
-        
-        if self.server_settings.is_server_slurm():
-            command = f"sbatch --chdir={self.folder_path(sim, stage)}"
-        # for non-slurm servers
-        else:
-            command = f"bash {script_name} > simulation.log"
-
-        # shouldn't be nessecary anymore but whatever
+        # shouldn't be nessecary anymore, since do_setup()/write_setup_files() above always
+        # writes the conf file -- but if it's somehow still missing here, fail loudly rather
+        # than silently proceeding to run without a conf (there is no gen_conf() method to fall back on)
         if not self.paramstagefile(sim, stage, "conf_file").exists():
-            confgen_slurm_jobid = self.gen_conf(sim)
-            if self.server_settings.is_server_slurm():
-                command += f" --dependency=afterok:{confgen_slurm_jobid}"
-        if self.server_settings.is_server_slurm():
-            command += f" {script_name}"
-        submit_txt = ""
+            raise FileNotFoundError(
+                f"Conf file {self.paramstagefile(sim, stage, 'conf_file')} missing for sim {repr(sim)} "
+                f"stage {stage.name()} after setup completed!")
 
-        # DO NOT DO RETRIES ON NON SLURM MACHINE!!! THIS IS SUSPECTED OF DESTROYING MY ENTIRE LIFE!!!!
-        if not self.server_settings.is_server_slurm():
-            retries = 1
-        # for nonslurm servers retries should equal 1
-        for i in range(retries):
-            # always run async for submitting slurm jobs, optionally also run serially
-            do_async = not self.server_settings.is_server_slurm() and not self.is_run_serial()
-            # execute or sbatch slurm script
-            # todo something with error
-            submit_txt, _ = self.bash_exec(command,
-                                        is_async=do_async,
-                                        cwd=self.folder_path(sim, stage)
-                                        )
-            if submit_txt:
-                break
-            time.sleep(backoff_factor ** i)
-
-        # if we're running this on a slurm server, log the slurm job info (for some reason?)
         if self.server_settings.is_server_slurm():
+            if not (self.folder_path(sim, stage) / script_name).exists():
+                raise FileNotFoundError(f"No executable file {str(self.folder_path(sim, stage) / script_name)}")
+            command = f"sbatch --chdir={self.folder_path(sim, stage)} {script_name}"
+            submit_txt = ""
+            for i in range(retries):
+                submit_txt, _ = self.bash_exec(command, is_async=True, cwd=self.folder_path(sim, stage))
+                if submit_txt:
+                    break
+                time.sleep(backoff_factor ** i)
+
             if not submit_txt:
                 raise Exception(f"Submit slurm job failed for simulation {sim}\n"
                                 f"Submit command: `{command}`")
@@ -2248,6 +2178,16 @@ class PatchySimulationEnsemble(Analyzable):
             ))
             return jobid
         else:
+            # run oxDNA in-process via oxpy, blocking until it finishes. This replaces the old
+            # `bash {script_name} > simulation.log` + async Popen mechanism, which returned
+            # immediately without waiting for completion, leaving the simulation running as an
+            # orphaned background process with no way to detect success/failure.
+            ipysim = self.ipy(sim, stage)
+            ipysim.oxpy_run.run(subprocess=True, join=False, verbose=False)
+            ipysim.oxpy_run.process.join()
+            if not self.sim_stage_done(sim, stage):
+                raise RuntimeError(f"Simulation {repr(sim)} stage {stage.name()} did not complete successfully - "
+                                  f"check {self.folder_path(sim, stage) / 'log.log'}")
             return -1
 
     def is_run_serial(self):
@@ -2705,7 +2645,7 @@ def process_simulation_data(args: tuple[PatchySimulationEnsemble, AnalysisPipeli
 
 
 def shared_ensemble(es: list[PatchySimulationEnsemble],
-                    ignores: set = set()) -> Union[list[list[PatchySimulation]], None]:
+                    ignores: Optional[set] = None) -> Union[list[list[PatchySimulation]], None]:
     """
     TODO: unit test
     Computes the simulation specs that are shared between the provided ensembles
@@ -2713,6 +2653,8 @@ def shared_ensemble(es: list[PatchySimulationEnsemble],
     :param ignores: a set of const parameter names to ignore when constructing simulation overlap
     Returns:
     """
+    if ignores is None:
+        ignores = set()
 
     names = set()
     name_vals: dict[str, set] = dict()
@@ -2726,8 +2668,8 @@ def shared_ensemble(es: list[PatchySimulationEnsemble],
                 name_vals[param_key] = {e.const_params[param_key]}
             else:
                 name_vals[param_key] = name_vals[param_key].intersection([e.const_params[param_key]])
-        names.update([p.param_key for p in e.__ensemble_params])
-        for p in e.__ensemble_params:
+        names.update([p.param_key for p in e.ensemble_params])
+        for p in e.ensemble_params:
             if p.param_key not in name_vals:
                 name_vals[p.param_key] = {pv.value_name() for pv in p.param_value_set}
             else:
@@ -2742,7 +2684,7 @@ def shared_ensemble(es: list[PatchySimulationEnsemble],
     for e in es:
         valset: list[list[ParameterValue]] = []
         # make sure to order ensemble parameters correctly
-        for p in e.__ensemble_params:
+        for p in e.ensemble_params:
             union_vals = name_vals[p.param_key]
             vals = [pv for pv in p if pv.value_name() in union_vals]
             valset.append(vals)

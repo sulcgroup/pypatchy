@@ -20,7 +20,7 @@ from oxDNA_analysis_tools.UTILS.RyeReader import get_confs, describe, inbox
 from oxDNA_analysis_tools.UTILS.data_structures import Configuration
 
 # ipy_oxDNA imports
-from ipy_oxdna.utils.observable import Observable
+from oxpy_utils.utils.observable import Observable
 
 # pypatchy imports
 from .pl.patchyio import PLBaseWriter
@@ -875,6 +875,9 @@ class ComputeClusterYield(AnalysisPipelineStep):
             TIMEPOINT_KEY: missing_timepoints,
             YIELD_KEY: 0
         })], ignore_index=True)
+        # missing_timepoints comes from a set difference (unordered), so the concat above can leave
+        # rows out of timepoint order - re-sort or line plots of this data will zigzag/loop backwards
+        data = data.sort_values(TIMEPOINT_KEY).reset_index(drop=True)
         return PDPipelineData(data,
                               cluster_categories.trange()[cluster_categories.trange() % self.output_tstep == 0])
 

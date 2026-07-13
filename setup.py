@@ -5,7 +5,7 @@ setup(
     version="0.2.2",
     packages=find_packages(),
     install_require=[
-        'ipy_oxdna @ git+https://github.com/mlsample/ipy_oxDNA.git'
+        'oxpy_utils @ git+https://github.com/sulcgroup/oxpy-utils.git'
     ],
     author="Joshua Evans",
     author_email="jrevan21@asu.edu",

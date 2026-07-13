@@ -2,14 +2,14 @@ from __future__ import annotations
 
 from typing import IO, Union, Any
 
-from ipy_oxdna.utils.observable import Observable, ObservableColumn
+from oxpy_utils.utils.observable import Observable, ObservableColumn
 
 from .stage import Stage
 from ..util import get_spec_json
 
 
 # DEPRECATED
-# TODOL integrate with ipy_oxdna
+# TODOL integrate with oxpy_utils
 class PatchySimObservable:
     """
     A class describing an oxDNA observable that can be added to a patchy particle interaction

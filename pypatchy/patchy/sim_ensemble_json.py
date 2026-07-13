@@ -101,7 +101,7 @@ class SimEnsembleJsonEncoder(PLJSONEncoder):
             # things with default value; don't waste space with defaults
             if not obj.param_value.torsion:
                 mdt_dict["torsion"] = obj.param_value.torsion
-            if not obj.param_value.follow_surf:
+            if obj.param_value.follow_surf:
                 mdt_dict["follow_surf"] = obj.param_value.follow_surf
             if obj.param_value.energy_scale_method != MultidentateConvertSettings.ENERGY_SCALE_LINEAR:
                 if obj.param_value.energy_scale_method == MultidentateConvertSettings.ENERGY_SCALE_NONE:
@@ -306,7 +306,7 @@ def encode_add_method(add_method: StageParticleAdder) -> dict:
             } for pc in add_method.polycubes
         ]
     elif isinstance(add_method, FromConfAdder):
-        raise NotImplemented("FromConfAdder not yet implemented!")
+        raise NotImplementedError("FromConfAdder not yet implemented!")
     else:
         raise TypeError(f"Invalid adder type {type(add_method)}")
     return infodict

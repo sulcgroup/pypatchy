@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, IO, Union, Generator
 
-from ipy_oxdna.oxdna_simulation import SimulationManager
+from oxpy_utils.oxdna_simulation import SimulationManager
 
 
 from .patchy.ensemble_parameter import parameter_value
@@ -40,7 +40,7 @@ class PatchyServerConfig:
     patchy_format: str = field()
     slurm_bash_flags: dict[str, Any] = field(default_factory=dict)
     slurm_includes: list[str] = field(default_factory=list)
-    input_file_params: ParamSet = field(default_factory=ParamSet)
+    input_file_params: ParamSet = field(default_factory=list)
     absolute_paths: bool = False
     is_slurm: bool = False
     cuda_mps: Union[bool, SimulationManager] = False

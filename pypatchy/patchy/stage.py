@@ -11,7 +11,7 @@ from typing import Union, Iterable, Any, Generator
 import numpy as np
 from weakref import ref, ReferenceType
 
-from ipy_oxdna.oxdna_simulation import BuildSimulation, Simulation, write_input_file
+from oxpy_utils.oxdna_simulation import BuildSimulation, Simulation, write_input_file
 
 from .patchy_scripts import add_standard_patchy_interaction
 from .pl.plparticleset import PLParticleSet
@@ -187,10 +187,11 @@ class Stage(BuildSimulation):
             particle_set = self.getctxt().sim_get_particles_set(self.spec())
             # patches will be added automatically
             scene.set_particle_types(particle_set)
-            scene.set_temperature(self.getctxt().sim_stage_get_param(self.spec(), self, "T"))
         else:
-            self.get_last_conf_name()
-            scene: PLPSimulation = self.getctxt().get_scene(self.spec(), self)
+            # read the scene from the last complete (previous) stage, not this (new, not-yet-built) one
+            scene: PLPSimulation = self.getctxt().get_scene(self.spec(), self.get_prev())
+        # set temperature for every stage, not just the first - needed for e.g. temperature ramps
+        scene.set_temperature(self.getctxt().sim_stage_get_param(self.spec(), self, "T"))
         self.apply(scene)
         # grab args required by writer
         reqd_extra_args = {
@@ -452,3 +453,12 @@ class StageTrajFileEmptyError(StageTrajFileError):
     def __str__(self):
         return f"Stage {self.stage().name()} of simulation {repr(self.sim())} has empty traj file. Traj file " \
                f"located at `{self.traj_file()}`."
+
+
+class AllStagesCompleteError(StagedAssemblyError):
+    """
+    Raised when a simulation's last stage is already complete - there's nothing more to run.
+    """
+    def __str__(self):
+        return f"Simulation {repr(self.sim())} has no more stages to execute - " \
+               f"stage {self.stage().name()} (the last stage) is already complete."

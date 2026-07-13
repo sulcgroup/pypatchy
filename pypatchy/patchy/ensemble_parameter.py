@@ -29,7 +29,7 @@ def parameter_value(key: str, val: Union[dict, str, int, float, bool, list]) -> 
                 return ParticleSetParam(decode_particles_dict(**data))
             elif val["type"] == STAGES_KEY:
                 if not "stages" in data:
-                    raise TypeError(f"Missing key 'stages' in staging info param {data['name']}")
+                    raise TypeError(f"Missing key 'stages' in staging info param {param_name}")
                 return StagedAssemblyParam(data["stages"], param_name, key)
             else:
                 raise Exception(f"Invalid object-parameter type {val['type']}")

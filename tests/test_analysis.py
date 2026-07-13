@@ -19,7 +19,7 @@ from pypatchy.patchy.pl.plscene import PLPSimulation
 from pypatchy.patchy.simulation_ensemble import find_ensemble
 from tests.ptutils import temp_dir
 
-from ipy_oxdna.utils.observable import Observable, ObservableColumn
+from oxpy_utils.utils.observable import Observable, ObservableColumn
 
 
 def test_split_cluster_fr():

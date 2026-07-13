@@ -58,10 +58,10 @@ class ParameterValue:
             return self.param_value < other
 
 
-class InvalidParameterError(BaseException):
+class InvalidParameterError(Exception):
     _param_name: str
     _param_value: Any
-    _custom_msg: str
+    _custom_msg: Union[str, None]
 
     def __init__(self, param_name: str, param_value: Any, custom: Union[str, None] = None):
         """
@@ -71,6 +71,7 @@ class InvalidParameterError(BaseException):
         """
         self._param_name = param_name
         self._param_value = param_value
+        self._custom_msg = custom
 
     def msg(self) -> str:
         return f"Parameter {self._param_name} has invalid value {self._param_value}. Value type is {type(self._param_value)}"
@@ -81,7 +82,7 @@ class InvalidParameterError(BaseException):
 
 class InvalidParameterTypeError(InvalidParameterError, TypeError):
     def __init__(self, param_name: str, param_value: Any, custom: Union[str, None] = None):
-        InvalidParameterError.__init__(param_name, param_value, custom)
+        InvalidParameterError.__init__(self, param_name, param_value, custom)
 
     def msg(self):
         return f"Parameter {self._param_name} has invalid value type {type(self._param_value)}. Value is {self._param_value}"
@@ -114,6 +115,8 @@ class ParamValueGroup(ParameterValue):
             return val.param_name in self.param_value and self.param_value[val.param_name]
 
     def __eq__(self, other: ParameterValue):
+        if not isinstance(other, ParameterValue):
+            return self.param_value == other
         if self.param_name == other.param_name:
             return self.value_name() == other.value_name()
         else:

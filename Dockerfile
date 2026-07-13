@@ -28,7 +28,7 @@ RUN apt-get install -y build-essential cmake git wget curl neovim python3 python
     apt-get clean && \
     mkdir -p /root/Github
 # copy current directory to root/Github/pypatchy
-COPY . /root/Github/pypatchy
+#COPY . /root/Github/pypatchy
 
 # use the polycubes cpp build directory for the next few
 # make sure SSH can verify GitHub’s host key
@@ -49,8 +49,9 @@ RUN apt-get update && apt-get install -y bzip2 ca-certificates \
  && rm -rf /var/lib/apt/lists/* \
  && micromamba --version
 # clone oxDNA
-RUN --mount=type=ssh git clone git@github.com:lorenzo-rovigatti/oxDNA.git /root/Github/oxDNA && cd /root/Github/oxDNA
-RUN --mount=type=ssh git clone git@github.com:JeDeveloper/ipy_oxDNA.git /root/Github/ipy_oxDNA
+RUN --mount=type=ssh git clone git@github.com:lorenzo-rovigatti/oxDNA.git /root/Github/oxDNA
+RUN --mount=type=ssh git clone git@github.com:sulcgroup/pypatchy.git /root/Github/pypatchy && cd /root/Github/pypatchy && git checkout unstable
+RUN --mount=type=ssh git clone git@github.com:sulcgroup/oxpy-utils.git /root/Github/oxpy-utils
 RUN --mount=type=ssh git clone git@github.com:sulcgroup/polycubes-clone.git /root/Github/polycubes \
     && cd /root/Github/polycubes \
     && git checkout nightmare && \
@@ -67,7 +68,7 @@ ENV MAMBA_ROOT_PREFIX=/root/.local/share/mamba
 # 2. Prepend the pypatchy env’s bin dir to PATH
 ENV PATH=$MAMBA_ROOT_PREFIX/envs/pypatchy/bin:$PATH
 
-RUN micromamba run -n pypatchy pip install -e /root/Github/ipy_oxDNA \
+RUN micromamba run -n pypatchy pip install -e /root/Github/oxpy-utils \
     && micromamba run -n pypatchy pip install -e /root/Github/pypatchy \
     && micromamba clean --all --yes \
     && micromamba run -n pypatchy pip cache purge \
