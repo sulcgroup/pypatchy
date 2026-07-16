@@ -16,6 +16,7 @@ from typing import Generator, Type, Optional, Any
 import subprocess
 import re
 import logging
+import warnings
 
 import oxpy
 # import oat stuff
@@ -373,9 +374,23 @@ def build_ensemble(cfg: dict[str, Any],
     # todo: revise
     # default: if PARTICLE_TYPES_KEY is in const_params, ignore all else
     # todo: ensemble params
+    particles = None
     if PARTICLE_TYPES_KEY in cfg[CONST_PARAMS_KEY]:
-        pass #??
-        # params.append(ParticleSetParam(load_pl_particles(**cfg[CONST_PARAMS_KEY][PARTICLE_TYPES_KEY])))
+        # this key is only handled here for the "round-tripped" shape written by
+        # SimEnsembleJsonEncoder when re-serializing an existing ensemble's metadata: a dict
+        # tagged with "type": PARTICLE_TYPES_KEY, which parameter_value() (called from the
+        # "load const params from cfg" loop below) knows how to turn into a ParticleSetParam.
+        # any other shape here (e.g. raw load_pl_particles()-style kwargs) would otherwise be
+        # silently misinterpreted by parameter_value() as a generic parameter group instead of
+        # a particle set - fail loudly instead of letting that happen.
+        const_particles_val = cfg[CONST_PARAMS_KEY][PARTICLE_TYPES_KEY]
+        if not (isinstance(const_particles_val, dict) and const_particles_val.get("type") == PARTICLE_TYPES_KEY):
+            raise ValueError(
+                f"'{PARTICLE_TYPES_KEY}' under '{CONST_PARAMS_KEY}' must be a dict tagged with "
+                f"\"type\": \"{PARTICLE_TYPES_KEY}\" (the shape produced by re-serializing an "
+                f"existing ensemble's metadata). To specify particle types directly, use a "
+                f"top-level '{PARTICLE_TYPES_KEY}', 'rule', or 'cube_types' key instead."
+            )
     elif any(key in cfg for key in [PARTICLE_TYPES_KEY, "rule", "cube_types"]):
         if PARTICLE_TYPES_KEY in cfg:
             if isinstance(cfg[PARTICLE_TYPES_KEY], PLParticleSet):
@@ -388,9 +403,10 @@ def build_ensemble(cfg: dict[str, Any],
             if "cube_types" in cfg:
                 if len(cfg["cube_types"]) > 0 and isinstance(cfg["cube_types"][0], dict):
                     rule: PolycubesRule = PolycubesRule(rule_json=cfg["cube_types"])
-                else:  # please do not
+                else:
+                    warnings.warn("You've passed a rule string as the `cube_types` argument in the Patchy Simulation"
+                                  " Ensemble Spec (file or constructor). This is supported but best practice is to use the `rule` tag instead.")
                     rule: PolycubesRule = PolycubesRule(rule_str=cfg["cube_types"])
-                particles = polycube_rule_to_PL(rule)
             elif "rule" in cfg:  # 'rule' tag assumes serialized rule string
                 # please for the love of god use this one
                 if isinstance(cfg["rule"], str):
@@ -398,19 +414,26 @@ def build_ensemble(cfg: dict[str, Any],
                 elif isinstance(cfg["rule"], PolycubesRule):
                     rule = cfg["rule"]
                 else:
-                    raise TypeError("Invalid type for rule!")
+                    raise TypeError(f"Invalid type {type(cfg['rule'])} for rule!")
             else:
-                raise Exception("wtf")
+                # unreachable: the enclosing `elif "cube_types" in cfg or "rule" in cfg:` already
+                # guarantees one of the two is present
+                raise AssertionError("Entered cube_types/rule branch without 'cube_types' or 'rule' in cfg")
             particles = polycube_rule_to_PL(rule)
         params.append(ParticleSetParam(particles))
     else:
-        # todo: should this be an exception?
-        print("Warning: No particle info specified!")
+        warnings.warn(
+            "No particle info specified in ensemble config! No particle types have been set on this "
+            "ensemble - this is allowed (e.g. you may intend to add them later via add_params()), but "
+            "the ensemble will not be usable for setup/running until particle types are set.",
+            stacklevel=2
+        )
 
     # handle multidentate params
     if NUM_TEETH_KEY in cfg[CONST_PARAMS_KEY]:
         if cfg[CONST_PARAMS_KEY][NUM_TEETH_KEY] > 1:
-            raise Exception("Direct setting of teeth is no longer supported!")
+            raise ValueError(f"Direct setting of `{NUM_TEETH_KEY}` is no longer supported! Use "
+                             f"`{MDT_CONVERT_KEY}` with a MultidentateConvertSettings instead.")
         # assert DENTAL_RADIUS_KEY in cfg[CONST_PARAMS_KEY]
         # num_teeth = cfg[CONST_PARAMS_KEY][NUM_TEETH_KEY]
         # dental_radius = cfg[CONST_PARAMS_KEY][DENTAL_RADIUS_KEY]
@@ -428,7 +451,7 @@ def build_ensemble(cfg: dict[str, Any],
                 # list form: interpret positionally against the particle set's actual type
                 # order, using each particle's own .name() (e.g. "CT0" for rule-derived types,
                 # "particletype_0" for particles with no explicit name)
-                if "particles" not in locals():
+                if particles is None:
                     raise Exception(f"Cannot use list form for '{PARTICLE_TYPE_LVLS_KEY}' "
                                     f"without particle type info specified!")
                 ptypes = particles.particles()
@@ -1953,7 +1976,7 @@ class PatchySimulationEnsemble(Analyzable):
                 self.start_simulation(sim, stage_name=stage)
         else:
             # if the number of simulations to run requires more than one task
-
+            # also: note that this still works for non-CUDA interactions
             mgr = self.server_settings.cuda_mps
             for sim in e:
                 if stage is None:
