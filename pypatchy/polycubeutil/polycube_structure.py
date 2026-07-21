@@ -398,7 +398,13 @@ class PolycubeStructure(TypedStructure, Scene):
              a Structre object that's a substructure of this
         """
         assert nx.algorithms.components.is_strongly_connected(self.graph.subgraph(nodes))
-        return PolycubeStructure(cubes=[c for i, c in enumerate(self._particles) if c.get_uid() in nodes], rule=self.rule)
+        selected = [c for c in self._particles if c.get_uid() in nodes]
+        remapped = []
+        for new_uid, cube in enumerate(selected):
+            new_cube = copy.deepcopy(cube)
+            new_cube.set_uid(new_uid)
+            remapped.append(new_cube)
+        return PolycubeStructure(cubes=remapped, rule=self.rule)
 
     def num_particle_types(self) -> int:
         return self.rule.num_particle_types()

@@ -1,0 +1,10 @@
+{ 
+ 	"name": "clusters.txt", 
+ 	"print_every": 1e7, 
+ 	"cols": [ 
+ 		{ 
+ 			"name": "PatchyBonds", 
+ 			"show_types": 1 
+ 		} 
+ 	] 
+ }
