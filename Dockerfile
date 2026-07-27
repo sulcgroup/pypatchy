@@ -61,6 +61,22 @@ micromamba create -y -n pypatchy -f /root/Github/pypatchy/pypatchy.yml && \
 micromamba run -n pypatchy micromamba install -y boost-cpp --channel conda-forge \
  && micromamba clean --all --yes
 
+# generate a VS Code multi-root workspace file covering ~/scripts and every ~/Github/<repo>,
+# so attaching VS Code (Dev Containers / Remote-SSH) to this image opens all the cloned repos at once
+RUN mkdir -p /root/scripts
+RUN python3 <<'PYEOF'
+import json, os
+
+root = "/root"
+folders = [{"path": "scripts"}]
+gh = os.path.join(root, "Github")
+for name in sorted(os.listdir(gh)):
+    folders.append({"path": f"Github/{name}"})
+
+with open(os.path.join(root, "pypatchy.code-workspace"), "w") as f:
+    json.dump({"folders": folders, "settings": {}}, f, indent=2)
+PYEOF
+
 # update docker env so we can find micromamba stuff later
 # 1. Tell Docker where your micromamba root actually lives
 ENV MAMBA_ROOT_PREFIX=/root/.local/share/mamba
