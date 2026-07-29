@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from collections.abc import Iterator
 from dataclasses import dataclass, field
-from typing import Union, Any, Iterator
+from typing import Any, Union
+
 
 @dataclass
 class ParameterValue:
@@ -13,7 +15,7 @@ class ParameterValue:
     A more complex ParameterValue consists of a named group of multiple parameters
     """
     param_name: str = field()
-    param_value: Union[str, bool, float, int] = field()  # only basic types allowed here
+    param_value: str | bool | float | int = field()  # only basic types allowed here
 
     def __post_init__(self):
         if isinstance(self.param_value, ParameterValue):
@@ -22,7 +24,7 @@ class ParameterValue:
     def value_name(self):
         return str(self.param_value)
 
-    def __eq__(self, other: Union[ParameterValue, Any]) -> bool:
+    def __eq__(self, other: ParameterValue | Any) -> bool:
         """
         Tests equality. If arguement is a ParameterValue, tests if name and value are equal. Otherwise tests
         if self.value == other
@@ -39,28 +41,28 @@ class ParameterValue:
         return f"{self.param_name}: {self.value_name()}"
 
     def __str__(self):
-        return f"{self.param_name}_{str(self.value_name())}"
+        return f"{self.param_name}_{self.value_name()!s}"
 
     def __hash__(self) -> int:
         return hash((self.param_name, self.value_name(),))
 
-    def __lt__(self, other: Union[ParameterValue, int, float, bool, str]) -> bool:
+    def __lt__(self, other: ParameterValue | float | bool | str) -> bool:
         if isinstance(other, ParameterValue):
             if self.param_name != other.param_name:
                 raise ValueError(f"Cannot compare ParameterValues with different names. Trying to compare {self.param_name} and {other.param_name}")
             return self < other.param_value
         else:
             if not isinstance(other, (int, float, str, bool)):
-                raise ValueError(f"Cannot compare ParameterValue to type {type(other)}")
+                raise TypeError(f"Cannot compare ParameterValue to type {type(other)}")
             return self.param_value < other
 
 
 class InvalidParameterError(Exception):
     _param_name: str
     _param_value: Any
-    _custom_msg: Union[str, None]
+    _custom_msg: str | None
 
-    def __init__(self, param_name: str, param_value: Any, custom: Union[str, None] = None):
+    def __init__(self, param_name: str, param_value: Any, custom: str | None = None):
         """
         :param param_name: name of param with invalid value
         :param param_value: value of param with invalid value. given the nature of this exception this won't
@@ -78,7 +80,7 @@ class InvalidParameterError(Exception):
 
 
 class InvalidParameterTypeError(InvalidParameterError, TypeError):
-    def __init__(self, param_name: str, param_value: Any, custom: Union[str, None] = None):
+    def __init__(self, param_name: str, param_value: Any, custom: str | None = None):
         InvalidParameterError.__init__(self, param_name, param_value, custom)
 
     def msg(self):
@@ -105,7 +107,7 @@ class ParamValueGroup(ParameterValue):
     def has_param(self, param_name: str) -> bool:
         return param_name in self.group_params_names()
 
-    def __contains__(self, val: Union[str, ParameterValue]):
+    def __contains__(self, val: str | ParameterValue):
         if isinstance(val, str):
             return val in self.param_value
         else:
@@ -117,8 +119,8 @@ class ParamValueGroup(ParameterValue):
         if self.param_name == other.param_name:
             return self.value_name() == other.value_name()
         else:
-            return isinstance(other, ParamValueGroup) and all([key in self and self[key] == val
-                                                           for key, val in other.param_value.items()])
+            return isinstance(other, ParamValueGroup) and all(key in self and self[key] == val
+                                                           for key, val in other.param_value.items())
 
     def str_verbose(self) -> str:
         return f"{self.param_name}: {self.value_name()}\n" + \

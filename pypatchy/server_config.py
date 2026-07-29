@@ -1,14 +1,14 @@
 from __future__ import annotations
 
+from collections.abc import Generator
 from dataclasses import dataclass, field
-from typing import Any, IO, Union, Generator
+from typing import IO, Any, Union
 
 from oxpy_utils.oxdna_simulation import SimulationManager
 
-
 from .patchy.ensemble_parameter import parameter_value
 from .patchy.simulation_specification import ParamSet
-from .util import get_spec_json, cfg, get_local_dir
+from .util import cfg, get_local_dir, get_spec_json
 
 
 def list_server_configs() -> Generator[PatchyServerConfig]:
@@ -43,7 +43,7 @@ class PatchyServerConfig:
     input_file_params: ParamSet = field(default_factory=list)
     absolute_paths: bool = False
     is_slurm: bool = False
-    cuda_mps: Union[bool, SimulationManager] = False
+    cuda_mps: bool | SimulationManager = False
     no_oxpy_check: bool = True
 
     # post_init function courtesy of chatGPT
@@ -66,14 +66,12 @@ class PatchyServerConfig:
                 slurm_file.write(f"#SBATCH --{flag_key}=\"{self.slurm_bash_flags[flag_key]}\"\n")
             else:
                 slurm_file.write(f"#SBATCH -{flag_key} {self.slurm_bash_flags[flag_key]}\n")
-        run_oxdna_counter = 1
         slurm_file.write(f"#SBATCH --job-name=\"{job_name}\"\n")
         slurm_file.write(f"#SBATCH -o run%j.out\n")
         # slurm_file.write(f"#SBATCH -e run{run_oxdna_counter}_%j.err\n")
 
         # slurm includes ("module load xyz" and the like)
-        for line in self.slurm_includes:
-            slurm_file.write(line + "\n")
+        slurm_file.writelines(line + "\n" for line in self.slurm_includes)
 
     def is_batched(self) -> bool:
         return self.cuda_mps
@@ -122,5 +120,3 @@ class PatchyServerConfig:
         }
 def get_server_config() -> PatchyServerConfig:
     return load_server_settings(cfg["SETUP"]["server_config"])
-
-

@@ -1,23 +1,34 @@
 from __future__ import annotations
-from dataclasses import asdict
 
-# pypatchy imports
-from .analysis_lib import *
-from .ensemble_parameter import EnsembleParameter
-from .param_val_types import PARTICLE_TYPES_KEY, MDT_CONVERT_KEY, STAGES_KEY, ParticleSetParam, MDTConvertParams, \
-    StagedAssemblyParam, StageInfoParam
-from .base_param_val import ParameterValue, ParamValueGroup
-from .particle_adders import StageParticleAdder, RandParticleAdder, FromPolycubeAdder, FromConfAdder
-from ..polycubeutil.polycubesRule import PolycubesRule
-from ..structure import Structure
-from .pl.pljsonrw import PLJSONEncoder
-from .pl.plparticleset import MultidentateConvertSettings
-from .simulation_specification import ParamSet
 from ..analysis.analysis_pipeline import AnalysisPipeline
 from ..analysis.analysis_pipeline_step import AnalysisPipelineStep
 from ..polycubeutil.polycube_structure import PolycubeStructure
+from ..polycubeutil.polycubesRule import PolycubesRule
 from ..server_config import PatchyServerConfig
-from ..structure import GenericTypedStructure
+from ..structure import GenericTypedStructure, Structure
+
+# pypatchy imports
+from .analysis_lib import *
+from .base_param_val import ParameterValue, ParamValueGroup
+from .ensemble_parameter import EnsembleParameter
+from .param_val_types import (
+    MDT_CONVERT_KEY,
+    PARTICLE_TYPES_KEY,
+    STAGES_KEY,
+    MDTConvertParams,
+    ParticleSetParam,
+    StagedAssemblyParam,
+    StageInfoParam,
+)
+from .particle_adders import (
+    FromConfAdder,
+    FromPolycubeAdder,
+    RandParticleAdder,
+    StageParticleAdder,
+)
+from .pl.pljsonrw import PLJSONEncoder
+from .pl.plparticleset import MultidentateConvertSettings
+from .simulation_specification import ParamSet
 
 
 class SimEnsembleJsonEncoder(PLJSONEncoder):

@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from typing import IO, Union, Any
+from typing import IO, Any, Union
 
 from oxpy_utils.utils.observable import Observable, ObservableColumn
 
-from .stage import Stage
 from ..util import get_spec_json
+from .stage import Stage
 
 
 # DEPRECATED
@@ -28,6 +28,7 @@ class PatchySimObservable:
     cols: Any  # ????
 
     def __init__(self, **kwargs):
+        raise DeprecationWarning("Depceecated!")
         # for all param meanings, see https://lorenzo-rovigatti.github.io/oxDNA/observables.html
         self.observable_name = kwargs["observable_name"]
         self.file_name: str = kwargs["name"]

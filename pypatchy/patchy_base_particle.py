@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import itertools
 from abc import ABC, abstractmethod
+from collections.abc import Iterable
 from copy import deepcopy
-from typing import Union, Any, Iterable
+from typing import Any
 
 import numpy as np
 from Bio.SVDSuperimposer import SVDSuperimposer
@@ -14,7 +15,6 @@ class PatchyBaseParticleType(ABC):
     Lowest possible level base patchy particle
     """
     _type_id: int
-
     _patches: list[BasePatchType]
 
     def __init__(self, uid: int, patches: list[BasePatchType]):
@@ -26,8 +26,7 @@ class PatchyBaseParticleType(ABC):
 
     def type_id(self) -> int:
         """
-        Returns:
-            the particle's type id
+        :return the particle's type id
         """
         return self._type_id
 
@@ -55,7 +54,7 @@ class PatchyBaseParticleType(ABC):
         """
         return self._patches
 
-    def patch(self, patch_idx: Union[int, np.ndarray]) -> Any:
+    def patch(self, patch_idx: int | np.ndarray) -> Any:
         """
         Accessor for patch
 
@@ -65,13 +64,13 @@ class PatchyBaseParticleType(ABC):
         Returns:
             patch object specified by `patch_index`
         """
-        if isinstance(patch_idx, int) or isinstance(patch_idx, np.integer):
+        if isinstance(patch_idx, (int, np.integer)):
             assert -1 < patch_idx < self.num_patches(), "Index out of bounds"
             return self._patches[patch_idx]
         else:
             assert isinstance(patch_idx, np.ndarray), "Index is not an int or an np array"
-            assert any([np.linalg.norm(p.position() - patch_idx) < 1e-6 for p in self._patches])
-            return [p for p in self._patches if np.linalg.norm(p.position() - patch_idx) < 1e-6][0]
+            assert any(np.linalg.norm(p.position() - patch_idx) < 1e-6 for p in self._patches)
+            return next(p for p in self._patches if np.linalg.norm(p.position() - patch_idx) < 1e-6)
 
     @abstractmethod
     def radius(self, normal: np.ndarray = np.zeros(shape=(3,))) -> float:
@@ -160,7 +159,7 @@ class BaseParticleSet:
     _particle_types: list
     _patch_types: list
 
-    def __init__(self, particles: Union[list[PatchyBaseParticleType, BaseParticleSet, None]] = None):
+    def __init__(self, particles: list[PatchyBaseParticleType | BaseParticleSet | None] | None = None):
         self._particle_types = []
         self._patch_types = []
         if particles is not None:
@@ -169,7 +168,7 @@ class BaseParticleSet:
     def particles(self):
         return self._particle_types
 
-    def particle(self, idx: Union[int, str]):
+    def particle(self, idx: int | str):
         if isinstance(idx, int):
             assert -1 < idx < self.num_particle_types(), f"Invalid particle index {idx}"
             return self._particle_types[idx]
@@ -177,7 +176,7 @@ class BaseParticleSet:
             for particle in self.particles():
                 if particle.type_id() == idx:
                     return particle
-            raise Exception(f"No such particle {idx}")
+            raise IndexError(f"No such particle {idx}")
 
     def num_particle_types(self):
         return len(self._particle_types)
@@ -303,7 +302,7 @@ class PatchyBaseParticle(ABC):
     def rotate(self, rotation: Any):
         pass
 
-    def rotation_from_to(self, p2: PatchyBaseParticle, colormap: Union[dict, None] = {}) -> Union[False, np.ndarray]:
+    def rotation_from_to(self, p2: PatchyBaseParticle, colormap: dict | None = {}) -> False | np.ndarray:
         """
         Computes the rotation required to rotate the particle so it matches the particle p2
         if the particles cannot be so rotated, returns False
@@ -323,8 +322,8 @@ class PatchyBaseParticle(ABC):
         best_rms = np.inf
         for perm in itertools.permutations(patches_2):
             ptypes2, pposs2 = zip(*perm)
-            if not all([p1_color == (p2_color if colormap is None else colormap[p2_color])
-                        for p1_color, p2_color in zip(ptypes1, ptypes2)]):
+            if not all(p1_color == (p2_color if colormap is None else colormap[p2_color])
+                        for p1_color, p2_color in zip(ptypes1, ptypes2)):
                 continue
             m1 = np.stack([*pposs1, np.zeros(3)])
             m2 = np.stack([*pposs2, np.zeros(3)])

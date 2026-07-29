@@ -2,12 +2,16 @@ from __future__ import annotations
 
 import itertools
 from abc import ABC, abstractmethod
-from typing import Iterable, Generator
+from collections.abc import Generator, Iterable
 
 import numpy as np
 from oxDNA_analysis_tools.UTILS.data_structures import Configuration
 
-from pypatchy.patchy_base_particle import PatchyBaseParticle, BaseParticleSet, BasePatchType
+from pypatchy.patchy_base_particle import (
+    BaseParticleSet,
+    BasePatchType,
+    PatchyBaseParticle,
+)
 
 
 class Scene(ABC):

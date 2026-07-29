@@ -5,17 +5,16 @@ import functools
 import itertools
 import json
 from abc import ABC, abstractmethod
-from typing import Generator, Iterable, Callable, Container, Collection
+from collections.abc import Callable, Collection, Generator, Iterable
 
+import igraph as ig
+import matplotlib.colors as mcolors
 import networkx as nx
-import scipy as sp
 from Bio.SVDSuperimposer import SVDSuperimposer
 from matplotlib import pyplot as plt
-import matplotlib.colors as mcolors
-import igraph as ig
 
 from .polycubeutil.polycubesRule import *
-from .util import enumerateRotations, rotidx, get_input_dir
+from .util import enumerateRotations, get_input_dir, rotidx
 
 Binding = tuple[int, int, int, int]
 
@@ -214,7 +213,7 @@ class Structure:
             perp = np.array([-diff[1], diff[0]])
             label_xy = (p1 + p2) / 2 + rad / 2 * perp
             ax.annotate(str(d['dirIdx']), xy=label_xy, ha='center', va='center', fontsize=9,
-                        bbox=dict(boxstyle='round,pad=0.1', fc='white', ec='none', alpha=0.7))
+                        bbox={"boxstyle": 'round,pad=0.1', "fc": 'white', "ec": 'none', "alpha": 0.7})
 
         plt.show()
         return fig
@@ -291,9 +290,7 @@ class Structure:
         return len([d for _, _, d in self.graph.out_edges(v, "dirIdx") if d == delta]) > 0
 
     def bi_edge_exists(self, v: int, delta: int) -> bool:
-        return self.edge_exists(v, delta) or any([
-            d == rdir(delta) for _, _, d in self.graph.in_edges(v, "dirIdx")
-        ])
+        return self.edge_exists(v, delta) or any(d == rdir(delta) for _, _, d in self.graph.in_edges(v, "dirIdx"))
 
     def positions_connected(self, v1: int, v2: int) -> bool:
         """
@@ -336,7 +333,7 @@ class Structure:
             A new Structure with the two original structures connected at the splice points.
         """
         # check that bindings are properly categorized initially
-        for b in list(zip(*splice_points))[0]:
+        for b in next(zip(*splice_points)):
             assert b in self.bindings_list or flip(b) in self.bindings_list
         for b in list(zip(*splice_points))[1]:
             assert b in other.bindings_list or flip(b) in other.bindings_list
@@ -431,7 +428,7 @@ class Structure:
         if not self.edge_exists(vert, direction):
             return None
         # todo: this line is 100% wrong
-        return [e for e in self.graph.edges[vert] if e["diridx"] == direction][0][1]
+        return next(e for e in self.graph.edges[vert] if e["diridx"] == direction)[1]
 
     def _get_cubes_coords(self) -> dict[int, np.ndarray]:
         """
@@ -560,11 +557,9 @@ class Structure:
         return ig_g
 
     def is_bindings_euclidian(self) -> bool:
-        return all([
-            abs(du - dv) == 1 # direction index within 1 of each other = opposites,
+        return all(abs(du - dv) == 1 # direction index within 1 of each other = opposites,
             # accordiing to rule_order
-            for _, du, _, dv in self.bindings_list
-        ])
+            for _, du, _, dv in self.bindings_list)
 
     def export_periodic_topology(self) -> dict:
         """
@@ -788,7 +783,7 @@ class Tiling:
                                                         dimensional_count,
                                                         dimensional_bindings)
         # do we need an assert here?
-        assert all([self.tiled_structure.graph.degree[v]/2 <= 6 for v in self.tiled_structure.graph.nodes]),\
+        assert all(self.tiled_structure.graph.degree[v]/2 <= 6 for v in self.tiled_structure.graph.nodes),\
             f"Some nodes have non-allowed degrees have degrees {[(v, self.tiled_structure.graph.degree[v]/2) for v in self.tiled_structure.graph.nodes if self.tiled_structure.graph.degree[v] > 6]}"
         assert all(b in self.tiled_structure.bindings_list or flip(b) in self.tiled_structure.bindings_list
                    for b in self.periodic_bindings)
@@ -816,10 +811,6 @@ class Tiling:
                 for b1, b2 in  zip(dimensional_bindings, crystal_bindings_others)
             ]
             tiled_structure = monomer.splice(mapping.target, binding_remap)
-            # extras = [
-            #     (u, du, v, dv) for
-            #     ((u, du, _, _), (_, _, v, dv)) in zip(dimensional_bindings, crystal_bindings_others)
-            # ]
             extras = [
                 (u, du, mapping.map_location(v), dv)
                 for (u, du, v, dv) in dimensional_bindings
@@ -834,7 +825,7 @@ class Tiling:
             subtile_periodic_bindings = self.__tile_single_dimension(monomer,
                                                                      number_of_tilings - 1,
                                                                      dimensional_bindings)
-            assert all([b in self.tiled_structure for b in subtile_periodic_bindings])
+            assert all(b in self.tiled_structure for b in subtile_periodic_bindings)
             to_pop = subtile_periodic_bindings
             # make sure we haven't somehow conjured new bindings into existance
             assert len(subtile_periodic_bindings) == len(dimensional_bindings)
@@ -845,30 +836,17 @@ class Tiling:
             # construct map of vertex IDs from
             crystal_bindings_other = mapping.apply_to(dimensional_bindings)
 
-            # crystal_bindings = [
-            #     (u, rdir(du), v, rdir(dv)) for u, du, v, dv
-            #     in mapping.apply_to(dimensional_bindings)
-            # ]
-
             # align faces
             binding_remap = [
                 (b1, b2) if b1[1] == b2[1] else (b1, flip(b2))
                 for b1, b2 in zip(crystal_bindings_other, subtile_periodic_bindings)
             ]
 
-            # binding_remap = [
-            #     ((u1, du1, v2, dv2), (u2, du2, v1, dv1))
-            #     for ((u1, du1, v1, dv1), (u2, du2, v2, dv2)) in binding_remap
-            # ]
-
             # make sure bindings are lined up
             # binding_remap = list(zip(crystal_bindings_other, subtile_periodic_bindings))
             tiled_structure = mapping.target.splice(self.tiled_structure, binding_remap)
             assert tiled_structure.is_bindings_euclidian()
-            # extras = [(v, dv, u, du) for u, du, v, dv in crystal_bindings_other]
             # flip directionality
-            # extras = [(u, rdir(du), v, rdir(dv))
-            #           for u, du, v, dv in crystal_bindings_other]
             extras = [
                 (mapping.lmap[u1], du1, v2, dv2)
                 for ((u1, du1, v1, dv1), (u2, du2, v2, dv2)) in zip(dimensional_bindings, subtile_periodic_bindings)
@@ -884,11 +862,6 @@ class Tiling:
             )
         ))
 
-        # for (u, du, v, dv) in pb:
-        #     if (u, du, v, dv) not in dimensional_bindings and (v, dv, u, du) not in dimensional_bindings:
-        #         if u in mapping.lmap and v in mapping.lmap:
-        #             assert rdir(du) == dv
-        #             self.periodic_bindings.append((mapping.lmap[u], du, mapping.lmap[v], dv))
         self.periodic_bindings.extend(extras)
         for b in to_pop:
             self.periodic_bindings.remove(b)
@@ -976,9 +949,7 @@ class TypedStructure(Structure, ABC):
                 rotation = getRotationMap(axis, rot)
                 rotational_homomorphism = layer.rotate(rotation)
                 # todo: check if this works
-                if not all([
-                    layer.particle_type(vert) == rotational_homomorphism.target.particle_type(vert) for vert in layer.vertices()
-                ]):
+                if not all(layer.particle_type(vert) == rotational_homomorphism.target.particle_type(vert) for vert in layer.vertices()):
                     return False
 
         return True
@@ -1058,18 +1029,13 @@ class GenericTypedStructure(TypedStructure):
     particle_types: dict[int, int]
 
     def __init__(self, **kwargs):
-        super(GenericTypedStructure, self).__init__(**kwargs)
-        if "types" in kwargs:
-            self.particle_types = kwargs["types"]
-        else:
-            self.particle_types = dict()
+        super().__init__(**kwargs)
+        self.particle_types = kwargs.get("types", {})
         if "fill_type" in kwargs:
             for v in self.vertices():
                 if v not in self.particle_types:
                     self.particle_types[v] = kwargs["fill_type"]
-        assert all([
-            n in self.particle_types for n in self.vertices()
-        ]), "Missing types for some particles!"
+        assert all(n in self.particle_types for n in self.vertices()), "Missing types for some particles!"
 
     def particle_type(self, particle_id: int) -> int:
         return self.particle_types[particle_id]
@@ -1119,12 +1085,12 @@ class GenericTypedStructure(TypedStructure):
         return len(set(self.particle_types.values()))
 
     def substructures(self) -> Generator[GenericTypedStructure]:
-        for sub in super(GenericTypedStructure, self).substructures():
+        for sub in super().substructures():
             yield GenericTypedStructure(graph=sub.graph, types={
                 k: v for k, v in self.particle_types.items() if k in sub.vertices()
             })
 
-    def substructure(self, nodes: tuple[int]) -> GenericTypedStructure:
+    def substructure(self, nodes: tuple[int, ...]) -> GenericTypedStructure:
         # Build the same lmap the base uses (original id → 0-based counter) so we
         # can remap particle_types into the new vertex-ID space.
         nodes_set = set(nodes)
@@ -1134,7 +1100,7 @@ class GenericTypedStructure(TypedStructure):
             if n in nodes_set:
                 lmap[n] = counter
                 counter += 1
-        sub = super(GenericTypedStructure, self).substructure(nodes)
+        sub = super().substructure(nodes)
         return GenericTypedStructure(graph=sub.graph, types={
             lmap[k]: v for k, v in self.particle_types.items() if k in lmap
         })
@@ -1227,7 +1193,7 @@ class GenericTypedStructure(TypedStructure):
         so that read_topology will reconstruct the original type_value via (+1).
         Type 0 (empty) is omitted.
         """
-        out = super(GenericTypedStructure, self).export_periodic_topology()
+        out = super().export_periodic_topology()
         # get particle type mapping (vertex -> type)
         ptypes = self.get_particle_types()  # dict[int, int]
         if ptypes:
@@ -1271,9 +1237,9 @@ def read_topology(top: Union[str, dict, Path], pt_idxs: set[int] = set()) -> Gen
                 local_used.add(new_id)
     bindings = [
         [
-            type_id_map[pt1] if pt1 in type_id_map else pt1,
+            type_id_map.get(pt1, pt1),
             dir1,
-            type_id_map[pt2] if pt2 in type_id_map else pt2,
+            type_id_map.get(pt2, pt2),
             dir2
         ]
         for pt1, dir1, pt2, dir2 in bindings
@@ -1291,8 +1257,8 @@ def calcEmptyFromTop(top: Iterable[tuple[int, int, int, int]]) -> list[tuple[int
     """
 
     """
-    ids = set(i for i, _, _, _ in top).union(set(j for _, _, j, _ in top))
-    patches = set(((i, dPi) for i, dPi, _, _ in top)).union(((j, dPj) for _, _, j, dPj in top))
+    ids = {i for i, _, _, _ in top}.union({j for _, _, j, _ in top})
+    patches = {(i, dPi) for i, dPi, _, _ in top}.union(((j, dPj) for _, _, j, dPj in top))
 
     empty = []
     for i in ids:

@@ -1,8 +1,10 @@
 import math
+from collections.abc import Generator
 from dataclasses import dataclass, field
-from typing import Union, Callable, Generator
+from typing import Union
 
 import numpy as np
+
 from .patchy_base_particle import PatchyBaseParticle
 
 
@@ -37,8 +39,7 @@ class CellLists:
         self._box_size = None
         self.cell_size = None
 
-    def get_cell(self,
-                 item: Union[tuple, np.ndarray, int, PatchyBaseParticle]) -> Cell:
+    def get_cell(self, item: tuple | np.ndarray | int | PatchyBaseParticle) -> Cell:
         if isinstance(item, np.ndarray):
             cell_idxs = np.floor(item / self.cell_size)
             cell = self.cells[tuple(cell_idxs.astype(int))]
@@ -65,8 +66,7 @@ class CellLists:
                     yield self.get_cell(tuple(idxs))
 
     def interaction_particles(self,
-                              p: Union[np.ndarray,
-                                       PatchyBaseParticle]) -> Generator[PatchyBaseParticle,
+                              p: np.ndarray | PatchyBaseParticle) -> Generator[PatchyBaseParticle,
                                                                          None,
                                                                          None]:
         """
@@ -83,7 +83,7 @@ class CellLists:
     def box_size(self) -> np.ndarray:
         return self._box_size
 
-    def set_box_size(self, box: Union[np.ndarray, list]):
+    def set_box_size(self, box: np.ndarray | list):
         assert len(box) == 3
         oldbox = self.box_size()
         self._box_size = np.array(box)
@@ -105,7 +105,7 @@ class CellLists:
         elif cell_size is not None:
             self.cell_size = cell_size
         else:
-            raise Exception("No parameter provided to use to compute cell size!")
+            raise ValueError("No parameter provided to use to compute cell size!")
         assert self.cell_size > 0
         return self.cell_size
 
@@ -122,8 +122,8 @@ class CellLists:
         ys = np.arange(stop=self._box_size[1], step=self.get_cell_size())
         zs = np.arange(stop=self._box_size[2], step=self.get_cell_size())
         self.cells_matrix_dimensions = np.array([xs.size, ys.size, zs.size])
-        self.cells = dict()
-        self.particle_cells = dict()
+        self.cells = {}
+        self.particle_cells = {}
         for xidx, x in enumerate(xs):
             for yidx, y in enumerate(ys):
                 for zidx, z in enumerate(zs):
@@ -141,7 +141,7 @@ class CellLists:
 
     def apportion_cell_particles(self, particles: list[PatchyBaseParticle]):
         for particle in particles:
-            assert (particle.position() >= 0).all(), "Conf is not inboxed!!"
+            if (particle.position() < 0).any(): raise ValueError("Conf is not inboxed!!")
             cell = self.get_cell(particle.position())
             # if cell.startcoords <= particle.position() < cell.endcoords:
             cell.particles.append(particle)

@@ -8,12 +8,18 @@ import itertools
 
 import numpy as np
 
-from .polycube_structure import PolycubeStructure
-from .cube import PolycubesStructureCube
-from .polycubesRule import PolycubesRule, PolycubeRuleCubeType, PolycubesPatch, rdir, \
-    get_orientation, RULE_ORDER
 from ..structure import FiniteLatticeStructure
 from ..util import getRotations
+from .cube import PolycubesStructureCube
+from .polycube_structure import PolycubeStructure
+from .polycubesRule import (
+    RULE_ORDER,
+    PolycubeRuleCubeType,
+    PolycubesPatch,
+    PolycubesRule,
+    get_orientation,
+    rdir,
+)
 
 
 def make_colors_consecutive(rule: PolycubesRule) -> PolycubesRule:
@@ -32,7 +38,7 @@ def make_colors_consecutive(rule: PolycubesRule) -> PolycubesRule:
     for patch in rule_simple.patches():
         # placeholder for patch color
         c = patch.color()
-        assert c, "Zero-value colors are not supported"
+        if not c: raise ValueError("Zero-value colors are not supported")
         # offset by 1 to handle zero-indexed list
         assert abs(c) in color_set
 
@@ -56,7 +62,7 @@ def get_fully_addressable_rule(structure: FiniteLatticeStructure) -> PolycubeStr
     rule = PolycubesRule()
     # construct position map
     # PolycubeStructure obects are immutableish so we have to construct our return object last
-    cubePosMap: dict[int, PolycubesStructureCube] = dict()
+    cubePosMap: dict[int, PolycubesStructureCube] = {}
 
     # first pass: populate with empty cube types and patches
     patch_counter = 0

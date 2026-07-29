@@ -7,29 +7,30 @@ from __future__ import annotations
 import copy
 import json
 from collections import defaultdict
+from collections.abc import Generator
 from pathlib import Path
-from typing import Union, Optional
+from typing import Any
 
 import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
-
 from oxDNA_analysis_tools.UTILS.data_structures import Configuration
-from pypatchy.structure import GenericTypedStructure
-
 from oxpy_utils.utils.util import process_path
 
 from ..cell_lists import CellLists
-
-from .cube import PolycubesStructureCube
-from ..vis_util import get_particle_color
-
-from ..patchy_base_particle import PatchyBaseParticle, BaseParticleSet
+from ..patchy_base_particle import BaseParticleSet, PatchyBaseParticle
 from ..scene import Scene
-from .polycubesRule import PolycubesRule, diridx, PolycubesPatch, RULE_ORDER
-
-from ..structure import TypedStructure, Structure, Binding, StructuralHomomorphism
+from ..structure import (
+    Binding,
+    GenericTypedStructure,
+    StructuralHomomorphism,
+    Structure,
+    TypedStructure,
+)
 from ..util import from_xyz, get_input_dir
+from ..vis_util import get_particle_color
+from .cube import PolycubesStructureCube
+from .polycubesRule import RULE_ORDER, PolycubesPatch, PolycubesRule, diridx
 
 
 # todo: add cell lists? probably overkill
@@ -51,9 +52,9 @@ class PolycubeStructure(TypedStructure, Scene):
         :param cubes:
         """
         # TODO: refactor this constructor to be normal constructor, have make_polycube() method external
-        super(PolycubeStructure, self).__init__()
+        super().__init__()
         CellLists.__init__(self)
-        self.particle_uid_map = dict()
+        self.particle_uid_map = {}
 
         # load rule
         if "rule" in kwargs:
@@ -91,7 +92,7 @@ class PolycubeStructure(TypedStructure, Scene):
                     ))
                 cube_type = self.rule.particle(cube["type"])
                 # type checking for cube state (ive been burned before)
-                assert all([isinstance(sval, bool) for sval in cube["state"]]), f"Cube {cube_idx} has invalid state {str(cube['state'])}"
+                assert all(isinstance(sval, bool) for sval in cube["state"]), f"Cube {cube_idx} has invalid state {cube['state']!s}"
                 if not cube["state"][0]:
                     print(f"Warning! Cube {cube_idx} has tautology state variable s[0] set to false, which seems "
                           f"bad but maybe you're doing something clever.")
@@ -150,9 +151,7 @@ class PolycubeStructure(TypedStructure, Scene):
                                         align2 = p2.alignDir().round()
                                         align_good = (align1 == align2).all()
                                     else: align_good=True
-                                    if align_good:
-                                        if not self.graph.has_edge(cube1.get_uid(), cube2.get_uid()):
-                                            if cube1.state(p1.state_var()) and cube2.state(p2.state_var()):
+                                    if align_good and not self.graph.has_edge(cube1.get_uid(), cube2.get_uid()) and cube1.state(p1.state_var()) and cube2.state(p2.state_var()):
                                                 self.graph.add_edge(cube1.get_uid(), cube2.get_uid(), dirIdx=diridx(d1))
                                                 self.graph.add_edge(cube2.get_uid(), cube1.get_uid(), dirIdx=diridx(d2))
                                                 self.bindings_list.add((
@@ -174,7 +173,7 @@ class PolycubeStructure(TypedStructure, Scene):
         for cube in self._particles:
             if cube.get_uid() == uid:
                 return cube
-        raise Exception(f"No cube with ID {uid}")
+        raise IndexError(f"No cube with ID {uid}")
 
     def cube_type_counts(self) -> list[int]:
         return [self.num_cubes_of_type(i) for i, _ in enumerate(self.rule.particles())]
@@ -217,8 +216,8 @@ class PolycubeStructure(TypedStructure, Scene):
         # The faces connecting the current node to the previous and next nodes
         head_neighbors = [n for n in self.graph.neighbors(n) if n in cycle]
         assert len(head_neighbors) == 2
-        next_node = [n for n in head_neighbors if n not in processed_nodes][0]
-        prev_node = [n for n in head_neighbors if n in processed_nodes][0]
+        next_node = next(n for n in head_neighbors if n not in processed_nodes)
+        prev_node = next(n for n in head_neighbors if n in processed_nodes)
 
         return (self.get_arrow_local_diridx(n, prev_node),
                 next_node,
@@ -247,99 +246,7 @@ class PolycubeStructure(TypedStructure, Scene):
     def graph_undirected(self) -> nx.Graph:
         return self.graph.to_undirected()
 
-    # def homomorphism(self, structure: PolycubeStructure) -> Union[bool, StructuralHomomorphism]:
-    #     """
-    #     Constructs the graph injective homomorphism of self.graph -> structure.graph, taking cube types into account
-    #     Parameters:
-    #         structure (Structure) a structure object
-    #     Return:
-    #         a StructuralHomomorphism object if a homomorphism between the two graphs is possible
-    #         else False
-    #     """
-    #
-    #     # TODO: TEST
-    #
-    #     if len(structure) < len(self):
-    #         return False
-    #     if not all([a >= b for a, b in zip(structure.cube_type_counts(), self.cube_type_counts())]):
-    #         return False
-    #     # if not all([self.num_cubes_of_type(ctself.type_id()) == structure.num_cubes_of_type(ctother.type_id())
-    #     #             for ctself, ctother in zip(self.rule.particles(), structure.rule.particles())]):
-    #     #     return False
-    #
-    #     # for better efficiency, group nodes by cube type
-    #
-    #     nodes_sets = [list() for _ in structure.rule.particles()]
-    #     for cube in structure.cubeList:
-    #         nodes_sets[cube.get_cube_type().type_id()].append(cube.get_id())
-    #
-    #     node_permutations = [itertools.permutations(nodes, r=self.num_cubes_of_type(ctidx))
-    #                          for ctidx, nodes in enumerate(nodes_sets)]
-    #
-    #     node_list_src = list(itertools.chain.from_iterable([
-    #         [
-    #             cube.get_id() for cube in self.cubeList if cube.get_cube_type().type_id() == ct.type_id()
-    #         ]
-    #         for ct in self.rule.particles()
-    #     ]))
-    #     # for now, brute-force this
-    #     for rmapidx, rotation_mapping in enumerateRotations().items():
-    #         # Ben would say rotation_mapping is a symmetry group of a cube or something
-    #         for nodeperms in itertools.product(node_permutations):
-    #             node_list_target = list(itertools.chain.from_iterable(nodeperms))
-    #             # node lists aren't nessecarily indexed from 0
-    #             # sometimes they are but it's not a safe assumption
-    #
-    #             node_list_mapping = {n1: n2 for n1, n2 in zip(node_list_src, node_list_target)}
-    #             reverse_mapping = {n2: n1 for n1, n2 in zip(node_list_src, node_list_target)}
-    #
-    #             homomorphism_is_valid = True
-    #
-    #             # list of source node IDs
-    #
-    #             # loop pairs of nodes in this mapping
-    #             for n1, n2 in zip(node_list_src, node_list_target):
-    #                 # loop outgoing edges for this node
-    #                 if len(self.graph.out_edges(n1)) != len(structure.graph.out_edges(n2)):
-    #                     homomorphism_is_valid = False
-    #                 else:
-    #                     # for any e1 in self.graph.out_edges(n1), an e2 exists
-    #                     # in structure.graph.out_edges(n2) such that
-    #                     # rotation_mapping[e1["dirIdx"]] == e2["dirIdx"]
-    #                     for u1, v1, d1 in self.graph.out_edges.data("dirIdx"):
-    #                         if u1 != n1:
-    #                             continue
-    #                         # drop first element of tuple b/c it equals n1
-    #                         found_homologous_edge = False
-    #                         for u2, v2, d2 in structure.graph.out_edges.data("dirIdx"):
-    #                             if u2 != n2:
-    #                                 continue
-    #                             # drop first element of tuple b/c it equals n2
-    #
-    #                             # edges match if the direction indexes map onto each other
-    #                             rot_map_valid = rotation_mapping[d1] == d2
-    #                             # and the destination nodes also map onto each other
-    #                             edges_same_node = node_list_mapping[v1] == v2
-    #                             found_homologous_edge |= rot_map_valid and edges_same_node
-    #                             if found_homologous_edge:
-    #                                 break
-    #                         # if no homologous edge to e1 exists, homomorphism is invalid
-    #                         if not found_homologous_edge:
-    #                             homomorphism_is_valid = False
-    #                             break
-    #                 # if we've invalidated the homomorphism
-    #                 if not homomorphism_is_valid:
-    #                     break
-    #
-    #             if homomorphism_is_valid:
-    #                 return StructuralHomomorphism(self,
-    #                                               structure,
-    #                                               rmapidx,
-    #                                               node_list_mapping,
-    #                                               reverse_mapping)
-    #     return False
-
-    def transform(self, rot: Optional[np.ndarray]=None, tran: Optional[np.ndarray]=None) -> PolycubeStructure:
+    def transform(self, rot: np.ndarray | None=None, tran: np.ndarray | None=None) -> PolycubeStructure:
         """
         perform a spacial transform on a polycube structure
         :return rot: a 3x3 rotation matrix
@@ -363,7 +270,7 @@ class PolycubeStructure(TypedStructure, Scene):
 
         return transformed_structure
 
-    def save_polycube(self, fp: Union[Path, str]):
+    def save_polycube(self, fp: Path | str):
         """
         saves a polycube as a JSON file which can be read by load_polycube or into the web app
         :param fp: a file path at which to save the json file
@@ -372,7 +279,7 @@ class PolycubeStructure(TypedStructure, Scene):
         with fp.open("w") as f:
             json.dump(self.to_json(), f)
 
-    def to_json(self) -> dict:
+    def to_json(self) -> dict[str: Any]:
         """
         converts the polycube structure into a form that can be json-serialized
         :return: the polycube as a JSON object (aka a dict with only json-serializable values)
@@ -421,7 +328,7 @@ class PolycubeStructure(TypedStructure, Scene):
         """
         return np.stack([cube.position() for cube in self._particles])
 
-    def draw_structure_graph(self, ax: plt.Axes, layout: Union[None, dict] = None):
+    def draw_structure_graph(self, ax: plt.Axes, layout: None | dict = None):
         if layout is None:
             layout = nx.spring_layout(self.graph)
         ptypemap = [get_particle_color(self.particle_type(j)) for j in self.graph.nodes]
@@ -444,10 +351,7 @@ class PolycubeStructure(TypedStructure, Scene):
             return False
         if (particle1.position() != particle2.position() + p2.direction()).any():
             return False
-        if p1.has_torsion() and p2.has_torsion():
-            if ((p1.alignDir() - p2.alignDir()) > 1e-6).any():
-                return False
-        return True
+        return not (p1.has_torsion() and p2.has_torsion() and (p1.alignDir() - p2.alignDir() > 1e-06).any())
 
     def num_connections(self):
         """
@@ -460,23 +364,22 @@ class PolycubeStructure(TypedStructure, Scene):
             p.get_uid(): p.get_type() for p in self.particles()
         }
 
-
     def centroid(self):
         return np.round(super().centroid())
 
     def rotate(self, rotation_map: dict[int, int]) -> StructuralHomomorphism:
-        raise Exception("Not implemented yet")
+        raise NotImplementedError("Not implemented yet")
 
     def splice(self, other: Structure, splice_points: list[tuple[Binding,
                                                                  Binding]]) -> Structure:
-        raise Exception("Not valid for this subclass")
+        raise NotImplementedError("Not valid for this subclass")
 
-    def to_typed_structure(self, type_map: Optional[dict[int: int]]) -> TypedStructure:
+    def to_typed_structure(self, type_map: dict[int: int] | None = None) -> TypedStructure:
         if type_map is None:
             type_map = {ct.type_id(): ct.type_id()  for ct in self.rule}
         return GenericTypedStructure(
             bindings=self.bindings_list,
-                types={p.get_uid(): (type_map[p.get_type()] if p.get_type() in type_map else 0) for p in self.particles()},
+                types={p.get_uid(): (type_map.get(p.get_type(), 0)) for p in self.particles()},
         )
 
     def add_particle(self, new_cube: PolycubesStructureCube):
@@ -524,7 +427,7 @@ class PolycubeStructure(TypedStructure, Scene):
 
         return self
 
-def load_polycube(file_path: Union[Path, str]) -> PolycubeStructure:
+def load_polycube(file_path: Path | str) -> PolycubeStructure:
     """
     Loads a polycube from a json file.
     :param file_path: a path to a json file. If the path is implicitly relative, it will be prepended with `~/.pypatchy/input`
@@ -546,7 +449,7 @@ def create_spatial_hash(particles):
     return hash_map
 
 
-def get_neighboring_cells(cell: tuple) -> tuple:
+def get_neighboring_cells(cell: tuple) -> Generator[tuple[int, int, int], None, None]:
     """Generate keys for neighboring cells (including the cell itself)."""
     for dx in [-1, 0, 1]:
         for dy in [-1, 0, 1]:

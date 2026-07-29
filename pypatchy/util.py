@@ -26,16 +26,16 @@ Public API
 (See inline docstrings for the remaining helpers.)
 """
 
+import configparser
 import json
 import os
-from typing import Iterable, Union
-
-from scipy.spatial.transform import Rotation as R
-from itertools import groupby, combinations, chain, tee
-from pathlib import Path
-import configparser
+from collections.abc import Iterable
 from colorsys import hsv_to_rgb
+from itertools import chain, combinations, groupby, tee
+from pathlib import Path
+
 import numpy as np
+from scipy.spatial.transform import Rotation as R
 
 # global slurm job info cache
 SLURM_JOB_CACHE: dict[int, dict[str, str]] = {}
@@ -79,19 +79,18 @@ def simulation_run_dir() -> Path:
     return Path(cfg['ANALYSIS']['simulation_data_dir'])
 
 
-def tlm_data_dir() -> Union[None, Path]:
+def tlm_data_dir() -> None | Path:
     if "tlm_data_dir" in cfg["ANALYSIS"]:
         return Path(cfg["ANALYSIS"]["tlm_data_dir"])
     else:
-        raise ValueError(
-            "No data storage directory specifid in ~/.pypatchy/settings.cfg! Set with tlm_data_dir=path/to/my/directory")
+        raise ValueError("No data storage directory specifid in ~/.pypatchy/settings.cfg! Set with tlm_data_dir=path/to/my/directory")
 
 
 def get_spec_json(name: str, folder: str) -> dict:
     try:
-        with open(f"{get_local_dir()}/spec_files/{folder}/{name}.json") as f:
+        with (get_local_dir() / "spec_files" / folder / f"{name}.json").open("r") as f:
             return json.load(f)
-    except IOError as e:
+    except OSError:
         raise NoSpecJSONError(name, get_local_dir() / 'spec_files' / folder)
 
 
@@ -104,13 +103,13 @@ class NoSpecJSONError(Exception):
         self.folder = folder
 
     def __str__(self):
-        return f"No file named {self.json_name} in {str(self.folder)}!"
+        return f"No file named {self.json_name} in {self.folder!s}!"
 
 
 def is_sorted(target: Iterable[int]) -> bool:
     if not isinstance(target, list):
         target = list(target)
-    return all([target[i - 1] < target[i] < target[i + 1] for i in range(1, len(target) - 1)])
+    return all(target[i - 1] < target[i] < target[i + 1] for i in range(1, len(target) - 1))
 
 
 class BadSimulationDirException(Exception):
@@ -121,7 +120,7 @@ class BadSimulationDirException(Exception):
         return f"Path {self.p} does not have expected format for the patch to a patchy particles trial simulation"
 
 
-def selectColor(number: int, saturation=50, value=65, fmt="hex") -> Union[str, np.ndarray]:
+def selectColor(number: int, saturation=50, value=65, fmt="hex") -> str | np.ndarray:
     # treat hue as an angle on a color wheel
     hue = number * 137.508  # use golden angle approximation
     hue = int(hue) % 360
@@ -147,7 +146,7 @@ def to_xyz(vector: np.ndarray) -> dict[str: int]:
 
 
 def from_xyz(d: dict[str: int]) -> np.ndarray:
-    return np.array([d[k] if k in d else 0 for k in ["x", "y", "z"]])
+    return np.array([d.get(k, 0) for k in ["x", "y", "z"]])
 
 
 # TODO: test if getRotations and enumerateRotations have the same order!!!!

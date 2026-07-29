@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 import datetime
-from typing import Union, Optional
 
-from pypatchy.slurm_log_entry import SlurmLogEntry, LogEntryObject
+from pypatchy.slurm_log_entry import LogEntryObject, SlurmLogEntry
 
 
 class SlurmLog:
@@ -25,7 +24,7 @@ class SlurmLog:
             x.job_id: x for x in self.log_list
         }
 
-    def __getitem__(self, key: Union[int, datetime.date, slice]) -> Union[list[SlurmLogEntry], SlurmLogEntry]:
+    def __getitem__(self, key: int | datetime.date | slice) -> list[SlurmLogEntry] | SlurmLogEntry:
         """
         Accessor function. Provided an int index, a date, or a slice (of ints or dates),
         returns the log entry or entries specified
@@ -52,7 +51,7 @@ class SlurmLog:
     def idx_begin(self,
                   key: datetime.date,
                   begin: int = 0,
-                  end: int = -1) -> Union[int, None]:
+                  end: int = -1) -> int | None:
         """
         Uses a modified version of a binary search to find the first entry for the provided date
 
@@ -90,7 +89,7 @@ class SlurmLog:
     def idx_end(self,
                 key: datetime.date,
                 begin: int = 0,
-                end: int = -1) -> Union[int, None]:
+                end: int = -1) -> int | None:
         """
         Uses a modified version of a binary search to find the last entry for the provided date
 
@@ -133,7 +132,7 @@ class SlurmLog:
         this time I was lazy and had chatGPT write this code
         """
 
-        def binary_search(l: int, r: int) -> Optional[int]:
+        def binary_search(l: int, r: int) -> int | None:
             if l <= r:
                 mid = l + (r - l) // 2
 
@@ -172,7 +171,7 @@ class SlurmLog:
         """
         return self.id_map[pid]
 
-    def by_type(self, entry_type: Union[str, list[str]]) -> SlurmLog:
+    def by_type(self, entry_type: str | list[str]) -> SlurmLog:
         """
         Filters the log by type, returning a log containing only the entries that match
         the provided type.
@@ -249,5 +248,5 @@ class SlurmLog:
     def __repr__(self):
         return "\n\n".join([str(entry) for entry in self])
 
-    def empty(self):
+    def empty(self) -> bool:
         return len(self) == 0

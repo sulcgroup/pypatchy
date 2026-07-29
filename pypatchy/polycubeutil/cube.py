@@ -1,13 +1,15 @@
 from __future__ import annotations
 
-from typing import Union
-
 import numpy as np
 from scipy.spatial.transform import Rotation
 
 from pypatchy.patchy_base_particle import PatchyBaseParticle
-from pypatchy.polycubeutil.polycubesRule import PolycubeRuleCubeType, RULE_ORDER, PolycubesPatch
-from pypatchy.util import getRotations, to_xyz, from_xyz
+from pypatchy.polycubeutil.polycubesRule import (
+    RULE_ORDER,
+    PolycubeRuleCubeType,
+    PolycubesPatch,
+)
+from pypatchy.util import from_xyz, getRotations, to_xyz
 
 
 class PolycubesStructureCube(PatchyBaseParticle):
@@ -48,10 +50,10 @@ class PolycubesStructureCube(PatchyBaseParticle):
         if "uid" in kwargs:
             uid = kwargs["uid"]
         if "state" in kwargs:
-            state = kwargs["state"] if "state" in kwargs else [True]
+            state = kwargs.get("state", [True])
         if isinstance(cube_position, dict):
             cube_position = from_xyz(cube_position)
-        super(PolycubesStructureCube, self).__init__(uid, cube_type.type_id(), cube_position)
+        super().__init__(uid, cube_type.type_id(), cube_position)
         if isinstance(cube_rotation, (np.ndarray, dict)) and len(cube_rotation) == 4:
             # if rotation hsa been passed as a quaternion
             if isinstance(cube_rotation, dict):
@@ -84,7 +86,7 @@ class PolycubesStructureCube(PatchyBaseParticle):
         """
         self._rot = self._rot * rotation
 
-    def typedir(self, direction: Union[int, np.ndarray]) -> np.ndarray:
+    def typedir(self, direction: int | np.ndarray) -> np.ndarray:
         """
         Converts the global-space direction into a local-space direction
         """
@@ -92,10 +94,10 @@ class PolycubesStructureCube(PatchyBaseParticle):
             direction = RULE_ORDER[direction]
         return self.rotation().inv().apply(direction).round()
 
-    def has_patch(self, direction: Union[int, np.ndarray]) -> bool:
+    def has_patch(self, direction: int | np.ndarray) -> bool:
         return self.get_cube_type().has_patch(self.typedir(direction))
 
-    def patch(self, direction: Union[int, np.ndarray]) -> PolycubesPatch:
+    def patch(self, direction: int | np.ndarray) -> PolycubesPatch:
         """
         :return: the patch on this cube in the given global direction
         """

@@ -3,24 +3,24 @@ from __future__ import annotations
 import copy
 import functools
 import math
+import re
 from collections import Counter
 from pathlib import Path
-from typing import Union, Optional
+from typing import Optional, Union
 
 import drawsvg
 import networkx as nx
 import numpy as np
-import re
-
+from oxpy_utils.utils.util import rotation_matrix
 from scipy.spatial.transform import Rotation as R
 
-from oxpy_utils.utils.util import rotation_matrix
-
-from .effect import Effect, StringConditionalEffect, DynamicEffect, EFFECT_CLASSES
-from ..util import rotAroundAxis, powerset
-
-from ..util import from_xyz, to_xyz, getSignedAngle
-from ..patchy_base_particle import PatchyBaseParticleType, BasePatchType, BaseParticleSet
+from ..patchy_base_particle import (
+    BaseParticleSet,
+    BasePatchType,
+    PatchyBaseParticleType,
+)
+from ..util import from_xyz, getSignedAngle, powerset, rotAroundAxis, to_xyz
+from .effect import EFFECT_CLASSES, DynamicEffect, Effect, StringConditionalEffect
 
 FACE_NAMES = ("left", "right", "bottom", "top", "back", "front")
 RULE_ORDER = (
@@ -107,10 +107,10 @@ class PolycubesPatch(BasePatchType):
     """
 
     def __init__(self,
-                 uid: Union[int, None],
+                 uid: int | None,
                  color: int,
-                 direction: Union[int, np.ndarray],
-                 orientation: Optional[Union[int, np.ndarray]]=None,
+                 direction: int | np.ndarray,
+                 orientation: int | np.ndarray | None = None,
                  stateVar: int = 0,
                  activationVar: int = 0):
         super().__init__(uid, color)
@@ -229,7 +229,7 @@ class PolycubeRuleCubeType(PatchyBaseParticleType):
                  ct_id: int,
                  patches: list[PolycubesPatch],
                  stateSize=1,
-                 effects: Union[None, list[Effect]] = None,
+                 effects: None | list[Effect] = None,
                  name=""):
         super().__init__(ct_id, patches)
         if effects is None:
@@ -263,9 +263,9 @@ class PolycubeRuleCubeType(PatchyBaseParticleType):
         return self._stateSize - 1
 
     def get_patch_by_diridx(self, dirIdx: int) -> PolycubesPatch:
-        return [p for p in self.patches() if p.dirIdx() == dirIdx][0]
+        return next(p for p in self.patches() if p.dirIdx() == dirIdx)
 
-    def get_patch_by_state_var(self, state_var: int) -> Union[None, PolycubesPatch]:
+    def get_patch_by_state_var(self, state_var: int) -> None | PolycubesPatch:
         """
 
         """
@@ -276,18 +276,18 @@ class PolycubeRuleCubeType(PatchyBaseParticleType):
         else:
             return patches[0]
 
-    def has_patch(self, arg: Union[int, np.ndarray]) -> bool:
+    def has_patch(self, arg: int | np.ndarray) -> bool:
         if isinstance(arg, int):  # direction index
-            return any([p.dirIdx() == arg for p in self.patches()])
+            return any(p.dirIdx() == arg for p in self.patches())
         else:
             assert isinstance(arg, np.ndarray)
-            return any([(RULE_ORDER[p.dirIdx()] == arg).all() for p in self.patches()])
+            return any((RULE_ORDER[p.dirIdx()] == arg).all() for p in self.patches())
 
-    def patch(self, direction: Union[int, np.ndarray]) -> PolycubesPatch:
+    def patch(self, direction: int | np.ndarray) -> PolycubesPatch:
         if isinstance(direction, int):
             return self.get_patch_by_diridx(direction)
         else:
-            return [p for p in self.patches() if (RULE_ORDER[p.dirIdx()] == direction).all()][0]
+            return next(p for p in self.patches() if (RULE_ORDER[p.dirIdx()] == direction).all())
 
     def diridxs(self) -> set[int]:
         return {p.dirIdx() for p in self.patches()}
@@ -313,7 +313,7 @@ class PolycubeRuleCubeType(PatchyBaseParticleType):
         self._patches.append(patch)
         assert len(self.patches()) <= 6
 
-    def remove_patch(self, identifier: Union[int, np.ndarray]):
+    def remove_patch(self, identifier: int | np.ndarray):
         if isinstance(identifier, int):
             self.remove_patch(RULE_ORDER[identifier])
         else:
@@ -321,9 +321,9 @@ class PolycubeRuleCubeType(PatchyBaseParticleType):
                 if np.array_equal(p.direction(), identifier):
                     self._patches.remove(p)
                     return
-            raise Exception(f"{self} does not have a patch at position {identifier}")
+            raise KeyError(f"{self} does not have a patch at position {identifier}")
 
-    def get_patch_state_var(self, key: Union[int, str, np.ndarray],
+    def get_patch_state_var(self, key: int | str | np.ndarray,
                             make_if_0=False) -> int:
         """
         returns the state variable associated with a patch
@@ -350,15 +350,6 @@ class PolycubeRuleCubeType(PatchyBaseParticleType):
         return [e for e in self._effects if e.target() == abs(v)]
 
     def add_effect(self, effect: EFFECT_CLASSES):
-        # if isinstance(effect, StringConditionalEffect):
-        #     if effect.conditional() != "(true)":
-        #         effect.setStr(re.sub(r'b\[(\d+)]',
-        #                              # lambda match: str(self.get_patch_by_diridx(int(match.group(1))).state_var()),
-        #                              lambda match: str(self.get_patch_state_var(int(match.group(1)), True)),
-        #                              effect.conditional())
-        #                       )
-        #     else:
-        #         effect.setStr("0")
         self._effects.append(effect)
 
     def patch_conditional(self, patch: PolycubesPatch, minimize=False) -> str:
@@ -456,128 +447,7 @@ class PolycubeRuleCubeType(PatchyBaseParticleType):
         # each patch is distance 1.0 units from center but that's not the radius per se
         return 1.0
 
-    # def __deepcopy__(self, memo) -> PolycubeRuleCubeType:
-    #     return PolycubeRuleCubeType(self.type_id(),
-    #                                 [
-    #         copy.deepcopy(p) for p in self.patches()
-    #     ], self.state_size(), [copy.deepcopy(e) for e in self.effects()], self.name())
-
-    # def draw_polyomino(self, d: draw.Drawing, x: int, y: int):
-    #     group = draw.Group(transform=f"translate({x},{y}")
-    #     d.append(group)
-    #     arrow_end = draw.Marker(minx=0, miny=0, maxx=10, maxy=10)
-    #     arrow_end.append(draw.Path(d="M 0 0 L 10 5 L 0 10 z", fill="black"))
-    #     for f, _ in enumerate(RULE_ORDER):
-    #         patchx, patchy = FACE_SVG_COORDS[f]
-    #         group.append(draw.Rectangle(patchx * FACE_SQUARE_W,
-    #                                     patchy * FACE_SQUARE_W,
-    #                                     FACE_SQUARE_W,
-    #                                     FACE_SQUARE_W,
-    #                                     fill=selectColor(self.type_id())))
-    #         if self.has_patch(f):
-    #             patch = self.get_patch_by_diridx(f)
-    #             rotation = patch.get_align_rot_num() * 90
-    #             patch_path = draw.Path(
-    #                 d="m 30,85 0,-45 10,0 0,-15 22,0 0,15 10,0 0, 45 z",
-    #                 fill=selectColor(patch.color()),
-    #                 stroke="black" if patch.color > 0 else "white",
-    #                 stroke-width=3.5,
-    #                 transform=f"scale(0.5) translate({patchx * FACE_SQUARE_W - 20},{patchy * FACE_SQUARE_W - 20}) rotate({rotation})"
-    #             )
-    # x_cum = FACE_SQUARE_W * 3 + 2 * FACE_FIG_PAD
-    # def activates(x1, y1, x2, y2, deactivates=False, arc_r=1.25):
-    #     radius = math.sqrt(2 ** (x2 - x1) + 2 ** (y2 - y1, 2)) * arc_r
-    #     color = "red" if deactivates else "green"
-    #     group.append(draw.Path(d=f"M {x1} {y1} A {radius} {radius} 0 0 1 {x2}${y2}",
-    #                stroke="red" if deactivates else "green",
-    #                fill="none",
-    #                markerend=arrow_end
-    #     ))
-    #
-    #     def coordspace(n):
-    #         return (n + 0.5) * FACE_SQUARE_W
-    #
-    # if self.num_effects() > 0 {
-    #     state_box_w = row_h / (2 * cubeType.state_size() + 3);
-    #     row_center = row_h / 2 - 1.5 * state_box_w;
-    #     x_cum += + 2 * FACE_FIG_PAD;
-    #     state_box_x = x_cum;
-    #     x_cum += state_box_w;
-    #     # loop state variables
-    #     for s in range(-self.state_size(), self.state_size() + 1):
-    #         # draw state var
-    #         group.append(draw.Rectangle(state_box_x, row_center + s * state_box_w, state_box_w, state_box_w,
-    #                                     stroke="black",
-    #                                     fill="white"))
-    #         group.append(draw.Text(f"{s}",
-    #                                state_box_x + state_box_w / 2,
-    #                                row_center + (s + 0.5) * state_box_w,
-    #                                center=True,
-    #                                fontsize=10))
-    #
-    #     def state_box_intr_coords(s, side="left"):
-    #         assert s > -self.state_size() - 1
-    #         assert s < + self.state_size() + 1
-    #         x = state_box_x + (state_box_w * (0 if side == "left" else 1))
-    #         x += 6 * (-1 if side == "left" else 1)
-    #         y = (s + 0.5) * state_box_w + row_center
-    #         return x, y
-    #
-    #     def sets_state(x1, y1, state_idx, x2=None)
-    #         approach_dir =  "left" if x1 < state_box_x else "right"
-    #         x3, y3 = state_box_intr_coords(state_idx, approach_dir)
-    #         if x2 is None:
-    #             x2 = (x1 + x3) / 2
-    #         y2 = (y1 + y3) / 2
-    #         group.append(draw.Path(f"M {x1} {y1} S {x2} {y1} {x2} {y2} S {x2} {y3} {x3} {y3}",
-    #             stroke="green",
-    #             fill="none",
-    #             marker_end=arrow_end
-    #         )
-    #
-    #     for f in enumerate(RULE_ORDER):
-    #         if self.has_patch(f):
-    #             patch = self.get_patch_by_diridx(f)
-    #             if self.get_patch_by_diridx(f).state_var():
-    #                 x1, y1 = FACE_SVG_COORDS[f]
-    #                 sets_state(coordspace(x1), coordspace(y1), patch.state_var())
-    #             if patch.activation_var():
-    #                 [x1, y1] = state_box_intr_coords(cubeType.patches[f].activation_var)
-    #                 [x2, y2] = FACE_SVG_COORDS[f]
-    #                 activates(x1, y1, coordspace(x2), coordspace(y2), cubeType.patches[f].activation_var < 0)
-    #     x_cum += 2 * FACE_FIG_PAD;
-    #     for j, e in enumerate(self.effects()):
-    #         origins_coords_list = [state_box_intr_coords(s, "right") for s in e.sources]
-    #         if len(origins_coords_list) == 1:
-    #             e_draw_size = state_box_w;
-    #             e_draw_y = origins_coords_list[0][1] - state_box_w / 2
-    #         else:
-    #             e_draw_size = state_box_w * 0.75 * origins_coords_list.length
-    #             e_draw_y = origins_coords_list.reduce((a, p) = > {
-    #                 return a + (p[1] / origins_coords_list.length);
-    #             }, 0);
-    #         group.path(f"M ${x_cum} {e_draw_y} h {e_draw_size * 0.25} a {e_draw_size / 2} {e_draw_size / 2} 0 0 1 0 {e_draw_size} h {-e_draw_size * 0.25} z",
-    #                    stroke="black",
-    #                    fill="white")
-    #         for k, xy in enumerate(origins_coords_list):
-    #             [x1, y1] = xy
-    #             x2 = x_cum - 5
-    #             y2 = e_draw_y + (k + 1) * e_draw_size / (origins_coords_list.length + 1)
-    #             activates(x1, y1, x2, y2, e.sources[k] < 0, 4)
-    #         x_cum += e_draw_size * 0.75
-    #         y1 = e_draw_y + e_draw_size / 2
-    #         x_mid = x_cum + Math.sqrt(Math.abs(e_draw_y + e_draw_size / 2 - dest_y))
-    #         sets_state(x_cum, y1, e.target, x_mid)
-    #         x_cum += 22
-    #         if (e.sources.length == 1:
-    #             x_cum -= 10
-    #     group.append(draw.Text(
-    #         self.typeName,
-    #         96, 275,
-    #         center=True,
-    #         font-size=20
-    #     big_cum_x += x_cum
-
+   
     def shift_state(self, nvars: int):
         """
         Shifts the entire state to the right by nvars
@@ -610,14 +480,12 @@ class PolycubeRuleCubeType(PatchyBaseParticleType):
                 # loop effects
                 for e in self.effects():
                     # effects that have already fired are irrelevant
-                    if not state[e.target()]:
-                        # if effect can fire
-                        if all([state[src] if src > 0 else not state[-src] for src in e.sources()]):
-                            # state transition probabilities haven't been implemented yet but incl forward proofing
-                            effect_prob = 1
-                            if e.target() not in effect_map:
-                                effect_map[e.target()] = []
-                            effect_map[e.target()].append(effect_prob)
+                    if not state[e.target()] and all(state[src] if src > 0 else not state[-src] for src in e.sources()):
+                        # state transition probabilities haven't been implemented yet but incl forward proofing
+                        effect_prob = 1
+                        if e.target() not in effect_map:
+                            effect_map[e.target()] = []
+                        effect_map[e.target()].append(effect_prob)
                 # prob of state var transition is prob that any of the effects will fire
                 # so 1 - the prob that none of the effects will fire
                 # = 1 - the product of (1 - the probability that each effect wiill fire)
@@ -707,7 +575,7 @@ class PolycubesRule(BaseParticleSet):
                         # split sources, target
                         sources, target = effect_str.split(">")
                         # parse sources
-                        sources = [int(match.group(0)) for match in re.finditer("-?\d+", sources)]
+                        sources = [int(match.group(0)) for match in re.finditer(r"-?\d+", sources)]
                         # parse target
                         target = int(target)
                         # append to effects
@@ -716,7 +584,7 @@ class PolycubesRule(BaseParticleSet):
                         vars_set = vars_set.union({target, *[abs(i) for i in sources]})
                 else:
                     patches_str = particle_type_str
-                if re.match("^([^|]*\|){5}[^|]*$", particle_type_str):
+                if re.match(r"^([^\|]*\|){5}[^\|]*$", particle_type_str):
                     patch_strs = patches_str.split("|")
                 else:
                     patch_strs = patches_str.split("#")
@@ -764,10 +632,6 @@ class PolycubesRule(BaseParticleSet):
                 for e in string_effects:
                     cube_type.add_effect(e)
 
-                # self._cubeTypeList.append(PolycubeRuleCubeType(i,
-                #                                                patches_list,
-                #                                                len(vars_set),
-                #                                                effects))
                 self.add_particle(cube_type)
 
         # TODO: pull tag info from C++ to maintain consistancy?
@@ -895,7 +759,7 @@ class PolycubesRule(BaseParticleSet):
         # remove cube type from cube type lists
         self._particle_types = [ct for ct in self.particles() if ct.type_id() != cubeType.type_id()]
         # remove patches that are no longer needed
-        self._patch_types = [p for p in self.patches() if any([p in ct.patches() for ct in self.particles()])]
+        self._patch_types = [p for p in self.patches() if any(p in ct.patches() for ct in self.particles())]
         # TODO: handle particle and patch IDs!!!
 
     def color_set(self) -> set[int]:
@@ -923,7 +787,7 @@ class PolycubesRule(BaseParticleSet):
     def __str__(self) -> str:
         return "_".join(str(ct) for ct in self.particles())
 
-    def __eq__(self, other: Union[PolycubesRule, str]):
+    def __eq__(self, other: PolycubesRule | str):
         if isinstance(other, PolycubesRule):
             return self == str(other)
         else:
@@ -979,7 +843,7 @@ class PolycubesRule(BaseParticleSet):
                 i += 1
         return i
 
-    def to_SAT(self, filename: Union[Path, str]):
+    def to_SAT(self, filename: Path | str):
         """
         convert particle set to SAT format
         """
@@ -995,7 +859,7 @@ class PolycubesRule(BaseParticleSet):
     def to_sat_list(self) -> list[str]:
         sat_vars = []
         colorcount = 0
-        colormap: dict[int, int] = dict()
+        colormap: dict[int, int] = {}
         for i_particle, particle_type in enumerate(self.particles()):
             for patch in particle_type.patches():
                 if patch.color() not in colormap:

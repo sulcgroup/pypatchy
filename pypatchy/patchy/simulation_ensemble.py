@@ -3,57 +3,71 @@ from __future__ import annotations
 import copy
 import datetime
 import itertools
+import logging
 import multiprocessing
 import os
 import random
+import re
 import shutil
+import subprocess
 import tempfile
 import time
-from collections import Counter
-from json import JSONDecodeError
-from typing import Generator, Type, Optional, Any
-
-import subprocess
-import re
-import logging
+from typing import Any
 import warnings
+from collections import Counter
+from collections.abc import Generator
+from json import JSONDecodeError
 
 import oxpy
-# import oat stuff
-from oxDNA_analysis_tools.UTILS.oxview import from_path
 from oxDNA_analysis_tools.file_info import file_info
-from oxDNA_analysis_tools.UTILS.RyeReader import get_confs, describe, write_conf
 from oxDNA_analysis_tools.UTILS.data_structures import Configuration
 
+# import oat stuff
+from oxDNA_analysis_tools.UTILS.oxview import from_path
+from oxDNA_analysis_tools.UTILS.RyeReader import describe, get_confs, write_conf
 from oxpy_utils.oxdna_simulation import Simulation
 from oxpy_utils.utils.observable import Observable, ObservableColumn
-from .param_val_types import StageInfoParam
-from .particle_adders import RandParticleAdder
 
-from .pl.plparticle import PLPatchyParticle, PLPatch
-from .pl.plparticleset import PLParticleSet
-from .pl.plpotential import PLPotential, PLFRExclVolPotential, PLFRTorsionalPatchyPotential, PLLRPatchyPotential, \
-    PLLRExclVolPotential, PLFRPatchyPotential
-from .sim_ensemble_json import SimEnsembleJsonEncoder
-from .simulation_specification import get_param_set
-from ..analysis.analyzable import Analyzable
-
-from ..patchy.patchy_scripts import lorenzian_to_flavian
+from ..analysis.analysis_data import TIMEPOINT_KEY, MissingDataError, PDPipelineData
 from ..analysis.analysis_pipeline import AnalysisPipeline
-from .pl.plscene import PLPSimulation
-from .stage import Stage, NoStageTrajError, IncompleteStageError, StageTrajFileEmptyError, AllStagesCompleteError
-from ..analysis.analysis_data import PDPipelineData, TIMEPOINT_KEY, MissingDataError
 from ..analysis.analysis_pipeline_step import *
-from .patchy_sim_observable import PatchySimObservable, observable_from_file
-from .pl.patchyio import get_writer, PLBaseWriter, FWriter
-from ..server_config import load_server_settings, PatchyServerConfig, get_server_config
+from ..analysis.analyzable import Analyzable
+from ..patchy.patchy_scripts import lorenzian_to_flavian
+from ..polycubeutil.polycubesRule import PolycubesRule
+from ..server_config import PatchyServerConfig, get_server_config, load_server_settings
 from ..slurm_log_entry import SlurmLogEntry
 from ..slurmlog import SlurmLog
 from ..util import *
 from .ensemble_parameter import *
-from .simulation_specification import PatchySimulation, ParamSet, NoSuchParamError
-from .pl.plpatchylib import polycube_rule_to_PL, load_pl_particles
-from ..polycubeutil.polycubesRule import PolycubesRule
+from .param_val_types import StageInfoParam
+from .particle_adders import RandParticleAdder
+from .patchy_sim_observable import PatchySimObservable, observable_from_file
+from .pl.patchyio import FWriter, PLBaseWriter, get_writer
+from .pl.plparticleset import PLParticleSet
+from .pl.plpatchylib import load_pl_particles, polycube_rule_to_PL
+from .pl.plpotential import (
+    PLFRExclVolPotential,
+    PLFRPatchyPotential,
+    PLFRTorsionalPatchyPotential,
+    PLLRExclVolPotential,
+    PLLRPatchyPotential,
+    PLPotential,
+)
+from .pl.plscene import PLPSimulation
+from .sim_ensemble_json import SimEnsembleJsonEncoder
+from .simulation_specification import (
+    NoSuchParamError,
+    ParamSet,
+    PatchySimulation,
+    get_param_set,
+)
+from .stage import (
+    AllStagesCompleteError,
+    IncompleteStageError,
+    NoStageTrajError,
+    Stage,
+    StageTrajFileEmptyError,
+)
 
 EXPORT_NAME_KEY = "export_name"
 PARTICLES_KEY = "particles"
@@ -187,9 +201,9 @@ def find_ensemble(*args: str, **kwargs) -> PatchySimulationEnsemble:
         simname = args[0]
         if len(args) == 2:
             sim_init_date: datetime.datetime = normalize_date(args[1])
-        elif any([key in kwargs for key in ["sim_date", "date"]]):
+        elif any(key in kwargs for key in ["sim_date", "date"]):
             sim_init_date = normalize_date(
-                [kwargs[key] for key in ["sim_date", "date"] if key in kwargs][0])
+                next(kwargs[key] for key in ["sim_date", "date"] if key in kwargs))
         else:
             return find_ensemble(name=simname,
                                  set_server=kwargs["set_server"],
@@ -212,13 +226,13 @@ def find_ensemble(*args: str, **kwargs) -> PatchySimulationEnsemble:
                                  set_server=kwargs["set_server"],
                                  loader=kwargs["loader"])
 
-    elif any([key in kwargs for key in ["cfg_file_name", "cfg_file", "cfg"]]):
+    elif any(key in kwargs for key in ["cfg_file_name", "cfg_file", "cfg"]):
         # if the user is specifying a cfg file
-        cfg_file_name: str = [kwargs[key] for key in ["cfg_file_name", "cfg_file", "cfg"] if key in kwargs][0]
+        cfg_file_name: str = next(kwargs[key] for key in ["cfg_file_name", "cfg_file", "cfg"] if key in kwargs)
         # if user passed a date
-        if any([key in kwargs for key in ["sim_date", "date"]]):
+        if any(key in kwargs for key in ["sim_date", "date"]):
             sim_init_date = normalize_date(
-                [kwargs[key] for key in ["sim_date", "date"] if key in kwargs][0]
+                next(kwargs[key] for key in ["sim_date", "date"] if key in kwargs)
             )
         # default: today
         else:
@@ -229,12 +243,12 @@ def find_ensemble(*args: str, **kwargs) -> PatchySimulationEnsemble:
             cfg_file_name = cfg_file_name + ".json"
         cfg_file_path = (get_input_dir() / cfg_file_name)
         if not cfg_file_path.exists():
-            raise FileNotFoundError(f"Ensemble configuration file {str(cfg_file_path)} does not exist!")
+            raise FileNotFoundError(f"Ensemble configuration file {cfg_file_path!s} does not exist!")
         with cfg_file_path.open("r") as cfg_file:
             try:
                 cfg = json.load(cfg_file)
             except JSONDecodeError as e:
-                raise JSONDecodeError(msg=f"Error parsing patchy ensemble spec file {str(cfg_file_path)}! {e.msg}",
+                raise JSONDecodeError(msg=f"Error parsing patchy ensemble spec file {cfg_file_path!s}! {e.msg}",
                                       doc=e.doc,
                                       pos=e.pos)
             if kwargs["set_server"]:
@@ -251,12 +265,12 @@ def find_ensemble(*args: str, **kwargs) -> PatchySimulationEnsemble:
         simname: str = kwargs["name"]
 
         if simname.endswith(".json"):
-            raise Exception("Do not pass file name as the `name` parameter in this method! "
+            raise ValueError("Do not pass file name as the `name` parameter in this method! "
                             "Use `cfg_file` or `cfg` to specify a cfg file name.")
 
-        if any([key in kwargs for key in ["sim_date", "date"]]):
+        if any(key in kwargs for key in ["sim_date", "date"]):
             sim_init_date = normalize_date(
-                [kwargs[key] for key in ["sim_date", "date"] if key in kwargs][0])
+                next(kwargs[key] for key in ["sim_date", "date"] if key in kwargs))
         # default: today
         else:
             sim_init_date: datetime.datetime = datetime.datetime.now()
@@ -283,12 +297,12 @@ def find_ensemble(*args: str, **kwargs) -> PatchySimulationEnsemble:
 
 
 
-    elif any([key in kwargs for key in ["metadata_file_name", "metadata_file", "mdf", "mdt", "metadata"]]):
-        metadata_file_name: str = [kwargs[key] for key in ["metadata_file_name",
+    elif any(key in kwargs for key in ["metadata_file_name", "metadata_file", "mdf", "mdt", "metadata"]):
+        metadata_file_name: str = next(kwargs[key] for key in ["metadata_file_name",
                                                            "metadata_file",
                                                            "mdf",
                                                            "mdt",
-                                                           "metadata"] if key in kwargs][0]
+                                                           "metadata"] if key in kwargs)
         if metadata_file_name.endswith(".json"):
             # assume - incorrectly - that the user knows what they're doing
             metadata_file_path = get_input_dir() / metadata_file_name
@@ -308,13 +322,13 @@ def find_ensemble(*args: str, **kwargs) -> PatchySimulationEnsemble:
                 )
         else:
             # grab date arg
-            if any([key in kwargs for key in ["sim_date", "date"]]):
+            if any(key in kwargs for key in ["sim_date", "date"]):
                 sim_init_date = normalize_date(
-                    [kwargs[key] for key in ["sim_date", "date"] if key in kwargs][0]
+                    next(kwargs[key] for key in ["sim_date", "date"] if key in kwargs)
                 )
             else:
                 # no default! we're assuming the user is looking for a SPECIFIC file!
-                raise Exception("Missing date information for metadata sim lookup!")
+                raise ValueError("Missing date information for metadata sim lookup!")
             # two options: date-included and date-excluded
             if metadata_file_name.find(
                     "metadata") == -1:  # please please do not name a file that isn't metadata "metadata"
@@ -324,13 +338,13 @@ def find_ensemble(*args: str, **kwargs) -> PatchySimulationEnsemble:
                                  set_server=kwargs["set_server"],
                                  loader=kwargs["loader"])  # recurse to strong literal behavior
     else:
-        raise Exception("Missing required identifier for simulation!")
+        raise ValueError("Missing required identifier for simulation!")
 
 
 def build_ensemble(cfg: dict[str, Any],
                    mdt: dict[str, Union[str, dict]],
-                   mdtfile: Optional[Path] = None,
-                   encoder_decoder: Type = SimEnsembleJsonEncoder) -> PatchySimulationEnsemble:
+                   mdtfile: Path | None = None,
+                   encoder_decoder: type = SimEnsembleJsonEncoder) -> PatchySimulationEnsemble:
     """
     External patchy simulation constructor
     :param cfg: a key-value dict
@@ -365,7 +379,7 @@ def build_ensemble(cfg: dict[str, Any],
 
     # too difficult to make this one a ParamSet object
     # todo: kill this, replace with server config
-    default_param_set_key = cfg[DEFAULT_PARAM_SET_KEY] if DEFAULT_PARAM_SET_KEY in cfg else "default"
+    default_param_set_key = cfg.get(DEFAULT_PARAM_SET_KEY, "default")
     default_param_set = get_param_set(default_param_set_key) if default_param_set_key else ParamSet([])
 
     params = []
@@ -430,8 +444,7 @@ def build_ensemble(cfg: dict[str, Any],
         )
 
     # handle multidentate params
-    if NUM_TEETH_KEY in cfg[CONST_PARAMS_KEY]:
-        if cfg[CONST_PARAMS_KEY][NUM_TEETH_KEY] > 1:
+    if NUM_TEETH_KEY in cfg[CONST_PARAMS_KEY] and cfg[CONST_PARAMS_KEY][NUM_TEETH_KEY] > 1:
             raise ValueError(f"Direct setting of `{NUM_TEETH_KEY}` is no longer supported! Use "
                              f"`{MDT_CONVERT_KEY}` with a MultidentateConvertSettings instead.")
         # assert DENTAL_RADIUS_KEY in cfg[CONST_PARAMS_KEY]
@@ -452,7 +465,7 @@ def build_ensemble(cfg: dict[str, Any],
                 # order, using each particle's own .name() (e.g. "CT0" for rule-derived types,
                 # "particletype_0" for particles with no explicit name)
                 if particles is None:
-                    raise Exception(f"Cannot use list form for '{PARTICLE_TYPE_LVLS_KEY}' "
+                    raise ValueError(f"Cannot use list form for '{PARTICLE_TYPE_LVLS_KEY}' "
                                     f"without particle type info specified!")
                 ptypes = particles.particles()
                 assert len(val) == len(ptypes), \
@@ -467,7 +480,7 @@ def build_ensemble(cfg: dict[str, Any],
 
     if OBSERABLES_KEY in cfg:
         # iter observables in cfg
-        if all([type(obs) == dict for obs in cfg[OBSERABLES_KEY]]):
+        if all(type(obs) == dict for obs in cfg[OBSERABLES_KEY]):
             for obs in cfg[OBSERABLES_KEY]:
                 observable_obj = Observable(
                     obs["name"],
@@ -478,14 +491,14 @@ def build_ensemble(cfg: dict[str, Any],
                     ]
                 )
                 observables[observable_obj.file_name] = observable_obj
-        elif all([type(obs) == str for obs in cfg[OBSERABLES_KEY]]):
+        elif all(type(obs) == str for obs in cfg[OBSERABLES_KEY]):
             # oh no
             for obs in cfg[OBSERABLES_KEY]:
                 if isinstance(obs, str):
                     observables[obs] = observable_from_file(obs)
         else:
-            assert all([type(obs) == Observable for obs in cfg[OBSERABLES_KEY]]), \
-                f"Unrecognized type {str(type(next(o for o in cfg[OBSERABLES_KEY] if not isinstance(o, (str, dict)))))}"
+            assert all(type(obs) == Observable for obs in cfg[OBSERABLES_KEY]), \
+                f"Unrecognized type {type(next(o for o in cfg[OBSERABLES_KEY] if not isinstance(o, (str, dict))))!s}"
             for obs in cfg[OBSERABLES_KEY]:
                 observables[obs.file_name] = obs
 
@@ -498,7 +511,7 @@ def build_ensemble(cfg: dict[str, Any],
         if isinstance(server_spec_file, str):
             server_settings = load_server_settings(server_spec_file)
             if server_settings is None:
-                raise Exception(f"No server setting set called `{cfg['server_settings']}`")
+                raise FileNotFoundError(f"No server setting set called `{cfg['server_settings']}`")
         elif isinstance(server_spec_file,dict):
             server_settings = PatchyServerConfig(**server_spec_file)
         elif isinstance(server_spec_file,PatchyServerConfig):
@@ -535,7 +548,7 @@ def build_ensemble(cfg: dict[str, Any],
     if "analysis_pipeline" in mdt:
         ensemble.analysis_pipeline = SimEnsembleJsonEncoder().read_analysis_pipeline(mdt["analysis_pipeline"],
                                                                                      ensemble)
-        analysis_pipeline_data = mdt["analysis_pipeline_data"] if "analysis_pipeline_data" in mdt else None
+        analysis_pipeline_data = mdt.get("analysis_pipeline_data", None)
         # read pipeline data *after* constructing the ensemble object
         if analysis_pipeline_data is not None:
             # analysis pipeline is encoded in json as a mixed-type list
@@ -596,7 +609,7 @@ class PatchySimulationEnsemble(Analyzable):
     # output writer
     writer: PLBaseWriter
 
-    json_rw: Type = SimEnsembleJsonEncoder
+    json_rw: type = SimEnsembleJsonEncoder
 
     _log_file_name: Path
 
@@ -609,9 +622,9 @@ class PatchySimulationEnsemble(Analyzable):
                  observables: dict[str, Observable],
                  metadata_dict: dict,
                  server_settings: Union[PatchyServerConfig, None] = None,
-                 json_rw: Type = SimEnsembleJsonEncoder,
-                 analysis_pipeline: Optional[AnalysisPipeline] = None,
-                 log_file_name: Optional[Union[str, Path]] = None):
+                 json_rw: type = SimEnsembleJsonEncoder,
+                 analysis_pipeline: AnalysisPipeline | None = None,
+                 log_file_name: Union[str, Path] | None = None):
         """
         :param export_name: the name to use for this ensemble.
         :param setup_date: the date that this group of simulations was set up
@@ -834,8 +847,7 @@ class PatchySimulationEnsemble(Analyzable):
             # get job info
             jobinfo, _ = self.bash_exec(f"scontrol show job {last_entry.job_id} | grep JobState")
             job_stopped = len(jobinfo) == 0 or jobinfo.split()[0].split("=")[1] != "RUNNING"
-            if job_stopped:
-                if self.time_length(sim) < desired_sim_length:
+            if job_stopped and self.time_length(sim) < desired_sim_length:
                     sims_that_need_attn.append(sim)
         return sims_that_need_attn
 
@@ -856,7 +868,7 @@ class PatchySimulationEnsemble(Analyzable):
             return paramval
         except NoSuchParamError as e:
             e.set_sim(sim)
-            raise e
+            raise
 
     def sim_stage_get_param(self, sim: PatchySimulation, stage: Stage, param_name: str) -> Any:
         """
@@ -1006,8 +1018,8 @@ class PatchySimulationEnsemble(Analyzable):
         try:
             # load stage info parameters for simulation
             # sort by start time
-            stages_info: list[StageInfoParam] = copy.deepcopy(list(sorted(self.get_stages_info(sim).values(),
-                                                                          key=lambda x: x.start_time)))
+            stages_info: list[StageInfoParam] = copy.deepcopy(sorted(self.get_stages_info(sim).values(),
+                                                                          key=lambda x: x.start_time))
 
             stages: list[Stage] = []
             # loop stages in stage list from spec
@@ -1015,8 +1027,8 @@ class PatchySimulationEnsemble(Analyzable):
             for i, stage_info in enumerate(stages_info):
                 stage_init_args = {}
                 # compute stage runtime
-                assert stage_info.get_start_time() != 0 or i == 0, \
-                    "Stages other than start stage must have specified start time"
+                if not (stage_info.get_start_time() != 0 or i == 0):
+                    raise ValueError("Stages other than start stage must have specified start time")
                 # if this is not the last stage
                 if i + 1 != len(stages_info):
                     # if stage is not final stage, last step of this stage will be first step of next stage
@@ -1038,7 +1050,7 @@ class PatchySimulationEnsemble(Analyzable):
         except NoSuchParamError as e:
             # if we are missing a parameter other than "staging", we are going to have problems
             if e.param_name() != STAGES_KEY:
-                raise e
+                raise
             # if stages not found
             # list particle type counts
             stages = [self._gen_default_stage(sim, cumulative_type_counts)]
@@ -1128,7 +1140,7 @@ class PatchySimulationEnsemble(Analyzable):
                 try:
                     last_step = int(f.readline().split("=")[1].strip())
                 except IndexError as e:
-                    raise ValueError(f"Malformed or empty last configuration file: {str(self.folder_path(sim) / self.sim_get_param(sim, 'lastconf_file'))}") from e
+                    raise ValueError(f"Malformed or empty last configuration file: {self.folder_path(sim) / self.sim_get_param(sim, 'lastconf_file')!s}") from e
             stages[0].set_tend(last_step)
             return stages
         else:
@@ -1179,7 +1191,7 @@ class PatchySimulationEnsemble(Analyzable):
         for stage in stages:
             if stage.name() == stage_name or f"stage_{stage_name}" == stage.name():
                 return stage
-        raise Exception(f"No stage named {stage_name}!")
+        raise KeyError(f"No stage named {stage_name}!")
 
     def sim_get_stage_top_traj(self, sim: PatchySimulation, stage: Union[str, int, Stage]) -> tuple[Path, Path]:
         """
@@ -1262,10 +1274,8 @@ class PatchySimulationEnsemble(Analyzable):
                         sim,
                         stage_last_step
                     )
-                except NoStageTrajError as e:
+                except (NoStageTrajError, StageTrajFileEmptyError):
                     # if there's no traj for this stage it means the stage hasn't started yet
-                    pass
-                except StageTrajFileEmptyError as e:
                     # if the stage traj is empty just continue
                     pass
         # if no stage has a traj file, raise exception
@@ -1334,7 +1344,7 @@ class PatchySimulationEnsemble(Analyzable):
                         alpha=self.sim_get_param(sim, "PATCHY_alpha")
                     )
             else:
-                raise Exception(f"No python-implemented interaction potential called {name}, options are"
+                raise ValueError(f"No python-implemented interaction potential called {name}, options are"
                                 f" `lr_excl_vol`, `fr_excl_vol`, `lr_patchy`, `fr_patchy`.")
             potentials.append(potential)
         return potentials
@@ -1444,7 +1454,7 @@ class PatchySimulationEnsemble(Analyzable):
         """
         print(f"Ensemble of simulations of {self.export_name} set up on {self.sim_init_date.strftime('%Y-%m-%d')}")
         try:
-            print(f"Particle info: {str(self.get_param('particle_types'))}")
+            print(f"Particle info: {self.get_param('particle_types')!s}")
         except NoSuchParamError as e:
             print("Particle types are not constant")
         print(f"Metadata stored in file {self.metadata_file}")
@@ -1452,14 +1462,14 @@ class PatchySimulationEnsemble(Analyzable):
         print("Ensemble Params")
         for param in self.ensemble_params:
             print("\t" + str(param))
-        print(f"Const Simulation Params")
+        print("Const Simulation Params")
         for param in self.const_params:
             print(param.str_verbose())
 
         if len(self.analysis_pipeline) > 0:
             print(
                 f"Has analysis pipeline with {self.analysis_pipeline.num_pipeline_steps()} steps and {self.analysis_pipeline.num_pipes()} pipes.")
-            print(f"Pipeline steps")
+            print("Pipeline steps")
 
         if len(self.analysis_data) > 0:
             print(f"Has {len(self.analysis_data)} entries of analysis data loaded (each entry is data for a specific "
@@ -1526,7 +1536,7 @@ class PatchySimulationEnsemble(Analyzable):
                                                               particle_types,
                                                               (step - stage.start_time()) // conf_interval)
         else:
-            assert step is None, f"Could not find trajectory file {str(traj_file)}, " \
+            assert step is None, f"Could not find trajectory file {traj_file!s}, " \
                                  f"but timestep was explicitly specified."
             conf_file = self.sim_stage_get_param(sim, stage, "conf_file")
             scene: PLPSimulation = self.writer.read_scene(top_file.name,
@@ -1658,9 +1668,9 @@ class PatchySimulationEnsemble(Analyzable):
         self.get_logger().info("Setting up folder / file structure...")
         for sim in sims:
             if not isinstance(sim, PatchySimulation):
-                raise ValueError(f"Invalid type for arg `sim`: {type(sim)}!")
+                raise TypeError(f"Invalid type for arg `sim`: {type(sim)}!")
             assert self.sim_get_param(sim, "print_conf_interval") < self.sim_get_param(sim, "steps")
-            self.get_logger().info(f"Setting up folder / file structure for {repr(sim)}...")
+            self.get_logger().info(f"Setting up folder / file structure for {sim!r}...")
 
             if isinstance(stage, str):
                 stage_obj = self.sim_get_stage(sim, stage)
@@ -1756,7 +1766,7 @@ class PatchySimulationEnsemble(Analyzable):
         write_path = os.path.expanduser(write_path)
         if isinstance(write_path, str):
             write_path = Path(write_path)
-        assert write_path.exists(), f"Location to contain ensemble copy data {str(write_path)} does not exist!"
+        assert write_path.exists(), f"Location to contain ensemble copy data {write_path!s} does not exist!"
         assert write_path != self.tld(), "Cannot format-translate to ensemble directory"
         if sims is None:
             sims = self.ensemble()
@@ -1780,10 +1790,10 @@ class PatchySimulationEnsemble(Analyzable):
                         shutil.copy(self.paramstagefile(sim, stage, "trajectory_file"),
                                     sim_folder_path / self.sim_get_param(sim, "trajectory_file"))
                     else:
-                        print(f"No last_conf.dat file for simulation {str(sim)} stage {stage.name()}")
+                        print(f"No last_conf.dat file for simulation {sim!s} stage {stage.name()}")
                 except FileExistsError:
                     print("Warning: Simulation directory already exists!")
-        print(f"Exported to {str(write_path)}, everything - or something at least - went ok")
+        print(f"Exported to {write_path!s}, everything - or something at least - went ok")
 
 
     def write_sim_observables(self, sim: PatchySimulation):
@@ -2064,10 +2074,8 @@ class PatchySimulationEnsemble(Analyzable):
             # if most recent stage has no traj, that means current stage is first stage, which is completely fine
             pass
 
-        if stage.idx() > 0 and not stage.name().startswith("continue"):
-            # if not first stage
-            if not self.sim_stage_done(sim, self.sim_get_stage(sim, stage.idx() - 1)):
-                # if previous stage is incomplete
+        if stage.idx() > 0 and not stage.name().startswith("continue") and not self.sim_stage_done(sim, self.sim_get_stage(sim, stage.idx() - 1)):
+                # if not first stage, and previous stage is incomplete
                 self.get_logger().warning(f"Stage {stage.name()} for sim {repr(sim)} "
                                           f"cannot execute because stage "
                                           f"{self.sim_get_stage(sim, stage.idx() - 1).name()} "
@@ -2166,7 +2174,7 @@ class PatchySimulationEnsemble(Analyzable):
         if not is_analysis:
             job_type_name = "oxdna"
         else:
-            raise Exception("Since implementing this I have learned that dnaAnalysis doesn't work for patchy particles")
+            raise NotImplementedError("Since implementing this I have learned that dnaAnalysis doesn't work for patchy particles")
 
         # shouldn't be nessecary anymore, since do_setup()/write_setup_files() above always
         # writes the conf file -- but if it's somehow still missing here, fail loudly rather
@@ -2250,9 +2258,8 @@ class PatchySimulationEnsemble(Analyzable):
         if isinstance(selector, PatchySimulation):
             return False
         try:
-            assert all([
-                ParameterValue(param_name=pv[0], param_value=pv[1]) if isinstance(pv, tuple)
-                else self.param_value_valid(pv) for pv in selector]), f"Invalid selector {selector}"
+            assert all(ParameterValue(param_name=pv[0], param_value=pv[1]) if isinstance(pv, tuple)
+                else self.param_value_valid(pv) for pv in selector), f"Invalid selector {selector}"
             # if all provided items in selector are either in the ensemble parameters or are used in aggregation
             if len(selector) + len(exceptions) == self.num_ensemble_parameters():
                 return False
@@ -2260,9 +2267,9 @@ class PatchySimulationEnsemble(Analyzable):
                 exceptions) < self.num_ensemble_parameters(), f"Too many specifiers found between {selector} and {exceptions} (expected {self.num_ensemble_parameters()} specifiers)"
             return True
         except TypeError as e:
-            raise Exception(f"{selector} is not iterable!")
+            raise AttributeError(f"{selector} is not iterable!")
 
-    def last_timestep_for(self, analysis_step: AnalysisPipelineStep, sim: Optional[PatchySimDescriptor]=None) -> int:
+    def last_timestep_for(self, analysis_step: AnalysisPipelineStep, sim: PatchySimDescriptor | None = None) -> int:
         """
         :param analysis_step: an analysis pipeline step
         :param sim: a patchy simulation descriptor
@@ -2299,7 +2306,7 @@ class PatchySimulationEnsemble(Analyzable):
         #  if we've provided a list of simulations
         if sim is None:
             # TODO: SHOULD DEFAULT BEHAVIOR BE E.ENSEMBLE() INSTEAD ??
-            return self.get_data(step, tuple(), time_steps)
+            return self.get_data(step, (), time_steps)
 
         if isinstance(sim, list):
             if self.is_do_analysis_parallel():
@@ -2327,7 +2334,7 @@ class PatchySimulationEnsemble(Analyzable):
             slurm_job_info = self.slurm_job_info()
             if slurm_job_info is None:
                 # todo: a better exception type
-                raise Exception(f"Slurm job not found")
+                raise KeyError("Slurm job not found")
             try:
                 self.append_slurm_log(SlurmLogEntry(
                     job_type="analysis",
@@ -2341,8 +2348,8 @@ class PatchySimulationEnsemble(Analyzable):
                     }
                 ))
             except KeyError as e:
-                self.get_logger().error(f"Slurm job info missing key {e.args[0]}\nSlurm job keys = {str(slurm_job_info)}")
-                raise e
+                self.get_logger().error(f"Slurm job info missing key {e.args[0]}\nSlurm job keys = {slurm_job_info!s}")
+                raise
 
         # TIMESTEPS!!!!
         # if timesteps were not specified
@@ -2365,7 +2372,7 @@ class PatchySimulationEnsemble(Analyzable):
                                                              f"interval {step.output_tstep}")
 
         self.get_logger().info(
-            f"Retrieving data for analysis step {step.name} and simulation(s) {str(sim)} over timeframe {time_steps}")
+            f"Retrieving data for analysis step {step.name} and simulation(s) {sim!s} over timeframe {time_steps}")
         # DATA CACHING
         # check if data is already loaded
         if self.is_data_loaded(sim, step, time_steps):
@@ -2381,7 +2388,7 @@ class PatchySimulationEnsemble(Analyzable):
             # if we already have the data needed for the required time range
             if cached_data.matches_trange(time_steps):
                 # that was easy!
-                self.get_logger().info(f"All data in file! That was easy!")
+                self.get_logger().info("All data in file! That was easy!")
                 return cached_data[time_steps]
             else:
                 self.get_logger().info(f"Cache file missing data! Missing timepoints are "
@@ -2391,7 +2398,7 @@ class PatchySimulationEnsemble(Analyzable):
             lock.acquire()
         try:
             # compute data for previous steps
-            self.get_logger().info(f"Computing input data for step {step.name} for simulation {repr(sim)}...")
+            self.get_logger().info(f"Computing input data for step {step.name} for simulation {sim!r}...")
             data_in = self._get_step_input_data(step, sim, time_steps)
         finally:
             if self.is_do_analysis_parallel():
@@ -2399,7 +2406,7 @@ class PatchySimulationEnsemble(Analyzable):
         # TODO: make sure this can handle the amount of args we're feeding in here
         # execute the step!
         # TODO: handle existing data that's incomplete over the required time interval
-        self.get_logger().info(f"Executing computations for step {step.name} on simulation data {repr(sim)}...")
+        self.get_logger().info(f"Executing computations for step {step.name} on simulation data {sim!r}...")
         try:
             data: PipelineData = step(*data_in)[time_steps]
             if step.get_output_data_type() == PipelineDataType.PIPELINE_DATATYPE_DATAFRAME:
@@ -2476,8 +2483,8 @@ class PatchySimulationEnsemble(Analyzable):
         # if this is a head node, it will take ensemble info, sim info, and
         # file paths instead of previous step data
         elif isinstance(step, AnalysisPipelineHead):
-            assert isinstance(sim, PatchySimulation) or not self.is_multiselect(
-                sim), "Analysis pipeline head nodes should only take single simulations"
+            if not (isinstance(sim, PatchySimulation) or not self.is_multiselect(sim)):
+                raise ValueError("Analysis pipeline head nodes should only take single simulations")
             if not isinstance(sim, PatchySimulation):
                 sim = self.get_simulation(*sim)
             # todo: watch this space!! it may react VERY BADLY to non-automated stages!!!
@@ -2500,7 +2507,7 @@ class PatchySimulationEnsemble(Analyzable):
                         self.folder_path(sim, stage) / self.sim_stage_get_param(sim, stage, file_name_in)
                         for stage in stages
                     ]
-                except NoSuchParamError as e:
+                except NoSuchParamError:
                     # for files that are observable outputs
                     file_names = [
                         self.folder_path(sim, stage) / file_name_in
@@ -2518,7 +2525,7 @@ class PatchySimulationEnsemble(Analyzable):
 
     def _get_cache_file(self,
                         step: PipelineStepDescriptor,
-                        sim: Union[tuple[ParameterValue, ...], PatchySimulation]) -> Path:
+                        sim: tuple[ParameterValue, ...] | PatchySimulation) -> Path:
         """
         Retrieves a path to a file of analysis cache data for the given analysis step and
         simulation descriptor
@@ -2540,7 +2547,7 @@ class PatchySimulationEnsemble(Analyzable):
 
     def slurm_job_info(self, jobid: int = -1, retries=3, backoff_factor=2) -> Union[dict, None]:
         """
-        todo: this cannot be the optimal way to d oths
+        todo: this cannot be the optimal way to do this
         :return: a dict of data relating to a slurm job
         """
         if jobid == -1:
@@ -2636,7 +2643,7 @@ class PatchySimulationEnsemble(Analyzable):
                         for key in infile.keys():
                             f.write(f"{key} = {infile[key]}\n")
                         f.write("analysis_data_output_1 = " + repr(obs))
-                    if any([column.type_name == "PatchyBonds" for column in obs.cols]):
+                    if any(column.type_name == "PatchyBonds" for column in obs.cols):
                         # if we are using lorenzo's format, this gets much harder because
                         # of all the additional required files
                         # hardcoding, but let me state for the record i hate it
@@ -2680,7 +2687,7 @@ def shared_ensemble(es: list[PatchySimulationEnsemble],
         ignores = set()
 
     names = set()
-    name_vals: dict[str, set] = dict()
+    name_vals: dict[str, set] = {}
     for e in es:
         names.update([p.param_name for p in e.const_params if p.param_name not in ignores])
         for p in e.const_params:
@@ -2700,7 +2707,7 @@ def shared_ensemble(es: list[PatchySimulationEnsemble],
                     [pv.value_name() for pv in p.param_value_set])
 
     # if any simulation is missing a parameter
-    if not all([len(name_vals[name]) > 0 for name in names]):
+    if not all(len(name_vals[name]) > 0 for name in names):
         return None
 
     ensembles = []

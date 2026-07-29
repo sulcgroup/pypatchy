@@ -2,14 +2,14 @@ from __future__ import annotations
 
 import itertools
 import os
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Union, Any, Iterable
+from typing import Any, Union
 
-
-from .ensemble_parameter import parameter_value
-from .base_param_val import ParameterValue, ParamValueGroup
 from ..slurm_log_entry import LogEntryObject
 from ..util import get_spec_json
+from .base_param_val import ParameterValue, ParamValueGroup
+from .ensemble_parameter import parameter_value
 
 
 class ParamSet(LogEntryObject):
@@ -24,7 +24,7 @@ class ParamSet(LogEntryObject):
     # ordered list of parameter values that specify this simulation
     param_vals: list[ParameterValue]
 
-    parameter_dict: dict[str, Union[ParameterValue, bool, float, int, str]]  # for easy access
+    parameter_dict: dict[str, ParameterValue | bool | float | int | str]  # for easy access
 
     def __init__(self, parameter_values: Iterable[ParameterValue]):
         self.param_vals = list(parameter_values)
@@ -43,7 +43,7 @@ class ParamSet(LogEntryObject):
     def __getitem__(self, parameter_name: str) -> Any:
         return self.parameter_dict[parameter_name]
 
-    def __setitem__(self, parameter_name: str, item: Union[ParameterValue, Any]):
+    def __setitem__(self, parameter_name: str, item: ParameterValue | Any):
         """
         assigns a value to a parameter
         """
@@ -140,21 +140,21 @@ PatchySimulation = ParamSet  # alias for backwards compatibility
 
 class NoSuchParamError(Exception):
     _ensemble: Any
-    _sim: Union[None, PatchySimulation]
+    _sim: None | PatchySimulation
     _param_name: str
 
-    def __init__(self, e: Any, param_name: str, sim: Union[PatchySimulation, None] = None):
+    def __init__(self, e: Any, param_name: str, sim: PatchySimulation | None = None):
         self._ensemble = e
         self._sim = sim
         self._param_name = param_name
 
-    def set_sim(self, sim: Union[PatchySimulation, None]):
+    def set_sim(self, sim: PatchySimulation | None):
         self._sim = sim
 
     def __str__(self):
         errstr = f"No value specified for parameter \"{self._param_name}\". "
         if self._sim is not None:
-            errstr += f"Simulation {repr(self._sim)} in "
+            errstr += f"Simulation {self._sim!r} in "
         errstr += f"Ensemble {self._ensemble.long_name()}"
         return errstr
 

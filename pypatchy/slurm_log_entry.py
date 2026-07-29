@@ -1,12 +1,11 @@
 from abc import ABC, abstractmethod
-from pathlib import Path
 from datetime import datetime
-from typing import Union
+from pathlib import Path
 
 
 class LogEntryObject(ABC):
     @abstractmethod
-    def to_dict(self) -> dict[str, Union[str, int, float]]:
+    def to_dict(self) -> dict[str, str | int | float]:
         pass
 
 
@@ -35,11 +34,11 @@ class SlurmLogEntry:
                  job_type: str,
                  pid: int,
                  simulation: LogEntryObject,
-                 script_path: Union[Path, str],
-                 log_path: Union[Path, str],
+                 script_path: Path | str,
+                 log_path: Path | str,
                  notes: str = "",
                  additional_metadata: dict = {},
-                 start_date: Union[str, datetime] = datetime.now()):
+                 start_date: str | datetime = datetime.now()):
         """
         Constructor for SlurmLogEntry
         """
@@ -70,7 +69,7 @@ class SlurmLogEntry:
             with self.log_path.open("r") as f:
                 return f.read()
         except FileNotFoundError:
-            return f"No file {str(self.log_path)}"
+            return f"No file {self.log_path!s}"
 
     def to_dict(self):
         """
@@ -97,9 +96,9 @@ class SlurmLogEntry:
         return "Slurm log entry:\n" \
                f"\tjob type: {self.job_type}\n" \
                f"\tslurm job ID: {self.job_id}\n" \
-               f"\tsimulation: {str(self.simulation)}\n" \
-               f"\tscript path: {str(self.script_path)}\n" \
-               f"\tlog path: {str(self.log_path)}\n" \
+               f"\tsimulation: {self.simulation!s}\n" \
+               f"\tscript path: {self.script_path!s}\n" \
+               f"\tlog path: {self.log_path!s}\n" \
                f"\tnotes: {self.notes}" \
                f"\tsubmit date: {self.job_submit_date.strftime('%Y-%m-%d')}\n" \
                f"\tadditional metadata: {metadata_str}"

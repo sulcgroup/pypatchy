@@ -1,14 +1,21 @@
 from __future__ import annotations
 
 import copy
-from typing import Union
+from typing import Iterator, Union
 
 from .base_param_val import ParameterValue, ParamValueGroup
-from .param_val_types import PARTICLE_TYPES_KEY, MDT_CONVERT_KEY, STAGES_KEY, ParticleSetParam, MDTConvertParams, \
-    StagedAssemblyParam
+from .param_val_types import (
+    MDT_CONVERT_KEY,
+    PARTICLE_TYPES_KEY,
+    STAGES_KEY,
+    MDTConvertParams,
+    ParticleSetParam,
+    StagedAssemblyParam,
+)
 from .pl.plparticleset import MultidentateConvertSettings, decode_particles_dict
 
-def parameter_value(key: str, val: Union[dict, str, int, float, bool, list]) -> ParameterValue:
+
+def parameter_value(key: str, val: dict | str | float | bool | list) -> ParameterValue:
     """
     Constructs a ParameterValue object
     """
@@ -32,7 +39,7 @@ def parameter_value(key: str, val: Union[dict, str, int, float, bool, list]) -> 
                     raise TypeError(f"Missing key 'stages' in staging info param {param_name}")
                 return StagedAssemblyParam(data["stages"], param_name, key)
             else:
-                raise Exception(f"Invalid object-parameter type {val['type']}")
+                raise ValueError(f"Invalid object-parameter type {val['type']}")
         else:
             # if no type is specified this is a parameter group
             return ParamValueGroup(param_name=key, param_value={pkey: parameter_value(pkey, pval)
@@ -47,7 +54,7 @@ class EnsembleParameter:
     """
     param_key: str
     param_value_set: list[ParameterValue]  # sorry
-    param_value_map: dict[str, ParameterValue]
+    param_value_map: dict[str: ParameterValue]
 
     def __init__(self, key: str, paramData: list[ParameterValue]):
         self.param_key = key
@@ -59,7 +66,7 @@ class EnsembleParameter:
             self.param_value_set), "Duplicate param value(s)!"
 
     def dir_names(self) -> list[str]:
-        return [f"{key}_{str(val)}" for key, val in self]
+        return [f"{key}_{val!s}" for key, val in self]
 
     def is_grouped_params(self) -> bool:
         """
@@ -110,7 +117,7 @@ class EnsembleParameters:
         self.__name_map = {p.param_key: i for i, p in enumerate(self.__ensemble_parameters)}
         assert len(self.__name_map) == len(self.__ensemble_parameters), "Duplicate ensemble parameter names!"
 
-    def __getitem__(self, item: Union[str, int]) -> EnsembleParameter:
+    def __getitem__(self, item: str | int) -> EnsembleParameter:
         if isinstance(item, int):
             return self.__ensemble_parameters[item]
         else:
@@ -126,7 +133,7 @@ class EnsembleParameters:
             self.__name_map[param.param_key] = len(self.__ensemble_parameters)
             self.__ensemble_parameters.append(param)
 
-    def __contains__(self, item: Union[str, EnsembleParameter]) -> bool:
+    def __contains__(self, item: str | EnsembleParameter) -> bool:
         if isinstance(item, str):
             return item in self.__name_map
         else:
@@ -147,7 +154,7 @@ class EnsembleParameters:
     def __len__(self):
         return len(self.__ensemble_parameters)
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[EnsembleParameter, None, None]:
         yield from self.__ensemble_parameters
 
     def to_list(self) -> list[EnsembleParameter]:

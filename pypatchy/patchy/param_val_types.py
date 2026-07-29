@@ -1,11 +1,16 @@
 from __future__ import annotations
 
+from collections.abc import Iterator, Mapping
 from dataclasses import field
-from typing import Union, Mapping, Any, Iterator
+from typing import Any, Union
 
-from pypatchy.patchy.base_param_val import ParameterValue, InvalidParameterTypeError
-from pypatchy.patchy.particle_adders import StageParticleAdder, RandParticleAdder, FromPolycubeAdder
-from pypatchy.patchy.pl.plparticleset import PLParticleSet, MultidentateConvertSettings
+from .base_param_val import InvalidParameterTypeError, ParameterValue
+from .particle_adders import (
+    FromPolycubeAdder,
+    RandParticleAdder,
+    StageParticleAdder,
+)
+from .pl.plparticleset import MultidentateConvertSettings, PLParticleSet
 
 PARTICLE_TYPES_KEY = "particle_types"
 MDT_CONVERT_KEY = "mdt_convert"
@@ -72,7 +77,7 @@ class StagedAssemblyParam(ParameterValue):
                                 param_value={
                                     stage_name: StageInfoParam(stage_name, **stage_info)
                                     for stage_name, stage_info in staging_info.items()
-                                } if all([isinstance(v, dict) for v in staging_info.values()]) else staging_info)
+                                } if all(isinstance(v, dict) for v in staging_info.values()) else staging_info)
         # if isinstance(staging_info, dict):
         # else:
         #     if not isinstance(staging_info, list):
@@ -94,7 +99,7 @@ class StagedAssemblyParam(ParameterValue):
 
     def str_verbose(self) -> str:
         staging_desc = f"Staging {self.staging_type_name}"
-        for stage_name, stage_info in self.get_stages().items():
+        for stage_name in self.get_stages():
             staging_desc += f"Stage: {stage_name}"
 
         return staging_desc
@@ -111,7 +116,7 @@ class StageInfoParam(Mapping):
     """
     start_time: int
     stage_name: str
-    add_method: Union[None, StageParticleAdder]
+    add_method: None | StageParticleAdder
     # input file params for stage
     info: dict[str, Any]  # TODO: more detail in type hint?
     allow_shortfall: bool
@@ -148,10 +153,7 @@ class StageInfoParam(Mapping):
         else:
             self.add_method = None
 
-        if "allow_shortfall" in kwargs:
-            self.allow_shortfall = kwargs["allow_shortfall"]
-        else:
-            self.allow_shortfall = False
+        self.allow_shortfall = kwargs.get("allow_shortfall", False)
 
         # add more params
         self.info = {

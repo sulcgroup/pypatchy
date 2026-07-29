@@ -3,7 +3,7 @@ from __future__ import annotations
 import copy
 import itertools
 from argparse import ArgumentError
-from typing import Union, Generator
+from collections.abc import Generator
 
 import networkx as nx
 import numpy as np
@@ -20,7 +20,7 @@ class InteractionMatrix:
     __interactions: dict[tuple[int, int], float]
     # todo: cache min & max color?
 
-    def __init__(self, interactions: Union[dict[tuple[int, int], float], list[tuple[tuple[int, int], float]]] = dict()):
+    def __init__(self, interactions: dict[tuple[int, int], float] | list[tuple[tuple[int, int], float]] = dict()):
         self.__interactions = {
             ((c1, c2) if c2 > c1 else (c2, c1)): val
             for (c1, c2), val in (interactions.items() if type(interactions) == dict else interactions)
@@ -83,10 +83,8 @@ class InteractionMatrix:
         correction: an interaction matrix is one-to-one iff every connected component of the interaction
         graph has two or fewer nodes
         """
-        return all([
-            len(cc) <= 2
-            for cc in nx.connected_components(self.graph())
-        ])
+        return all(len(cc) <= 2
+            for cc in nx.connected_components(self.graph()))
 
     def num_colors(self) -> int:
         """

@@ -4,23 +4,19 @@ import itertools
 import os
 import subprocess
 import tempfile
+from collections.abc import Generator, Iterable
 from pathlib import Path
-
-from typing import Union, Iterable, Any, Generator
+from typing import Any, Union
+from weakref import ReferenceType, ref
 
 import numpy as np
-from weakref import ref, ReferenceType
-
 from oxpy_utils.oxdna_simulation import BuildSimulation, Simulation, write_input_file
 
-from .patchy_scripts import add_standard_patchy_interaction
-from .pl.plparticleset import PLParticleSet
-
-from .param_val_types import MDT_CONVERT_KEY, StageInfoParam
+from ..patchy.simulation_specification import NoSuchParamError, PatchySimulation
 from .base_param_val import ParameterValue
-from .particle_adders import RandParticleAdder, FromPolycubeAdder, FromConfAdder
+from .param_val_types import MDT_CONVERT_KEY, StageInfoParam
+from .particle_adders import FromConfAdder, FromPolycubeAdder, RandParticleAdder
 from .pl.plpatchylib import polycube_to_pl
-from ..patchy.simulation_specification import PatchySimulation, NoSuchParamError
 from .pl.plscene import PLPSimulation
 
 
@@ -39,12 +35,12 @@ class Stage(BuildSimulation):
 
     # why
     # input_param_dict: dict
-    _prev_stage: Union[Stage, None]
+    _prev_stage: Stage | None
     _allow_shortfall: bool
 
     def __init__(self,
                  sim: PatchySimulation,
-                 previous_stage: Union[Stage, None],
+                 previous_stage: Stage | None,
                  ctxt: Any,  # it's PatchySimulationEnsemble but if we tell it that we get a circular import
                  paraminfo: StageInfoParam,
                  box_size: np.ndarray = np.array((0, 0, 0)),
@@ -118,10 +114,10 @@ class Stage(BuildSimulation):
         """
         return self._next_stage is None
 
-    def get_prev(self) -> Union[None, Stage]:
+    def get_prev(self) -> None | Stage:
         return self._prev_stage
 
-    def get_next(self) -> Union[None, Stage]:
+    def get_next(self) -> None | Stage:
         return self._next_stage
 
     def box_size(self) -> np.ndarray:
@@ -245,7 +241,7 @@ class Stage(BuildSimulation):
         iterates through the values that belong in the input dict, at least the ones that have been assigned
 
         """
-        inpt = dict()
+        inpt = {}
         for pv in self.getctxt().iter_params(self.spec(), self):
             # only write raw-data params to input file
             # todo: filter better, to use only actual oxdna params
@@ -327,7 +323,7 @@ class Stage(BuildSimulation):
                     # run and capture everything
                     result = subprocess.run(cmd, capture_output=True, text=True, cwd=tmpdir)
                     if result.returncode:
-                        raise Exception("Failed to generate conf!\n" + result.stderr)
+                        raise RuntimeError("Failed to generate conf!\n" + result.stderr)
 
                     # log stdout & sterr
                     for line in result.stdout.splitlines():
@@ -359,13 +355,13 @@ class Stage(BuildSimulation):
                                    pad_cubes=pc.patch_distance_multiplier)
                     for pc in self._param_info.add_method.iter_polycubes()])
         elif isinstance(self._param_info.add_method, FromConfAdder):
-            raise Exception("If you're seeing this, this feature hasn't been implemented yet although it can't be"
+            raise NotImplementedError("If you're seeing this, this feature hasn't been implemented yet although it can't be"
                             "THAT hard really")
             # TODO: write
             # step 1: split the conf to add up by clusters
             # step 2: add clusters using scene.add_conf_clusters
         else:
-            raise Exception(f"Invalid add method {type(self._param_info.add_method)}")
+            raise ValueError(f"Invalid add method {type(self._param_info.add_method)}")
         # e = scene.get_potential_energy()
         # take starting energy into consideration
         # assert e < 0 or (e - e_start) < 1e-4, "Scene energy too high!!"
@@ -425,7 +421,7 @@ class IncompleteStageError(StagedAssemblyError):
         return self._last_timestep
 
     def __str__(self):
-        return f"Stage {self.stage().name()} of simulation {repr(self.sim())} is incomplete! Last timestep was " \
+        return f"Stage {self.stage().name()} of simulation {self.sim()!r} is incomplete! Last timestep was " \
                f"{self._last_timestep} out of {self.stage().start_time()}:{self.stage().end_time()}"
 
 
@@ -445,13 +441,13 @@ class StageTrajFileError(StagedAssemblyError):
 
 class NoStageTrajError(StageTrajFileError):
     def __str__(self):
-        return f"Stage {self.stage().name()} of simulation {repr(self.sim())} has no traj file. Traj file expected" \
+        return f"Stage {self.stage().name()} of simulation {self.sim()!r} has no traj file. Traj file expected" \
                f"to be located at `{self.traj_file()}`."
 
 
 class StageTrajFileEmptyError(StageTrajFileError):
     def __str__(self):
-        return f"Stage {self.stage().name()} of simulation {repr(self.sim())} has empty traj file. Traj file " \
+        return f"Stage {self.stage().name()} of simulation {self.sim()!r} has empty traj file. Traj file " \
                f"located at `{self.traj_file()}`."
 
 
@@ -460,5 +456,5 @@ class AllStagesCompleteError(StagedAssemblyError):
     Raised when a simulation's last stage is already complete - there's nothing more to run.
     """
     def __str__(self):
-        return f"Simulation {repr(self.sim())} has no more stages to execute - " \
+        return f"Simulation {self.sim()!r} has no more stages to execute - " \
                f"stage {self.stage().name()} (the last stage) is already complete."
