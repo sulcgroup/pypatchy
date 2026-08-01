@@ -30,6 +30,9 @@ RUN apt-get install -y build-essential cmake git wget curl neovim python3 python
 # copy current directory to root/Github/pypatchy
 #COPY . /root/Github/pypatchy
 
+# container-level CLAUDE.md so Claude Code has cross-repo context regardless of which repo it's launched in
+COPY docker/ROOT_CLAUDE.md /root/CLAUDE.md
+
 # use the polycubes cpp build directory for the next few
 # make sure SSH can verify GitHub’s host key
 RUN mkdir -p /root/.ssh \
@@ -106,9 +109,10 @@ RUN micromamba run -n pypatchy pip install -e /root/Github/oxpy-utils \
 # make pypatchy run directory
 # todo make this settable or something for systems with seperate home and scratch drives
 RUN mkdir /root/patchy_run && \
+mkdir -p /root/data/tlm_data && \
 echo -e "[ANALYSIS] \n \
     simulation_data_dir = /root/patchy_run \n \
-    tlm_data_dir = /home/josh/lab_data/tlm_data/raws \n \
+    tlm_data_dir = /root/data/tlm_data \n \
     [SETUP] \n \
     server_config = docker" > /root/.pypatchy/settings.cfg && \
 echo -e '{ \n \
@@ -127,6 +131,7 @@ echo -e '{ \n \
 	"patchy_format": "flavio", \n \
 	"cuda_mps": false \n \
 ' > /root/.pypatchy/spec_files/server_configs/fr.json && \
+cp /root/.pypatchy/spec_files/server_configs/fr.json /root/.pypatchy/spec_files/server_configs/docker.json && \
 cp /root/Github/pypatchy/spec_files/input_files/default.json /root/.pypatchy/spec_files/input_files/ && \
 cp /root/Github/pypatchy/spec_files/observables/plclustertopology.json /root/.pypatchy/spec_files/observables/ && \
 cp /root/Github/pypatchy/spec_files/observables/plclustertopology.json /root/.pypatchy/spec_files/observables/ &&\
