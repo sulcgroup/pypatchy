@@ -3,6 +3,7 @@ __pycache__
 .claude
 */.ipynb_checkpoints
 .ipynb_checkpoints
+.vscode
 src/pypatchy/patchy/.ipynb_checkpoints
 pypatchy.egg-info
 build
