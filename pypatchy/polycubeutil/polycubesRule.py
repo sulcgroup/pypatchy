@@ -14,6 +14,7 @@ import numpy as np
 from oxpy_utils.utils.util import rotation_matrix
 from scipy.spatial.transform import Rotation as R
 
+from ..interaction_matrix import InteractionMatrix, TorsionalInteractionMatrix, make_int_mat_for_colors
 from ..patchy_base_particle import (
     BaseParticleSet,
     BasePatchType,
@@ -161,6 +162,18 @@ class PolycubesPatch(BasePatchType):
             align_num += 4
         return align_num
 
+    def relative_align_rot_num(self, other: PolycubesPatch) -> int:
+        """
+        Returns the discrete relative twist (0-3, in steps of 90 degrees) between this patch's and
+        other's alignDirs around their shared bond axis. Symmetric: p1.relative_align_rot_num(p2)
+        == p2.relative_align_rot_num(p1). An index of 0 means the two alignDirs are identical - the
+        same condition PolycubesRule.patches_can_bind requires today for two torsional patches to
+        bind, so this is what TorsionalInteractionMatrix indexes binding rules by.
+        Assumes self and other already face each other (opposite directions).
+        """
+        angle = getSignedAngle(self.alignDir(), other.alignDir(), self.direction())
+        return round(4 * angle / (math.pi * 2)) % 4
+
     def set_align_rot(self, new_align: int):
         """
         See above method get_align_rot_num
@@ -212,7 +225,7 @@ class PolycubesPatch(BasePatchType):
         assert not self.has_torsion() or np.dot(self.direction(), self.alignDir()) == 0
 
     def can_bind(self, other: BasePatchType):
-        return self.color() == other.color()
+        return self.color() == -other.color()
 
     def has_torsion(self):
         return self.num_key_points() == 2
@@ -843,6 +856,30 @@ class PolycubesRule(BaseParticleSet):
                 i += 1
         return i
 
+    def bond_strength(self, p1: PolycubesPatch, p2: PolycubesPatch) -> float:
+        """
+        Returns the interaction strength between two patches given this rule's color/torsion
+        conventions, given that they already face each other (callers are responsible for
+        checking relative position/direction), or 0. if they can't bind at all.
+        Base behavior assumes the standard polycubes convention: colors bind 1-to-1 with their
+        negation at strength 1., and if both patches have torsion their alignments must match
+        exactly (if only one has torsion, torsion is ignored). See DetailedPolycubesRule for a
+        version driven by an InteractionMatrix that can express other binding schemes (e.g.
+        many-to-many colors, or non-uniform bond strengths).
+        """
+        if p1.color() != -p2.color():
+            return 0.
+        if p1.has_torsion() and p2.has_torsion() and not (p1.alignDir() == p2.alignDir()).all():
+            return 0.
+        return 1.
+
+    def patches_can_bind(self, p1: PolycubesPatch, p2: PolycubesPatch) -> bool:
+        """
+        Returns True if two patches are allowed to bind under this rule's conventions. See
+        bond_strength.
+        """
+        return self.bond_strength(p1, p2) != 0.
+
     def to_SAT(self, filename: Path | str):
         """
         convert particle set to SAT format
@@ -936,5 +973,53 @@ class PolycubesRule(BaseParticleSet):
                 canonical_rule.add_patch(patch)
 
         return canonical_rule
+
+
+class DetailedPolycubesRule(PolycubesRule):
+    """
+    A PolycubesRule variant whose binding is governed by an explicit InteractionMatrix instead of
+    the standard "color c binds only -c" convention, so it can express binding schemes an ordinary
+    PolycubesRule can't (many-to-many colors, self-interacting colors, etc.) - mirroring what
+    PLParticleSet/InteractionMatrix already do on the PL side.
+
+    If no interaction_matrix is given, one is generated that reproduces the standard 1-to-1
+    signed-color convention, so a DetailedPolycubesRule built from an ordinary rule_str/rule_json
+    behaves identically to PolycubesRule until its interaction_matrix is edited.
+
+    Passing a TorsionalInteractionMatrix instead of a plain InteractionMatrix additionally makes
+    binding depend on relative patch orientation (see PolycubesPatch.relative_align_rot_num) with
+    per-color-pair, per-angle granularity, rather than the binary torsional (alignDirs must match
+    exactly)/non-torsional (angle ignored) distinction PolycubesRule is stuck with.
+    """
+    _interaction_matrix: InteractionMatrix
+
+    def __init__(self, interaction_matrix: InteractionMatrix | None = None, **kwargs):
+        super().__init__(**kwargs)
+        if interaction_matrix is not None:
+            self._interaction_matrix = interaction_matrix
+        else:
+            max_color = max((abs(c) for c in self.color_set()), default=0)
+            self._interaction_matrix = make_int_mat_for_colors(max_color)
+
+    def interaction_matrix(self) -> InteractionMatrix:
+        return self._interaction_matrix
+
+    def set_interaction_matrix(self, imat: InteractionMatrix):
+        self._interaction_matrix = imat
+
+    def bond_strength(self, p1: PolycubesPatch, p2: PolycubesPatch) -> float:
+        if isinstance(self._interaction_matrix, TorsionalInteractionMatrix):
+            if p1.has_torsion() and p2.has_torsion():
+                angle = p1.relative_align_rot_num(p2)
+                return self._interaction_matrix[(p1.color(), p2.color(), angle)]
+            else:
+                # angle is undefined/irrelevant - fall back to the strongest angle for this color pair
+                return self._interaction_matrix.best_strength(p1.color(), p2.color())
+        strength = self._interaction_matrix[(p1.color(), p2.color())]
+        if not strength:
+            return 0.
+        if p1.has_torsion() and p2.has_torsion() and not (p1.alignDir() == p2.alignDir()).all():
+            return 0.
+        return strength
 
 # TODO: integrate with C++ TLM / Polycubes
