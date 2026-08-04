@@ -144,23 +144,17 @@ class PolycubeStructure(TypedStructure, Scene):
                             if cube1.has_patch(d1) and cube2.has_patch(d2):
                                 p1 = cube1.patch(d1)
                                 p2 = cube2.patch(d2)
-                                if p1.color() == -p2.color():
-                                    if p1.has_torsion():
-                                        assert p2.has_torsion(), "One patch has torsion but the other doesn't!"
-                                        align1 = p1.alignDir().round()
-                                        align2 = p2.alignDir().round()
-                                        align_good = (align1 == align2).all()
-                                    else: align_good=True
-                                    if align_good and not self.graph.has_edge(cube1.get_uid(), cube2.get_uid()) and cube1.state(p1.state_var()) and cube2.state(p2.state_var()):
-                                                self.graph.add_edge(cube1.get_uid(), cube2.get_uid(), dirIdx=diridx(d1))
-                                                self.graph.add_edge(cube2.get_uid(), cube1.get_uid(), dirIdx=diridx(d2))
-                                                self.bindings_list.add((
-                                                    cube1.get_uid(), diridx(d1),
-                                                    cube2.get_uid(), diridx(d2)
-                                                ))
+                                strength = self.rule.bond_strength(p1, p2)
+                                if strength and not self.graph.has_edge(cube1.get_uid(), cube2.get_uid()) and cube1.state(p1.state_var()) and cube2.state(p2.state_var()):
+                                            self.graph.add_edge(cube1.get_uid(), cube2.get_uid(), dirIdx=diridx(d1), strength=strength)
+                                            self.graph.add_edge(cube2.get_uid(), cube1.get_uid(), dirIdx=diridx(d2), strength=strength)
+                                            self.bindings_list.add((
+                                                cube1.get_uid(), diridx(d1),
+                                                cube2.get_uid(), diridx(d2)
+                                            ))
 
-                                                assert self.graph.out_degree[cube1.get_uid()] <= 6, "Added too many out edges to a cube!"
-                                                assert self.graph.out_degree[cube2.get_uid()] <= 6, "Added too many out edges to a cube!"
+                                            assert self.graph.out_degree[cube1.get_uid()] <= 6, "Added too many out edges to a cube!"
+                                            assert self.graph.out_degree[cube2.get_uid()] <= 6, "Added too many out edges to a cube!"
         for cube in self.particles():
             self.particle_uid_map[cube.get_uid()] = cube
 
@@ -340,18 +334,23 @@ class PolycubeStructure(TypedStructure, Scene):
     def particles_bound(self, p1: PatchyBaseParticle, p2: PatchyBaseParticle) -> bool:
         return self.graph.has_edge(p1.get_uid(), p2.get_uid())
 
+    def bond_strength(self,
+                      particle1: PolycubesStructureCube,
+                      p1: PolycubesPatch,
+                      particle2: PolycubesStructureCube,
+                      p2: PolycubesPatch) -> float:
+        if (particle2.position() != particle1.position() + p1.direction()).any():
+            return 0.
+        if (particle1.position() != particle2.position() + p2.direction()).any():
+            return 0.
+        return self.rule.bond_strength(p1, p2)
+
     def patches_bound(self,
                       particle1: PolycubesStructureCube,
                       p1: PolycubesPatch,
                       particle2: PolycubesStructureCube,
                       p2: PolycubesPatch) -> bool:
-        if p1.color() + p2.color() != 0:
-            return False
-        if (particle2.position() != particle1.position() + p1.direction()).any():
-            return False
-        if (particle1.position() != particle2.position() + p2.direction()).any():
-            return False
-        return not (p1.has_torsion() and p2.has_torsion() and (p1.alignDir() - p2.alignDir() > 1e-06).any())
+        return self.bond_strength(particle1, p1, particle2, p2) != 0.
 
     def num_connections(self):
         """
@@ -399,18 +398,19 @@ class PolycubeStructure(TypedStructure, Scene):
                 other_cube = self.cubeAtPosition(cube.position() + direction)
                 has_edge = self.particles_bound(self.get_cube(p_uid), other_cube)
                 try:
-                    is_bound = self.patches_bound(self.get_cube(p_uid),
+                    strength = self.bond_strength(self.get_cube(p_uid),
                                                   self.get_cube(p_uid).patch(direction),
                                                   other_cube,
                                                   other_cube.patch(-direction)
                     )
                 except IndexError as e:
-                    is_bound = False
+                    strength = 0.
+                is_bound = strength != 0.
                 if has_edge != is_bound:
                     if not is_bound:
                         self.graph.remove_edge(p_uid, dir_idx)
                     else:
-                        self.graph.add_edge(p_uid, other_cube.get_uid(), dir_idx)
+                        self.graph.add_edge(p_uid, other_cube.get_uid(), dir_idx, strength=strength)
         assert self.num_particles() == n_cubes_start, \
             "update_graph_for modified number of particles! (should not do this)"
 
