@@ -6,18 +6,18 @@ DOCKER_BUILDKIT=1 docker build -t patchy:latest --ssh default -f Dockerfile --no
 
 # run polycubes tests
 docker run --rm patchy:latest \
-    bash -lc "cd /root/Github/polycubes/cpp/build && ctest --output-on-failure -j$(nproc)"
+    -lc "cd /root/Github/polycubes/cpp/build && ctest --output-on-failure -j$(nproc)"
 
 # run oxpy-utils tests
 docker run --rm patchy:latest \
-  bash -l -c "\
+  -l -c "\
     eval \"\$(micromamba shell hook --shell bash)\" && \
     micromamba activate pypatchy && \
     cd /root/Github/oxpy-utils && pytest --maxfail=1 -q"
 
 # run pypatchy tests
 docker run --rm patchy:latest \
-  bash -l -c "\
+  -l -c "\
     eval \"\$(micromamba shell hook --shell bash)\" && \
     micromamba activate pypatchy && \
     cd /root/Github/pypatchy && pytest --maxfail=1 -q"
