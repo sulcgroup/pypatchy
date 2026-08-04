@@ -170,7 +170,8 @@ cmake .. \
     -DPYBIND11_PYTHON_VERSION=3.9 \
     -DPYTHON_EXECUTABLE=$(which python) \
     && make polycubes_py -j$(nproc) && \
-    cp src/libtlm.so $(python -m site --user-site) 
+    make polycube_tests -j$(nproc) && \
+    cp src/libtlm.so $(python -m site --user-site)
 
 
 # putting this at the end because initially i forgot to do it at all, and
