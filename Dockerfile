@@ -170,7 +170,14 @@ cmake .. \
     -DPYBIND11_PYTHON_VERSION=3.9 \
     -DPYTHON_EXECUTABLE=$(which python) \
     && make polycubes_py -j$(nproc) && \
-    cp src/libtlm.so $(python -m site --user-site) 
+    make polycube_tests -j$(nproc)
+# note: libtlm.so/.pyi are installed by the POST_BUILD custom command in
+# polycubes/cpp/src/CMakeLists.txt, which copies to the active interpreter's
+# sysconfig purelib (the pypatchy env's real site-packages). Do NOT also `cp`
+# to `python -m site --user-site` here: that path is always ~/.local/lib/...,
+# independent of which env is active, and it sits ahead of the env's
+# site-packages on sys.path -- so a copy there silently shadows the correct
+# one and goes stale on every rebuild that doesn't re-run this Dockerfile step.
 
 
 # putting this at the end because initially i forgot to do it at all, and
