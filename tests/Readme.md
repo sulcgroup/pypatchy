@@ -13,6 +13,9 @@ todo: more deets
 - `test_patchy_io.py` standalone tests for patchy file formats
 - `test_analysis.py` contains test of analysis functionality 
 - `test_solver_lib.py` contains test files for SAT solver library etc.
+- `test_energy_conservation.py` runs a bonded two-particle NVE trajectory (DetailedPatchySwapInteraction)
+  and checks total energy doesn't drift, on both the CPU and CUDA backends. The CUDA case auto-skips
+  unless `oxpy` was built with `-DCUDA=ON` -- see `build_cuda_oxdna.sh`.
 
 
 # Additional Files #
