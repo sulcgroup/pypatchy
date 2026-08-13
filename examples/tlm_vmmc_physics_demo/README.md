@@ -63,11 +63,9 @@ a re-run of the actual old code.)
 
 Shared rule strings (`CHAIN_RULE`, `SC_RULE`, `DIMER_ONLY_RULE`) and a `run_vmmc()` helper wrapping
 `libtlm.TLMParameters` + `libtlm.runSimulations`. See its docstrings for exact parameter meanings,
-including two things confirmed empirically against the current libtlm build that aren't obvious
-from the existing test suite: `history_interval` (not the `runSimulations` third argument)
-controls returned-snapshot spacing, and values greater than 1 work fine despite a stale warning
-comment in
-`pypatchy/tests/test_libtlm.py`.
+including one thing confirmed empirically against the current libtlm build that isn't obvious from
+the existing test suite: `history_interval` (not the `runSimulations` third argument) controls
+returned-snapshot spacing directly, and values greater than 1 work fine.
 
 `pypatchy/polycubeutil/ext/tlm_analytics.py`'s `TLMDataGroup` is also available for turning raw
 `list[list[TLMHistoryRecord]]` output into a pandas DataFrame if that's more convenient for future

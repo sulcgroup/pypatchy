@@ -28,9 +28,9 @@ def run_vmmc(rule: str, temperature: float, density: float, cube_type_levels: li
              history_interval: int = 1) -> list[list["libtlm.TLMHistoryRecord"]]:
     """
     Runs n_replicas independent VMMC simulations and returns one list of TLMHistoryRecord per
-    replica, snapshotted every history_interval steps (confirmed empirically against the current libtlm build --
-    history_interval controls returned-snapshot spacing directly; despite a stale comment in
-    tests/test_libtlm.py, values > 1 work fine here as long as history_interval <= num_steps).
+    replica, snapshotted every history_interval steps (confirmed empirically against the current
+    libtlm build -- history_interval controls returned-snapshot spacing directly, and values > 1
+    work fine here as long as history_interval <= num_steps).
 
     interaction_matrix is built explicitly (not via libtlm.generateInteractionMatrix's default)
     so the exact bond energy is known and controlled -- needed for the analytical comparison in
