@@ -17,3 +17,4 @@ dependencies:
   - seaborn # deprecate?
   - paramiko # for pytests
   - pygltflib
+  - pytest
