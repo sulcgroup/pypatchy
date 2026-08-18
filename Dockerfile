@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.4
 
-FROM ubuntu:22.04
+FROM nvidia/cuda:12.6.3-devel-ubuntu22.04
 # “don’t prompt me for any questions”
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -55,6 +55,10 @@ RUN apt-get update && apt-get install -y bzip2 ca-certificates \
 RUN --mount=type=ssh git clone git@github.com:lorenzo-rovigatti/oxDNA.git /root/Github/oxDNA
 RUN --mount=type=ssh git clone git@github.com:sulcgroup/pypatchy.git /root/Github/pypatchy && cd /root/Github/pypatchy && git checkout unstable
 RUN --mount=type=ssh git clone git@github.com:sulcgroup/oxpy-utils.git /root/Github/oxpy-utils
+# oxpy-utils' tacoxDNA bridge (oxpy_utils/structure_editor/dna_structure.py) and
+# tests/test_tacoxdna.py both default to looking for this repo as a sibling
+# directory, i.e. /root/Github/tacoxDNA
+RUN git clone https://github.com/lorenzo-rovigatti/tacoxDNA.git /root/Github/tacoxDNA
 RUN --mount=type=ssh git clone git@github.com:sulcgroup/polycubes-clone.git /root/Github/polycubes \
     && cd /root/Github/polycubes \
     && git checkout nightmare && \
@@ -152,8 +156,10 @@ RUN mkdir build
 # todo: option to install without cuda
 WORKDIR build
 # cmake oxDNA
-# TODO: add -DCUDA=ON and make docker set up cuda
-RUN cmake .. -DPYTHON=ON && \
+# CUDA_COMMON_ARCH=ON (the CMake default) compiles for a broad set of GPU
+# architectures based on the nvcc version rather than autodetecting an
+# installed GPU, since no GPU is available during `docker build`
+RUN cmake .. -DPYTHON=ON -DCUDA=ON -DCUDA_COMMON_ARCH=ON && \
 # compile oxDNA + python bindings
 make install -j$(nproc) && \
 # compile flavio romano patchy model
@@ -185,6 +191,7 @@ cmake .. \
 RUN pip install python-sat
 
 RUN cd ~/Github/oxDNA/analysis && bash build.sh
+RUN git config --global pull.rebase false
 
 # start bash
 #ENTRYPOINT ["/bin/bash", "-c"]
