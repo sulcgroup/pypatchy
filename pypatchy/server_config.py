@@ -42,6 +42,11 @@ class PatchyServerConfig:
     slurm_includes: list[str] = field(default_factory=list)
     input_file_params: ParamSet = field(default_factory=list)
     absolute_paths: bool = False
+    # despite the name, this does NOT mean "runs on a slurm cluster" - plenty of ensembles
+    # with is_slurm=False still run inside a slurm allocation, they just run all of their
+    # simulations directly in that one job/process (now that oxpy supports contrib/romano,
+    # this is the common case) rather than each simulation submitting its own nested sbatch
+    # job. See submits_per_sim_slurm_job().
     is_slurm: bool = False
     cuda_mps: bool | SimulationManager = False
     no_oxpy_check: bool = True
@@ -76,15 +81,18 @@ class PatchyServerConfig:
     def is_batched(self) -> bool:
         return self.cuda_mps
 
-    def is_server_slurm(self) -> bool:
+    def submits_per_sim_slurm_job(self) -> bool:
         """
-        Returns whether the server is a slurm server. Defaults to true for legacy reasons.
+        Returns whether each simulation should be submitted as its own individual `sbatch`
+        job (True), as opposed to running all simulations for this ensemble directly in
+        whatever job/process is already running (False) - which is the common case, and is
+        orthogonal to whether that job/process itself happens to be inside a slurm allocation.
         """
         return self.is_slurm
 
     # TODO: slurm library? this project is experiancing mission creep
     def get_slurm_bash_flags(self) -> dict[str, Any]:
-        assert self.is_server_slurm(), "Trying to get slurm bash flags for a non-slurm setup!"
+        assert self.submits_per_sim_slurm_job(), "Trying to get slurm bash flags for a config that doesn't submit per-sim slurm jobs!"
         return self.slurm_bash_flags
 
     def get_slurm_n_tasks(self) -> int:

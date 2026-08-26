@@ -712,7 +712,11 @@ class PatchySimulationEnsemble(Analyzable):
         # TODO: do we need to handle exceptions better?
         # if we had a simulation manager, turn it off.
         if self.server_settings.cuda_mps:
-            # todo: make sure this is adeqquate
+            # worker_manager() already stops its own MPS daemon in its finally block after
+            # each batch, so this is normally a no-op - it's a safety net for the case where
+            # the manager was left holding a daemon (e.g. an error before start_simulations()
+            # reached worker_manager())
+            self.server_settings.cuda_mps.stop_nvidia_cuda_mps_control()
             self.server_settings.cuda_mps.manager.shutdown()
             self.server_settings.cuda_mps = True
         # on exit, dump metadata file
@@ -1710,9 +1714,9 @@ class PatchySimulationEnsemble(Analyzable):
             if EXTERNAL_OBSERVABLES:
                 self.get_logger().info("Writing observable json, as nessecary...")
                 self.write_sim_observables(sim)
-            # skip writing sbatch script if mps is off
-            # write .sh script
-            if self.server_settings.is_server_slurm():
+            # only needed when each simulation is submitted as its own sbatch job -
+            # batched (cuda_mps) and in-process runs never read this script
+            if self.server_settings.submits_per_sim_slurm_job():
                 self.get_logger().info("Writing sbatch scripts...")
                 self.write_run_script(sim, stage_obj)
         # save metadata to file
@@ -2082,7 +2086,7 @@ class PatchySimulationEnsemble(Analyzable):
                                           f"is incomplete")
                 return False
 
-        if self.server_settings.is_server_slurm():
+        if self.server_settings.submits_per_sim_slurm_job():
             try:
                 most_recent_stage = self.sim_most_recent_stage(sim)
                 if most_recent_stage.idx() > stage.idx():
@@ -2184,7 +2188,7 @@ class PatchySimulationEnsemble(Analyzable):
                 f"Conf file {self.paramstagefile(sim, stage, 'conf_file')} missing for sim {repr(sim)} "
                 f"stage {stage.name()} after setup completed!")
 
-        if self.server_settings.is_server_slurm():
+        if self.server_settings.submits_per_sim_slurm_job():
             if not (self.folder_path(sim, stage) / script_name).exists():
                 raise FileNotFoundError(f"No executable file {str(self.folder_path(sim, stage) / script_name)}")
             command = f"sbatch --chdir={self.folder_path(sim, stage)} {script_name}"
