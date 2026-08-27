@@ -8,6 +8,8 @@ description: Use when asked to write or debug a script that analyzes a pypatchy 
 This is the recipe for the recurring "load ensemble X, run analysis Y, summarize Z"
 task, so it doesn't need to be re-derived from scratch by grepping
 `simulation_ensemble.py` / `analysis_lib.py` / `analysis_data.py` every time.
+For building and running a new ensemble in the first place, see
+[[setup-run-ensemble]] (`.claude/skills/setup-run-ensemble/`) instead.
 
 **Reference example**: [examples/analyze_mf_3x3x3_soln_044b6c5b.py](../../../examples/analyze_mf_3x3x3_soln_044b6c5b.py)
 is a complete, working script built with this recipe. Prefer copying its shape
