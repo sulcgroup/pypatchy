@@ -1,6 +1,7 @@
 __pycache__
 .idea
-.claude
+.claude/*
+!.claude/skills
 */.ipynb_checkpoints
 .ipynb_checkpoints
 .vscode
