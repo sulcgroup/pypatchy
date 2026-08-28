@@ -70,51 +70,26 @@ Each config's `oxdna_path` points at a *specific checkout* of oxDNA, and its
 checkout (e.g. `contrib/romano`, `contrib/rovigatti`, `contrib/evans`) that has
 actually been compiled — different checkouts/machines may have different
 subsets of `contrib/` built. A config's `interaction_type`/`plugin_search_path`
-only works if that plugin is actually built at that `oxdna_path`; see "Patchy
-models must agree" below for how this ties to `patchy_format` and observables.
+only works if that plugin is actually built at that `oxdna_path`; see
+[[patchy-model-formats]] for how this ties to `patchy_format` and observables.
 
 **`spec_files/observables/*.json`** — pre-made `Observable` specs, loadable by
 name with `observable_from_file("patchybonds")` (from `patchy_sim_observable.py`;
 `.json` suffix optional) instead of constructing an `Observable`/`ObservableColumn`
-by hand. Currently on disk: `patchybonds.json` (`PatchyBonds` column — pairs
-with `GraphsFromPatchyBonds` in [[analyze-ensemble]]) and `plclustertopology.json`
-(`PLClusterTopology` column — pairs with `GraphsFromClusterTxt`). Not every
-observable used in practice has a file here — e.g. the raspberry model's
-`RaspberryPatchyBonds` observable (pairs with `GraphsFromRaspberryPatchyBonds`)
-has no premade json; construct it inline instead:
-`Observable("clusters.txt", 1e7, ObservableColumn(name="RaspberryPatchyBonds", show_types=1))`.
-Missing a json for an observable isn't a sign something's broken — check
-`ls ~/.pypatchy/spec_files/observables/` and fall back to building the
-`Observable` by hand (matching the shape of the existing jsons) if it's not there.
+by hand. Currently on disk: `patchybonds.json` and `plclustertopology.json`.
+Not every observable used in practice has a file here — see
+[[patchy-model-formats]] for which observable goes with which model/plugin,
+and what to do when there's no premade json (e.g. the raspberry model's
+`RaspberryPatchyBonds`).
 
-## Patchy models: `interaction_type` / `patchy_format` / observable must all agree
+## Patchy models and file formats
 
-oxDNA's patchy-particle support is spread across several `contrib/` plugins,
-each with its own file format and observable, wired together through
-`pypatchy/patchy/pl/patchyio.py`'s writer classes (`get_writer()`,
-`writer_options()`). Picking pieces from different rows below produces files
-oxDNA can't parse or an interaction that doesn't match the topology — check
-`get_writer(patchy_format).reqd_args()` for the exact file-name params a format
-needs (these go in `CONST_PARAMS_KEY` or the server config's `input_file_params`).
-
-| `contrib/` plugin | `interaction_type` | `patchy_format` (writer) | observable compiled into this plugin |
-|---|---|---|---|
-| `romano` | `PatchyShapeInteraction` | `"flavio"` (`FWriter`) — `patches.txt`/`particles.txt`; `"josh_flavio"` (`JFWriter`) adds allostery; `"subhajit"` (`SWriter`) is a third, differently-shaped file format also seen paired with this plugin | `PLClusterTopology` (`contrib/romano/src/Observables/PLClusterTopology.cpp`) |
-| `rovigatti` | `DetailedPatchySwapInteraction` | `"lorenzo"` (`LWriter`) — needs `DPS_interaction_matrix_file` | `PatchyBonds` (`contrib/rovigatti/src/Observables/PatchyBonds.cpp`) |
-| `evans` | `RaspberryPatchyInteraction` | `"raspberry"` (`RWriter`) | `RaspberryPatchyBonds` (no premade json — see above) |
-
-Each contrib plugin compiles to its own shared library; `plugin_search_path`
-controls which one oxDNA loads, so an observable only works if it's compiled
-into *that* plugin — this is why `PatchyBonds` needs `rovigatti` even though
-its name suggests it's the generic option, and `PLClusterTopology` needs
-`romano` despite sounding like a generic clusters observable too. Verify with
-`grep -rl <ObservableName> $OXDNA_PATH/contrib/*/src/Observables/` if unsure,
-rather than guessing from the name. This table reflects what's on this
-machine's `spec_files/server_configs/` (e.g. `home_flavio.json` = romano/flavio,
-`subhajit.json` = romano/subhajit, `home.json` = rovigatti/lorenzo,
-`raspberry.json` = evans/raspberry) — treat it as a starting point, not
-guaranteed exhaustive or a strict one-plugin-one-format rule; confirm against
-the actual server config and its `plugin_search_path` rather than assuming.
+Which `patchy_format`/`interaction_type`/observable combination to use, and
+what their files actually contain, is documented separately in
+[[patchy-model-formats]] (`.claude/skills/patchy-model-formats/`) — read that
+before building a `PatchyServerConfig` inline or hand-writing `CONST_PARAMS_KEY`
+keys like `patchy_file`/`DPS_interaction_matrix_file` for a format you haven't
+used before.
 
 ## The canonical shape
 
@@ -215,24 +190,21 @@ Notes on this shape:
    to override specific bond strengths before passing it in. Use this over a
    rule string when you need custom per-patch interaction strengths or a
    multidentate conversion — [setup_sims_programmatic.py](../../../examples/setup_sims_programmatic.py)
-   is the reference for this path.
+   is the reference for this path; see [[patchy-model-formats]] for what
+   multidentate conversion actually does and what `n_teeth`/`dental_radius`/etc mean.
 
 ## `CONST_PARAMS_KEY` — common keys
 
 Shared (non-swept) simulation params, as a flat dict. Common, format-independent
 ones seen in the examples: `num_assemblies`, `density`, `steps`,
 `print_conf_interval`, `print_energy_every`, `narrow_type`,
-`interaction_potentials` (list of names — see catalog below). `patchy_file`/
-`particle_file` are specific to the `flavio`/`josh_flavio` writers (per
-`reqd_args()` in "Patchy models" above) — other formats need different keys
-here instead (e.g. `lorenzo` needs `DPS_interaction_matrix_file`), so check
-`get_writer(patchy_format).reqd_args()` for the format actually in use rather
-than assuming these two.
-
-`interaction_potentials` recognized names (`get_interaction_potentials()` in
-`simulation_ensemble.py`): `lr_excl_vol`, `fr_excl_vol` (needs `PATCHY_radius`
-param), `lr_patchy` (needs `DPS_sigma_ss`), `fr_patchy` (needs `PATCHY_radius`,
-`use_torsion`). "lr"/"fr" = Lorenzo's/Flavio's interaction variants.
+`interaction_potentials` (list of names — see [[patchy-model-formats]]).
+`patchy_file`/`particle_file` are specific to the `flavio`/`josh_flavio`
+writers — other formats need different keys here instead (e.g. `lorenzo` needs
+`DPS_interaction_matrix_file`), so check `get_writer(patchy_format).reqd_args()`
+for the format actually in use rather than assuming these two; see
+[[patchy-model-formats]] for the full per-format breakdown and what
+`interaction_potentials` names are recognized.
 
 `backend`, `backend_precision`, `interaction_type`, `plugin_search_path` would
 normally live in the server config's `input_file_params` — but if you're

@@ -153,7 +153,10 @@ clusters = sorted(
 **Standalone** (a raw sim folder not managed by an ensemble — e.g. someone else's
 run, or output you're inspecting outside pypatchy's directory layout): build the
 scene by hand with a `patchyio` writer. This is more manual — nothing sets
-potentials or temperature for you, so do that explicitly:
+potentials or temperature for you, so do that explicitly. Picking the right
+writer key (`"lorenzo"` below, or another) depends on which format the files
+were actually written in — see [[patchy-model-formats]] if that's not obvious
+from context:
 
 ```python
 from pypatchy.patchy.pl.patchyio import get_writer
