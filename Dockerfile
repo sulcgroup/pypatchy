@@ -159,7 +159,7 @@ WORKDIR build
 # CUDA_COMMON_ARCH=ON (the CMake default) compiles for a broad set of GPU
 # architectures based on the nvcc version rather than autodetecting an
 # installed GPU, since no GPU is available during `docker build`
-RUN cmake .. -DPYTHON=ON -DCUDA=ON -DCUDA_COMMON_ARCH=ON && \
+RUN cmake .. -DPYTHON=ON -DCUDA=ON -DCUDA_COMMON_ARCH=ON -DNATIVE_COMPILATION=OFF && \
 # compile oxDNA + python bindings
 make install -j$(nproc) && \
 # compile flavio romano patchy model
