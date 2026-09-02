@@ -101,6 +101,26 @@ KEEP_GOING="${KEEP_GOING:-0}"
 
 export DOCKER_BUILDKIT=1
 
+# GPU access for the test containers. Parts of the test suites run oxDNA's CUDA
+# backend (e.g. oxpy-utils' test_cadnano_workflow production stage), and that
+# backend calls exit() -- not a catchable exception -- when no device is
+# visible, which hard-kills pytest with no traceback. GPUS=all|none|auto
+# (default auto: use `--gpus all` iff `nvidia-smi -L` lists a device).
+GPUS="${GPUS:-auto}"
+gpu_flag=()
+case "$GPUS" in
+    none) echo "GPUS=none -- test containers run CPU-only (CUDA tests will fail)" ;;
+    all)  gpu_flag=(--gpus all) ;;
+    auto)
+        if command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi -L >/dev/null 2>&1; then
+            gpu_flag=(--gpus all)
+            echo "GPU detected -- test containers run with --gpus all"
+        else
+            echo "no GPU detected -- test containers run CPU-only (CUDA tests will fail)"
+        fi ;;
+    *) echo "ERROR: GPUS must be all|none|auto (got '$GPUS')" >&2; exit 1 ;;
+esac
+
 stage_names=()
 stage_results=()
 any_failed=0
@@ -135,7 +155,7 @@ run_stage() {
 # /root/Github, remaining args = extra pytest args.
 container_pytest() {
     local repo="$1"; shift
-    docker run --rm "$IMAGE_LOCAL" -l -c "
+    docker run --rm "${gpu_flag[@]}" "$IMAGE_LOCAL" -l -c "
         eval \"\$(micromamba shell hook --shell bash)\" &&
         micromamba activate pypatchy &&
         cd /root/Github/$repo &&
@@ -147,7 +167,7 @@ run_stage "docker build" \
 
 if [[ "$SKIP_TESTS" -ne 1 ]]; then
     run_stage "polycubes ctest" \
-        docker run --rm "$IMAGE_LOCAL" -lc \
+        docker run --rm "${gpu_flag[@]}" "$IMAGE_LOCAL" -lc \
         'cd /root/Github/polycubes/cpp/build && ctest --output-on-failure -j"$(nproc)"'
 
     # test_seqdesign.py is excluded: it imports the `nupack` package, which is
