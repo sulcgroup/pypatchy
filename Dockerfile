@@ -91,6 +91,23 @@ ENV MAMBA_ROOT_PREFIX=/root/.local/share/mamba
 # 2. Prepend the pypatchy env’s bin dir to PATH
 ENV PATH=$MAMBA_ROOT_PREFIX/envs/pypatchy/bin:$PATH
 
+# conda-forge's python 3.12 is now built with gcc 15, which bakes a bare
+# `-partition=none` into the sysconfig CFLAGS/LDFLAGS it records for building
+# C extensions. The Ubuntu 22.04 system gcc that actually compiles those
+# extensions here (e.g. oxDNA_analysis_tools' cython_utils) doesn't know that
+# spelling -- it wants `-flto-partition=none` -- so the wheel build dies with
+# "unrecognized command-line option '-partition=none'". Rewrite the flag to the
+# `-flto-partition=none` spelling (valid in both gcc 11 and gcc 15) everywhere
+# in the env's _sysconfigdata module; the first sed clause makes it idempotent.
+# (env CFLAGS can't fix this: setuptools appends to the sysconfig value rather
+# than replacing it.)
+RUN set -euo pipefail; \
+    py="$MAMBA_ROOT_PREFIX/envs/pypatchy/bin/python"; \
+    scd="$("$py" -c 'import importlib, sysconfig; print(importlib.import_module(sysconfig._get_sysconfigdata_name()).__file__)')"; \
+    echo "patching sysconfigdata: $scd"; \
+    sed -i 's/-flto-partition=none/-partition=none/g; s/-partition=none/-flto-partition=none/g' "$scd"; \
+    "$py" -c 'import re, sysconfig; bad={k: v for k in sysconfig.get_config_vars() for v in [sysconfig.get_config_var(k)] if isinstance(v, str) and re.search(r"(?<!flto)-partition=none", v)}; assert not bad, bad; print("sysconfig CFLAGS ok")'
+
 RUN micromamba run -n pypatchy pip install -e /root/Github/oxpy-utils \
     && micromamba run -n pypatchy pip install -e /root/Github/pypatchy \
     && micromamba clean --all --yes \
