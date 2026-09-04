@@ -565,7 +565,10 @@ def build_ensemble(cfg: dict[str, Any],
     else:
         ensemble.no_oxpy_check_energies = server_settings.no_oxpy_check
 
-    # I've removed dump_metadata from the initializer, can dump metadata later as needed
+    # write the metadata file immediately on construction, rather than waiting for
+    # __exit__, so a metadata file exists even if the ensemble is never used as a
+    # context manager (or the process dies before entering/exiting a `with` block)
+    ensemble.dump_metadata()
 
     return ensemble
 

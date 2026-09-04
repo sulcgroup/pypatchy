@@ -180,9 +180,10 @@ Notes on this shape:
 ## Particle types: two ways to specify
 
 1. **Rule string** (`"rule"` key) — a `PolycubesRule` string (see
-   `polycubesRule.py`), converted internally via `polycube_rule_to_PL()`. Pair
-   it with `PARTICLE_TYPE_LVLS_KEY` (a list of particle counts per cube type,
-   in the same order as the rule's cube types) if the counts aren't 1-each.
+   [[polycubes-rules]] for the string syntax itself), converted internally via
+   `polycube_rule_to_PL()`. Pair it with `PARTICLE_TYPE_LVLS_KEY` (a list of
+   particle counts per cube type, in the same order as the rule's cube types)
+   if the counts aren't 1-each.
 2. **Pre-built `PLParticleSet`** (`PARTICLE_TYPES_KEY` from `param_val_types.py`) —
    build one yourself, e.g. `polycube_rule_to_PL(PolycubesRule(rule_str=...))`,
    optionally `.to_multidentate(MultidentateConvertSettings(n_teeth=..., dental_radius=...))`,
