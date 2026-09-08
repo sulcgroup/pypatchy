@@ -12,7 +12,10 @@ together on a 3D grid. It's parsed/emitted by `PolycubesRule`
 (`pypatchy/polycubeutil/polycubesRule.py`) and is the value every ensemble's
 `"rule"` config key expects (see [[setup-run-ensemble]]), before
 `polycube_rule_to_PL()` turns it into a `PLParticleSet` for actual simulation
-(see [[patchy-model-formats]] for what happens after that).
+(see [[patchy-model-formats]] for what happens after that). The same rule
+string (and the same `RULE_ORDER`/direction convention) is also what
+[[tlm-simulations]] (`libtlm`, a separate lattice-MC engine) consumes — the
+two subsystems agree on this format even though nothing else about them is shared.
 
 ## The shape
 
