@@ -1,6 +1,6 @@
 ---
 name: tlm-simulations
-description: Use when setting up, running, resuming, or reading results from a TLM/VMMC polycube simulation (libtlm - the C++ lattice Monte Carlo engine, separate from oxDNA/PatchySimulationEnsemble entirely). Covers TLMParameters/TLMSimulationGroup/PolycubesProgram, choosing a simulation model (VMMC/FiniteSize/RankedValence/LegacyVMMC/VirtuallySeededGrowth), staged runs, checkpoint/resume, and the pypatchy-side TLMRecords/tlm_data readers. This API changes frequently - verify anything surprising against the current pybind11 source before trusting an older explanation (including this one). Not for the oxDNA/PL simulation pipeline (see setup-run-ensemble/patchy-model-formats) or the SAT-based rule-design pipeline that calls into this one.
+description: Use when setting up, running, resuming, or reading results from a TLM/VMMC polycube simulation (libtlm - the C++ lattice Monte Carlo engine, separate from oxDNA/PatchySimulationEnsemble entirely). Covers TLMParameters/TLMSimulationGroup/PolycubesProgram, choosing a simulation model (VMMC/FiniteSize/RankedValence/LegacyVMMC/VirtuallySeededGrowth), staged runs, checkpoint/resume, and the pypatchy-side TLMRecords/tlm_data readers. This API changes frequently - verify anything surprising against the current pybind11 source before trusting an older explanation (including this one). Not for the oxDNA/PL simulation pipeline (see setup-run-ensemble/patchy-model-formats) or the SAT-based rule-design pipeline that calls into this one - see sat-crystal-design for that.
 ---
 
 # TLM/VMMC polycube simulations (`libtlm`)
@@ -11,10 +11,11 @@ integer grid, no continuous dynamics), exposed to Python via `libtlm`
 (pybind11). It shares the [[polycubes-rules]] rule-string format and
 `RULE_ORDER`/`DirIdx` direction convention with the oxDNA side, but nothing
 else — no `PatchySimulationEnsemble`, no `PLPSimulation`, no oxDNA input
-files. It's the physics engine the SAT-based crystal-design pipeline uses to
+files. It's the physics engine [[sat-crystal-design]] uses to
 test whether a candidate rule actually assembles the target (and *only* the
-target) — this skill covers running/reading a TLM simulation directly; a
-future skill covers how the SAT pipeline drives it.
+target) — this skill covers running/reading a TLM simulation directly; see
+[[sat-crystal-design]] for how that pipeline's `RankedValenceStep`/
+`VMMCDesignStep`/`VirtuallySeededGrowthDesignStep` drive it.
 
 **This binding is under active development** (the C++ source
 `~/git/polycubes-clone/cpp/src/PolycubesPython.cpp` grew from ~710 to ~1150
@@ -96,9 +97,9 @@ for i in range(group.num_sims):
 
 | `model_type` | What it does | Use it for |
 |---|---|---|
-| `"vmmc"` (or T>0, unset) | Probabilistic Virtual-Move MC — proposes pseudocluster moves, accepts/rejects via Metropolis at temperature T. See [[reference: VMMC algorithm]] below. | Realistic stochastic assembly — the default for "does this rule actually assemble" questions. |
-| `"finite_size"` (or T=0, unset) | Deterministic greedy: iterates cubes in random order, executes the first valid move found, no rejection. | Fast positive-control checks; can get stuck on one assembly path and produce false negatives (this is exactly why `VMMCDesignStep` exists as a supplement to greedy-only `RankedValenceStep` in the design pipeline). |
-| `"ranked_valence"` | A specific deterministic assembly heuristic distinct from plain FiniteSize (see the design-pipeline skill for how it's used as a negative-design check). | Negative design / off-target checking. |
+| `"vmmc"` (or T>0, unset) | Probabilistic Virtual-Move MC — proposes pseudocluster moves, accepts/rejects via Metropolis at temperature T. See the "further reading" pointer at the bottom for the algorithm's internals. | Realistic stochastic assembly — the default for "does this rule actually assemble" questions. |
+| `"finite_size"` (or T=0, unset) | Deterministic greedy: iterates cubes in random order, executes the first valid move found, no rejection. | Fast positive-control checks; can get stuck on one assembly path and produce false negatives (this is exactly why [[sat-crystal-design]]'s `VMMCDesignStep` exists as a supplement to greedy-only `RankedValenceStep`). |
+| `"ranked_valence"` | A specific deterministic assembly heuristic distinct from plain FiniteSize (see [[sat-crystal-design]] for how it's used as a negative-design check). | Negative design / off-target checking. |
 | `"legacy_vmmc"` | An older VMMC implementation kept alongside the current one. | Only if you specifically need to compare against or reproduce old-VMMC results — prefer `"vmmc"` otherwise. |
 | `"virtually_seeded_growth"` | Grows from a fixed periodic seed pattern (a `TLMVirtualSeedConfig`) instead of a random free-cube pool — tests whether a rule extends a *given* partial lattice correctly rather than whether it nucleates one from scratch. | Testing lattice/seam consistency of a target crystal structure. Needs `seed_config=` on `TLMSimulationGroup`; doesn't support `dump_data()` or `init_from()` (raises `RuntimeError`). Building the `TLMVirtualSeedConfig` from a SAT solution is design-pipeline-specific (`tlm_runner.build_seed_pattern`/`to_tlm_seed_config`) — out of scope here. |
 

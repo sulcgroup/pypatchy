@@ -88,6 +88,9 @@ Pipeline **heads** (start a pipeline branch, read raw sim output):
 Downstream **steps** (consume a head's/step's output):
 - `ClassifyClusters(name, target, ...)` / `ClassifyPolycubeClusters(name, target_name, ...)` —
   compares cluster graphs against a target structure/polycube to classify matches.
+  `target` is a `Structure`/`TypedStructure` (see [[structure-topology]] for
+  what that comparison actually checks, including a real gotcha around
+  rotation-direction mapping in homomorphism results).
 - `MatchGraphToCrystal(name, target, ...)` — compares graphs to a target crystal structure.
 - `ComputeClusterYield(name, cutoff, ...)` — yield from `ClassifyClusters`/`ClassifyPolycubeClusters`
   output, given a size/match cutoff.
