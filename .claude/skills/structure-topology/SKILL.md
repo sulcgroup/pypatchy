@@ -1,6 +1,6 @@
 ---
 name: structure-topology
-description: Use when working with pypatchy's Structure/TypedStructure/GenericTypedStructure classes (pypatchy/structure.py) - building a target topology for analysis or design, constructing/interpreting Binding tuples, checking structural homomorphism/isomorphism between assemblies, building a periodic crystal topology from a unit cell (Tiling/splice), or debugging a rotation/direction mismatch in a homomorphism result. This is shared foundation underneath analyze-ensemble's cluster-classification targets, sat-crystal-design's whole topology-matching machinery, and polycubes-rules' PolycubeStructure. Not for the rule-string format itself (polycubes-rules) or PL/oxDNA particle file formats (patchy-model-formats).
+description: Use when working with pypatchy's Structure/TypedStructure/GenericTypedStructure classes (pypatchy/structure.py) - building a target topology for analysis, constructing/interpreting Binding tuples, checking structural homomorphism/isomorphism between assemblies, building a periodic crystal topology from a unit cell (Tiling/splice), or debugging a rotation/direction mismatch in a homomorphism result. This is shared foundation underneath analyze-ensemble's cluster-classification targets and polycubes-rules' PolycubeStructure. Not for the rule-string format itself (polycubes-rules) or PL/oxDNA particle file formats (patchy-model-formats).
 ---
 
 # `Structure` / topology graphs (`pypatchy/structure.py`)
@@ -9,10 +9,9 @@ description: Use when working with pypatchy's Structure/TypedStructure/GenericTy
 things bound together" — nodes are integer particle/cube-instance IDs
 ("locations"), edges are directed bindings each carrying a `dirIdx`
 (the same [[polycubes-rules]] `RULE_ORDER` face-direction index used
-everywhere else in this project). It's the common substrate underneath three
+everywhere else in this project). It's the common substrate underneath two
 things that otherwise look unrelated: a hand-built comparison target in
-[[analyze-ensemble]]'s cluster-classification steps, the entire topology/
-target-matching machinery in [[sat-crystal-design]], and — via subclassing —
+[[analyze-ensemble]]'s cluster-classification steps, and — via subclassing —
 [[polycubes-rules]]' own `PolycubeStructure` (`polycube_structure.py`'s
 `class PolycubeStructure(TypedStructure, Scene)`), so every method
 documented here works on an actual assembled polycube, not just an abstract
@@ -28,9 +27,7 @@ property) collapses that back down to one canonical tuple per binding.
 `flip(b)` returns `(v, dv, u, du)` — since edge iteration order isn't
 guaranteed stable, code that looks up a specific binding by value generally
 needs to check `b in bindings_list or flip(b) in bindings_list`, not just the
-former (see `Polysat.matches_problem()` in [[sat-crystal-design]] for exactly
-this pattern, done there specifically so a log written by another process/host
-still compares equal). A "well-formed" binding (checked by
+former. A "well-formed" binding (checked by
 `is_bindings_euclidian()`, not enforced at construction) has `du`/`dv` as
 geometric opposites — `abs(du - dv) == 1` under `RULE_ORDER`'s pairing.
 
@@ -39,14 +36,11 @@ geometric opposites — `abs(du - dv) == 1` under `RULE_ORDER`'s pairing.
 - **`Structure(bindings=[...])`** or **`Structure(graph=some_nx_multidigraph)`** —
   the untyped base. `.vertices()`, `.num_vertices()`/`.num_edges()`/`len()`.
   `.is_connected()` / `.is_multifarious()` (not connected) /
-  `.iter_components()` — this last one is literally how a multifarious
-  (multi-component) design target gets split into its separate pieces in
-  [[sat-crystal-design]] (`Polysat.targets_as_typed`).
+  `.iter_components()` — splits a multifarious (multi-component) structure
+  into its separate connected pieces.
   `.substructure(nodes)` / `.substructures()` — extract or enumerate
   connected node subsets, remapping vertex IDs down to a dense `0..n-1` range
-  in the result (used e.g. by `local_constraint_subgraphs()` in
-  [[sat-crystal-design]] to crop a competing crystal down to a negative-design
-  constraint).
+  in the result.
   `.rotate(rotation_map)` — apply a direction-index permutation to every
   edge, returning a `StructuralHomomorphism`.
   `.splice(other, splice_points)` — join two structures by cutting a binding
@@ -74,7 +68,8 @@ geometric opposites — `abs(du - dv) == 1` under `RULE_ORDER`'s pairing.
   types={...}, fill_type=0)` — `fill_type` backfills any vertex missing an
   explicit entry in `types` (e.g. "everything not listed is type 0"). Extra
   methods: `.to_tlm_topology() -> libtlm.TLMTopology` (direct index
-  correspondence with `DirIdx`, no translation needed — see [[tlm-simulations]]),
+  correspondence with `DirIdx`, no translation needed; lazily imports
+  `libtlm`, so this one method needs it installed but nothing else here does),
   `.is_symmetric(axis)`.
 
 - **`StructuralMapping` / `StructuralHomomorphism`** — the result of a
@@ -109,8 +104,7 @@ edge must have a reciprocal — a malformed `Structure` (e.g. built from a
 one-directional binding list by mistake) fails loudly here rather than
 producing a silently-wrong homomorphism search.
 
-**The sharp edge, verified against a real bug callout in
-`pypatchy/design/sat/solve_steps.py`'s `homomorphism_is_valid()` docstring**:
+**A sharp edge worth verifying against the source before trusting**:
 `Structure.homomorphisms()` compares directions using the **inverse**
 rotation mapping internally. So to translate a direction *from* the target
 structure passed into `homomorphisms()` *into* the structure it matched
@@ -122,8 +116,7 @@ topology data itself.
 
 ## Topology JSON format (`read_topology` / `export_periodic_topology`)
 
-The `~/.pypatchy/input/topologies/*.json` spec files [[sat-crystal-design]]'s
-`load_solve_params()` reads are exactly this shape:
+The JSON shape `read_topology`/`export_periodic_topology` round-trip:
 ```json
 {
   "bindings": [[0, 1, 1, 0], ...],
@@ -133,11 +126,10 @@ The `~/.pypatchy/input/topologies/*.json` spec files [[sat-crystal-design]]'s
 ```
 `bindings` = intra-unit-cell edges; `extraConnections` = periodic/crystal
 edges that only exist in the *infinite* tiling, never in a finite assembled
-fragment — `read_topology()` merges both into one `GenericTypedStructure` for
-the SAT problem itself, but `Polysat` separately keeps a `local_topology`
-(bindings only, no `extraConnections`) specifically for homomorphism checks
-against finite TLM-assembled polycubes, which physically cannot contain a
-periodic bond. `nanoparticles` maps `{"vertex_id": type - 1}` (offset by one
+fragment — `read_topology()` merges both into one `GenericTypedStructure`.
+If you need to compare against a finite assembled fragment (which physically
+cannot contain a periodic bond), build a second `Structure` from `bindings`
+alone, without `extraConnections`. `nanoparticles` maps `{"vertex_id": type - 1}` (offset by one
 so type `0`/absent can mean "no nanoparticle" — `read_topology` adds 1 back
 on load, `GenericTypedStructure.export_periodic_topology()` subtracts 1 and
 omits zero entries on save). `Structure.export_periodic_topology()` derives
@@ -151,10 +143,6 @@ counts as internal iff `coords[v] == coords[u] + RULE_ORDER[du]` exactly.
   analysis steps take a `Structure`/`TypedStructure` as their comparison
   target — e.g. the "3D cross" example builds one by hand:
   `Structure(bindings=[(0, i, i+1, rdir(i)) for i in range(6)])`.
-- [[sat-crystal-design]]'s entire target-matching machinery
-  (`SolveParams.topology`, `Polysat.targets_as_typed`, `matches_target`,
-  `NegativeDesignStep`'s off-target structures) is `GenericTypedStructure`
-  underneath.
 - [[polycubes-rules]]' `PolycubeStructure` — the representation of one
   already-assembled polycube — is itself a `TypedStructure` subclass, so
   everything above (homomorphism checks, `.matrix()`, `.is_crystal()`, JSON

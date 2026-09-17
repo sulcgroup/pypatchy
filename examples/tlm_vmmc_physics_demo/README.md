@@ -7,8 +7,7 @@ move-proposal scheme, done independently of the existing code and then diffed ag
 up when run through the real production interface: `libtlm`'s Python bindings and pypatchy's own
 rule construction (`PolycubesRule`), not just the C++ unit tests in
 `polycubes/cpp/tests/test_vmmc_directed_moves.cpp`, which check the mechanism against hand-built
-fixtures. This is the same interface `pypatchy.design.sat`'s SAT-validation pipeline uses in
-production. Written to verify commit `f703d62c` on the `vmmc-proposal-bias` branch (in the
+fixtures. Written to verify commit `f703d62c` on the `vmmc-proposal-bias` branch (in the
 `polycubes` repo) before pushing it.
 
 That document lives at the top level of the sibling `polycubes` repo, since it's fundamentally

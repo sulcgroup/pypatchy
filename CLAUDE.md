@@ -23,11 +23,6 @@ Required external packages (not in `pypatchy.yml`):
 - `oxpy` and `oxDNA_analysis_tools` (oat): see https://lorenzo-rovigatti.github.io/oxDNA/install.html#python-bindings
 - `oxpy_utils`: `pip install git+https://github.com/sulcgroup/oxpy-utils.git`
 
-For the `design` package (SAT-based crystal design):
-- `python -m pip install 'python-sat[pblib,aiger]'`
-- Compiled `libpolycubes.so` (from https://github.com/Akodiat/polycubes/) must be placed in `bin/`
-- The TLM library from https://github.com/sulcgroup/polycubes-clone/ (`cpp/`)
-
 After installation, run the configure script to set up the working directory structure at `~/.pypatchy/`:
 ```bash
 python -m pypatchy.configure
@@ -55,7 +50,7 @@ Test files marked as "good" (stable):
 - `test_prerequisites.py` – checks oxpy, oat, oxpy_utils, and directory structure
 - `test_polycube_lib.py` – polycube rule and structure basics
 
-WIP test files: `test_patchy_io.py`, `test_analysis.py`, `test_solver_lib.py`, `test_ensembles_basic.py`, `test_ensembles_advanced.py`
+WIP test files: `test_patchy_io.py`, `test_analysis.py`, `test_ensembles_basic.py`, `test_ensembles_advanced.py`
 
 Tests require external data downloaded from a server (may require ASU VPN). Test data lives in `tests/test_files/`.
 
@@ -102,14 +97,6 @@ Represents the abstract combinatorial design space:
 - **`analysis_data.py`** – `PDPipelineData`: pandas-backed data container for pipeline results.
 - **`analyzable.py`** – `Analyzable` mixin for objects that can be analyzed.
 
-### Design (`pypatchy/design/`)
-
-Higher-level crystal design tools:
-- **`sat/`** – SAT-based approach to finding polycube rules that assemble target structures. Uses PySAT. Requires the TLM library.
-- **`solve.py`**, **`solve_exec.py`** – SAT solver execution.
-- **`normalize_particle_set.py`**, **`reduce_rule.py`** – Utilities for simplifying/normalizing particle sets.
-- **`structure_math.py`** – Mathematical utilities for crystal structure reasoning.
-
 ### Key data flow
 
 ```
@@ -128,27 +115,22 @@ Path helpers all live in `pypatchy/util.py`. Don't hardcode `~/.pypatchy` paths 
 
 ### `~/.pypatchy/` — config, inputs, and metadata (never raw simulation data)
 
-- `settings.cfg` — `[ANALYSIS]` section has `simulation_data_dir` (raw patchy-particle sim data root, required) and `tlm_data_dir` (raw polycube/TLM sim data root, optional — `tlm_data_dir()` raises `ValueError` if unset). `[SETUP]` has `server_config` — the *name* (no `.json`) of the active file under `spec_files/server_configs/`.
-- `input/` (`get_input_dir()`) — `topologies/`, `targets/`, `tlm/`: input spec files and design targets.
+- `settings.cfg` — `[ANALYSIS]` section has `simulation_data_dir` (raw patchy-particle sim data root, required) and optionally `tlm_data_dir` (a configured root for your own TLM/`libtlm` output, if you use `tlm_data_dir()` — nothing in this repo requires it, `tlm_data_dir()` raises `ValueError` if unset). `[SETUP]` has `server_config` — the *name* (no `.json`) of the active file under `spec_files/server_configs/`.
+- `input/` (`get_input_dir()`) — input spec files.
 - `spec_files/` — `server_configs/<name>.json` (looked up by name via `get_spec_json()`, must match `settings.cfg`'s `server_config` exactly), `input_files/`, `observables/`.
 - `output/` (`get_output_dir()`) — **metadata and logs only**:
   - `output/logs/` (`get_log_dir()`) — ensemble run logs, named `log_<export_name>_<setup-date>_at<timestamp>.log`.
-  - `output/SAT/` — SAT solver artifacts: exported scene JSONs, forbidden-solutions log, multisolve status files.
-  - `output/logs/SAT/` — per-solve-run `.log`/`.jsonl` event logs, plus `last_settings_*.json` snapshots of TLM run parameters.
-  - `output/tlm/` — analytics output from `polycubeutil/ext/tlm_analytics.py`.
 
 ### Raw simulation data — lives outside `~/.pypatchy/` entirely
 
 - **Patchy-particle (oxDNA) simulations**, root = `simulation_data_dir` (`simulation_run_dir()`). Each `PatchySimulationEnsemble` gets a top-level directory `simulation_run_dir() / "<export_name>_<setup-date>"` (`ensemble.tld()`); individual runs live under `tld() / <param-value subfolder>[/ <stage name>]` (`ensemble.folder_path()`).
-- **Polycube/TLM simulations**, root = `tlm_data_dir`. Each SAT solution attempt gets its own `tlm_data_dir/soln_<uuid>/`, containing `problem_info.json`, `solution.pickle`, and raw `sim_<i>.pickle` TLM simulation records (written by `design/sat/tlm_util.py::run_tlm()`).
 
 ### Docker container specifics
 
 Inside the `pypatchy` Docker image (built from this repo's `Dockerfile`; see the container-wide `/root/CLAUDE.md`, sourced from `docker/ROOT_CLAUDE.md`), the above resolve concretely to:
 - `~/.pypatchy` → `/root/.pypatchy`
 - `simulation_data_dir` → `/root/patchy_run`
-- `tlm_data_dir` → `/root/data/tlm_data`
 - `oxdna_path` (in the active server config) → `/root/Github/oxDNA/`
-- Sibling repos: `/root/Github/{pypatchy,oxpy-utils,oxDNA,polycubes}` — `polycubes` here is `sulcgroup/polycubes-clone` (cloned under a shortened name), not `Akodiat/polycubes`.
+- Sibling repos: `/root/Github/{pypatchy,oxpy-utils,oxDNA,tacoxDNA}`.
 
 `settings.cfg` sets `server_config = docker`; the Dockerfile writes the same content to both `spec_files/server_configs/fr.json` and `spec_files/server_configs/docker.json` so that name resolves. The two files are identical duplicates for now — if the "docker" server config ever needs to diverge from "fr", edit `docker.json` directly rather than assuming they stay in sync.

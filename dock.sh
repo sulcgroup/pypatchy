@@ -32,9 +32,8 @@ fi
 # ---------------------------------------------------------------------------
 REQUIRED_REPOS=(
     "git@github.com:JeDeveloper/oxDNA.git"
-    "git@github.com:sulcgroup/pypatchy.git#unstable"
+    "git@github.com:sulcgroup/pypatchy.git#main"
     "git@github.com:sulcgroup/oxpy-utils.git"
-    "git@github.com:sulcgroup/polycubes-clone.git#nightmare"
     "https://github.com/lorenzo-rovigatti/tacoxDNA.git"
 )
 
@@ -167,10 +166,6 @@ run_stage "docker build" \
     docker build -t "$IMAGE_LOCAL" --ssh default -f Dockerfile --no-cache .
 
 if [[ "$SKIP_TESTS" -ne 1 ]]; then
-    run_stage "polycubes ctest" \
-        docker run --rm "${gpu_flag[@]}" "$IMAGE_LOCAL" -lc \
-        'cd /root/Github/polycubes/cpp/build && ctest --output-on-failure -j"$(nproc)"'
-
     # test_seqdesign.py is excluded: it imports the `nupack` package, which is
     # licensed software not installable via pip/conda and isn't set up in this
     # image, so collecting it always fails with ModuleNotFoundError.

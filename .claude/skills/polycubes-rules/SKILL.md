@@ -1,6 +1,6 @@
 ---
 name: polycubes-rules
-description: Use when reading, writing, or reasoning about a PolycubesRule string (like "1|1|1|1|1|1_-1|||||") - parsing what a rule means, constructing a rule by hand for a target structure, understanding patch colors/rotation/binding, or the allostery/effects syntax. This is the string format every pypatchy ensemble's "rule" key and every polycube_rule_to_PL() call assumes but never spells out. Not for the SAT-based automated rule-design pipeline (see sat-crystal-design for that), and not for PL/oxDNA file formats after conversion - see patchy-model-formats for that.
+description: Use when reading, writing, or reasoning about a PolycubesRule string (like "1|1|1|1|1|1_-1|||||") - parsing what a rule means, constructing a rule by hand for a target structure, understanding patch colors/rotation/binding, or the allostery/effects syntax. This is the string format every pypatchy ensemble's "rule" key and every polycube_rule_to_PL() call assumes but never spells out. Not for PL/oxDNA file formats after conversion - see patchy-model-formats for that.
 ---
 
 # Polycubes rule strings
@@ -12,10 +12,7 @@ together on a 3D grid. It's parsed/emitted by `PolycubesRule`
 (`pypatchy/polycubeutil/polycubesRule.py`) and is the value every ensemble's
 `"rule"` config key expects (see [[setup-run-ensemble]]), before
 `polycube_rule_to_PL()` turns it into a `PLParticleSet` for actual simulation
-(see [[patchy-model-formats]] for what happens after that). The same rule
-string (and the same `RULE_ORDER`/direction convention) is also what
-[[tlm-simulations]] (`libtlm`, a separate lattice-MC engine) consumes — the
-two subsystems agree on this format even though nothing else about them is shared.
+(see [[patchy-model-formats]] for what happens after that).
 An *assembled* structure built from a rule (`PolycubeStructure`, in
 `polycubeutil/polycube_structure.py`) is a [[structure-topology]]
 `TypedStructure` subclass — homomorphism checks, `.matrix()`, JSON export,

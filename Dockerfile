@@ -33,7 +33,6 @@ RUN apt-get install -y build-essential cmake git wget curl neovim python3 python
 # container-level CLAUDE.md so Claude Code has cross-repo context regardless of which repo it's launched in
 COPY docker/ROOT_CLAUDE.md /root/CLAUDE.md
 
-# use the polycubes cpp build directory for the next few
 # make sure SSH can verify GitHub’s host key
 RUN mkdir -p /root/.ssh \
  && chmod 700 /root/.ssh \
@@ -53,18 +52,15 @@ RUN apt-get update && apt-get install -y bzip2 ca-certificates \
  && micromamba --version
 # clone oxDNA
 RUN --mount=type=ssh git clone git@github.com:lorenzo-rovigatti/oxDNA.git /root/Github/oxDNA
-RUN --mount=type=ssh git clone git@github.com:sulcgroup/pypatchy.git /root/Github/pypatchy && cd /root/Github/pypatchy && git checkout unstable
+RUN --mount=type=ssh git clone git@github.com:sulcgroup/pypatchy.git /root/Github/pypatchy && cd /root/Github/pypatchy && git checkout main
 RUN --mount=type=ssh git clone git@github.com:sulcgroup/oxpy-utils.git /root/Github/oxpy-utils
 # oxpy-utils' tacoxDNA bridge (oxpy_utils/structure_editor/dna_structure.py) and
 # tests/test_tacoxdna.py both default to looking for this repo as a sibling
 # directory, i.e. /root/Github/tacoxDNA
 RUN git clone https://github.com/lorenzo-rovigatti/tacoxDNA.git /root/Github/tacoxDNA
-RUN --mount=type=ssh git clone git@github.com:sulcgroup/polycubes-clone.git /root/Github/polycubes \
-    && cd /root/Github/polycubes \
-    && git checkout nightmare && \
 # create & activate the pypatchy env, then pip‑install both packages
 # todo: check if we really need to install with -e in the docker version
-micromamba create -y -n pypatchy -f /root/Github/pypatchy/pypatchy.yml && \
+RUN micromamba create -y -n pypatchy -f /root/Github/pypatchy/pypatchy.yml && \
 micromamba run -n pypatchy micromamba install -y boost-cpp --channel conda-forge \
  && micromamba clean --all --yes
 
@@ -118,22 +114,15 @@ RUN micromamba run -n pypatchy pip install -e /root/Github/oxpy-utils \
     && mkdir /root/.pypatchy/spec_files/input_files \
     && mkdir /root/.pypatchy/spec_files/observables \
     && mkdir /root/.pypatchy/input  \
-    && mkdir /root/.pypatchy/input/topologies \
-    && mkdir /root/.pypatchy/input/targets \
-    && mkdir /root/.pypatchy/input/tlm \
     && mkdir /root/.pypatchy/output  \
-    && mkdir /root/.pypatchy/output/SAT \
-    && mkdir /root/.pypatchy/output/logs \
-    && mkdir /root/.pypatchy/output/logs/SAT
+    && mkdir /root/.pypatchy/output/logs
 
 
 # make pypatchy run directory
 # todo make this settable or something for systems with seperate home and scratch drives
 RUN mkdir /root/patchy_run && \
-mkdir -p /root/data/tlm_data && \
 echo -e "[ANALYSIS] \n \
     simulation_data_dir = /root/patchy_run \n \
-    tlm_data_dir = /root/data/tlm_data \n \
     [SETUP] \n \
     server_config = docker" > /root/.pypatchy/settings.cfg && \
 echo -e '{ \n \
@@ -182,30 +171,8 @@ make install -j$(nproc) && \
 # compile flavio romano patchy model
 make romano -j$(nproc) && \
 # compile lorenzo rovigatti patchy model
-make rovigatti -j$(nproc) && \
+make rovigatti -j$(nproc)
 # TODO: compile Josh Evans patchy model
-# cmake and compile  polycubes library
-cd /root/Github/polycubes/cpp && \
-mkdir build && cd build && \
-cmake .. \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DBUILD_PYTHON_BINDINGS=ON \
-    -DPYBIND11_PYTHON_VERSION=3.9 \
-    -DPYTHON_EXECUTABLE=$(which python) \
-    && make polycubes_py -j$(nproc) && \
-    make polycube_tests -j$(nproc)
-# note: libtlm.so/.pyi are installed by the POST_BUILD custom command in
-# polycubes/cpp/src/CMakeLists.txt, which copies to the active interpreter's
-# sysconfig purelib (the pypatchy env's real site-packages). Do NOT also `cp`
-# to `python -m site --user-site` here: that path is always ~/.local/lib/...,
-# independent of which env is active, and it sits ahead of the env's
-# site-packages on sys.path -- so a copy there silently shadows the correct
-# one and goes stale on every rebuild that doesn't re-run this Dockerfile step.
-
-
-# putting this at the end because initially i forgot to do it at all, and
-# running it later didn't blow anything up
-RUN pip install python-sat
 
 RUN cd ~/Github/oxDNA/analysis && bash build.sh
 RUN git config --global pull.rebase false

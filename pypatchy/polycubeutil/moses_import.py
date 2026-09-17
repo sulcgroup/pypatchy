@@ -102,9 +102,9 @@ def moses_lattice_to_targets(lattice) -> tuple[list[TypedStructure], list[Generi
     voxel type multiplicity).
 
     Reuses `Structure.export_periodic_topology()`/`read_topology()` (rather than
-    reimplementing local-vs-periodic edge classification) so the split matches
-    exactly how the rest of pypatchy's design pipeline (e.g. `Polysat.target_structure`
-    / `Polysat.local_target_structure`) defines it.
+    reimplementing local-vs-periodic edge classification) so the local/periodic
+    split matches the same bindings-vs-extraConnections convention used
+    elsewhere in this repo's topology JSON format.
 
     Args:
         lattice: a MOSES Lattice (or duck-typed equivalent) with `.voxels` (real,
