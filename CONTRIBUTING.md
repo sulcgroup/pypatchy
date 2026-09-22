@@ -1,11 +1,15 @@
 # Contributing to PyPatchy
 
-## Branching and pull requests
+## Access and branching
 
-- `main` is the trunk. `doc` is a separate branch for documentation work (see its own scope below).
-- Both branches are protected: nobody pushes directly to `main` or `doc`, including maintainers. All changes land via a pull request.
+This repo is private. Access is granted per person, not by branch protection rules:
+
+- **Write access** (a small group of trusted maintainers) can push branches and merge directly into `main`/`doc`.
+- **Read access** (everyone else with access to the repo) can view and clone it, but can't push to it directly — contribute by **forking** the repo, branching and committing on your fork, and opening a PR from your fork back into `sulcgroup/pypatchy`. A maintainer reviews and merges it.
+
+`main` is the trunk. `doc` is a separate branch for documentation work (see its own scope below).
+
 - Open a feature/fix branch off `main` (e.g. `feature/short-description` or `fix/short-description`), keep it short-lived, and delete it once the PR merges.
-- PRs into `main` or `doc` need at least **1 approving review** before merging.
 - Prefer several small, focused PRs over one large one — easier to review, easier to revert if something's wrong.
 
 ## Before opening a PR
@@ -24,4 +28,4 @@
 
 ## Scope note
 
-This repo does not include the SAT-based crystal design subsystem (`pypatchy/design/`) or any dependency on the private `polycubes-clone` (`libtlm`) library — those aren't part of the public codebase. If your contribution needs either, it's likely out of scope here.
+This repo does not include the SAT-based crystal design subsystem (`pypatchy/design/`) or any dependency on the private `polycubes-clone` (`libtlm`) library — those aren't part of this shared codebase. If your contribution needs either, it's likely out of scope here.
