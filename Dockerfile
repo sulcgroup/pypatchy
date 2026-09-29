@@ -51,7 +51,7 @@ RUN apt-get update && apt-get install -y bzip2 ca-certificates \
  && rm -rf /var/lib/apt/lists/* \
  && micromamba --version
 # clone oxDNA
-RUN --mount=type=ssh git clone git@github.com:lorenzo-rovigatti/oxDNA.git /root/Github/oxDNA
+RUN --mount=type=ssh git clone git@github.com:JeDeveloper/oxDNA.git /root/Github/oxDNA
 RUN --mount=type=ssh git clone git@github.com:sulcgroup/pypatchy.git /root/Github/pypatchy && cd /root/Github/pypatchy && git checkout main
 RUN --mount=type=ssh git clone git@github.com:sulcgroup/oxpy-utils.git /root/Github/oxpy-utils
 # oxpy-utils' tacoxDNA bridge (oxpy_utils/structure_editor/dna_structure.py) and
