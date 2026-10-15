@@ -113,6 +113,23 @@ class Structure:
             if (v, u, k) in seen:
                 continue  # already added this binding from the other direction
             du = data["dirIdx"]
+            if u == v:
+                # Self-loop (a vertex binding to itself -- e.g. a MOSEA-reduced representative
+                # bonding to a rotated copy of itself): get_edge_data(v, u) == get_edge_data(u, u)
+                # is the SAME per-node-pair edge collection this edge itself lives in, so indexing
+                # it by the same key k just returns this edge's own dirIdx again instead of its
+                # paired reverse direction -- there's no separate "other direction" node pair to
+                # look the partner up in, unlike u != v. Structure.__init__ always adds the two
+                # directed edges of one binding back-to-back (add_edge(u,v,d1) then
+                # add_edge(v,u,d2)); for a self-loop both calls land in that same (u,u) edge
+                # collection, so they always land on consecutive keys -- pair k with its
+                # construction-order partner instead of (mis)matching key values.
+                partner_k = k + 1 if k % 2 == 0 else k - 1
+                dv = self.graph.get_edge_data(u, u)[partner_k]["dirIdx"]
+                bindings.add((u, du, u, dv))
+                seen.add((u, u, k))
+                seen.add((u, u, partner_k))
+                continue
             dv = self.graph.get_edge_data(v, u)[k]["dirIdx"]
             bindings.add((u, du, v, dv))
             seen.add((u, v, k))

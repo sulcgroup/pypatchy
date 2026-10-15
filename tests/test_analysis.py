@@ -17,7 +17,7 @@ import pandas as pd
 from pypatchy.patchy.pl.patchyio import get_writer
 from pypatchy.patchy.pl.plscene import PLPSimulation
 from pypatchy.patchy.simulation_ensemble import find_ensemble
-from tests.ptutils import temp_dir
+from ptutils import temp_dir
 
 from oxpy_utils.utils.observable import Observable, ObservableColumn
 
