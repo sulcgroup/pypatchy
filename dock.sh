@@ -2,6 +2,29 @@
 set -euo pipefail
 
 # ---------------------------------------------------------------------------
+# Options can come from the environment (`KEEP_GOING=1 bash dock.sh`) or as
+# arguments (`bash dock.sh --keep-going`, `--KEEP_GOING=1`, `GPUS=none`).
+# Unknown arguments are an error rather than silently ignored.
+# ---------------------------------------------------------------------------
+for arg in "$@"; do
+    kv="${arg#--}"
+    key="${kv%%=*}"; key="${key^^}"; key="${key//-/_}"
+    if [[ "$kv" == *=* ]]; then val="${kv#*=}"; else val=""; fi
+    case "$key" in
+        SKIP_TESTS|SKIP_PUSH|KEEP_GOING)
+            [[ "$arg" == --* || -n "$val" ]] || { echo "ERROR: unknown argument '$arg'" >&2; exit 1; }
+            printf -v "$key" '%s' "${val:-1}" ;;
+        GPUS|SSH_KEY|CONTAINER_TEST_TIMEOUT)
+            [[ "$kv" == *=* ]] || { echo "ERROR: '$arg' needs a value ($key=...)" >&2; exit 1; }
+            printf -v "$key" '%s' "$val" ;;
+        *)
+            echo "ERROR: unknown argument '$arg'" >&2
+            echo "  known: --skip-tests --skip-push --keep-going --gpus=all|none|auto --ssh-key=PATH --container-test-timeout=SECS" >&2
+            exit 1 ;;
+    esac
+done
+
+# ---------------------------------------------------------------------------
 # SSH agent setup: the `docker build` below forwards this agent into the build
 # (--ssh default) so the `git clone git@github.com:...` steps in the Dockerfile
 # can authenticate.
@@ -91,7 +114,8 @@ echo
 #   SKIP_TESTS=1   build (and publish, unless SKIP_PUSH) but run no tests
 #   SKIP_PUSH=1    build and test but don't `docker tag` / `docker push`
 #   KEEP_GOING=1   run every stage even after one fails (still exits non-zero)
-# so e.g. run `SKIP_TESTS=1 SKIP_PUSH=1 bash dock.sh` to only build and not test or push
+# so e.g. run `SKIP_TESTS=1 SKIP_PUSH=1 bash dock.sh` (or equivalently
+# `bash dock.sh --skip-tests --skip-push`) to only build and not test or push
 # ---------------------------------------------------------------------------
 IMAGE_LOCAL="patchy:latest"
 IMAGE_REMOTE="joshuaevanslowell/oxdna-pypatchy:latest"
@@ -112,11 +136,21 @@ case "$GPUS" in
     none) echo "GPUS=none -- test containers run CPU-only (CUDA tests will fail)" ;;
     all)  gpu_flag=(--gpus all) ;;
     auto)
-        if command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi -L >/dev/null 2>&1; then
+        if ! command -v nvidia-smi >/dev/null 2>&1; then
+            echo "no GPU detected -- test containers run CPU-only (CUDA tests will fail)"
+        elif smi_out="$(nvidia-smi -L 2>&1)"; then
             gpu_flag=(--gpus all)
             echo "GPU detected -- test containers run with --gpus all"
-        else
-            echo "no GPU detected -- test containers run CPU-only (CUDA tests will fail)"
+        elif [[ "$SKIP_TESTS" -ne 1 ]]; then
+            # nvidia-smi is installed but broken (most often "Driver/library
+            # version mismatch" after an unattended driver upgrade, fixed by a
+            # reboot). Silently falling back to CPU-only would just make the
+            # oxpy-utils stage die mid-run with no traceback ~10 min from now.
+            echo "ERROR: nvidia-smi is installed but failing:" >&2
+            echo "$smi_out" | sed 's/^/    /' >&2
+            echo "Fix the driver (a driver/library version mismatch needs a reboot or" >&2
+            echo "an nvidia module reload), or pass GPUS=none to test CPU-only anyway." >&2
+            exit 1
         fi ;;
     *) echo "ERROR: GPUS must be all|none|auto (got '$GPUS')" >&2; exit 1 ;;
 esac
@@ -153,13 +187,44 @@ run_stage() {
 
 # pytest inside the built image, in the pypatchy env. $1 = repo under
 # /root/Github, remaining args = extra pytest args.
+#
+# Runs detached with a hard wall-clock timeout (CONTAINER_TEST_TIMEOUT,
+# default 30 min) instead of plain `docker run --rm` in the foreground: the
+# GPU-backed suites (oxpy-utils in particular) have a known hang in
+# SimulationManager.worker_manager()'s worker-drain loop (an unbounded
+# `while not self.process_queue.empty(): sleep(10)` with no timeout -- see
+# sulcgroup/oxpy-utils) that leaves the container running forever, pinning a
+# CUDA context (GPU memory that's only released when the process exits) with
+# no indication anything is wrong. `docker run --rm` alone can't recover from
+# that -- there's no process to time out, since the container itself never
+# exits. On timeout here we docker-kill and remove the container so the stage
+# fails loudly instead of leaking a container + GPU memory indefinitely.
+CONTAINER_TEST_TIMEOUT="${CONTAINER_TEST_TIMEOUT:-1800}"
 container_pytest() {
     local repo="$1"; shift
-    docker run --rm "${gpu_flag[@]}" "$IMAGE_LOCAL" -l -c "
+    local cname="pypatchy-test-${repo}-$$"
+    docker run -d --name "$cname" "${gpu_flag[@]}" "$IMAGE_LOCAL" -l -c "
         eval \"\$(micromamba shell hook --shell bash)\" &&
         micromamba activate pypatchy &&
         cd /root/Github/$repo &&
-        pytest -q -rfE $*"
+        pytest -q -rfE $*" >/dev/null
+
+    docker logs -f "$cname" &
+    local logs_pid=$!
+
+    local rc
+    if rc="$(timeout "$CONTAINER_TEST_TIMEOUT" docker wait "$cname" 2>/dev/null)"; then
+        :
+    else
+        echo ">>> $repo pytest exceeded ${CONTAINER_TEST_TIMEOUT}s -- killing hung container $cname (see comment above container_pytest)" >&2
+        docker kill "$cname" >/dev/null 2>&1 || true
+        rc=124
+    fi
+
+    kill "$logs_pid" 2>/dev/null || true
+    wait "$logs_pid" 2>/dev/null || true
+    docker rm -f "$cname" >/dev/null 2>&1 || true
+    return "$rc"
 }
 
 run_stage "docker build" \
