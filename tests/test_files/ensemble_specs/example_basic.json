@@ -3,13 +3,13 @@
 	"server_spec": "test_fr",
 	"rule": "1|1|1|1|1|1_-1|||||",
     "const_params": {
-        "num_steps": 1e5,
+        "steps": 1e5,
         "num_assemblies": 4,
         "cube_type_levels": {
             "CT0": 1,
             "CT1": 6
         },
-		"print_conf_every": 1e4,
+		"print_conf_interval": 1e4,
 		"print_energy_every": 1e4,
 		"narrow_type": 1,
         "T": 0.01

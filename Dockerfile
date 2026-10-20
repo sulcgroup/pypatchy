@@ -142,6 +142,11 @@ echo -e '{ \n \
 	"cuda_mps": false \n \
 }' > /root/.pypatchy/spec_files/server_configs/fr.json && \
 cp /root/.pypatchy/spec_files/server_configs/fr.json /root/.pypatchy/spec_files/server_configs/docker.json && \
+# the tests load the repo's test_fr/test_lr/test_fr_integrated server configs, whose oxDNA paths are placeholders
+for cfg in test_fr test_lr test_fr_integrated; do \
+    sed -e 's#/PATH/TO/OXDNA/TORSION#/root/Github/oxDNA#g' -e 's#/PATH/TO/oxDNA#/root/Github/oxDNA#g' \
+        /root/Github/pypatchy/spec_files/server_configs/$cfg.json > /root/.pypatchy/spec_files/server_configs/$cfg.json; \
+done && \
 cp /root/Github/pypatchy/spec_files/input_files/default.json /root/.pypatchy/spec_files/input_files/ && \
 cp /root/Github/pypatchy/spec_files/observables/plclustertopology.json /root/.pypatchy/spec_files/observables/ && \
 cp /root/Github/pypatchy/spec_files/observables/plclustertopology.json /root/.pypatchy/spec_files/observables/ &&\

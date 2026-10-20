@@ -6,7 +6,7 @@
 	"input_file_params": {
 		"backend": "CUDA",
         "backend_precision": "float",
-		"interaction_type": "PatchyShapeInteraction",
+		"interaction_type": "DetailedPatchySwapInteraction",
         "plugin_search_path": "/PATH/TO/oxDNA/contrib/rovigatti"
 	},
 	"oxdna_path": "/PATH/TO/oxDNA",
