@@ -70,6 +70,9 @@ class PLPatchyParticle(PatchyBaseParticleType, PatchyBaseParticle):
         else:
             return self._name
 
+    def set_name(self, name: str):
+        self._name = name
+
     def radius(self, normal: np.ndarray = np.zeros(shape=(3,))) -> float:
         """
         Returns the radius of the particle

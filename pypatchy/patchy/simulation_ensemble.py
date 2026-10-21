@@ -1512,6 +1512,12 @@ class PatchySimulationEnsemble(Analyzable):
         particle_types = self.writer.read_particle_types(**{key: self.sim_stage_get_param(sim, stage, key)
                                                             for key in self.writer.reqd_args()
                                                             })
+        # particle files don't store type names, so restore them (e.g. "CT1") from the
+        # ensemble's particle set, matching on type id
+        named_types = {p.type_id(): p.name() for p in self.sim_get_particles_set(sim).particles()}
+        for ptype in particle_types.particles():
+            if ptype.type_id() in named_types:
+                ptype.set_name(named_types[ptype.type_id()])
         # top_file, traj_file = self.sim_get_stage_top(sim, stage), self.sim_get_stage_last_conf(sim, stage)
         if traj_file.exists() and os.stat(traj_file).st_size > 0:
             if step is None:

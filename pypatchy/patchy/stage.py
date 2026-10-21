@@ -242,11 +242,13 @@ class Stage(BuildSimulation):
 
         """
         inpt = {}
+        # iter_params yields in order of precedence (stage, then sim, then ensemble const, then
+        # server), so the first value seen for a param is the one that applies
         for pv in self.getctxt().iter_params(self.spec(), self):
             # only write raw-data params to input file
             # todo: filter better, to use only actual oxdna params
             if type(pv) is ParameterValue:
-                inpt[pv.param_name] = pv.param_value
+                inpt.setdefault(pv.param_name, pv.param_value)
         inpt["steps"] = self.time_length()
         inpt["restart_step_counter"] = 0
         return inpt
@@ -295,15 +297,15 @@ class Stage(BuildSimulation):
             # self.particles_to_add incorporates num_assmblies
             particles = [scene.particle_types().particle(i_type).instantiate(i + start_particle_count)
                          for i, i_type in enumerate(self.particles_to_add())]
-            # default is now to use confGenerator.
-            if self._param_info.add_method.extern:
+            # default is now to use confGenerator, which can only generate a fresh conf (i.e. the
+            # first stage); later stages add particles to the existing scene directly
+            if self._param_info.add_method.extern and self.idx() == 0:
                 # we need particles to be sane for the stupid jurryrig i do later
                 for p in particles:
                     p.set_rotation(np.identity(3))
                     p.set_position(np.array([0, 0, 0]))
                 # add particles to scene so we can make top later
                 scene.add_particles(particles, strict_check=False) # strict check currently does nothing but might someday?
-                assert self.idx() == 0, "Cannot use extern adder on stages after zero!"
                 # create temporary directory within the simulation directory
                 with tempfile.TemporaryDirectory(dir=self.getctxt().folder_path(self.spec())) as tmpdir:
                     # eventually this should be a context manager

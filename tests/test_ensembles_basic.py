@@ -107,6 +107,15 @@ def test_staged(temp_dir: str):
     e.do_setup(stage="first_stage")
     e.start_simulations(stage="first_stage")
     e.do_setup(stage="second_stage")
+    # a stage-level param (the "cool" branch sets T for its second stage) must override the const param
+    temperatures = set()
+    for sim in e.ensemble():
+        stage = e.sim_get_stage(sim, "second_stage")
+        input_lines = (e.folder_path(sim, stage) / "input").read_text().splitlines()
+        input_T = float(next(line.split("=")[1] for line in input_lines if line.split("=")[0].strip() == "T"))
+        assert input_T == pytest.approx(float(e.sim_stage_get_param(sim, stage, "T")))
+        temperatures.add(input_T)
+    assert temperatures == {0.02, 0.1}
     e.start_simulations(stage="second_stage")
 
 def test_json_particles(temp_dir: str):
