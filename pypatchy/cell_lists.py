@@ -43,7 +43,9 @@ class CellLists:
         if isinstance(item, np.ndarray):
             cell_idxs = np.floor(item / self.cell_size)
             cell = self.cells[tuple(cell_idxs.astype(int))]
-            assert np.all((cell.startcoords <= item) & (item < cell.endcoords))
+            assert np.all((cell.startcoords <= item) & (item < cell.endcoords)), \
+                f"Position {item} is outside its cell [{cell.startcoords}, {cell.endcoords}) " \
+                f"(cell size {self.cell_size}, box {self._box_size})"
             return cell
         elif isinstance(item, int):
             return self.particle_cells[item]

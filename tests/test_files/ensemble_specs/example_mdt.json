@@ -19,14 +19,14 @@
 				{
 					"type": "mdt_convert",
 					"name": "3teeth",
-					"n_teeth": 4,
+					"n_teeth": 3,
 					"dental_radius": 0.5,
 					"energy_scale_method": "linear"
 				},
 				{
 					"type": "mdt_convert",
-					"name": "4teeth",
-					"n_teeth": 4,
+					"name": "2teeth",
+					"n_teeth": 2,
 					"dental_radius": 0.5,
 					"energy_scale_method": "linear"
 				}

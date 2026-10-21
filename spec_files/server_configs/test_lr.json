@@ -7,7 +7,14 @@
 		"backend": "CUDA",
         "backend_precision": "float",
 		"interaction_type": "DetailedPatchySwapInteraction",
-        "plugin_search_path": "/PATH/TO/oxDNA/contrib/rovigatti"
+        "plugin_search_path": "/PATH/TO/oxDNA/contrib/rovigatti",
+        "DPS_sigma_ss": 0.082,
+        "use_edge": 0,
+        "DPS_interaction_matrix_file": "interactions.txt",
+        "interaction_potentials": [
+                "lr_excl_vol",
+                "lr_patchy"
+        ]
 	},
 	"oxdna_path": "/PATH/TO/oxDNA",
 	"patchy_format": "lorenzo"

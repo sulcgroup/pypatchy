@@ -725,6 +725,13 @@ class PLPSimulation(Scene, CellLists):
             # we need to cache positions because PLPSimulation (unlike PLPatchyParticle)
             # has no method to set absolute position
 
+            # a cluster must fit inside this scene's box: it's rotated about its center of mass, which
+            # is only defined for inboxed confs, and wrapping it would break the structure
+            cluster_extent = np.stack([p.position() for p in cluster.particles()]).max(axis=0)
+            if (cluster_extent >= self.box_size()).any():
+                raise ValueError(f"Cluster spans {cluster_extent}, which does not fit in box {self.box_size()}. "
+                                 f"Increase the box size (e.g. lower the density).")
+
             # set cluster box size
             cluster.set_box_size(self.box_size())
             conf_start = cluster
