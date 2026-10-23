@@ -235,6 +235,16 @@ via oxpy, rather than each sim submitting its own nested `sbatch` job; see
 `submits_per_sim_slurm_job()` if that distinction matters), `cuda_mps`,
 `input_file_params`, `absolute_paths`.
 
+`cuda_mps: true` makes `start_simulations()` run *all* of the ensemble's sims at once as concurrent
+worker processes in the current job (via oxpy_utils's `SimulationManager`), spread evenly over the
+GPUs and sharing each one through an NVIDIA MPS daemon it starts and stops itself - use it when
+there are many more sims than GPUs and each is small. It also works with `backend: CPU`
+(concurrent, no GPUs/MPS). Two optional limits go in the same config: `max_sims_per_gpu` (default:
+the MPS client limit, 48) and `max_concurrent_sims` (default: CPUs available). `start_simulations()`
+sets up and runs exactly what the non-batched path would (finished sims are skipped, so an
+interrupted ensemble can simply be re-run), lets the remaining sims finish if one fails, then raises
+`RuntimeError` listing those that didn't complete.
+
 ## Observables (`OBSERABLES_KEY`)
 
 A list of `oxpy_utils.utils.observable.Observable(filename, print_every, *ObservableColumn(...))`.

@@ -4,8 +4,6 @@ from collections.abc import Generator
 from dataclasses import dataclass, field
 from typing import IO, Any, Union
 
-from oxpy_utils.oxdna_simulation import SimulationManager
-
 from .patchy.ensemble_parameter import parameter_value
 from .patchy.simulation_specification import ParamSet
 from .util import cfg, get_local_dir, get_spec_json
@@ -48,7 +46,16 @@ class PatchyServerConfig:
     # this is the common case) rather than each simulation submitting its own nested sbatch
     # job. See submits_per_sim_slurm_job().
     is_slurm: bool = False
-    cuda_mps: bool | SimulationManager = False
+    # run all of an ensemble's simulations as concurrent oxpy worker processes in this job,
+    # spread over the available GPUs, with an NVIDIA MPS daemon letting them share each GPU
+    # (see PatchySimulationEnsemble.start_simulations()). for CPU backends the workers run
+    # concurrently without MPS
+    cuda_mps: bool = False
+    # most simulations to run at once on any one GPU. None: the MPS client limit
+    # (SimulationManager.MPS_MAX_CLIENTS_PER_GPU)
+    max_sims_per_gpu: int | None = None
+    # most simulations to run at once in total. None: the number of CPUs available to this process
+    max_concurrent_sims: int | None = None
     no_oxpy_check: bool = True
 
     # post_init function courtesy of chatGPT
@@ -59,8 +66,7 @@ class PatchyServerConfig:
                 for pkey, pval in (self.input_file_params.items() if isinstance(self.input_file_params, dict)
                                    else self.input_file_params)
             ])
-        if self.cuda_mps:
-            self.cuda_mps = SimulationManager(sleep_time=1)
+        self.cuda_mps = bool(self.cuda_mps)
 
     def write_sbatch_params(self, job_name: str, slurm_file: IO):
         slurm_file.write("#!/bin/bash\n") # TODO: other shells?
@@ -79,6 +85,10 @@ class PatchyServerConfig:
         slurm_file.writelines(line + "\n" for line in self.slurm_includes)
 
     def is_batched(self) -> bool:
+        """
+        Whether simulations are run together by a SimulationManager (concurrent worker processes
+        in this job) rather than one at a time
+        """
         return self.cuda_mps
 
     def submits_per_sim_slurm_job(self) -> bool:
@@ -103,16 +113,6 @@ class PatchyServerConfig:
             return bashflags["ntasks"]
         return 1  # default value
 
-    def __getstate__(self):
-        state = self.__dict__.copy()
-        # SimulationManager contains a multiprocessing.Manager with an AuthenticationString
-        # that cannot be pickled; workers only need to know whether cuda_mps is enabled
-        state['cuda_mps'] = bool(state['cuda_mps'])
-        return state
-
-    def __setstate__(self, state):
-        self.__dict__.update(state)
-
     def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
@@ -124,6 +124,8 @@ class PatchyServerConfig:
             "absolute_paths": self.absolute_paths,
             "is_slurm": bool(self.is_slurm),
             "cuda_mps": bool(self.cuda_mps),
+            "max_sims_per_gpu": self.max_sims_per_gpu,
+            "max_concurrent_sims": self.max_concurrent_sims,
             "no_oxpy_check": self.no_oxpy_check
         }
 def get_server_config() -> PatchyServerConfig:

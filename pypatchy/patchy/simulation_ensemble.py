@@ -25,7 +25,7 @@ from oxDNA_analysis_tools.UTILS.data_structures import Configuration
 # import oat stuff
 from oxDNA_analysis_tools.UTILS.oxview import from_path
 from oxDNA_analysis_tools.UTILS.RyeReader import describe, get_confs, write_conf
-from oxpy_utils.oxdna_simulation import Simulation
+from oxpy_utils.oxdna_simulation import Simulation, SimulationManager
 from oxpy_utils.utils.observable import Observable, ObservableColumn
 
 from ..analysis.analysis_data import TIMEPOINT_KEY, MissingDataError, PDPipelineData
@@ -713,15 +713,6 @@ class PatchySimulationEnsemble(Analyzable):
         :param exc_tb: traceback
         """
         # TODO: do we need to handle exceptions better?
-        # if we had a simulation manager, turn it off.
-        if self.server_settings.cuda_mps:
-            # worker_manager() already stops its own MPS daemon in its finally block after
-            # each batch, so this is normally a no-op - it's a safety net for the case where
-            # the manager was left holding a daemon (e.g. an error before start_simulations()
-            # reached worker_manager())
-            self.server_settings.cuda_mps.stop_nvidia_cuda_mps_control()
-            self.server_settings.cuda_mps.manager.shutdown()
-            self.server_settings.cuda_mps = True
         # on exit, dump metadata file
         self.dump_metadata()
         # if this block exited by raising an exception, re-raise it here
@@ -1898,9 +1889,10 @@ class PatchySimulationEnsemble(Analyzable):
             warnings.warn("server_settings is None — call set_server_settings() before starting")
             return False
 
-        if self.server_settings.is_batched() and not self.server_settings.cuda_mps:
-            warnings.warn("server_settings reports batched mode but cuda_mps manager is not initialised")
-            ok = False
+        if self.server_settings.is_batched() and shutil.which("nvidia-cuda-mps-control") is None:
+            # not fatal - simulations still run concurrently, but GPU simulations will be
+            # time-sliced by the driver instead of sharing each GPU through MPS
+            warnings.warn("server_settings has cuda_mps enabled but nvidia-cuda-mps-control is not on PATH")
 
         if not self.tld().parent.exists():
             warnings.warn(f"Simulation run directory parent does not exist: {self.tld().parent}")
@@ -1992,27 +1984,84 @@ class PatchySimulationEnsemble(Analyzable):
             for sim in e:
                 self.start_simulation(sim, stage_name=stage)
         else:
-            # if the number of simulations to run requires more than one task
-            # also: note that this still works for non-CUDA interactions
-            mgr = self.server_settings.cuda_mps
-            for sim in e:
-                if stage is None:
-                    sim_stage = self.sim_get_next_stage(sim)
-                else:
-                    sim_stage = self.sim_get_stage(sim, stage)
-                assert sim_stage is not None
-                if not self.folder_path(sim, sim_stage).exists():
-                    self.folder_path(sim, sim_stage).mkdir(parents=True)
-                # if stage unspecified
+            self._start_simulations_batched(e, stage)
 
-                ipysim = self.ipy(sim, sim_stage)
-                ipysim.build(clean_build="force")  # todo: integrate stage assembly
+    def _start_simulations_batched(self, sims: list[PatchySimulation], stage_name: Union[str, None]):
+        """
+        Runs simulations as concurrent worker processes in this process's job, using an oxpy_utils
+        SimulationManager: at most `max_concurrent_sims` at once, spread evenly across the GPUs
+        (at most `max_sims_per_gpu` on each), sharing each GPU through an NVIDIA MPS daemon.
+        Blocks until every simulation has finished.
+
+        Picks the stage to run, sets up, and skips simulations exactly as start_simulation() does,
+        so simulations that are already finished (or already past the requested stage) are left
+        alone, and this can be used to resume an interrupted ensemble.
+
+        :param sims: simulations to run
+        :param stage_name: name of the stage to run, or None for each simulation's next stage
+        :raises RuntimeError: if any simulation fails to complete its stage; the others are
+        still run to completion first
+        """
+        # which stage each simulation will run
+        stages: list[tuple[PatchySimulation, Stage]] = []
+        for sim in sims:
+            if stage_name is not None:
+                stage = self.sim_get_stage(sim, stage_name)
+            else:
+                try:
+                    stage = self.check_stage(sim)
+                except AllStagesCompleteError as exc:
+                    self.get_logger().info(str(exc))
+                    continue
+                except IncompleteStageError as exc:
+                    self.get_logger().error(f"{exc.stage().name()} incomplete!")
+                    continue
+            stages.append((sim, stage))
+
+        # set up whatever isn't yet, one do_setup() call per stage (each call rewrites the
+        # ensemble's metadata file). Stage objects belong to a single simulation, so do_setup()
+        # is given the stage's name and resolves it separately for each simulation
+        needs_setup: dict[str, list[PatchySimulation]] = {}
+        for sim, stage in stages:
+            if not self.is_setup_done([sim], stage):
+                needs_setup.setdefault(stage.name(), []).append(sim)
+        for name, stage_sims in needs_setup.items():
+            self.do_setup(stage_sims, name)
+
+        to_run: list[tuple[PatchySimulation, Stage]] = []
+        for sim, stage in stages:
+            if self.ok_to_run(sim, stage):
+                to_run.append((sim, stage))
+            else:
+                self.get_logger().warning(f"Stage {stage.name()} not ok to run for sim {repr(sim)}")
+
+        if not to_run:
+            return
+
+        mgr = SimulationManager(n_processes=self.server_settings.max_concurrent_sims,
+                                sleep_time=1,
+                                max_sims_per_gpu=self.server_settings.max_sims_per_gpu)
+        try:
+            backends = set()
+            for sim, stage in to_run:
+                ipysim = self.ipy(sim, stage)
+                backends.add(ipysim.input.input_dict.get("backend"))
                 mgr.queue_sim(ipysim)
-            self.get_logger().info("Let the simulating commence!")
-            # batch execution for CUDA + MPS
-            # matt says to use worker_manager instead of run
-            mgr.worker_manager(cpu_run=self.server_settings.input_file_params["backend"] == "CPU")
-            # TODO: better slurm logging!
+            self.get_logger().info(f"Let the simulating commence! ({len(to_run)} simulations)")
+            # run_when_failed: one bad simulation shouldn't take the rest of a large sweep with
+            # it - failures are reported together below
+            mgr.worker_manager(cpu_run=backends == {"CPU"}, run_when_failed=True)
+        finally:
+            mgr.shutdown()
+
+        # same check start_simulation() makes after each local run
+        failed = [(sim, stage) for sim, stage in to_run if not self.sim_stage_done(sim, stage)]
+        if failed:
+            raise RuntimeError(
+                f"{len(failed)} of {len(to_run)} simulations did not complete successfully:\n" +
+                "\n".join(f"  {repr(sim)} stage {stage.name()} - check {self.folder_path(sim, stage) / 'log.log'}"
+                          for sim, stage in failed))
+        # TODO: better slurm logging!
 
     def is_setup_done(self, sims: list[PatchySimulation], stage: Union[None, str, Stage]) -> bool:
         """
