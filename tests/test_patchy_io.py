@@ -6,6 +6,7 @@ import tempfile
 from pathlib import Path
 
 import networkx as nx
+import numpy as np
 import pytest
 
 from pypatchy.patchy.pl.patchyio import get_writer, read_mgl
@@ -76,6 +77,90 @@ def test_cross_raspberry(temp_dir, cross_fr):
         conf_file="last_conf.dat",
     )
     pass
+
+
+def test_raspberry_round_trip_default_sites(temp_dir, cross_fr):
+    """with no custom repulsion sites, every type gets the default cube shell and it survives a round trip"""
+    writer = get_writer("raspberry")
+    writer.set_directory(temp_dir)
+    writer.write(cross_fr, topology="topology.top", conf_file="last_conf.dat")
+
+    top = writer.read_top("topology.top")
+    defaults = writer.RPatchyTopology.default_repulsion_sites()
+    assert len(top.particle_repulsion_sites) == len(defaults)
+    for (pos, r), (dpos, dr) in zip(top.particle_repulsion_sites, defaults):
+        assert np.allclose(pos, dpos) and r == pytest.approx(dr)
+    for ptype in cross_fr.particle_types():
+        assert top.type_rsite_lists[ptype.type_id()] == list(range(len(defaults)))
+    assert top.num_particles() == cross_fr.num_particles()
+
+
+def test_raspberry_per_type_repulsion_sites(temp_dir, cross_fr):
+    """different particle types can use different repulsion sites, including none at all"""
+    writer = get_writer("raspberry")
+    writer.set_directory(temp_dir)
+    type_ids = [ptype.type_id() for ptype in cross_fr.particle_types()]
+    assert len(type_ids) >= 2, "test needs at least two particle types"
+
+    sites = [(np.array([0., 0., 0.]), 0.5),
+             (np.array([0.3, 0., 0.]), 0.2),
+             (np.array([-0.3, 0., 0.]), 0.2)]
+    rsite_lists = {tid: [0] for tid in type_ids}
+    rsite_lists[type_ids[0]] = [1, 2]  # dumbbell-ish shape
+    rsite_lists[type_ids[1]] = []  # no steric repulsion at all
+    scene_top = writer.RPatchyTopology(cross_fr.particle_types(),
+                                       cross_fr.particle_type_counts(),
+                                       repulsion_sites=sites,
+                                       type_rsite_lists=rsite_lists)
+    writer.write(cross_fr, topology="topology.top", conf_file="last_conf.dat", scene_top=scene_top)
+
+    # the type with no sites must omit the field entirely - oxDNA would read "-1" as a site index
+    with open(Path(temp_dir) / "topology.top") as f:
+        ic_lines = {int(line.split()[1]): line.split() for line in f if line.startswith("iC")}
+    assert len(ic_lines[type_ids[1]]) == 4
+    assert ic_lines[type_ids[0]][4] == "1,2"
+
+    top = writer.read_top("topology.top")
+    assert top.type_rsite_lists == rsite_lists
+    for (pos, r), (spos, sr) in zip(top.particle_repulsion_sites, sites):
+        assert np.allclose(pos, spos) and r == pytest.approx(sr)
+    assert len(top.type_repulsion_sites(type_ids[0])) == 2
+    assert top.type_repulsion_sites(type_ids[1]) == []
+
+
+def test_raspberry_read_optional_fields(temp_dir):
+    """the reader accepts every iC form the oxDNA parser accepts"""
+    with open(Path(temp_dir) / "topology.top", "w") as f:
+        f.write("3 3\n"
+                "iP 0 1.0 21 0,0,0.5 0,0,1\n"
+                "iP 1 1.0 -21 0,0,-0.5 0,0,-1\n"
+                "iR 0.25,0.25,0.25 0.25\n"
+                "iR -0.25,-0.25,-0.25 0.25\n"
+                "iC 0 1 0 0,1\n"  # standard
+                "iC 1 1 1 1 2\n"  # trailing state size
+                "iC 2 1 -1\n")  # no patches, no repulsion sites
+    writer = get_writer("raspberry")
+    writer.set_directory(temp_dir)
+    top = writer.read_top("topology.top")
+    assert top.type_rsite_lists == {0: [0, 1], 1: [1], 2: []}
+    assert top.particle_types.particle(2).num_patches() == 0
+    assert top.particle_types.particle(1).num_patches() == 1
+
+
+def test_raspberry_invalid_repulsion_sites(cross_fr):
+    writer = get_writer("raspberry")
+    type_ids = [ptype.type_id() for ptype in cross_fr.particle_types()]
+    with pytest.raises(ValueError, match="only 1 sites"):
+        writer.RPatchyTopology(cross_fr.particle_types(), cross_fr.particle_type_counts(),
+                               repulsion_sites=[((0, 0, 0), 0.5)],
+                               type_rsite_lists={tid: [1] for tid in type_ids})
+    with pytest.raises(ValueError, match="No repulsion site list"):
+        writer.RPatchyTopology(cross_fr.particle_types(), cross_fr.particle_type_counts(),
+                               repulsion_sites=[((0, 0, 0), 0.5)],
+                               type_rsite_lists={})
+    with pytest.raises(ValueError, match="non-positive radius"):
+        writer.RPatchyTopology(cross_fr.particle_types(), cross_fr.particle_type_counts(),
+                               repulsion_sites=[((0, 0, 0), 0.)])
 
 
 def test_fwriter_read(cross_fr):

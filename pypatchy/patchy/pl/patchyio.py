@@ -1253,7 +1253,13 @@ class RWriter(PLBaseWriter):
                     patch_ids_str = "-1"
                 else:
                     patch_ids_str = ','.join([str(patch.get_id()) for patch in particle_type.patches()])
-                f.write(f"iC {particle_type.type_id()} {topology.particle_type_count(particle_type.type_id())} {patch_ids_str} {','.join([str(i) for i in range(len(topology.particle_repulsion_sites))])}\n")
+                line = f"iC {particle_type.type_id()} {topology.particle_type_count(particle_type.type_id())} {patch_ids_str}"
+                rsite_ids = topology.type_rsite_lists[particle_type.type_id()]
+                # a type with no repulsion sites omits the field entirely; the oxDNA parser reads a
+                # missing field as "no repulsion points" (writing -1 here would be read as a site index)
+                if rsite_ids:
+                    line += " " + ",".join(str(i) for i in rsite_ids)
+                f.write(line + "\n")
 
             # write patch groups
             if topology.particle_types.is_multidentate():
@@ -1267,30 +1273,56 @@ class RWriter(PLBaseWriter):
                 if c1 <= c2:
                     f.write(f"iI {c1} {c2} {strength}\n")
 
+    @staticmethod
+    def parse_particle_type_line(line: str) -> tuple[int, int, list[int], list[int]]:
+        """
+        Parses an `iC type_id count patch_ids [repulsion_site_ids] [state_size]` line,
+        following the rules of the oxDNA RaspberryInteraction parser: -1 entries in the patch list
+        are placeholders for "no patches", and a missing repulsion site field means no repulsion sites.
+        The optional state size (used by signal-passing particles) is not modeled here and is ignored.
+
+        :return: (type ID, instance count, patch IDs, repulsion site indices)
+        """
+        tokens = line.split()
+        if len(tokens) < 4 or tokens[0] != "iC":
+            raise ValueError(f"Malformed particle type line `{line.strip()}`")
+        type_id = int(tokens[1])
+        count = int(tokens[2])
+        patch_ids = [int(i) for i in tokens[3].split(",") if int(i) > -1]
+        rsite_ids = [int(i) for i in tokens[4].split(",")] if len(tokens) > 4 else []
+        return type_id, count, patch_ids, rsite_ids
+
+    @staticmethod
+    def parse_repulsion_site_line(line: str) -> tuple[np.ndarray, float]:
+        """
+        Parses an `iR x,y,z radius` line
+        """
+        tokens = line.split()
+        if len(tokens) != 3 or tokens[0] != "iR":
+            raise ValueError(f"Malformed repulsion point line `{line.strip()}`")
+        position = np.array([float(i) for i in tokens[1].split(",")])
+        if len(position) != 3:
+            raise ValueError(f"Repulsion point position in `{line.strip()}` is not 3D")
+        return position, float(tokens[2])
+
     def read_top(self, top_file: str) -> RWriter.RPatchyTopology:
         particle_types = self.read_particle_types(topology=top_file)
         repulsion_sites = []
         type_counts = dict()
-        type_repulsion_sites = dict()
+        type_rsite_lists = dict()
         with self.file(top_file, 'r') as f:
             for line in f:
                 if line.startswith("iC"):
-                    _, type_id, count, _, repulsion_site_list = line.split()
-                    repulsion_site_list = map( int, repulsion_site_list.split(','))
-                    type_repulsion_sites[int(type_id)] = list(repulsion_site_list)
-                    type_counts[int(type_id)] = int(count)
-                if line.startswith("iR"):
-                    # read repulsion site info
-                    _, position, radius = line.split()
-                    position = np.array([float(i) for i in position.split(",")])
-                    assert len(position) == 3
-                    repulsion_sites.append((position, float(radius)))
+                    type_id, count, _, rsite_ids = self.parse_particle_type_line(line)
+                    type_rsite_lists[type_id] = rsite_ids
+                    type_counts[type_id] = count
+                elif line.startswith("iR"):
+                    repulsion_sites.append(self.parse_repulsion_site_line(line))
 
-        top = RWriter.RPatchyTopology(particle_types, type_counts)
-        top.particle_repulsion_sites = repulsion_sites
-        for particle_type in particle_types:
-            top.type_rsite_lists[particle_type.type_id()] = type_repulsion_sites[particle_type.type_id()]
-        return top
+        return RWriter.RPatchyTopology(particle_types,
+                                       type_counts,
+                                       repulsion_sites=repulsion_sites,
+                                       type_rsite_lists=type_rsite_lists)
 
     def read_particle_types(self, **kwargs) -> PLParticleSet:
         particle_type_file = kwargs["topology"]
@@ -1301,11 +1333,8 @@ class RWriter(PLBaseWriter):
             for line in f:
                 if line.startswith("iC"):
                     # read particle ("corpsicule") type
-                    _, type_id, _, patches_list, repulsion_sites = line.split()
-                    type_id = int(type_id)
-                    patches_list = [int(i) for i in patches_list.split(",")]
-                    repulsion_sites = [int(i) for i in repulsion_sites.split(",")]
-                    particle_type_info.append((type_id, patches_list, repulsion_sites))
+                    type_id, _, patches_list, _ = self.parse_particle_type_line(line)
+                    particle_type_info.append((type_id, patches_list))
 
                 elif line.startswith("iP"):
                     # read patch info
@@ -1329,13 +1358,11 @@ class RWriter(PLBaseWriter):
                     interactions.append(((int(c1), int(c2)), float(strength)))
 
         intmat = InteractionMatrix(interactions) if interactions else None
-        # assert all particle types have same repulsion sites
-        # todo: impl different shapes?
-        assert all([tuple(rss) == tuple(particle_type_info[0][2]) for _, _, rss in particle_type_info])
+        # repulsion sites are a property of the topology, not the particle set - see read_top()
         return PLParticleSet(particles=[
             PLPatchyParticle([patches[i] for i in patches_list],
                              type_id=type_id)
-            for type_id, patches_list, repulsion_sites in particle_type_info
+            for type_id, patches_list in particle_type_info
         ], intmat=intmat)
 
     def read_scene(self, top_file: Union[Path, str], traj_file: Union[Path, str], particle_types: PLParticleSet,
@@ -1366,29 +1393,79 @@ class RWriter(PLBaseWriter):
         return RWriter.RPatchyTopology(s.particle_types(), s.particle_type_counts())
 
     class RPatchyTopology(PLBaseWriter.PatchyTopology):
-        # todo: better interaction site resolution
+        """
+        Raspberry topology. Repulsion sites are stored as one shared pool (the `iR` lines);
+        each particle type references the subset of that pool it uses by index (the last field
+        of its `iC` line), so different particle types can have different steric shapes.
+        """
         # todo: actually optimize this for cube
-        particle_repulsion_sites: list[tuple[tuple[float,float,float], float]]
+        particle_repulsion_sites: list[tuple[np.ndarray, float]]  # (body-frame position, radius)
         type_counts: dict[int, int]  # particle type ID -> count
-        type_rsite_lists: dict[int, [list[int]]]
+        type_rsite_lists: dict[int, list[int]]  # particle type ID -> indices into particle_repulsion_sites
         particle_types: PLParticleSet
 
-        def __init__(self, particles: PLParticleSet, type_counts: dict[int, int]):
+        @staticmethod
+        def default_repulsion_sites() -> list[tuple[np.ndarray, float]]:
+            """
+            default steric shell: 8 spheres of radius 0.25 at the corners of a cube
+            """
+            return [(np.array(coords), 0.25) for coords in itertools.product([0.25, -0.25],
+                                                                             [0.25, -0.25],
+                                                                             [0.25, -0.25])]
+
+        def __init__(self,
+                     particles: PLParticleSet,
+                     type_counts: dict[int, int],
+                     repulsion_sites: Union[None, list[tuple[Iterable[float], float]]] = None,
+                     type_rsite_lists: Union[None, dict[int, list[int]]] = None):
+            """
+            :param particles: particle types
+            :param type_counts: number of instances of each particle type, keyed by type ID
+            :param repulsion_sites: shared pool of (position, radius) repulsion sites. defaults to
+            default_repulsion_sites()
+            :param type_rsite_lists: for each particle type ID, the indices of the repulsion sites that
+            type uses. defaults to every type using every site.
+            """
             self.type_counts = type_counts
             self.particle_types = particles
-            self.particle_repulsion_sites = [
-            (coords, 0.25) for coords in itertools.product(
-                [0.25, -0.25],
-                [0.25, -0.25],
-                [0.25, -0.25]
-                )
-            ]
-            self.type_rsite_lists = {ptype.type_id(): list(range(len(self.particle_repulsion_sites)))
-                                     for ptype in self.particle_types}
+            if repulsion_sites is None:
+                repulsion_sites = self.default_repulsion_sites()
+            self.particle_repulsion_sites = [(np.asarray(position, dtype=float), float(r))
+                                             for position, r in repulsion_sites]
+            if type_rsite_lists is None:
+                type_rsite_lists = {ptype.type_id(): list(range(len(self.particle_repulsion_sites)))
+                                    for ptype in self.particle_types}
+            self.type_rsite_lists = {type_id: list(rsite_ids) for type_id, rsite_ids in type_rsite_lists.items()}
+            self.validate_repulsion_sites()
 
             self.particle_ids = list(itertools.chain.from_iterable([
                 [ptype for _ in range(pcount)] for ptype, pcount in self.type_counts.items()
             ]))
+
+        def validate_repulsion_sites(self):
+            """
+            Raises ValueError if the repulsion sites or per-type site lists are inconsistent
+            """
+            for position, r in self.particle_repulsion_sites:
+                if position.shape != (3,):
+                    raise ValueError(f"Repulsion site position {position} is not a 3D vector")
+                if r <= 0:
+                    raise ValueError(f"Repulsion site at {position} has non-positive radius {r}")
+            n_sites = len(self.particle_repulsion_sites)
+            for ptype in self.particle_types:
+                if ptype.type_id() not in self.type_rsite_lists:
+                    raise ValueError(f"No repulsion site list for particle type {ptype.type_id()}")
+            for type_id, rsite_ids in self.type_rsite_lists.items():
+                for idx in rsite_ids:
+                    if not 0 <= idx < n_sites:
+                        raise ValueError(f"Particle type {type_id} references repulsion site {idx}, "
+                                         f"but there are only {n_sites} sites")
+
+        def type_repulsion_sites(self, type_id: int) -> list[tuple[np.ndarray, float]]:
+            """
+            :return: the (position, radius) repulsion sites used by the given particle type
+            """
+            return [self.particle_repulsion_sites[i] for i in self.type_rsite_lists[type_id]]
 
         def info(self, fp: str="") -> TopInfo:
             # can use dummy fp if it doesn't matter
