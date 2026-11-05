@@ -16,3 +16,5 @@ docs/source/_static
 docs/source/generated
 id_ed25519
 id_ed25519.pub
+# test run output (written by tests, e.g. test_libtlm.py)
+tests/test_output/
