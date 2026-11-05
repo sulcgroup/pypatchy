@@ -3,6 +3,7 @@ from __future__ import annotations
 import copy
 import itertools
 import re
+import warnings
 from math import sqrt
 from typing import Union, IO, Iterable, Generator
 from abc import ABC, abstractmethod
@@ -18,7 +19,7 @@ from oxDNA_analysis_tools.UTILS.data_structures import Configuration, TrajInfo, 
 from oxpy_utils.utils.observable import particle_position
 from .plpatch import PLPatch, assign_colors_one_to_one, assign_colors
 from .plparticle import PLPatchyParticle
-from .plparticleset import PLParticleSet
+from .plparticleset import PLParticleSet, PLMultidentateSourceMap
 from .plscene import PLPSimulation
 from ...interaction_matrix import InteractionMatrix
 from ...polycubeutil.polycubesRule import PolycubeRuleCubeType
@@ -1265,7 +1266,9 @@ class RWriter(PLBaseWriter):
             if topology.particle_types.is_multidentate():
                 f.write("\n# Patch Groups\n")
                 for patch in topology.particle_types.get_src_map().src_set().patches():
-                    f.write("iG " + " ".join([str(p.get_id()) for p in topology.particle_types.mdt_rep(patch.get_id())]) + "\n")
+                    # sorted, so tooth order (= patch ID order from to_multidentate) survives a round trip
+                    tooth_ids = sorted(p.get_id() for p in topology.particle_types.mdt_rep(patch.get_id()))
+                    f.write("iG " + " ".join(str(i) for i in tooth_ids) + "\n")
 
             # write interaction matrix
             f.write("\n# Interactions\n")
@@ -1329,6 +1332,7 @@ class RWriter(PLBaseWriter):
         particle_type_info = []
         patches = dict()
         interactions = []
+        patch_groups: list[list[int]] = []
         with self.file(particle_type_file, 'r') as f:
             for line in f:
                 if line.startswith("iC"):
@@ -1357,13 +1361,30 @@ class RWriter(PLBaseWriter):
                     _, c1, c2, strength = line.split()
                     interactions.append(((int(c1), int(c2)), float(strength)))
 
+                elif line.startswith("iG"):
+                    # read patch group: the teeth implementing one unidentate patch
+                    patch_groups.append([int(i) for i in line.split()[1:]])
+
         intmat = InteractionMatrix(interactions) if interactions else None
         # repulsion sites are a property of the topology, not the particle set - see read_top()
-        return PLParticleSet(particles=[
+        particles = [
             PLPatchyParticle([patches[i] for i in patches_list],
                              type_id=type_id)
             for type_id, patches_list in particle_type_info
-        ], intmat=intmat)
+        ]
+        particle_set = PLParticleSet(particles=particles, intmat=intmat)
+        if not patch_groups:
+            return particle_set
+        # patch groups describe a multidentate conversion: rebuild its source map
+        try:
+            src_map = PLMultidentateSourceMap.from_patch_groups(particle_set,
+                                                                patch_groups,
+                                                                kwargs.get("energy_scale_method", "linear"))
+        except ValueError as e:
+            warnings.warn(f"Could not reconstruct a multidentate source map from the patch groups in "
+                          f"{particle_type_file}: {e}. Reading particle types without one.")
+            return particle_set
+        return PLParticleSet(particles=particles, source_map=src_map, intmat=particle_set.interaction_matrix())
 
     def read_scene(self, top_file: Union[Path, str], traj_file: Union[Path, str], particle_types: PLParticleSet,
                    conf_idx=None) -> PLPSimulation:

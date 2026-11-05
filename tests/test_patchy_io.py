@@ -10,7 +10,8 @@ import numpy as np
 import pytest
 
 from pypatchy.patchy.pl.patchyio import get_writer, read_mgl
-from pypatchy.patchy.pl.plparticleset import MultidentateConvertSettings
+from pypatchy.interaction_matrix import InteractionMatrix
+from pypatchy.patchy.pl.plparticleset import MultidentateConvertSettings, PLMultidentateSourceMap
 from pypatchy.patchy.pl.plpatchylib import polycube_to_pl
 from pypatchy.patchy.pl.plpotential import PLFRPatchyPotential, PLLRPatchyPotential
 from pypatchy.patchy.pl.plscene import PLPSimulation
@@ -296,3 +297,117 @@ def test_chain(ducky: PolycubeStructure):
         )
         G_new = scene.compute_scene_graph()
         assert nx.utils.graphs_equal(G_new, G_old)
+
+
+# ---------------- patch groups / multidentate source map reconstruction ----------------
+
+def _assert_patch_sets_match(expected, actual):
+    """patch-by-patch comparison of two unidentate particle sets"""
+    assert expected.num_patches() == actual.num_patches()
+    for a, b in zip(expected.patches(), actual.patches()):
+        assert np.allclose(a.position(), b.position(), atol=1e-5)
+        assert np.allclose(a.a1(), b.a1(), atol=1e-5)
+        if a.a2() is not None:
+            assert np.allclose(a.a2(), b.a2(), atol=1e-5)
+        assert a.color() == b.color()
+        assert b.strength() == pytest.approx(a.strength(), rel=1e-5)
+    assert [{p.get_id() for p in particle.patches()} for particle in expected.particles()] == \
+           [{p.get_id() for p in particle.patches()} for particle in actual.particles()]
+
+
+@pytest.fixture
+def cross_fr_types(cross_fr):
+    return cross_fr.particle_types()
+
+
+@pytest.mark.parametrize("torsion", [True, False])
+def test_mdt_source_map_from_patch_groups(cross_fr_types, torsion):
+    """torsional (one color per tooth, inverted) and non-torsional (shared color) conversions both round-trip"""
+    mdt = cross_fr_types.to_multidentate(MultidentateConvertSettings(n_teeth=4, dental_radius=0.1, torsion=torsion))
+    groups = [sorted(mdt.get_src_map().map_patch(p.get_id())) for p in cross_fr_types.patches()]
+    src_map = PLMultidentateSourceMap.from_patch_groups(mdt, groups, "linear")
+
+    _assert_patch_sets_match(cross_fr_types, src_map.src_set())
+    assert src_map.src_set().interaction_matrix().intmap() == cross_fr_types.interaction_matrix().intmap()
+    assert src_map.patch_map() == {i: set(group) for i, group in enumerate(groups)}
+    params = src_map.get_conversion_params()
+    assert params.n_teeth == 4 and params.dental_radius == pytest.approx(0.1)
+
+
+@pytest.mark.parametrize("method", ["none", "linear", "log"])
+def test_mdt_source_map_energy_scale_methods(cross_fr_types, method):
+    mdt = cross_fr_types.to_multidentate(MultidentateConvertSettings(n_teeth=3, dental_radius=0.1,
+                                                                     energy_scale_method=method))
+    groups = [sorted(mdt.get_src_map().map_patch(p.get_id())) for p in cross_fr_types.patches()]
+    src = PLMultidentateSourceMap.from_patch_groups(mdt, groups, method).src_set()
+    for a, b in zip(cross_fr_types.patches(), src.patches()):
+        assert b.strength() == pytest.approx(a.strength())
+
+
+def test_mdt_source_map_fresh_colors(cross_fr_types):
+    """tooth colors that don't follow to_multidentate's formula fall back to fresh complementary pairs"""
+    mdt = cross_fr_types.to_multidentate(MultidentateConvertSettings(n_teeth=4, dental_radius=0.1))
+    # scramble tooth colors (keeping each tooth's binding partner) so the inversion formula no longer applies
+    remap = {c: (c + 1000 if c > 0 else c - 1000) for c in mdt.patch_colors()}
+    for patch in mdt.patches():
+        patch.set_color(remap[patch.color()])
+    mdt.set_interactions(InteractionMatrix({(remap[c1], remap[c2]): s
+                                            for (c1, c2), s in mdt.interaction_matrix().intmap().items()}))
+    groups = [sorted(mdt.get_src_map().map_patch(p.get_id())) for p in cross_fr_types.patches()]
+    src = PLMultidentateSourceMap.from_patch_groups(mdt, groups).src_set()
+
+    # same binding structure as the original, expressed with fresh +-21... pairs
+    for a1, b1 in zip(cross_fr_types.patches(), src.patches()):
+        assert abs(b1.color()) >= 21
+        for a2, b2 in zip(cross_fr_types.patches(), src.patches()):
+            assert (a1.color() == -a2.color()) == (b1.color() == -b2.color())
+
+
+def test_mdt_source_map_invalid_groups(cross_fr_types):
+    mdt = cross_fr_types.to_multidentate(MultidentateConvertSettings(n_teeth=2, dental_radius=0.1))
+    groups = [sorted(mdt.get_src_map().map_patch(p.get_id())) for p in cross_fr_types.patches()]
+    with pytest.raises(ValueError, match="more than one patch group"):
+        PLMultidentateSourceMap.from_patch_groups(mdt, groups + [[groups[0][0]]])
+    with pytest.raises(ValueError, match="different sizes"):
+        PLMultidentateSourceMap.from_patch_groups(mdt, [groups[0][:1]] + groups[1:])
+    with pytest.raises(ValueError, match="not in the particle set"):
+        PLMultidentateSourceMap.from_patch_groups(mdt, groups[:-1] + [[groups[-1][0], 9999]])
+
+
+def test_raspberry_patch_groups_round_trip(temp_dir, multidentate_patchy_ducky: PLPSimulation):
+    """a multidentate scene written by RWriter reads back with its source map"""
+    original = multidentate_patchy_ducky.particle_types()
+    writer = get_writer("raspberry")
+    writer.set_directory(temp_dir)
+    writer.write(multidentate_patchy_ducky, topology="topology.top", conf_file="last_conf.dat")
+
+    with open(Path(temp_dir) / "topology.top") as f:
+        ig_lines = [line.split()[1:] for line in f if line.startswith("iG")]
+    assert len(ig_lines) == original.get_src().num_patches()
+    assert all([int(i) for i in ids] == sorted(int(i) for i in ids) for ids in ig_lines)
+
+    read = writer.read_particle_types(topology="topology.top")
+    assert read.is_multidentate()
+    _assert_patch_sets_match(original.get_src(), read.get_src())
+    for src_patch in original.get_src().patches():
+        assert {p.get_id() for p in read.mdt_rep(src_patch.get_id())} == \
+               {p.get_id() for p in original.mdt_rep(src_patch.get_id())}
+
+
+def test_raspberry_unreconstructable_patch_groups_warn(temp_dir):
+    """patch groups that don't describe a valid conversion still read, with a warning and no source map"""
+    with open(Path(temp_dir) / "topology.top", "w") as f:
+        f.write("2 2\n"
+                "iP 0 1.0 21 0,0,0.5 0,0,1\n"
+                "iP 1 1.0 -21 0,0,-0.5 0,0,-1\n"
+                "iP 2 1.0 21 0.5,0,0 1,0,0\n"
+                "iC 0 1 0,2\n"
+                "iC 1 1 1\n"
+                "iG 0 2\n"  # one group of size 2...
+                "iG 1\n")  # ...and one of size 1
+    writer = get_writer("raspberry")
+    writer.set_directory(temp_dir)
+    with pytest.warns(UserWarning, match="different sizes"):
+        read = writer.read_particle_types(topology="topology.top")
+    assert not read.has_udt_src()
+    assert read.num_patches() == 3

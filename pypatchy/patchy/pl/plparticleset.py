@@ -83,6 +83,212 @@ class PLMultidentateSourceMap(PLSourceMap):
     def get_converstion_params(self) -> MultidentateConvertSettings:
         return copy.deepcopy(self.__conversion_params)
 
+    @classmethod
+    def from_patch_groups(cls,
+                          mdt_set: PLParticleSet,
+                          patch_groups: list[list[int]],
+                          energy_scale_method: Union[int, float, str] = "linear") -> PLMultidentateSourceMap:
+        """
+        Reverse-engineers the unidentate source of a multidentate particle set from its patch groups
+        (lists of the IDs of the teeth that implement each unidentate patch, e.g. raspberry `iG` lines).
+        Group i becomes source patch i.
+
+        Geometry assumes the default to_multidentate() layout (follow_surf=False), where tooth k sits at
+        the source patch position offset by dental_radius along a2, rotated 2*pi*k/n_teeth about a1, and
+        tooth order matches patch ID order:
+        - position = centroid of the teeth. exact when the source patch position is parallel to a1 (true for
+          polycube-derived patches); otherwise it is the projection of the position onto a1
+        - a1 = normalized mean tooth a1
+        - a2 = direction from the centroid to the lowest-ID tooth (tooth 0), with any a1 component removed
+        - dental_radius = mean distance from centroid to tooth 0
+
+        Colors: if every tooth in a group has the same color, that is the source color. otherwise
+        to_multidentate()'s torsional color formula, c = +-((|orig| - 21) * n_teeth + tooth + 20), is inverted
+        and kept if every tooth agrees and the result reproduces which groups bind which. If that fails,
+        fresh complementary color pairs (+-21, +-22, ...) are assigned from the group binding graph.
+
+        :param mdt_set: the multidentate particle set
+        :param patch_groups: tooth patch IDs for each unidentate patch
+        :param energy_scale_method: how tooth strengths were scaled during conversion ("none", "linear", "log",
+        or a numeric multiplier); the topology does not record this, so the caller must supply it
+        :raises ValueError: if the groups are inconsistent or don't describe a multidentate conversion
+        """
+        groups = [sorted(group) for group in patch_groups]
+        if any(len(group) == 0 for group in groups):
+            raise ValueError("Patch groups cannot be empty")
+        valid_ids = {patch.get_id() for patch in mdt_set.patches()}
+        seen = set()
+        for group in groups:
+            for patch_id in group:
+                if patch_id not in valid_ids:
+                    raise ValueError(f"Patch group references patch {patch_id}, which is not in the particle set")
+                if patch_id in seen:
+                    raise ValueError(f"Patch {patch_id} appears in more than one patch group")
+                seen.add(patch_id)
+        # any patch not in a group is its own single-tooth group
+        groups += [[patch.get_id()] for patch in mdt_set.patches() if patch.get_id() not in seen]
+
+        n_teeth_values = {len(group) for group in groups}
+        if len(n_teeth_values) != 1:
+            raise ValueError(f"Patch groups have different sizes {sorted(n_teeth_values)}; "
+                             f"multidentate conversion uses one tooth count for every patch")
+        n_teeth = n_teeth_values.pop()
+
+        # each group's teeth must all sit on the same particle types
+        group_particles: list[list[PLPatchyParticle]] = []
+        for group in groups:
+            members = [{patch.get_id() for patch in particle.patches()}.issuperset(group) for particle in mdt_set.particles()]
+            partial = [bool({patch.get_id() for patch in particle.patches()} & set(group)) and not member
+                       for particle, member in zip(mdt_set.particles(), members)]
+            if any(partial):
+                raise ValueError(f"Patch group {group} is split across particle types")
+            group_particles.append([particle for particle, member in zip(mdt_set.particles(), members) if member])
+
+        # ---- geometry ----
+        teeth = [[mdt_set.patch(patch_id) for patch_id in group] for group in groups]
+        src_geometry = []  # (position, a1, a2) per group
+        dental_radii = []
+        for group_teeth in teeth:
+            positions = np.array([tooth.position() for tooth in group_teeth], dtype=float)
+            centroid = positions.mean(axis=0)
+            a1 = np.array([tooth.a1() for tooth in group_teeth], dtype=float).mean(axis=0)
+            if np.linalg.norm(a1) < 1e-6:
+                raise ValueError(f"Teeth {[tooth.get_id() for tooth in group_teeth]} have a1 vectors that cancel out")
+            a1 /= np.linalg.norm(a1)
+            offset = positions[0] - centroid
+            offset -= (offset @ a1) * a1
+            radius = float(np.linalg.norm(offset))
+            if radius > 1e-6:
+                a2 = offset / radius
+            else:
+                a2 = None if group_teeth[0].a2() is None else np.array(group_teeth[0].a2(), dtype=float)
+            dental_radii.append(radius)
+            src_geometry.append((centroid, a1, a2))
+        dental_radius = float(np.mean(dental_radii))
+        if n_teeth == 1 and dental_radius < 1e-6:
+            raise ValueError("Patch groups describe no multidentate conversion (one tooth per group, no offset)")
+        cvt_params = MultidentateConvertSettings(n_teeth=n_teeth,
+                                                 dental_radius=dental_radius,
+                                                 torsion=all(a2 is not None for _, _, a2 in src_geometry),
+                                                 follow_surf=False,
+                                                 energy_scale_method=energy_scale_method)
+
+        # ---- which groups bind which ----
+        mdt_intmat = mdt_set.interaction_matrix()
+        binding: dict[tuple[int, int], float] = dict()  # (group i, group j), i <= j -> interaction strength
+        for i, teeth_i in enumerate(teeth):
+            for j in range(i, len(teeth)):
+                for tooth_i in teeth_i:
+                    strengths = [mdt_intmat[(tooth_i.color(), tooth_j.color())] for tooth_j in teeth[j]]
+                    strengths = [s for s in strengths if s != 0]
+                    if strengths:
+                        binding[(i, j)] = strengths[0]
+                        break
+
+        # ---- colors ----
+        src_colors = cls._group_colors_same(teeth)
+        if src_colors is None:
+            src_colors = cls._group_colors_inverted(teeth, n_teeth, binding)
+        if src_colors is None:
+            src_colors = cls._group_colors_fresh(len(teeth), binding)
+
+        src_intmat = InteractionMatrix()
+        for (i, j), strength in binding.items():
+            src_intmat[(src_colors[i], src_colors[j])] = strength
+
+        # ---- build source particle set ----
+        src_patches = [
+            PLPatch(type_id=i,
+                    color=src_colors[i],
+                    relposition=position,
+                    a1=a1,
+                    a2=a2,
+                    strength=cvt_params.unscale_energy(float(np.mean([tooth.strength() for tooth in teeth[i]]))))
+            for i, (position, a1, a2) in enumerate(src_geometry)
+        ]
+        src_particles = []
+        for particle in mdt_set.particles():
+            src_particle = PLPatchyParticle(type_id=particle.type_id(),
+                                            index_=particle.get_uid(),
+                                            radius=particle.radius(),
+                                            particle_name=particle.name())
+            src_particle.set_patches([src_patches[i] for i, members in enumerate(group_particles)
+                                      if any(member.type_id() == particle.type_id() for member in members)])
+            src_particles.append(src_particle)
+        src_set = PLParticleSet(src_particles, intmat=src_intmat)
+        return cls(src_set, {i: set(group) for i, group in enumerate(groups)}, cvt_params)
+
+    @staticmethod
+    def _group_colors_same(teeth: list[list[PLPatch]]) -> Union[None, list[int]]:
+        """source colors when each group's teeth share one color (non-torsional conversion), else None"""
+        if all(len({tooth.color() for tooth in group}) == 1 for group in teeth):
+            return [group[0].color() for group in teeth]
+        return None
+
+    @staticmethod
+    def _group_colors_inverted(teeth: list[list[PLPatch]],
+                               n_teeth: int,
+                               binding: dict[tuple[int, int], float]) -> Union[None, list[int]]:
+        """
+        inverts to_multidentate()'s torsional color formula. returns None if any tooth doesn't fit the formula
+        or the recovered colors don't reproduce the group binding graph
+        """
+        colors = []
+        for group in teeth:
+            group_colors = set()
+            for tooth_idx, tooth in enumerate(group):
+                c = tooth.color()
+                if abs(c) < 20 or (abs(c) - 20) % n_teeth != tooth_idx:
+                    return None
+                group_colors.add(int(np.sign(c)) * ((abs(c) - 20) // n_teeth + 21))
+            if len(group_colors) != 1:
+                return None
+            colors.append(group_colors.pop())
+        # recovered colors must bind (c with -c) exactly where the teeth bind
+        for i in range(len(teeth)):
+            for j in range(i, len(teeth)):
+                if ((i, j) in binding) != (colors[i] == -colors[j]):
+                    return None
+        return colors
+
+    @staticmethod
+    def _group_colors_fresh(n_groups: int, binding: dict[tuple[int, int], float]) -> list[int]:
+        """
+        assigns a fresh complementary color pair (+-21, +-22, ...) to each connected component of the group
+        binding graph. each component must be complete bipartite, since one color pair can't express anything else
+        """
+        neighbors = {i: set() for i in range(n_groups)}
+        for i, j in binding:
+            if i == j:
+                raise ValueError(f"Patch group {i} binds itself; cannot assign complementary colors")
+            neighbors[i].add(j)
+            neighbors[j].add(i)
+        colors = [0] * n_groups
+        next_color = 21
+        for start in range(n_groups):
+            if colors[start] != 0:
+                continue
+            # 2-color this component
+            colors[start] = next_color
+            stack = [start]
+            component = [start]
+            while stack:
+                i = stack.pop()
+                for j in neighbors[i]:
+                    if colors[j] == 0:
+                        colors[j] = -colors[i]
+                        stack.append(j)
+                        component.append(j)
+                    elif colors[j] != -colors[i]:
+                        raise ValueError("Patch group binding graph is not bipartite; cannot assign complementary colors")
+            pos = [i for i in component if colors[i] > 0]
+            neg = [i for i in component if colors[i] < 0]
+            if any(j not in neighbors[i] for i in pos for j in neg):
+                raise ValueError("Patch group binding graph is not complete bipartite within a component; "
+                                 "one complementary color pair can't express it")
+            next_color += 1
+        return colors
+
 
 @dataclass
 class MultidentateConvertSettings:
@@ -133,6 +339,20 @@ class MultidentateConvertSettings:
             return patch_energy / (self.n_teeth * np.log(self.n_teeth))  # ln n teeth, basically made up
         else:
             return self.energy_scale_method * patch_energy
+
+    def unscale_energy(self, tooth_energy: float) -> float:
+        """
+        inverse of scale_energy: given the strength of one tooth, returns the strength of the
+        unidentate patch it was derived from
+        """
+        if self.energy_scale_method == self.ENERGY_SCALE_NONE:
+            return tooth_energy
+        elif self.energy_scale_method == self.ENERGY_SCALE_LINEAR:
+            return tooth_energy * self.n_teeth
+        elif self.energy_scale_method == self.ENERGY_SCALE_LOG:
+            return tooth_energy * (self.n_teeth * np.log(self.n_teeth))
+        else:
+            return tooth_energy / self.energy_scale_method
 
     def scale_alpha(self, alpha: float):
         """
