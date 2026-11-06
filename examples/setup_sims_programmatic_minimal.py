@@ -52,7 +52,6 @@ e = build_ensemble(
             "steps": 5e6,
             "print_conf_interval": 1e4,
             "print_energy_every": 1e4,
-            "interaction_potentials": ["fr_excl_vol", "fr_patchy"],
             "narrow_type": 1,
             "patchy_file": "patches.txt",
             "particle_file": "particles.txt",

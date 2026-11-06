@@ -10,9 +10,9 @@ from oxpy_utils.structure_editor.dna_structure import load_dna_structure, rand_s
 from pypatchy.patchy.dna_particle import DNAParticle
 from pypatchy.patchy.pl.patchyio import get_writer
 from pypatchy.patchy.pl.plparticle import PLPatchyParticle
-from pypatchy.patchy.pl.plpotential import PLFRPatchyPotential, PLFRTorsionalPatchyPotential
 from pypatchy.patchy.pl.plscene import PLPSimulation
 from pypatchy.polycubeutil.polycube_structure import PolycubeStructure
+from ptutils import energy_model, requires_energy_model
 from test_polycube_lib import ducky
 from test_patchy_io import multidentate_patchy_ducky
 
@@ -61,6 +61,7 @@ def icosahedron() -> DNAParticle:
     return DNAParticle(dna, patchPositions)
 
 
+@requires_energy_model("flavio")
 def test_convert_wireframe_cube(temp_dir: str, cube:DNAParticle):
     from pypatchy.patchy.pl.plpatchylib import polycube_to_pl
 
@@ -89,12 +90,7 @@ def test_convert_wireframe_cube(temp_dir: str, cube:DNAParticle):
                                             MultidentateConvertSettings(n_teeth=4,
                                             dental_radius=0.5)
                                             )
-    wireframe_multidentate.add_potential(
-        PLFRPatchyPotential(
-            rmax=0.4 * 3,
-            alpha=0.12,
-        )
-    )
+    wireframe_multidentate.set_energy_model(energy_model("flavio"))
 
     # validate converstion
     for cube1, cube2 in wireframe_polycube.iter_bound_particles():
@@ -143,6 +139,7 @@ def test_convert_wireframe_cube(temp_dir: str, cube:DNAParticle):
     converter.save_oxview(write_oxview_path=f"{temp_dir}/wireframe.oxview", color_by_type=True)
     pass
 
+@requires_energy_model("flavio")
 def test_convert_human(temp_dir: str, cube: DNAParticle):
     """
     tests convert a human polycube to dna origami
@@ -173,13 +170,7 @@ def test_convert_human(temp_dir: str, cube: DNAParticle):
     assert human_polycube.num_connections() == 12, f"Did not load polycube corrected! Expected number of cube-cube connections is 12, got {human_polycube.num_connections()}"
     human_multidentate = polycube_to_pl(human_polycube, MultidentateConvertSettings(n_teeth=4,
                                                                                     dental_radius=0.5))
-    human_multidentate.add_potential(
-        PLFRTorsionalPatchyPotential(
-            rmax=0.4 * 3,
-            alpha=0.12,
-            narrow_type=2
-        )
-    )
+    human_multidentate.set_energy_model(energy_model("flavio", narrow_type=2))
 
     writer = get_writer("flavio")
     writer.set_directory(temp_dir)
@@ -213,6 +204,7 @@ def test_convert_human(temp_dir: str, cube: DNAParticle):
     pass
 
 
+@requires_energy_model("flavio")
 def test_convert_swan(temp_dir: str, multidentate_patchy_ducky: PLPSimulation, cube: DNAParticle):
     from pypatchy.patchy.pl.plpatchylib import polycube_to_pl
 

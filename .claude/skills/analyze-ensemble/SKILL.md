@@ -139,14 +139,14 @@ sim files).
 
 **Preferred, when working from an ensemble**: `e.get_scene(sim, stage=None, step=None)`.
 This resolves the stage's top/traj files, reads particle types, and — unlike
-loading a scene by hand — sets temperature and attaches the correct interaction
-potentials for you (via `e.get_interaction_potentials(sim)`, driven by the
-sim's `interaction_potentials`/`PATCHY_radius` params). `step=None` gets the
+loading a scene by hand — sets temperature and attaches the sim's oxDNA energy
+model for you (via `e.get_energy_model(sim, stage)`: the run's own
+`interaction_type`/plugin/params, evaluated through oxpy). `step=None` gets the
 last conf; pass an explicit step (must be a multiple of `print_conf_interval`)
 for an earlier snapshot.
 
 ```python
-scene = e.get_scene(sim)          # PLPSimulation, potentials + T already set
+scene = e.get_scene(sim)          # PLPSimulation, energy model + T already set
 clusters = sorted(
     scene.split_scene_by_clusters(bond_energy=-0.5, min_cluster_size=2),
     key=lambda s: s.num_particles(), reverse=True,
@@ -156,7 +156,7 @@ clusters = sorted(
 **Standalone** (a raw sim folder not managed by an ensemble — e.g. someone else's
 run, or output you're inspecting outside pypatchy's directory layout): build the
 scene by hand with a `patchyio` writer. This is more manual — nothing sets
-potentials or temperature for you, so do that explicitly. Picking the right
+the energy model or temperature for you, so do that explicitly. Picking the right
 writer key (`"lorenzo"` below, or another) depends on which format the files
 were actually written in — see [[patchy-model-formats]] if that's not obvious
 from context:
@@ -173,19 +173,20 @@ plpset = polycube_rule_to_PL(PolycubesRule(rule_str="...")).to_multidentate(
 scene = get_writer("lorenzo").read_scene(top_file="init.top", traj_file="last_conf.dat",
                                           particle_types=plpset)
 scene.set_temperature(0.095)
-scene.add_potential(...)   # e.g. PLLRExclVolPotential/PLFRExclVolPotential from pl.plpotential
+from pypatchy.patchy.pl.oxpy_energy import OxpyEnergyModel
+scene.set_energy_model(OxpyEnergyModel("lorenzo", {
+    "interaction_type": "DetailedPatchySwapInteraction",       # same as the run's input file
+    "plugin_search_path": "/root/Github/oxDNA/contrib/rovigatti",
+    "DPS_sigma_ss": 0.082, "T": 0.095,                         # + any other model params the run used
+}))
 ```
 
-`add_standard_patchy_interaction` (`patchy_scripts.py`) is marked deprecated in
-its own docstring — for a standalone scene, prefer constructing the potential(s)
-explicitly (matching what `get_interaction_potentials` builds for the ensemble
-case: `PLLRExclVolPotential`/`PLFRExclVolPotential` etc. from `pl.plpotential`)
-rather than reaching for it.
+Use the same `interaction_type`, `plugin_search_path` and model params as the
+run's oxDNA input file; energies then come from that plugin itself.
 
 **Splitting into clusters**: `scene.split_scene_by_clusters(bond_energy=0.0, min_cluster_size=2)`
-returns a generator of one `PLPSimulation` per connected component (asserts
-the scene has ≥1 potential attached first — that's why potentials must be set
-before calling this). `bond_energy` is the cutoff *below* which two particles
+returns a generator of one `PLPSimulation` per connected component (raises if
+the scene has no energy model — that's why it must be set before calling this). `bond_energy` is the cutoff *below* which two particles
 count as bound (more negative = stricter/fewer bonds). Each returned sub-scene
 is independently inboxed, re-numbered (uids reset to index within the cluster),
 and box-sized to fit just that cluster.

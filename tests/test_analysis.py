@@ -41,7 +41,6 @@ def test_tile_4x4_clusters_match_pycluster(temp_dir: str, tile4x4: PatchySimulat
     """
     import networkx as nx
 
-    from pypatchy.patchy.pl.plpotential import PLFRTorsionalPatchyPotential
     from pypatchy.patchy.analysis_lib import GraphsFromClusterTxt
 
     # double check we are not accidentally loading an existing anaylsis pipeline
@@ -68,20 +67,9 @@ def test_tile_4x4_clusters_match_pycluster(temp_dir: str, tile4x4: PatchySimulat
                                           sim,
                                           time_steps=250000000).get()[250000000.0]
     cluster_graph_data = nx.union_all(cluster_graph_data)
+    # get_scene attaches the ensemble's oxDNA energy model, so bonds come from the same interaction that wrote
+    # clusters.txt
     scene = tile4x4.get_scene(sim)
-
-    scene.potentials = [
-        PLFRTorsionalPatchyPotential(
-            rmax=0.4 * 3 * tile4x4.sim_get_param(sim, "PATCHY_radius") * 2,
-            alpha=tile4x4.sim_get_param(sim, "PATCHY_alpha"),
-            narrow_type=tile4x4.sim_get_param(sim, "narrow_type")
-        )
-    ]
-
-    # scene.compute_cell_size(n_cells=1)
-    # scene.apportion_cells()
-
-    # convert to multidentate, see if that makes our confs make any more sense
     G: nx.Graph = scene.compute_scene_graph()
 
     # Compare edges (normalize direction since graphs are undirected)

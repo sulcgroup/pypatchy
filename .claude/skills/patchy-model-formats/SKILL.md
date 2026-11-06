@@ -184,20 +184,23 @@ color. `RWriter.write_as_mgl(...)` is a bonus visualization-only helper unique
 to this writer — renders repulsion sites as extra spheres in `.mgl` output,
 since standard viewers won't otherwise show them.
 
-## `interaction_potentials` vs `interaction_type` — don't confuse them
+## Scene energies come from the real plugin (`interaction_potentials` is gone)
 
-`interaction_type` (a `CONST_PARAMS_KEY`/server-config input param) is the real
-oxDNA C++ interaction used during the actual MD/MC run. `interaction_potentials`
-(`lr_excl_vol`/`fr_excl_vol`/`lr_patchy`/`fr_patchy`, set in `CONST_PARAMS_KEY`
-and consumed by `get_interaction_potentials()` in `simulation_ensemble.py`) is
-a separate, pure-Python re-implementation of bond energy used only for
-pypatchy-side scene analysis (e.g. `PLPSimulation.split_scene_by_clusters()`'s
-bond-energy cutoff — see [[analyze-ensemble]]). `lr_excl_vol`/`fr_excl_vol` are
-volume-exclusion-only; `lr_patchy` needs `DPS_sigma_ss` and an interaction
-matrix; `fr_patchy` needs `PATCHY_radius` and `use_torsion`. "lr"/"fr" =
-Lorenzo's/Flavio's approximation style, independent of which formats/plugins
-above are actually in play — these don't have to "match" the plugin in the
-table: e.g. `raspberry.json` on this machine pairs the `evans` plugin/
-`RaspberryPatchyInteraction` (the real run) with `fr_excl_vol`/`fr_patchy`
-python potentials (a `romano`-style approximation, just for analysis) — that's
-intentional, not a mismatch to fix.
+pypatchy-side scene analysis (`PLPSimulation` energies, `compute_scene_graph`,
+`split_scene_by_clusters`, overlap checks when placing particles) uses the same
+oxDNA interaction the simulation ran with, via oxpy: an `OxpyEnergyModel`
+(`pypatchy/patchy/pl/oxpy_energy.py`) names the `interaction_type`,
+`plugin_search_path` and model params, and `scene.energy_session()` loads the
+scene into oxpy (written with the format's writer, CPU backend). Ensembles build
+the model for you (`e.get_energy_model(sim, stage)`, attached by `get_scene`
+and `Stage.apply`), so whatever plugin row above the run uses is automatically
+the one analysis uses.
+
+The old pure-Python re-implementations (`lr_excl_vol`/`fr_excl_vol`/`lr_patchy`/
+`fr_patchy`, `plpotential.py`) were removed; an `interaction_potentials` key in
+an old config is ignored with a `FutureWarning`. oxpy gives energies per
+particle pair only, so patch-to-patch bonds (`compute_scene_multigraph`,
+`iter_binding_patches`) are matched from geometry within bound pairs and raise
+`PatchBondAmbiguityWarning` when not unique (e.g. wide multidentate teeth).
+Note the bound-pair criterion is total pair energy (excluded volume included),
+whereas e.g. `PLClusterTopology` uses the patchy term alone.

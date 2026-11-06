@@ -218,7 +218,8 @@ class Stage(BuildSimulation):
         """
         inputs_vals = self.iter_input_dict()
         # todo: nicer version, free up stuff in input file
-        del inputs_vals["interaction_potentials"]
+        # deprecated pypatchy-only param (ignored); keep it out of the oxDNA input if an old config still sets it
+        inputs_vals.pop("interaction_potentials", None)
         self.sim.input.modify_input(inputs_vals)
         assert self.sim.input.get_conf_file() is not None
 
@@ -257,10 +258,8 @@ class Stage(BuildSimulation):
         """
         applies stage operations to patchy scene
         """
-        # first, add patchy interactions
-        patchy_potentials = self.getctxt().get_interaction_potentials(self.spec())
-        for potential in patchy_potentials:
-            scene.add_potential(potential)
+        # first, tell the scene which oxDNA interaction to compute its energies with
+        scene.set_energy_model(self.getctxt().get_energy_model(self.spec(), self))
 
         # if the scene box has no particles, this is stage 0
         if scene.num_particles() == 0:

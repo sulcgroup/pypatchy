@@ -9,11 +9,7 @@
 		"interaction_type": "PatchyShapeInteraction",
         "plugin_search_path": "/PATH/TO/OXDNA/TORSION/contrib/romano",
         "patchy_file": "patches.txt",
-        "particle_file": "particles.txt",
-		"interaction_potentials": [
-                "fr_excl_vol",
-                "fr_patchy"
-		]
+        "particle_file": "particles.txt"
 	},
 	"oxdna_path": "/PATH/TO/OXDNA/TORSION/",
 	"is_slurm": false,

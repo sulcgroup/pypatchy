@@ -42,8 +42,7 @@ opts *out* of it entirely — every param then has to come from `CONST_PARAMS_KE
 or elsewhere. Prefer leaving `DEFAULT_PARAM_SET_KEY` unset (inheriting the
 baseline) unless there's a specific reason to start bare — it means
 `CONST_PARAMS_KEY` for a new ensemble usually only needs true overrides plus
-genuinely ensemble-specific keys (`num_assemblies`, `interaction_potentials`,
-`narrow_type`, ...), not a full restatement of every input param. Read the file
+genuinely ensemble-specific keys (`num_assemblies`, `narrow_type`, ...), not a full restatement of every input param. Read the file
 (or `get_param_set("default")` from `simulation_specification.py`) first so you
 know what's already covered and what its defaults actually are (e.g. its
 `steps`/`dt` may not fit your case and need overriding in `CONST_PARAMS_KEY`).
@@ -112,7 +111,6 @@ e = build_ensemble(
             "steps": 5e6,
             "print_conf_interval": 1e4,
             "print_energy_every": 1e4,
-            "interaction_potentials": ["fr_excl_vol", "fr_patchy"],
             "narrow_type": 1,
             "patchy_file": "patches.txt",
             "particle_file": "particles.txt",
@@ -198,14 +196,14 @@ Notes on this shape:
 
 Shared (non-swept) simulation params, as a flat dict. Common, format-independent
 ones seen in the examples: `num_assemblies`, `density`, `steps`,
-`print_conf_interval`, `print_energy_every`, `narrow_type`,
-`interaction_potentials` (list of names — see [[patchy-model-formats]]).
+`print_conf_interval`, `print_energy_every`, `narrow_type`. (Don't add
+`interaction_potentials`: it's deprecated and ignored — pypatchy computes scene
+energies with the run's own oxDNA plugin, see [[patchy-model-formats]].)
 `patchy_file`/`particle_file` are specific to the `flavio`/`josh_flavio`
 writers — other formats need different keys here instead (e.g. `lorenzo` needs
 `DPS_interaction_matrix_file`), so check `get_writer(patchy_format).reqd_args()`
 for the format actually in use rather than assuming these two; see
-[[patchy-model-formats]] for the full per-format breakdown and what
-`interaction_potentials` names are recognized.
+[[patchy-model-formats]] for the full per-format breakdown.
 
 `backend`, `backend_precision`, `interaction_type`, `plugin_search_path` would
 normally live in the server config's `input_file_params` — but if you're

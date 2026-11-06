@@ -11,8 +11,7 @@ import numpy as np
 # pypatchy imports
 from .pl.plparticleset import PLParticleSet, MultidentateConvertSettings
 from .pl.patchyio import get_writer, FWriter, LWriter, PLBaseWriter
-from .pl.plpotential import PLFRPatchyPotential, PLFRExclVolPotential, PLLRExclVolPotential, PLLRPatchyPotential, \
-    PLPotential
+from .pl.oxpy_energy import OxpyEnergyModel
 from .pl.plscene import PLPSimulation
 from ..util import get_input_dir
 
@@ -133,40 +132,16 @@ def int_mat_to_keywise(m: np.ndarray, particles: PLParticleSet) -> dict[tuple[in
 
 
 
-def add_standard_patchy_interaction(scene: PLPSimulation,
-                                    sigma: float,
-                                    interaction_matrix: Union[np.ndarray, None, dict[tuple[int,int]], float] = None):
-    """
-    deprecated
-    quick function to add patchy interactions which mimic
-     rovigatti/Interaction/PatchySwapInteraction
-    """
-    if interaction_matrix is None:
-        interaction_matrix = make_interaction_matrix()
-    elif isinstance(interaction_matrix, np.ndarray):
-        interaction_matrix = int_mat_to_keywise(interaction_matrix, scene.particle_types())
-    scene.add_potential(PLLRExclVolPotential(
-        rmax=2.01421
-    ))
-
-    # patchy_potential = PLLRPatchyPotential(
-    #     rmax=2.01421,  # cutoff for all interactions, computed assuming a particle w/ radius 0.5 and no spherical attraction
-    #     interaction_matrix=interaction_matrix,
-    #     sigma_ss=sigma
-    # )
-
-    # scene.add_potential(patchy_potential)
-
-
 def best_traj_contiguous_conf(top_file: Path,
                               traj_file: Path,
                               timepoints: Iterable[int],
-                              potentials: list[PLPotential],
+                              energy_model: OxpyEnergyModel,
                               writer: PLBaseWriter,
                               particle_types: PLParticleSet) -> tuple[PLPSimulation, float]:
     """
     given a top and traj file, iter timepoints and return the conf with the most contigious
     clusters
+    :param energy_model: oxDNA interaction used to find clusters (e.g. ensemble.get_energy_model(sim))
     """
     best_score = 0
     best_conf = None
@@ -176,8 +151,7 @@ def best_traj_contiguous_conf(top_file: Path,
                                                  traj_file.name,
                                                  particle_types,
                                                  i)
-        for potential in potentials:
-            scene.add_potential(potential)
+        scene.set_energy_model(energy_model)
         scene_contig, score = scene.contiguize()
         print(f"{i}: {score}")
         if best_score > score:

@@ -80,7 +80,7 @@ Represents the abstract combinatorial design space:
 - **`plscene.py`** – `PLPSimulation`: a simulation scene with particles placed in a box.
 - **`patchyio.py`** – Readers/writers for PL format files (`.top`, `.dat`, `.mgl`, etc.) and conversion to/from oxDNA format. `get_writer()` returns the appropriate writer for a server config's format.
 - **`plpatchylib.py`** – Bridge: `polycube_rule_to_PL()` converts a `PolycubesRule` to a `PLParticleSet`.
-- **`plpotential.py`** – Potential energy function definitions for different PL interaction types.
+- **`oxpy_energy.py`** – Scene energies and bonds computed by the real oxDNA interaction via oxpy: `OxpyEnergyModel` (picklable description of interaction + params; `PatchySimulationEnsemble.get_energy_model(sim, stage)` builds one) and `OxpyEnergySession` (loads a scene into oxpy; one open at a time). Patch-to-patch bonds are inferred from geometry within bound particle pairs and raise `PatchBondAmbiguityWarning` when not unique. Replaced the old Python re-implementations of the potentials (`plpotential.py`, removed); the `interaction_potentials` param is deprecated and ignored.
 
 ### Simulation ensemble (`pypatchy/patchy/`)
 

@@ -16,7 +16,7 @@ from pypatchy.cell_lists import CellLists
 from .plparticle import PLPatchyParticle
 from .plparticleset import PLParticleSet, MultidentateConvertSettings
 from .plpatch import PLPatch
-from .plpotential import PLPotential, PLPatchyPotential
+from .oxpy_energy import OxpyEnergyModel, infer_patch_bonds
 from ...scene import Scene
 from ...util import dist, pairwise, random_unit_vector
 
@@ -28,6 +28,10 @@ class PLPSimulation(Scene, CellLists):
     Note: in case the fact that this is written in Python doesn't make this abundantly clear,
     this class is NOT INTENDED FOR RUNNING MOLECULAR DYNAMICS SIMULATIONS!!!!
     Hence why as of this time I have not written methods for forces - only energies
+
+    Energies (and everything derived from them: bonds, clusters, overlap checks during particle placement) are
+    computed by the oxDNA interaction itself, via oxpy, as described by the scene's OxpyEnergyModel
+    (see set_energy_model).
     """
     _particle_types: PLParticleSet
     _temperature: float
@@ -37,7 +41,7 @@ class PLPSimulation(Scene, CellLists):
 
     _time: int
 
-    potentials: list[PLPotential]
+    _energy_model: Union[OxpyEnergyModel, None]
 
     scene_multigraphs_cache: dict[str, nx.MultiGraph]
     def __init__(self, seed=69):
@@ -53,13 +57,31 @@ class PLPSimulation(Scene, CellLists):
         random.seed(seed)
 
         self._colorbank = []
-        self.potentials = []
-
+        self._energy_model = None
 
         self.scene_multigraphs_cache = dict()
 
-    def add_potential(self, potential: PLPotential):
-        self.potentials.append(potential)
+    def set_energy_model(self, model: Union[OxpyEnergyModel, None]):
+        """
+        Sets the oxDNA interaction used to compute this scene's energies
+        """
+        self._energy_model = model
+        self.scene_multigraphs_cache = dict()
+
+    def energy_model(self) -> Union[OxpyEnergyModel, None]:
+        return self._energy_model
+
+    def require_energy_model(self) -> OxpyEnergyModel:
+        if self._energy_model is None:
+            raise ValueError("This operation needs particle energies, but the scene has no energy model. "
+                             "Use set_energy_model() (or load the scene through a PatchySimulationEnsemble).")
+        return self._energy_model
+
+    def energy_session(self, extra_particles: Iterable[PLPatchyParticle] = ()):
+        """
+        :return: an oxpy energy session (context manager) loaded with this scene and any extra particles
+        """
+        return self.require_energy_model().session(self, extra_particles)
 
     def inbox(self):
         """
@@ -99,34 +121,18 @@ class PLPSimulation(Scene, CellLists):
 
     def get_potential_energy(self) -> float:
         """
-        computes average potential energy of the simulation from scratch
+        computes average potential energy per particle of the simulation from scratch, using oxDNA
         """
-        e = 0.
-        checked_interactions: set[tuple] = set()
-        for p1 in self.particles():
-            for p2 in self.interaction_particles(p1):
-                # 2-particle dist should always be >= r1+r2 but there are cases where we want to test for insanely high energies
-                # if self.dist_2particles(p1, p2) <= p1.radius() + p2.radius():
-                #     return float('inf')
-                # else:
-                pair = (p1.get_uid(), p2.get_uid()) if p1.get_uid() < p2.get_uid() else (p2.get_uid(), p2.get_uid())
-                if pair not in checked_interactions:
-                    e_int = self.interaction_energy(p1, p2)
-                    e += e_int
-                    checked_interactions.add(pair)
-        return e / self.num_particles()
-
+        with self.energy_session() as session:
+            return session.total_energy() / self.num_particles()
 
     def get_energy_full(self) -> float:
         """
-        computes average potential energy by looping energy of every particle pair
-        O(n^2), so v. computationally intensive at high particle counts
+        computes average potential energy per particle by summing the energy of every interacting particle pair
+        (should match get_potential_energy, which lets oxDNA do the sum)
         """
-        e = 0.
-        for p1, p2 in itertools.combinations(self.particles(), 2):
-            e_int = self.interaction_energy(p1, p2)
-            e += e_int
-        return e / self.num_particles()
+        with self.energy_session() as session:
+            return sum(session.pair_energies().values()) / self.num_particles()
 
     def translate(self, translation_vector: np.ndarray, inbox: bool = True, reapporiton_cells: bool = True):
         for p in self._particles:
@@ -168,38 +174,32 @@ class PLPSimulation(Scene, CellLists):
             self.add_particle(p)
         assert all(p1.get_type() <= p2.get_type() for p1, p2 in pairwise(self.particles()))
 
+    def _energy_rejected(self, e: float, boltzmann: bool = True) -> bool:
+        """
+        Acceptance test for placing particles: with boltzmann=True, rejects with probability 1 - exp(-e/kT);
+        otherwise rejects any positive energy
+        :return: True if a placement with interaction energy `e` should be rejected
+        """
+        if boltzmann:
+            assert self.T() > 0, "Boltzmann acceptance needs a positive scene temperature"
+            try:
+                return math.exp(-e / self.T()) < random.random()
+            except OverflowError:
+                # e is hugely negative; accept
+                return False
+        return e > 0  # TODO: better energy cutoff?
+
     def check_for_particle_overlap(self, particle: PLPatchyParticle, boltzmann: bool = True) -> bool:
         """
-        Checks if a particle overlaps any other particles in the simulation.
+        Checks if a particle (in the scene or not) overlaps the other particles in the simulation.
         Returns:
             true if the particle overlaps another particle, false otherwise
         """
-        # print 'Adding ', particle.cm_pos
-        # please god let this be inboxed
-        assert not boltzmann or self.T() > 0
-        e = 0.
-        for p2 in self.interaction_particles(particle.position()):
-            e += self.interaction_energy(particle, p2)
-        if boltzmann:  # enable stochastic checking
-            # boltzmann factor = e^(-energy / kT)
-            try:
-                boltzmann_factor = math.exp(-e / self.T())
-                # if boltzmann factor is less than rng 0:1.0
-                if boltzmann_factor < random.random():
-                    return True
-            except OverflowError:
-                # if we get an overflow error in the boltmann factor, that means e is VERY LARGE
-                return True
-        elif e > 0:  # TODO: better energy cutoff?
-            return True
-
-            # dist = self.dist_2particles(particle, p)
-            # # print ' Looking at distance from ', p.cm_pos,dist
-            # if dist <= dist_cutoff:
-            #     # print 'Unfortunately overlaps with ',p.cm_pos,dist
-            #     return True
-            #     # print 'Check is fine!'
-        return False
+        in_scene = any(p is particle for p in self.particles())
+        others = [p.get_uid() for p in self.particles() if p is not particle]
+        with self.energy_session(() if in_scene else [particle]) as session:
+            e = session.energy_with(particle.get_uid(), session.neighbours(particle.position(), others))
+        return self._energy_rejected(e, boltzmann)
 
     def apportion_cells(self):
         """
@@ -272,27 +272,43 @@ class PLPSimulation(Scene, CellLists):
     def add_particle_rand_positions(self,
                                     particles: Iterable[PLPatchyParticle],
                                     nTries=-1):
-        # loop particles
+        """
+        Adds particles to the scene one at a time at random positions and orientations, rejecting placements
+        by the Boltzmann factor of their interaction energy with the particles already placed.
+        Energies come from oxDNA (one oxpy session for the whole operation).
+        """
+        particles = list(particles)
+        if not particles:
+            return
         if nTries == -1:
             nTries = len(particles) ** 3
+        # give not-yet-placed particles distinct starting positions, so oxDNA isn't loaded with coincident particles
         for p in particles:
-            t = 0
-            # set max tries so it doesn't go forever
-            while t < nTries:
-                # random position
-                new_pos = np.random.rand(3) * self._box_size
-                p.set_position(new_pos)
-                # randomize orientation
-                p.set_random_orientation()
-                if not self.check_for_particle_overlap(p):
-                    break
-                t += 1
-            if t == nTries:
-                raise Exception(f"Could not find a position to place a particle! nTries={nTries}")
-            self.add_particle(p)
-        # the following assertion is useful for catching energy issues at low particle counts
-        # but it's VERY VERY SLOW
-        # assert self.get_potential_energy() < 0
+            p.set_position(np.random.rand(3) * self._box_size)
+            p.set_random_orientation()
+        placed = [p.get_uid() for p in self.particles()]
+        with self.energy_session(particles) as session:
+            for p in particles:
+                prev_neighbours: list[int] = []
+                t = 0
+                # set max tries so it doesn't go forever
+                while t < nTries:
+                    p.set_position(np.random.rand(3) * self._box_size)
+                    p.set_random_orientation()
+                    session.update_particle(p)
+                    # re-evaluate the previous trial's neighbours first: this clears any patch bond locks the
+                    # rejected trial left in oxDNA (some interactions keep these between evaluations)
+                    session.energy_with(p.get_uid(), prev_neighbours)
+                    neighbours = session.neighbours(p.position(), placed)
+                    e = session.energy_with(p.get_uid(), neighbours)
+                    if not self._energy_rejected(e):
+                        break
+                    prev_neighbours = neighbours
+                    t += 1
+                if t == nTries:
+                    raise Exception(f"Could not find a position to place a particle! nTries={nTries}")
+                self.add_particle(p)
+                placed.append(p.get_uid())
 
     def num_particle_types(self) -> int:
         return self.particle_types().num_particle_types()
@@ -370,7 +386,7 @@ class PLPSimulation(Scene, CellLists):
         # if we've passed a scaling factor instead of an actual
         if not isinstance(new_box_size, np.ndarray):
             new_box_size = self.box_size()  * new_box_size
-        assert len(self.potentials) > 0, "Cannot resize box without first adding interaction potentials"
+        self.require_energy_model()
         # find clusters
         clusters = list(self.split_scene_by_clusters(cluster_energy_threshold, 2))
         # to find counts of free-floating particles, start w/ total counts and count down
@@ -409,39 +425,28 @@ class PLPSimulation(Scene, CellLists):
 
     def interaction_energy(self, p1: Union[PLPatchyParticle, int], p2: Union[PLPatchyParticle, int]) -> float:
         """
-        computes the interaction potential between two particles
+        computes the interaction energy between two particles in the scene, using oxDNA.
+        Opens an oxpy session per call, so to evaluate many pairs use energy_session() directly.
         """
-        e = 0.
         if isinstance(p1, int):
             p1 = self.get_particle(p1)
         if isinstance(p2, int):
             p2 = self.get_particle(p2)
-        for potential_function in self.potentials:
-            # TODO: non-periodic or semi-periodic dimensions
-            e += potential_function.energy(self.box_size(), p1, p2)
-        return e
+        with self.energy_session() as session:
+            return session.pair_energy(p1.get_uid(), p2.get_uid())
 
     def iter_bound_particles(self) -> Generator[tuple[PLPatchyParticle, PLPatchyParticle]]:
         """
-        iterates all unordered pairs of bound particles in the simulation
+        iterates all unordered pairs of bound particles in the simulation:
+        the particle pairs the scene multigraph has patch bonds between if the scene has an energy model,
+        otherwise those with complementary patches within PATCHY_CUTOFF of each other
         """
-        # if no interaction potentials are provided, use shitty superclass method
-        if len(self.potentials) == 0:
+        if self._energy_model is None:
             yield from Scene.iter_bound_particles(self)
         else:
-            pairs: set[frozenset[int]] = set()
-            # iter particles
-            for p in self.particles():
-                # for each particle, iter particles that can interact
-                for p2 in self.interaction_particles(p):
-                    # if we haven't already yielded this pair
-                    if {p.get_uid(), p2.get_uid()} not in pairs:
-                        # if the particles are actually bound
-                        if self.particles_bound(p, p2):
-                            # yield it
-                            yield p, p2
-                            # add to set to avoid duplicates
-                            pairs.add(frozenset({p.get_uid(), p2.get_uid()}))
+            G = self.scene_multigraph()
+            for uid1, uid2 in nx.Graph(G).edges():
+                yield self.get_particle(uid1), self.get_particle(uid2)
 
     def particles_bound(self,
                         p1: Union[PLPatchyParticle, int],
@@ -528,6 +533,7 @@ class PLPSimulation(Scene, CellLists):
         mdt_particle_set = self.particle_types().to_multidentate(mdt_convert)
         assert mdt_particle_set.is_normalized()
         mdt_scene = PLPSimulation()
+        mdt_scene.set_energy_model(self._energy_model)
         # assign scene particle types
         mdt_scene.set_particle_types(mdt_particle_set)
         # need to set box  size & set cell size beefore you add particles
@@ -593,95 +599,57 @@ class PLPSimulation(Scene, CellLists):
         """
         # use graph not digraph
         G = nx.Graph()
-        # iter particles
-        for p1 in self.particles():
-            G.add_node(p1.get_uid())
-            for p2 in self.interaction_particles(p1):
-                if not G.has_edge(p1.get_uid(), p2.get_uid()):
-                    e = self.interaction_energy(p1, p2)
-                    if e < bond_energy:
-                        G.add_edge(p1.get_uid(), p2.get_uid(), e=e)
+        G.add_nodes_from(p.get_uid() for p in self.particles())
+        with self.energy_session() as session:
+            pair_energies = session.pair_energies()
+        for (uid1, uid2), e in pair_energies.items():
+            if e < bond_energy:
+                G.add_edge(uid1, uid2, e=e)
         return G
 
     def compute_scene_multigraph(self, bond_energy: float = 0, multipatch=False) -> nx.MultiGraph:
-        G = nx.MultiGraph()
-        for p in self.particles():
-            G.add_node(p.get_uid())
+        """
+        Constructs a multigraph of the scene with one edge per patch-patch bond.
 
+        Which particle pairs are bound comes from oxDNA (pair energy < bond_energy); which patches form each
+        bond is inferred from geometry (closest compatible patches within the model's bonding reach), since
+        oxpy only reports energies per particle pair. A PatchBondAmbiguityWarning is raised whenever that
+        inference is not clear-cut (see oxpy_energy.infer_patch_bonds).
+
+        Edges carry `patches` ((uid1, patch id 1), (uid2, patch id 2)), `pair_energy` (energy of the particle pair)
+        and `e` (pair energy split evenly over the patch bonds between the pair).
+        """
         if multipatch:
-            # Keep your current per-pair logic
-            return self._compute_scene_multigraph_greedy(bond_energy)
-
-        # Step 1: Collect all possible valid bonds
-        global_bonds = []
-        checked_pairs = set()
-        for p1 in self.particles():
-            for p2 in self.interaction_particles(p1):
-                pair = frozenset([p1.get_uid(), p2.get_uid()])
-                if pair in checked_pairs:
-                    continue
-
-                # background energy
-                particle_energy = sum(
-                    potential.energy(self.box_size(), p1, p2)
-                    for potential in self.potentials
-                    if not isinstance(potential, PLPatchyPotential)
-                )
-
-                for potential in self.potentials:
-                    if not isinstance(potential, PLPatchyPotential):
-                        continue
-                    for patch1 in p1.patches():
-                        for patch2 in p2.patches():
-                            e_bond = potential.energy_2_patch(
-                                self.box_size(), p1, patch1, p2, patch2
-                            )
-                            if e_bond < bond_energy:
-                                global_bonds.append({
-                                    "p1_uid": p1.get_uid(),
-                                    "patch1": patch1.get_id(),
-                                    "p2_uid": p2.get_uid(),
-                                    "patch2": patch2.get_id(),
-                                    "bond_energy": e_bond,
-                                    "particle_energy": particle_energy
-                                })
-                checked_pairs.add(pair)
-
-        # Step 2: Build global patch graph
-        B = nx.Graph()
-        for bond in global_bonds:
-            node1 = (bond["p1_uid"], bond["patch1"])
-            node2 = (bond["p2_uid"], bond["patch2"])
-            weight = -(bond["bond_energy"] + bond["particle_energy"] / 2)  # split particle_energy
-            B.add_edge(node1, node2, weight=weight, metadata=bond)
-
-        # Step 3: Solve maximum weight matching
-        match = nx.algorithms.matching.max_weight_matching(B, maxcardinality=True)
-
-        # Step 4: Add selected matches to MultiGraph
-        for u, v in match:
-            bond = B[u][v]["metadata"]
-            G.add_edge(
-                bond["p1_uid"], bond["p2_uid"],
-                e=bond["bond_energy"] + bond["particle_energy"] / 2,
-                patches=((bond["p1_uid"], bond["patch1"]),
-                         (bond["p2_uid"], bond["patch2"]))
-            )
-
+            raise NotImplementedError("multipatch scene multigraphs are not implemented")
+        G = nx.MultiGraph()
+        G.add_nodes_from(p.get_uid() for p in self.particles())
+        model = self.require_energy_model()
+        with self.energy_session() as session:
+            pair_energies = session.pair_energies()
+        bonded = {pair: e for pair, e in pair_energies.items() if e < bond_energy}
+        for bond in infer_patch_bonds(self, bonded, model.patch_reach()):
+            G.add_edge(bond["p1_uid"], bond["p2_uid"],
+                       e=bond["pair_energy"] / bond["n_patch_bonds"],
+                       pair_energy=bond["pair_energy"],
+                       patches=((bond["p1_uid"], bond["patch1"]),
+                                (bond["p2_uid"], bond["patch2"])))
         return G
 
     def scene_multigraph(self, bond_energy: float=0) -> nx.MultiGraph:
         """
-        should produuce multigraph of scene
+        cached version of compute_scene_multigraph
         """
-        assert len(self.potentials) > 0, "Cannot compute a multigraph of the patchy scene without at " \
-                                         "least one interaction potential!"
+        self.require_energy_model()
         self.validate_particle_uids()
         if f"{bond_energy}" not in self.scene_multigraphs_cache:
             self.scene_multigraphs_cache[f"{bond_energy}"] = self.compute_scene_multigraph(bond_energy)
         return self.scene_multigraphs_cache[f"{bond_energy}"]
 
-    def compute_scene_clusters(self, bond_energy: float=0, min_cluster_size: int = 1, multigraph: bool=True) -> Generator[nx.Graph]:
+    def compute_scene_clusters(self, bond_energy: float=0, min_cluster_size: int = 1, multigraph: bool=False) -> Generator[nx.Graph]:
+        """
+        Yields connected clusters of bound particles. Clusters only need particle-level bonds, so by default this
+        uses the scene graph, which skips (and doesn't warn about) patch-level bond inference.
+        """
         if multigraph:
             G = self.compute_scene_multigraph(bond_energy)
         else:
@@ -699,6 +667,7 @@ class PLPSimulation(Scene, CellLists):
         scene.set_time(self.time())
         scene.set_temperature(self.T())
         scene.set_particle_types(self.particle_types())
+        scene.set_energy_model(self._energy_model)
         # list particles in cluster
         scene_particles = [copy.deepcopy(self.get_particle(particle_id)) for particle_id in particle_ids]
         # do box size computatioins
@@ -718,69 +687,102 @@ class PLPSimulation(Scene, CellLists):
 
     def add_conf_clusters(self, clusters: list[PLPSimulation], nTries=1e3):
         """
-        Adds other PL confs ("clusters") to this simulation, using a similar method to add_particle_rand_positions
+        Adds other PL confs ("clusters") to this simulation, using a similar method to add_particle_rand_positions:
+        each cluster gets a random rotation and position, rejected by the Boltzmann factor of its interaction
+        energy with the particles already in the scene. Energies come from oxDNA (one oxpy session for all clusters).
         """
-        # loop particles
+        clusters = list(clusters)
+        if not clusters:
+            return
         for cluster in clusters:
-            # we need to cache positions because PLPSimulation (unlike PLPatchyParticle)
-            # has no method to set absolute position
-
             # a cluster must fit inside this scene's box: it's rotated about its center of mass, which
             # is only defined for inboxed confs, and wrapping it would break the structure
             cluster_extent = np.stack([p.position() for p in cluster.particles()]).max(axis=0)
             if (cluster_extent >= self.box_size()).any():
                 raise ValueError(f"Cluster spans {cluster_extent}, which does not fit in box {self.box_size()}. "
                                  f"Increase the box size (e.g. lower the density).")
-
             # set cluster box size
             cluster.set_box_size(self.box_size())
-            conf_start = cluster
 
-            t = 0
-            # set max tries so it doesn't go forever
-            while t < nTries:
-                cluster = copy.deepcopy(conf_start)
+        # oxDNA needs every particle up front: stage copies of all cluster particles, with the uids they'll get
+        # when add() appends them, at distinct temporary positions
+        staged: list[list[PLPatchyParticle]] = []
+        next_uid = self.num_particles()
+        for cluster in clusters:
+            copies = []
+            for p in cluster.particles():
+                p_copy = copy.deepcopy(p)
+                p_copy.set_uid(next_uid)
+                p_copy.set_position(np.random.rand(3) * self._box_size)
+                next_uid += 1
+                copies.append(p_copy)
+            staged.append(copies)
 
-                # # randomly rotate cluster
-                a1 = random_unit_vector()
-                x = random_unit_vector()
-                # self.a1 = np.array(np.random.random(3))
-                # self.a1 = self.a1 / np.sqrt(np.dot(self.a1, self.a1))
-                # x = np.random.random(3)
-                a3 = x - np.dot(a1, x) * a1
-                # normalize a3 vector
-                a3 = a3 / np.sqrt(np.dot(a3, a3))
-                if abs(np.dot(a1, a3)) > 1e-10:
-                    raise Exception("Could not generate random orientation?")
-                # please tell me this produces a random rotation matrix
-                cluster.rotate(np.stack([a1, np.cross(a3, a1), a3]))
+        placed = [p.get_uid() for p in self.particles()]
+        with self.energy_session(itertools.chain.from_iterable(staged)) as session:
+            for conf_start, staged_particles in zip(clusters, staged):
+                prev_neighbours: dict[int, list[int]] = {}
+                t = 0
+                # set max tries so it doesn't go forever
+                while t < nTries:
+                    cluster = copy.deepcopy(conf_start)
 
-                # random position
-                new_pos = np.random.rand(3) * self._box_size
-                cluster.translate(new_pos, True, False)
+                    # randomly rotate cluster
+                    a1 = random_unit_vector()
+                    x = random_unit_vector()
+                    a3 = x - np.dot(a1, x) * a1
+                    # normalize a3 vector
+                    a3 = a3 / np.sqrt(np.dot(a3, a3))
+                    if abs(np.dot(a1, a3)) > 1e-10:
+                        raise Exception("Could not generate random orientation?")
+                    cluster.rotate(np.stack([a1, np.cross(a3, a1), a3]))
 
-                cluster.inbox()
+                    # random position
+                    new_pos = np.random.rand(3) * self._box_size
+                    cluster.translate(new_pos, True, False)
 
-                assert np.allclose(self.box_size(), cluster.box_size())
-                if not self.check_conf_overlap(cluster):
-                    self.add(cluster)
-                    break
-                t += 1
-            if t == nTries:
-                raise Exception(f"Could not find a position t(o place a cluster! nTries={nTries}")
+                    cluster.inbox()
+                    assert np.allclose(self.box_size(), cluster.box_size())
+
+                    for p_trial, p_staged in zip(cluster.particles(), staged_particles):
+                        p_staged.set_position(p_trial.position())
+                        p_staged.a1 = p_trial.a1
+                        p_staged.a3 = p_trial.a3
+                        session.update_particle(p_staged)
+                    e = 0.
+                    trial_neighbours = {}
+                    for p_staged in staged_particles:
+                        uid = p_staged.get_uid()
+                        # clear patch bond locks left by the previous (rejected) trial
+                        session.energy_with(uid, prev_neighbours.get(uid, []))
+                        trial_neighbours[uid] = session.neighbours(p_staged.position(), placed)
+                        e += session.energy_with(uid, trial_neighbours[uid])
+                    if not self._energy_rejected(e):
+                        self.add(cluster)
+                        assert [p.get_uid() for p in self.particles()[-len(staged_particles):]] == \
+                               [p.get_uid() for p in staged_particles], "Cluster particle uids out of sync"
+                        placed.extend(trial_neighbours)
+                        break
+                    prev_neighbours = trial_neighbours
+                    t += 1
+                if t == nTries:
+                    raise Exception(f"Could not find a position to place a cluster! nTries={nTries}")
 
     def check_conf_overlap(self, cluster: PLPSimulation) -> bool:
         """
-        checks if the provided cluster would create high-energy interactions (vol excl overlap)
-        uses this.potentials
+        checks if the provided cluster, at its current position, would create high-energy interactions
+        (vol excl overlap) with this scene, by the same Boltzmann criterion add_conf_clusters uses
+        :return: True if the cluster overlaps (should be rejected)
         """
-        # not using cells for these
-        e = 0.
-        for p1, p2 in itertools.product(self.particles(), cluster.particles()):
-            for potential in self.potentials:
-                e += potential.energy(self.box_size(), p1, p2)
-            # should return false if overlap is present, true if energetically acceptable
-        return np.exp(-e / self.T()) <= random.random()
+        copies = []
+        for i, p in enumerate(cluster.particles()):
+            p_copy = copy.deepcopy(p)
+            p_copy.set_uid(self.num_particles() + i)
+            copies.append(p_copy)
+        placed = [p.get_uid() for p in self.particles()]
+        with self.energy_session(copies) as session:
+            e = sum(session.energy_with(c.get_uid(), session.neighbours(c.position(), placed)) for c in copies)
+        return self._energy_rejected(e)
 
     def contiguize(self) -> tuple[PLPSimulation, float]:
         """

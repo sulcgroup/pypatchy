@@ -13,10 +13,10 @@ from pypatchy.patchy.pl.patchyio import get_writer, read_mgl
 from pypatchy.interaction_matrix import InteractionMatrix
 from pypatchy.patchy.pl.plparticleset import MultidentateConvertSettings, PLMultidentateSourceMap
 from pypatchy.patchy.pl.plpatchylib import polycube_to_pl
-from pypatchy.patchy.pl.plpotential import PLFRPatchyPotential, PLLRPatchyPotential
 from pypatchy.patchy.pl.plscene import PLPSimulation
 from pypatchy.polycubeutil.polycube_structure import PolycubeStructure
 
+from ptutils import energy_model, requires_energy_model
 from test_polycube_lib import ducky
 
 @pytest.fixture
@@ -183,11 +183,7 @@ def icos_mgl() -> PLPSimulation:
                      )
 
     # sigma ss is largely just the number that made this work for me
-    scene.add_potential(PLLRPatchyPotential(
-        rmax=1.2,
-        interaction_matrix=scene.particle_types().interaction_matrix(),
-        sigma_ss=0.7
-    ))
+    scene.set_energy_model(energy_model("lorenzo", DPS_sigma_ss=0.7))
 
     # scene.export_to_mgl("icos.mgl", patches_w=0.2)
     assert scene.particle_types().num_particle_types() == 3
@@ -222,12 +218,6 @@ def test_read_loro_test():
 
 def test_convert_duck(ducky: PolycubeStructure):
     scene: PLPSimulation = polycube_to_pl(ducky)
-    scene.add_potential(
-        PLFRPatchyPotential(
-            rmax=0.4 * 3,
-            alpha=0.12
-        )
-    )
     with tempfile.TemporaryDirectory() as td:
         writer = get_writer("flavio")
         writer.set_directory(td)
@@ -242,14 +232,10 @@ def test_convert_duck(ducky: PolycubeStructure):
 @pytest.fixture
 def multidentate_patchy_ducky(ducky: PolycubeStructure) -> PLPSimulation:
     scene = polycube_to_pl(ducky, MultidentateConvertSettings(n_teeth=4, dental_radius=0.5))
-    scene.add_potential(
-        PLFRPatchyPotential(
-            rmax=0.4 * 3,
-            alpha=0.12
-        )
-    )
+    scene.set_energy_model(energy_model("flavio"))
     return scene
 
+@requires_energy_model("flavio")
 def test_mdt_ducky(multidentate_patchy_ducky: PLPSimulation):
     assert len(multidentate_patchy_ducky.compute_scene_graph().edges) == 7 # i counted and it is 7
     assert len(multidentate_patchy_ducky.scene_multigraph().edges) == 7 * 4
@@ -265,14 +251,10 @@ def test_mdt_ducky(multidentate_patchy_ducky: PLPSimulation):
         print(td)
         pass
 
+@requires_energy_model("flavio")
 def test_chain(ducky: PolycubeStructure):
     scene: PLPSimulation = polycube_to_pl(ducky)
-    scene.add_potential(
-        PLFRPatchyPotential(
-            rmax=0.4 * 3,
-            alpha=0.12
-        )
-    )
+    scene.set_energy_model(energy_model("flavio"))
     with tempfile.TemporaryDirectory() as td:
         writer = get_writer("flavio")
         writer.set_directory(td)
@@ -289,12 +271,7 @@ def test_chain(ducky: PolycubeStructure):
             writer.read_particle_types(
             particle_file="particles.txt",
             patchy_file="patches.txt"))
-        scene.add_potential(
-            PLFRPatchyPotential(
-                rmax=0.4 * 3,
-                alpha=0.12
-            )
-        )
+        scene.set_energy_model(energy_model("flavio"))
         G_new = scene.compute_scene_graph()
         assert nx.utils.graphs_equal(G_new, G_old)
 

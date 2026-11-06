@@ -642,7 +642,8 @@ class PatchyOrigamiConverter(OrigamiDeabstractor):
         if self.is_track_conf_stickies() and len(self.sticky_book) > 0:
             print("WARNING: attempting call of convert() on a system where some sticky ends have already been assigned! "
                   "Program is probably about to crash.")
-        assert len(self.scene.potentials) > 0, "You need to provide a patchy potential to use to identify patchy bonds"
+        # patchy bonds come from the scene's oxDNA energy model (raises if the scene has none)
+        self.scene.require_energy_model()
         print("binding particles using 3p patches")
         self.bind_particles3p()
         assert self.expected_num_edges is None or self.expected_num_edges == -1 or self.bondcount == self.expected_num_edges, \

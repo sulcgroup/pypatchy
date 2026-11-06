@@ -45,14 +45,7 @@ from .patchy_sim_observable import PatchySimObservable, observable_from_file
 from .pl.patchyio import FWriter, PLBaseWriter, get_writer
 from .pl.plparticleset import PLParticleSet
 from .pl.plpatchylib import load_pl_particles, polycube_rule_to_PL
-from .pl.plpotential import (
-    PLFRExclVolPotential,
-    PLFRPatchyPotential,
-    PLFRTorsionalPatchyPotential,
-    PLLRExclVolPotential,
-    PLLRPatchyPotential,
-    PLPotential,
-)
+from .pl.oxpy_energy import OxpyEnergyModel
 from .pl.plscene import PLPSimulation
 from .sim_ensemble_json import SimEnsembleJsonEncoder
 from .simulation_specification import (
@@ -1292,60 +1285,39 @@ class PatchySimulationEnsemble(Analyzable):
         """
         return len(self.sim_get_stages(sim))
 
-    def get_interaction_potentials(self, sim: PatchySimulation) -> list[PLPotential]:
+    def get_energy_model(self, sim: PatchySimulation, stage: Union[Stage, None] = None) -> OxpyEnergyModel:
         """
-        Contructs and returns a set of interaction potentials for the given simulation
-        Much of this is currently hardcoded because making is more programmatic is not worth my time
+        Describes the oxDNA interaction a simulation uses, so scenes from it can have their energies computed by
+        oxDNA itself (via oxpy). Uses the same merged parameters (stage > sim > ensemble > server) the stage
+        writes into its oxDNA input file.
         :param sim: simulation descriptor
-        :returns: a list of patchy potentials
+        :param stage: stage to take parameters from (default: the simulation's first stage)
         """
-        # todo: include interaction potential spec in server spec
-        interaction_potential_names: list[str] = self.sim_get_param(sim, "interaction_potentials")
-        potentials: list[PLPotential] = list()
-        for name in interaction_potential_names:
-            if name == "lr_excl_vol":
-                # in Lorenzo's interaction the potential is hardcoded
-                potential = PLLRExclVolPotential(rmax=2.01421)
-            elif name == "fr_excl_vol":
-                potential = PLFRExclVolPotential(
-                    # rmax = 0.9988 if PATCHY_radius = 0.5
-                    rmax=0.9988 * (self.sim_get_param(sim, "PATCHY_radius") * 2), # ????
-                     rstar=0.90530002117156982 * (self.sim_get_param(sim, "PATCHY_radius") * 2),
-                     b=677.505671539  # from flavio's code
-                                                 )
-                # potential = PLFRExclVolPotential(rmax=2.01421 * self.sim_get_param(sim, "PATCHY_radius") * 2,
-                #                                  rstar=self.sim_get_param(sim, "PATCHY_radius") * 2 ** (1 / 6),
-                #                                  b=677.505671539  # from flavio's code
-                #                                  )
+        if stage is None:
+            stage = self.sim_get_stages(sim)[0]
+        input_params = {}
+        for pv in self.iter_params(sim, stage):
+            if type(pv) is ParameterValue and not isinstance(pv.param_value, (dict, list, tuple)):
+                input_params.setdefault(pv.param_name, pv.param_value)
+        if "interaction_potentials" in {pv.param_name for pv in self.iter_params(sim, stage)} \
+                and not getattr(self, "_warned_interaction_potentials", False):
+            warnings.warn("`interaction_potentials` is deprecated and ignored: pypatchy now computes energies with "
+                          "the simulation's own oxDNA interaction (via oxpy). Remove it from your ensemble and "
+                          "server configs.", FutureWarning, stacklevel=2)
+            self._warned_interaction_potentials = True
 
-            elif name == "lr_patchy":
-                particle_types: PLParticleSet = self.sim_get_particles_set(sim)
-                potential = PLLRPatchyPotential(rmax=2.01421,
-                                                sigma_ss=self.sim_get_param(sim, "DPS_sigma_ss"),
-                                                interaction_matrix=particle_types.interaction_matrix())
-            elif name == "fr_patchy":
-                patchy_radius = self.sim_get_param(sim, "PATCHY_radius")
-                if self.sim_get_param(sim, "use_torsion"):
-                    potential = PLFRTorsionalPatchyPotential(
-                        rmax=0.4 * 3 * 2 * patchy_radius,
-                        alpha=self.sim_get_param(sim, "PATCHY_alpha"),
-                        narrow_type=self.sim_get_param(sim, "narrow_type")
-                    )
-                    # potential = PLFRTorsionalPatchyPotential(
-                    #     rmax=0.4 * 3 * patchy_radius,
-                    #     alpha=self.sim_get_param(sim, "PATCHY_alpha"),
-                    #     narrow_type=self.sim_get_param(sim, "narrow_type")
-                    # )
-                else:
-                    potential = PLFRPatchyPotential(
-                        rmax=0.4 * 3 * 2* patchy_radius,
-                        alpha=self.sim_get_param(sim, "PATCHY_alpha")
-                    )
-            else:
-                raise ValueError(f"No python-implemented interaction potential called {name}, options are"
-                                f" `lr_excl_vol`, `fr_excl_vol`, `lr_patchy`, `fr_patchy`.")
-            potentials.append(potential)
-        return potentials
+        # a raspberry topology may define non-default (or per-type) repulsion sites; reuse them if this stage has
+        # written one
+        repulsion_sites, type_rsite_lists = None, None
+        if self.server_settings.patchy_format == "raspberry":
+            top_file = self.folder_path(sim, stage) / self.sim_stage_get_param(sim, stage, "topology")
+            if top_file.exists():
+                self.writer.set_directory(top_file.parent)
+                top = self.writer.read_top(top_file.name)
+                repulsion_sites, type_rsite_lists = top.particle_repulsion_sites, top.type_rsite_lists
+
+        return OxpyEnergyModel(self.server_settings.patchy_format, input_params,
+                               repulsion_sites=repulsion_sites, type_rsite_lists=type_rsite_lists)
 
     def sim_done(self, sim: PatchySimulation) -> bool:
         try:
@@ -1560,8 +1532,7 @@ class PatchySimulationEnsemble(Analyzable):
         #                                                      " Or old data, that is also possible.")
 
         scene.set_temperature(self.sim_stage_get_param(sim, stage, "T"))
-        for potential in self.get_interaction_potentials(sim):
-            scene.add_potential(potential)
+        scene.set_energy_model(self.get_energy_model(sim, stage))
         return scene
         # scene: PLPSimulation()
 

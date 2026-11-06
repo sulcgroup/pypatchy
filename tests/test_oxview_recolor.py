@@ -10,12 +10,14 @@ from pypatchy.patchy.patchy_origami_convert import PatchyOrigamiConverter
 from pypatchy.patchy.pl.plparticle import PLPatchyParticle
 from pypatchy.patchy.pl.plparticleset import MultidentateConvertSettings
 from pypatchy.patchy.pl.plpatchylib import polycube_to_pl
-from pypatchy.patchy.pl.plpotential import PLFRPatchyPotential
 from pypatchy.polycubeutil.polycube_structure import load_polycube
 from pypatchy.util import get_input_dir
 
+from ptutils import energy_model, requires_energy_model
+
 # self-contained test/demonstration tah
 
+@requires_energy_model("flavio")
 def test_oxview_recolor():
     with tempfile.TemporaryDirectory() as td:
         name = "wireframe"
@@ -35,12 +37,7 @@ def test_oxview_recolor():
                                             MultidentateConvertSettings(n_teeth=4,
                                                                             dental_radius=0.5)
                                             )
-        ducky_multidentate.add_potential(
-            PLFRPatchyPotential(
-                rmax=0.4 * 3,
-                alpha=0.12,
-            )
-        )
+        ducky_multidentate.set_energy_model(energy_model("flavio"))
 
         # show_scene_multigraph(ducky_multidentate)
 
@@ -146,12 +143,7 @@ def test_oxview_recolor():
                                                 MultidentateConvertSettings(n_teeth=4,
                                                                             dental_radius=0.5)
                                                 )
-        wireframe_multidentate.add_potential(
-            PLFRPatchyPotential(
-                rmax=0.4 * 3,
-                alpha=0.12,
-            )
-        )
+        wireframe_multidentate.set_energy_model(energy_model("flavio"))
 
         get_writer("flavio").set_directory(td)
         get_writer("flavio").write(wireframe_multidentate,
