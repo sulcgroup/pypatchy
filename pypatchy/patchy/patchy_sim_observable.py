@@ -150,4 +150,5 @@ def observable_from_file(obs_file_name: str) -> Observable:
     return Observable(obs_json["name"],
                       obs_json["print_every"],
                       # we should be able to pass list as-is but apparently this is a bug in the python interpreter
-                      *[ObservableColumn(**oc) for oc in obs_json["cols"]])
+                      *[ObservableColumn(**{("name" if k == "type" else k): v for k, v in oc.items()})
+                        for oc in obs_json["cols"]])

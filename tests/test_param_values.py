@@ -74,7 +74,7 @@ def test_parameter_value_lt_against_raw_value():
 
 
 def test_parameter_value_lt_against_incompatible_type_raises():
-    with pytest.raises(ValueError):
+    with pytest.raises(TypeError):
         ParameterValue("T", 0.1) < object()
 
 

@@ -26,6 +26,9 @@ def check_config(config: PatchyServerConfig):
     if not Path(config.oxdna_path).exists():
         raise Exception(f"Config {config.name} specifies {config.oxdna_path} which"
                         f"does not exist.")
+    if "interaction_type" not in config.input_file_params:
+        # interaction_potentials-style config (e.g. docker): no contrib plugin to check
+        return
     for paramname in reqd_input_file_params:
         if paramname not in config.input_file_params:
             raise Exception(f"Config {config.name} missing from `input_file_params`.")

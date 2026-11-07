@@ -119,8 +119,8 @@ def test_convert_wireframe_cube(temp_dir: str, cube:DNAParticle):
                                patchy_file="patches.txt")
 
     # load dna particles
-    dna = load_dna_structure(get_input_dir() / "scenes/cube_monomer.top",
-                             get_input_dir() / "scenes/cube_monomer.dat")
+    dna = load_dna_structure(Path(__file__).parent / "test_files" / "dna_confs" / "structure_cube" / "cube_monomer.top",
+                             Path(__file__).parent / "test_files" / "dna_confs" / "structure_cube" / "cube_monomer.dat")
     # scene = polycube_to_pl(polycube, nteeth=4, dental_radius=0.25)
     dna_particle = DNAParticle(dna, patch_positions)
 
@@ -181,16 +181,17 @@ def test_convert_human(temp_dir: str, cube: DNAParticle):
         )
     )
 
-    get_writer("flavio").set_directory(temp_dir)
-    get_writer("flavio").write(human_multidentate,
+    writer = get_writer("flavio")
+    writer.set_directory(temp_dir)
+    writer.write(human_multidentate,
                                topology="topology.top",
                                conf_file="conformation.dat",
                                particle_file="particles.txt",
                                patchy_file="patches.txt")
 
     # load dna particles
-    dna = load_dna_structure(get_input_dir() / "scenes/cube_monomer.top",
-                             get_input_dir() / "scenes/cube_monomer.dat")
+    dna = load_dna_structure(Path(__file__).parent / "test_files" / "dna_confs" / "structure_cube" / "cube_monomer.top",
+                             Path(__file__).parent / "test_files" / "dna_confs" / "structure_cube" / "cube_monomer.dat")
     # scene = polycube_to_pl(polycube, nteeth=4, dental_radius=0.25)
     dna_particle = DNAParticle(dna, patch_positions)
 

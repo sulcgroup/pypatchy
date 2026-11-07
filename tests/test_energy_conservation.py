@@ -152,6 +152,11 @@ def _cuda_backend_reason_unavailable() -> str | None:
         try:
             oxpy.OxpyManager(inp)
         except oxpy.OxDNAError as e:
+            if "is not allowed" in str(e):
+                return (
+                    "The CUDA backend was compiled without double precision "
+                    "(rebuild oxDNA with -DCUDA_DOUBLE=ON): " + str(e)
+                )
             if "not supported" in str(e):
                 return (
                     "The currently-imported oxpy was not compiled with CUDA support "

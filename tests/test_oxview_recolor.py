@@ -1,4 +1,5 @@
 import tempfile
+from pathlib import Path
 
 # ipy_oxDNA imports
 from oxpy_utils.structure_editor.dna_structure import load_dna_structure, rand_seq, recolor_top_dat
@@ -29,7 +30,7 @@ def test_oxview_recolor():
         ]
 
         # path to polycube file
-        ducky_polycube = load_polycube("/home/josh/git/pypatchy/tests/test_files/cube_structures/duck_polycube.json")
+        ducky_polycube = load_polycube(Path(__file__).parent / "test_files" / "cube_structures" / "duck_polycube.json")
         ducky_multidentate = polycube_to_pl(ducky_polycube,
                                             MultidentateConvertSettings(n_teeth=4,
                                                                             dental_radius=0.5)
@@ -61,8 +62,8 @@ def test_oxview_recolor():
                 f"from polycube to patchy."
 
         # load dna particles
-        dna = load_dna_structure(get_input_dir() / "scenes/cube_monomer.top",
-                                 get_input_dir() / "scenes/cube_monomer.dat")
+        dna = load_dna_structure(Path(__file__).parent / "test_files" / "dna_confs" / "structure_cube" / "cube_monomer.top",
+                                 Path(__file__).parent / "test_files" / "dna_confs" / "structure_cube" / "cube_monomer.dat")
         # scene = polycube_to_pl(polycube, nteeth=4, dental_radius=0.25)
         dna_particle = DNAParticle(dna, patch_positions)
 
@@ -160,8 +161,8 @@ def test_oxview_recolor():
                                    patchy_file="patches.txt")
 
         # load dna particles
-        dna = load_dna_structure(get_input_dir() / "scenes/cube_monomer.top",
-                                 get_input_dir() / "scenes/cube_monomer.dat")
+        dna = load_dna_structure(Path(__file__).parent / "test_files" / "dna_confs" / "structure_cube" / "cube_monomer.top",
+                                 Path(__file__).parent / "test_files" / "dna_confs" / "structure_cube" / "cube_monomer.dat")
         # scene = polycube_to_pl(polycube, nteeth=4, dental_radius=0.25)
         dna_particle = DNAParticle(dna, patch_positions)
 

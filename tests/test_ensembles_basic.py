@@ -23,9 +23,13 @@ from ptutils import get_data
 def temp_dir() -> str:
     # construct temporary directory to run
 
+    old_data_dir = cfg.get('ANALYSIS', 'simulation_data_dir')
     with tempfile.TemporaryDirectory() as td:
         cfg.set('ANALYSIS', 'simulation_data_dir', str(td))
-        yield td
+        try:
+            yield td
+        finally:
+            cfg.set('ANALYSIS', 'simulation_data_dir', old_data_dir)
 
 
 

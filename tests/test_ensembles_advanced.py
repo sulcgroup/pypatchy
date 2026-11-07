@@ -9,9 +9,13 @@ from test_ensembles_basic import ensemble
 
 @pytest.fixture
 def temp_dir() -> str:
+    old_data_dir = cfg.get('ANALYSIS', 'simulation_data_dir')
     with tempfile.TemporaryDirectory() as td:
         cfg.set('ANALYSIS', 'simulation_data_dir', str(td))
-        yield td
+        try:
+            yield td
+        finally:
+            cfg.set('ANALYSIS', 'simulation_data_dir', old_data_dir)
 
 
 @pytest.mark.skip(reason="3x3_wireframe test data not yet available")

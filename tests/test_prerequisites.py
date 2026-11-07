@@ -58,6 +58,9 @@ def test_patchy_plugins():
     missing = []
     for server_cfg in list_server_configs():
         params = server_cfg.input_file_params
+        if "interaction_type" not in params:
+            # interaction_potentials-style configs load no contrib plugin
+            continue
         so_path = Path(params["plugin_search_path"]) / (params["interaction_type"]+".so")
         if not so_path.exists():
             missing.append(

@@ -140,7 +140,7 @@ echo -e '{ \n \
 	"is_slurm": false, \n \
 	"patchy_format": "flavio", \n \
 	"cuda_mps": false \n \
-' > /root/.pypatchy/spec_files/server_configs/fr.json && \
+}' > /root/.pypatchy/spec_files/server_configs/fr.json && \
 cp /root/.pypatchy/spec_files/server_configs/fr.json /root/.pypatchy/spec_files/server_configs/docker.json && \
 cp /root/Github/pypatchy/spec_files/input_files/default.json /root/.pypatchy/spec_files/input_files/ && \
 cp /root/Github/pypatchy/spec_files/observables/plclustertopology.json /root/.pypatchy/spec_files/observables/ && \
