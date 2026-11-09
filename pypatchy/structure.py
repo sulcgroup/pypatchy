@@ -765,6 +765,7 @@ class StructuralHomomorphism(StructuralMapping):
     def get_rot_map(self) -> dict[int, int]:
         return self.__rotation_map
 
+
 class Tiling:
     source_structure: Structure
     tiled_structure: Structure
