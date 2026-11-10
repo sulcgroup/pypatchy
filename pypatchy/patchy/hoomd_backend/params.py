@@ -68,6 +68,7 @@ ENGINE_NEUTRAL_PARAMS = {
     "num_assemblies",
     "box_size",
     "cluster_bond_energy",  # used by Stage.apply() when a stage resizes the box
+    "duplicate",  # replica label for sweeps; no meaning to the simulation (replicas need different seeds)
 }
 
 # extra explanation for oxDNA names people are likely to carry over

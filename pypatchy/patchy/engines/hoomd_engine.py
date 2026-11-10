@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import shlex
 import subprocess
 import sys
 from pathlib import Path
@@ -17,8 +18,10 @@ from ..simulation_specification import PatchySimulation
 from ..stage import NoStageTrajError, Stage, StageTrajFileEmptyError
 from .base import SimulationEngine
 
+# the name PatchySimulationEnsemble.start_simulation() submits per-simulation slurm jobs under
+SLURM_SCRIPT_FILE = "slurm_script.sh"
 # every file a HOOMD stage directory holds (build_stage(clean_build="force") removes these, and only these)
-STAGE_FILES = (STAGE_SPEC_FILE, INIT_FILE, TRAJECTORY_FILE, LAST_FILE, ENERGY_FILE, LOG_FILE)
+STAGE_FILES = (STAGE_SPEC_FILE, INIT_FILE, TRAJECTORY_FILE, LAST_FILE, ENERGY_FILE, LOG_FILE, SLURM_SCRIPT_FILE)
 
 
 class HOOMDEngine(SimulationEngine):
@@ -76,9 +79,6 @@ class HOOMDEngine(SimulationEngine):
                 return
             for name in STAGE_FILES:
                 (stage_dir / name).unlink(missing_ok=True)
-        if ensemble.server_settings.submits_per_sim_slurm_job():
-            raise NotImplementedError("The HOOMD engine doesn't submit per-simulation slurm jobs yet")
-
         params, defaulted = self.stage_params(ensemble, sim, stage)
         if stage.is_first():
             scene = PLPSimulation()
@@ -115,6 +115,23 @@ class HOOMDEngine(SimulationEngine):
         if defaulted:
             ensemble.get_logger().info(f"HOOMD parameters left at their defaults for {sim!r} stage {stage.name()}: "
                                        + ", ".join(f"{k}={params[k]}" for k in sorted(defaulted)))
+        if ensemble.server_settings.submits_per_sim_slurm_job():
+            self.write_run_script(ensemble, sim, stage)
+
+    def write_run_script(self, ensemble: Any, sim: PatchySimulation, stage: Stage,
+                         script_name: str = SLURM_SCRIPT_FILE) -> Path:
+        """
+        Writes the sbatch script that runs a stage as its own slurm job (PatchySimulationEnsemble.start_simulation()
+        submits it). It runs the stage with the Python that built it, so the job's environment (slurm_includes)
+        must provide the same environment. Runner output goes to the stage's log.log, as for in-process runs.
+        """
+        stage_dir = ensemble.folder_path(sim, stage)
+        script = stage_dir / script_name
+        with script.open("w") as f:
+            ensemble.server_settings.write_sbatch_params(ensemble.export_name, f)
+            f.write(f"{shlex.quote(sys.executable)} -m pypatchy.patchy.hoomd_backend.run_stage "
+                    f"{shlex.quote(str(stage_dir))} > {shlex.quote(str(stage_dir / LOG_FILE))} 2>&1\n")
+        return script
 
     def is_stage_built(self, ensemble: Any, sim: PatchySimulation, stage: Stage) -> bool:
         stage_dir = ensemble.folder_path(sim, stage)
@@ -196,7 +213,17 @@ class HOOMDEngine(SimulationEngine):
                            stdout=log, stderr=subprocess.STDOUT, cwd=stage_dir)
 
     def run_batch(self, ensemble: Any, to_run: list[tuple[PatchySimulation, Stage]]):
-        raise NotImplementedError("Batched (cuda_mps) runs aren't implemented for the HOOMD engine yet")
+        """
+        Runs the stages as concurrent worker processes (pypatchy.patchy.hoomd_backend.batch): at most
+        `max_concurrent_sims` at once, spread over the GPUs (at most `max_sims_per_gpu` on each), sharing each GPU
+        through a dedicated NVIDIA MPS daemon.
+        """
+        from ..hoomd_backend.batch import run_stage_dirs
+        settings = ensemble.server_settings
+        run_stage_dirs([ensemble.folder_path(sim, stage) for sim, stage in to_run],
+                       max_concurrent=settings.max_concurrent_sims,
+                       max_per_gpu=settings.max_sims_per_gpu,
+                       log=ensemble.get_logger().info)
 
     def stage_log_file(self, ensemble: Any, sim: PatchySimulation, stage: Stage) -> Path:
         return ensemble.folder_path(sim, stage) / LOG_FILE

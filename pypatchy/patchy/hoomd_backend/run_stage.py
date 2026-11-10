@@ -123,6 +123,9 @@ def run_stage(stage_dir: Union[str, Path], device=None):
         raise RuntimeError(f"{INIT_FILE} is at step {sim.timestep}, but the stage starts at step {start}")
     # GPU devices list the GPUs they use; CPU devices have no such attribute
     print(f"Device: {getattr(sim.device, 'devices', type(sim.device).__name__)}", flush=True)
+    for var in ("CUDA_VISIBLE_DEVICES", "CUDA_MPS_PIPE_DIRECTORY"):
+        if var in os.environ:
+            print(f"{var}={os.environ[var]}", flush=True)
 
     centres = hoomd.filter.Rigid(("center", "free"))
     if spec.get("thermalize"):

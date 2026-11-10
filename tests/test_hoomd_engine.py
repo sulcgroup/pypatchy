@@ -345,15 +345,16 @@ def test_hoomd_energy_of_a_dense_scene_matches_numpy(tmp_path):
 
 
 # ------------------------------------------------------------------------------------------ ensembles
-def build_hoomd_ensemble(name: str, const_params: dict, stages: dict):
+def build_hoomd_ensemble(name: str, const_params: dict, stages: dict, server_config=None, more_params=()):
     from pypatchy.patchy.simulation_ensemble import (build_ensemble, EXPORT_NAME_KEY, ENSEMBLE_SETUP_DATE,
                                                      CONST_PARAMS_KEY, ENSEMBLE_PARAMS_KEY, SERVER_SETTINGS_KEY)
     return build_ensemble(cfg={
         EXPORT_NAME_KEY: name,
         "rule": RULE,
         CONST_PARAMS_KEY: const_params,
-        ENSEMBLE_PARAMS_KEY: [("staging", [{"name": "two_stage", "type": "staging", "stages": stages}])],
-        SERVER_SETTINGS_KEY: hoomd_config(),
+        ENSEMBLE_PARAMS_KEY: [("staging", [{"name": "two_stage", "type": "staging", "stages": stages}]),
+                              *more_params],
+        SERVER_SETTINGS_KEY: server_config if server_config is not None else hoomd_config(),
     }, mdt={ENSEMBLE_SETUP_DATE: datetime.datetime.now()})
 
 
@@ -440,5 +441,100 @@ def test_two_stage_hoomd_ensemble_runs_and_continues(temp_dir):
         step = e.get_pipeline_step("gsd_graphs")
         again = SimEnsembleJsonEncoder().read_analysis_step(SimEnsembleJsonEncoder().write_analysis_step(step), e)
         assert isinstance(again, GraphsFromGSD) and again.bond_energy == 0. and again.input_tstep == 1000
+    finally:
+        (get_input_dir() / e.metadata_file).unlink(missing_ok=True)
+
+
+# ------------------------------------------------------------------------------------------ batches and slurm
+def test_visible_gpus_follow_cuda_visible_devices():
+    from pypatchy.patchy.hoomd_backend.batch import visible_gpu_uuids
+    gpus = [("0", "GPU-aaaa-0000"), ("1", "GPU-bbbb-1111"), ("2", "GPU-cccc-2222")]
+    assert visible_gpu_uuids(gpus, None) == ["GPU-aaaa-0000", "GPU-bbbb-1111", "GPU-cccc-2222"]
+    # slurm-style indices, in CUDA's order
+    assert visible_gpu_uuids(gpus, "2,0") == ["GPU-cccc-2222", "GPU-aaaa-0000"]
+    # (abbreviated) UUIDs
+    assert visible_gpu_uuids(gpus, "GPU-bbbb") == ["GPU-bbbb-1111"]
+    # like CUDA, enumeration stops at the first entry that names no GPU
+    assert visible_gpu_uuids(gpus, "1,7,0") == ["GPU-bbbb-1111"]
+
+
+def test_slurm_configs_get_an_sbatch_script_per_stage(temp_dir):
+    pytest.importorskip("gsd")
+    config = hoomd_config(is_slurm=True, slurm_bash_flags={"p": "general", "gres": "gpu:1"},
+                          slurm_includes=["module load cuda"])
+    e = build_hoomd_ensemble("pytest_hoomd_slurm", CONST, TWO_STAGES, server_config=config)
+    try:
+        sim = e.ensemble()[0]
+        first = e.sim_get_stages(sim)[0]
+        e.do_setup(stage="first")
+        stage_dir = e.folder_path(sim, first)
+        script = (stage_dir / "slurm_script.sh").read_text().splitlines()
+        assert script[0] == "#!/bin/bash"
+        assert "#SBATCH -p general" in script and '#SBATCH --gres="gpu:1"' in script
+        assert "module load cuda" in script
+        assert script[-1].endswith(f"-m pypatchy.patchy.hoomd_backend.run_stage {stage_dir} > "
+                                   f"{stage_dir / 'log.log'} 2>&1")
+    finally:
+        (get_input_dir() / e.metadata_file).unlink(missing_ok=True)
+
+
+def run_batched_ensemble(name: str, device: str, n_sims: int, **config):
+    """runs a batched (cuda_mps) ensemble of `n_sims` simulations (differing in kT) stage by stage"""
+    from pypatchy.patchy.hoomd_backend import gsdio
+    server = PatchyServerConfig(name="pytest_hoomd_batch", engine="hoomd", input_file_params={"device": device},
+                                cuda_mps=True, **config)
+    const = {k: v for k, v in CONST.items() if k != "seed"}
+    e = build_hoomd_ensemble(name, const, TWO_STAGES, server_config=server,
+                             more_params=[("kT", [0.3 + 0.05 * i for i in range(n_sims)])])
+    sims = e.ensemble()
+    assert len(sims) == n_sims
+    e.start_simulations()  # every simulation's first stage
+    assert all(e.sim_stage_done(s, e.sim_get_stage(s, "first")) for s in sims)
+    assert not any((e.folder_path(s, e.sim_get_stage(s, "second")) / "stage.json").exists() for s in sims)
+    e.start_simulations()  # ... then their second
+    assert all(e.sim_done(s) for s in sims)
+    last = {s: e.folder_path(s, e.sim_get_stage(s, "second")) / "last.gsd" for s in sims}
+    assert all(gsdio.frame_steps(path) == [4000] for path in last.values())
+    mtimes = {s: path.stat().st_mtime_ns for s, path in last.items()}
+    e.start_simulations()  # all finished: nothing reruns
+    assert {s: path.stat().st_mtime_ns for s, path in last.items()} == mtimes
+    return e, sims
+
+
+def test_batched_cpu_ensemble_runs_and_resumes(temp_dir):
+    pytest.importorskip("hoomd")
+    e, _ = run_batched_ensemble("pytest_hoomd_batch_cpu", "cpu", 3, max_concurrent_sims=2)
+    (get_input_dir() / e.metadata_file).unlink(missing_ok=True)
+
+
+def gpu_hoomd_available() -> bool:
+    try:
+        import hoomd
+        from pypatchy.patchy.hoomd_backend.batch import query_gpus
+    except ImportError:
+        return False
+    return hoomd.version.gpu_enabled and len(query_gpus()) > 0
+
+
+@pytest.mark.skipif(not gpu_hoomd_available(), reason="needs a GPU build of HOOMD and an NVIDIA GPU")
+def test_batched_gpu_ensemble_shares_gpus_through_mps(temp_dir):
+    import shutil
+    import os
+    from pypatchy.patchy.hoomd_backend.batch import query_gpus, visible_gpu_uuids
+    gpus = visible_gpu_uuids(query_gpus(), os.environ.get("CUDA_VISIBLE_DEVICES"))
+    e, sims = run_batched_ensemble("pytest_hoomd_batch_gpu", "gpu", 4)
+    try:
+        used, pipes = set(), set()
+        for sim in sims:
+            for stage in e.sim_get_stages(sim):
+                lines = (e.folder_path(sim, stage) / "log.log").read_text().splitlines()
+                used.update(l.split("=", 1)[1] for l in lines if l.startswith("CUDA_VISIBLE_DEVICES="))
+                pipes.update(l.split("=", 1)[1] for l in lines if l.startswith("CUDA_MPS_PIPE_DIRECTORY="))
+        # one GPU per worker, and the work spread over every GPU
+        assert used == set(gpus[:4])
+        if shutil.which("nvidia-cuda-mps-control") and not os.environ.get("CUDA_MPS_PIPE_DIRECTORY"):
+            # a dedicated daemon per batch (one per start_simulations() call), stopped afterwards
+            assert len(pipes) == 2
+            assert not any(os.path.exists(p) for p in pipes)
     finally:
         (get_input_dir() / e.metadata_file).unlink(missing_ok=True)
