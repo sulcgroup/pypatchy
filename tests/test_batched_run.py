@@ -14,8 +14,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from pypatchy.patchy import simulation_ensemble as simulation_ensemble_module
 from pypatchy.patchy.base_param_val import ParameterValue
+from pypatchy.patchy.engines import oxdna as oxdna_engine_module
 from pypatchy.patchy.ensemble_parameter import EnsembleParameter
 from pypatchy.patchy.simulation_ensemble import PatchySimulationEnsemble
 from pypatchy.patchy.simulation_specification import ParamSet
@@ -85,7 +85,8 @@ class FakeIpySim:
 def batched_ensemble(tmp_path, monkeypatch):
     """four-simulation ensemble whose filesystem-touching methods are stubbed out"""
     FakeManager.instances = []
-    monkeypatch.setattr(simulation_ensemble_module, "SimulationManager", FakeManager)
+    # the oxDNA engine's run_batch() is what creates the SimulationManager
+    monkeypatch.setattr(oxdna_engine_module, "SimulationManager", FakeManager)
     e = PatchySimulationEnsemble(
         export_name="pytest_batched_ensemble",
         setup_date=datetime.datetime(2024, 1, 1),

@@ -57,6 +57,8 @@ class PatchyServerConfig:
     # most simulations to run at once in total. None: the number of CPUs available to this process
     max_concurrent_sims: int | None = None
     no_oxpy_check: bool = True
+    # the simulation program to build, run and read simulations with (see pypatchy.patchy.engines)
+    engine: str = "oxdna"
 
     # post_init function courtesy of chatGPT
     def __post_init__(self):
@@ -126,7 +128,8 @@ class PatchyServerConfig:
             "cuda_mps": bool(self.cuda_mps),
             "max_sims_per_gpu": self.max_sims_per_gpu,
             "max_concurrent_sims": self.max_concurrent_sims,
-            "no_oxpy_check": self.no_oxpy_check
+            "no_oxpy_check": self.no_oxpy_check,
+            "engine": self.engine
         }
 def get_server_config() -> PatchyServerConfig:
     return load_server_settings(cfg["SETUP"]["server_config"])
