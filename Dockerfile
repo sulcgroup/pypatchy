@@ -192,8 +192,17 @@ RUN git config --global pull.rebase false
 ARG WITH_HOOMD=0
 ARG HOOMD_VERSION=v7.2.0
 ARG HOOMD_CUDA_ARCHITECTURES="70-real;75-real;80-real;86-real;89-real;90"
+# parallel compile jobs; empty: one per ~4 GB of available memory (nvcc compiling HOOMD for several
+# architectures needs a few GB per job, so one job per CPU can run a shared build machine out of memory)
+ARG HOOMD_BUILD_JOBS=""
 RUN if [[ "$WITH_HOOMD" == 1 ]]; then \
         set -euo pipefail; \
+        jobs="$HOOMD_BUILD_JOBS"; \
+        if [[ -z "$jobs" ]]; then \
+            jobs=$(( $(awk '/MemAvailable/ {print int($2 / 4194304)}' /proc/meminfo) )); \
+            (( jobs < 1 )) && jobs=1; (( jobs > $(nproc) )) && jobs=$(nproc); \
+        fi; \
+        echo "Building HOOMD-blue with $jobs parallel jobs"; \
         micromamba install -y -n pypatchy -c conda-forge eigen pybind11 ninja gsd && \
         git clone --branch "$HOOMD_VERSION" --depth 1 --recurse-submodules --shallow-submodules \
             https://github.com/glotzerlab/hoomd-blue.git /root/Github/hoomd-blue && \
@@ -204,7 +213,7 @@ RUN if [[ "$WITH_HOOMD" == 1 ]]; then \
             -DCMAKE_INSTALL_PREFIX="$MAMBA_ROOT_PREFIX/envs/pypatchy" \
             -DCMAKE_BUILD_TYPE=Release -DENABLE_GPU=ON -DENABLE_MPI=OFF -DBUILD_TESTING=OFF \
             -DCMAKE_CUDA_ARCHITECTURES="$HOOMD_CUDA_ARCHITECTURES" && \
-        cmake --build build -j"$(nproc)" && \
+        cmake --build build -j"$jobs" && \
         cmake --install build && \
         rm -rf build && \
         micromamba clean --all --yes && \

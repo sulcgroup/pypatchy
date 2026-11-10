@@ -14,13 +14,13 @@ for arg in "$@"; do
         SKIP_TESTS|SKIP_PUSH|KEEP_GOING|WITH_HOOMD)
             [[ "$arg" == --* || -n "$val" ]] || { echo "ERROR: unknown argument '$arg'" >&2; exit 1; }
             printf -v "$key" '%s' "${val:-1}" ;;
-        GPUS|SSH_KEY|CONTAINER_TEST_TIMEOUT|PYPATCHY_BRANCH|IMAGE_TAG|HOOMD_VERSION)
+        GPUS|SSH_KEY|CONTAINER_TEST_TIMEOUT|PYPATCHY_BRANCH|IMAGE_TAG|HOOMD_VERSION|HOOMD_BUILD_JOBS)
             [[ "$kv" == *=* ]] || { echo "ERROR: '$arg' needs a value ($key=...)" >&2; exit 1; }
             printf -v "$key" '%s' "$val" ;;
         *)
             echo "ERROR: unknown argument '$arg'" >&2
             echo "  known: --skip-tests --skip-push --keep-going --gpus=all|none|auto --ssh-key=PATH --container-test-timeout=SECS" >&2
-            echo "         --with-hoomd --hoomd-version=TAG --pypatchy-branch=NAME --image-tag=TAG" >&2
+            echo "         --with-hoomd --hoomd-version=TAG --hoomd-build-jobs=N --pypatchy-branch=NAME --image-tag=TAG" >&2
             exit 1 ;;
     esac
 done
@@ -268,7 +268,8 @@ run_stage "docker build" \
     docker build -t "$IMAGE_LOCAL" --ssh default -f Dockerfile --no-cache \
         --build-arg PYPATCHY_BRANCH="$PYPATCHY_BRANCH" \
         --build-arg WITH_HOOMD="$WITH_HOOMD" \
-        --build-arg HOOMD_VERSION="$HOOMD_VERSION" .
+        --build-arg HOOMD_VERSION="$HOOMD_VERSION" \
+        --build-arg HOOMD_BUILD_JOBS="${HOOMD_BUILD_JOBS:-}" .
 
 if [[ "$SKIP_TESTS" -ne 1 ]]; then
     # test_seqdesign.py is excluded: it imports the `nupack` package, which is
