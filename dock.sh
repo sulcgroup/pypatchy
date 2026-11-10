@@ -253,12 +253,6 @@ if [[ "$SKIP_TESTS" -ne 1 ]]; then
         --deselect tests/test_forward_flux_sample_OO.py::test_ffs_seperation_from_yml \
         --deselect "tests/test_tacoxdna.py::TestLoadFromCadnano::test_matches_correct_output"
 
-    # test_structure_slicer.py is excluded: the structure slicer is still
-    # experimental and currently fails with oxDNA rejecting the sliced
-    # structure outright (OxDNAError: bonded-neighbor distance exceeds
-    # acceptable values), not a test-harness issue. Remove once the slicer
-    # itself is stable.
-    #
     # The four --deselect'd tests are known failures, still to be investigated
     # (verified 2026-10-21, 322 others pass):
     #   test_tile_4x4_clusters_match_pycluster - KeyError: '8' in ensemble_parameter.__getitem__
@@ -270,7 +264,6 @@ if [[ "$SKIP_TESTS" -ne 1 ]]; then
     # Remove a --deselect once its test is fixed.
     run_stage "pypatchy pytest" \
         container_pytest pypatchy \
-        --ignore=tests/test_structure_slicer.py \
         --deselect tests/test_analysis.py::test_tile_4x4_clusters_match_pycluster \
         --deselect tests/test_analysis.py::test_analysis \
         --deselect tests/test_ensembles_advanced.py::test_dilute \
