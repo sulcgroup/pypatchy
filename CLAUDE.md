@@ -132,5 +132,6 @@ Inside the `pypatchy` Docker image (built from this repo's `Dockerfile`; see the
 - `simulation_data_dir` → `/root/patchy_run`
 - `oxdna_path` (in the active server config) → `/root/Github/oxDNA/`
 - Sibling repos: `/root/Github/{pypatchy,oxpy-utils,oxDNA,tacoxDNA}`.
+- HOOMD-blue (for the HOOMD simulation engine) is only present in images built with `dock.sh --with-hoomd` (`--build-arg WITH_HOOMD=1`): installed into the `pypatchy` env, source at `/root/Github/hoomd-blue`.
 
 `settings.cfg` sets `server_config = docker`; the Dockerfile writes the same content to both `spec_files/server_configs/fr.json` and `spec_files/server_configs/docker.json` so that name resolves. The two files are identical duplicates for now — if the "docker" server config ever needs to diverge from "fr", edit `docker.json` directly rather than assuming they stay in sync.

@@ -11,18 +11,41 @@ for arg in "$@"; do
     key="${kv%%=*}"; key="${key^^}"; key="${key//-/_}"
     if [[ "$kv" == *=* ]]; then val="${kv#*=}"; else val=""; fi
     case "$key" in
-        SKIP_TESTS|SKIP_PUSH|KEEP_GOING)
+        SKIP_TESTS|SKIP_PUSH|KEEP_GOING|WITH_HOOMD)
             [[ "$arg" == --* || -n "$val" ]] || { echo "ERROR: unknown argument '$arg'" >&2; exit 1; }
             printf -v "$key" '%s' "${val:-1}" ;;
-        GPUS|SSH_KEY|CONTAINER_TEST_TIMEOUT)
+        GPUS|SSH_KEY|CONTAINER_TEST_TIMEOUT|PYPATCHY_BRANCH|IMAGE_TAG|HOOMD_VERSION)
             [[ "$kv" == *=* ]] || { echo "ERROR: '$arg' needs a value ($key=...)" >&2; exit 1; }
             printf -v "$key" '%s' "$val" ;;
         *)
             echo "ERROR: unknown argument '$arg'" >&2
             echo "  known: --skip-tests --skip-push --keep-going --gpus=all|none|auto --ssh-key=PATH --container-test-timeout=SECS" >&2
+            echo "         --with-hoomd --hoomd-version=TAG --pypatchy-branch=NAME --image-tag=TAG" >&2
             exit 1 ;;
     esac
 done
+
+# ---------------------------------------------------------------------------
+# What goes in the image, and what it's called:
+#   WITH_HOOMD=1          also build HOOMD-blue (HOOMD_VERSION, a hoomd-blue git tag) for
+#                         pypatchy's HOOMD simulation engine
+#   PYPATCHY_BRANCH=NAME  pypatchy branch to install (default main)
+#   IMAGE_TAG=TAG         tag for the local (patchy:TAG) and pushed images. Default: "latest",
+#                         or "hoomd" for a HOOMD build. A build of a branch other than main
+#                         must name its tag (or --skip-push), so it can't overwrite :latest.
+# ---------------------------------------------------------------------------
+WITH_HOOMD="${WITH_HOOMD:-0}"
+HOOMD_VERSION="${HOOMD_VERSION:-v7.2.0}"
+PYPATCHY_BRANCH="${PYPATCHY_BRANCH:-main}"
+if [[ -z "${IMAGE_TAG:-}" ]]; then
+    if [[ "$PYPATCHY_BRANCH" != "main" && "${SKIP_PUSH:-0}" -ne 1 ]]; then
+        echo "ERROR: building pypatchy branch '$PYPATCHY_BRANCH': name the image with --image-tag=TAG" >&2
+        echo "  (or pass --skip-push), so a branch build can't be published as :latest" >&2
+        exit 1
+    fi
+    if [[ "$WITH_HOOMD" -eq 1 ]]; then IMAGE_TAG="hoomd"; else IMAGE_TAG="latest"; fi
+fi
+echo "Image: patchy:$IMAGE_TAG (pypatchy branch: $PYPATCHY_BRANCH, HOOMD: $([[ "$WITH_HOOMD" -eq 1 ]] && echo "$HOOMD_VERSION" || echo no))"
 
 # ---------------------------------------------------------------------------
 # SSH agent setup: the `docker build` below forwards this agent into the build
@@ -55,7 +78,7 @@ fi
 # ---------------------------------------------------------------------------
 REQUIRED_REPOS=(
     "git@github.com:JeDeveloper/oxDNA.git"
-    "git@github.com:sulcgroup/pypatchy.git#main"
+    "git@github.com:sulcgroup/pypatchy.git#$PYPATCHY_BRANCH"
     "git@github.com:sulcgroup/oxpy-utils.git"
     "https://github.com/lorenzo-rovigatti/tacoxDNA.git"
 )
@@ -94,6 +117,20 @@ for spec in "${REQUIRED_REPOS[@]}"; do
     fi
 done
 
+if [[ "$WITH_HOOMD" -eq 1 ]]; then
+    hoomd_url="https://github.com/glotzerlab/hoomd-blue.git"
+    if ! out="$(git ls-remote --tags "$hoomd_url" "refs/tags/$HOOMD_VERSION" 2>&1)"; then
+        echo "  MISSING  $hoomd_url  --  cannot access repo:"
+        echo "$out" | sed 's/^/               /'
+        repo_check_failed=1
+    elif [[ -z "$out" ]]; then
+        echo "  MISSING  $hoomd_url  --  tag '$HOOMD_VERSION' not found"
+        repo_check_failed=1
+    else
+        echo "  ok       $hoomd_url  (tag: $HOOMD_VERSION)"
+    fi
+fi
+
 if [[ "$repo_check_failed" -ne 0 ]]; then
     echo >&2
     echo "ERROR: one or more required repositories are not accessible with the" >&2
@@ -117,8 +154,8 @@ echo
 # so e.g. run `SKIP_TESTS=1 SKIP_PUSH=1 bash dock.sh` (or equivalently
 # `bash dock.sh --skip-tests --skip-push`) to only build and not test or push
 # ---------------------------------------------------------------------------
-IMAGE_LOCAL="patchy:latest"
-IMAGE_REMOTE="joshuaevanslowell/oxdna-pypatchy:latest"
+IMAGE_LOCAL="patchy:$IMAGE_TAG"
+IMAGE_REMOTE="joshuaevanslowell/oxdna-pypatchy:$IMAGE_TAG"
 SKIP_TESTS="${SKIP_TESTS:-0}"
 SKIP_PUSH="${SKIP_PUSH:-0}"
 KEEP_GOING="${KEEP_GOING:-0}"
@@ -228,7 +265,10 @@ container_pytest() {
 }
 
 run_stage "docker build" \
-    docker build -t "$IMAGE_LOCAL" --ssh default -f Dockerfile --no-cache .
+    docker build -t "$IMAGE_LOCAL" --ssh default -f Dockerfile --no-cache \
+        --build-arg PYPATCHY_BRANCH="$PYPATCHY_BRANCH" \
+        --build-arg WITH_HOOMD="$WITH_HOOMD" \
+        --build-arg HOOMD_VERSION="$HOOMD_VERSION" .
 
 if [[ "$SKIP_TESTS" -ne 1 ]]; then
     # test_seqdesign.py is excluded: it imports the `nupack` package, which is

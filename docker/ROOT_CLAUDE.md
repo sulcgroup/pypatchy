@@ -10,10 +10,11 @@ A ready-to-run environment for designing, compiling, and simulating DNA-nanotech
 
 | Directory | GitHub repo | Branch | Role |
 |---|---|---|---|
-| `pypatchy` | `sulcgroup/pypatchy` | `main` | Top-level package. Defines polycube rules, converts them to oxDNA-compatible particles, builds/runs simulation ensembles, analyzes results. |
+| `pypatchy` | `sulcgroup/pypatchy` | `main` (or `dock.sh --pypatchy-branch`) | Top-level package. Defines polycube rules, converts them to oxDNA-compatible particles, builds/runs simulation ensembles, analyzes results. |
 | `oxpy-utils` | `sulcgroup/oxpy-utils` | default | Simulation-running library (VMMC, FFS, umbrella sampling, sequence design) wrapping the `oxpy` Python bindings. Used by pypatchy's simulation-execution layer. |
 | `oxDNA` | `JeDeveloper/oxDNA` | default | The C++ simulation engine itself, plus its Python bindings (`oxpy`) and analysis tools (`oat`). Compiled here with the `romano` and `rovigatti` patchy-particle interaction contrib models. |
 | `tacoxDNA` | `lorenzo-rovigatti/tacoxDNA` | default | Cloned as a sibling because oxpy-utils' tacoxDNA bridge and its tests default to looking for it at `/root/Github/tacoxDNA`. |
+| `hoomd-blue` | `glotzerlab/hoomd-blue` | tag `v7.2.0` | **Only in images built with `dock.sh --with-hoomd`** (tagged `:hoomd` by default). HOOMD-blue MD, built from source with GPU support (no MPI) and installed into the `pypatchy` env with `gsd`; used by pypatchy's HOOMD simulation engine (server config `"engine": "hoomd"`). The build directory is deleted after install. |
 
 This image does **not** clone or build `sulcgroup/polycubes-clone` (the TLM/`libtlm` C++ lattice-MC engine) — that repo is private and not needed for the standard build. A couple of standalone example scripts (`examples/run_libtlm.py`, `examples/tlm_vmmc_physics_demo/`) reference `libtlm` directly and will fail with an `ImportError` unless you separately compile that repo yourself and have access to it; nothing else in pypatchy imports it eagerly. `pypatchy/structure.py`'s `to_tlm_topology()` does a lazy `import libtlm` inside the method body for the same reason — importing `pypatchy.structure` itself never requires `libtlm`.
 

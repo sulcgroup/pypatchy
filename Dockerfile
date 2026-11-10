@@ -52,7 +52,9 @@ RUN apt-get update && apt-get install -y bzip2 ca-certificates \
  && micromamba --version
 # clone oxDNA
 RUN --mount=type=ssh git clone git@github.com:JeDeveloper/oxDNA.git /root/Github/oxDNA
-RUN --mount=type=ssh git clone git@github.com:sulcgroup/pypatchy.git /root/Github/pypatchy && cd /root/Github/pypatchy && git checkout main
+# pypatchy branch to install (dock.sh --pypatchy-branch=...)
+ARG PYPATCHY_BRANCH=main
+RUN --mount=type=ssh git clone git@github.com:sulcgroup/pypatchy.git /root/Github/pypatchy && cd /root/Github/pypatchy && git checkout "$PYPATCHY_BRANCH"
 RUN --mount=type=ssh git clone git@github.com:sulcgroup/oxpy-utils.git /root/Github/oxpy-utils
 # oxpy-utils' tacoxDNA bridge (oxpy_utils/structure_editor/dna_structure.py) and
 # tests/test_tacoxdna.py both default to looking for this repo as a sibling
@@ -181,6 +183,36 @@ make rovigatti -j$(nproc)
 
 RUN cd ~/Github/oxDNA/analysis && bash build.sh
 RUN git config --global pull.rebase false
+
+# optional: HOOMD-blue, for pypatchy's HOOMD simulation engine (dock.sh --with-hoomd, or
+# `docker build --build-arg WITH_HOOMD=1`). Built from source with GPU support (no MPI) and installed into the
+# pypatchy env, along with gsd (pypatchy's HOOMD backend reads and writes GSD files). No GPU is visible during
+# `docker build`, so this compiles for a fixed list of architectures: SASS for Volta through Hopper, plus PTX
+# for the newest so later GPUs can JIT-compile it.
+ARG WITH_HOOMD=0
+ARG HOOMD_VERSION=v7.2.0
+ARG HOOMD_CUDA_ARCHITECTURES="70-real;75-real;80-real;86-real;89-real;90"
+RUN if [[ "$WITH_HOOMD" == 1 ]]; then \
+        set -euo pipefail; \
+        micromamba install -y -n pypatchy -c conda-forge eigen pybind11 ninja gsd && \
+        git clone --branch "$HOOMD_VERSION" --depth 1 --recurse-submodules --shallow-submodules \
+            https://github.com/glotzerlab/hoomd-blue.git /root/Github/hoomd-blue && \
+        cd /root/Github/hoomd-blue && \
+        cmake -B build -S . -GNinja \
+            -DCMAKE_MAKE_PROGRAM="$MAMBA_ROOT_PREFIX/envs/pypatchy/bin/ninja" \
+            -DPython_EXECUTABLE="$MAMBA_ROOT_PREFIX/envs/pypatchy/bin/python" \
+            -DCMAKE_INSTALL_PREFIX="$MAMBA_ROOT_PREFIX/envs/pypatchy" \
+            -DCMAKE_BUILD_TYPE=Release -DENABLE_GPU=ON -DENABLE_MPI=OFF -DBUILD_TESTING=OFF \
+            -DCMAKE_CUDA_ARCHITECTURES="$HOOMD_CUDA_ARCHITECTURES" && \
+        cmake --build build -j"$(nproc)" && \
+        cmake --install build && \
+        rm -rf build && \
+        micromamba clean --all --yes && \
+        cd / && micromamba run -n pypatchy python -c \
+            "import hoomd, gsd; assert hoomd.version.gpu_enabled; print('HOOMD', hoomd.version.version, 'GPU build')"; \
+    else \
+        echo "Skipping HOOMD-blue (WITH_HOOMD=$WITH_HOOMD)"; \
+    fi
 
 # start bash
 #ENTRYPOINT ["/bin/bash", "-c"]
