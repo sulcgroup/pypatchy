@@ -173,8 +173,10 @@ class RigidPatchyModel:
                 "mass": BODY_MASS,
                 # solid sphere
                 "moment_inertia": [0.4 * BODY_MASS * radius ** 2] * 3,
+                # site k is the particle type's k-th patch
                 "sites": [{"type": site_names[(patch.color(), float(patch.strength()))],
-                           "position": [float(x) for x in patch.position()]}
+                           "position": [float(x) for x in patch.position()],
+                           "patch_id": int(patch.get_id())}
                           for patch in p.patches()],
             })
         return cls(bodies, sites, eps, patch_sigma, patch_rcut, particle_epsilon)
@@ -273,6 +275,72 @@ class RigidPatchyModel:
                 scene: PLPSimulation,
                 extra_particles: Iterable[PLPatchyParticle] = ()) -> RigidPatchyEnergySession:
         return RigidPatchyEnergySession(self, scene, extra_particles)
+
+    # -------------------------------------------------------------------------------------- bonds
+    def site_coordinates(self,
+                         body_types: np.ndarray,
+                         positions: np.ndarray,
+                         rotations: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        """
+        :param body_types: (N,) body index of each particle (see body_index)
+        :param positions: (N, 3) centre positions
+        :param rotations: (N, 3, 3) lab-frame rotation matrices
+        :return: (lab-frame site positions (M, 3), owning particle (M,), site index within its body (M,),
+            site type (M,))
+        """
+        body_types = np.asarray(body_types)
+        parts = []
+        for b, local in enumerate(self._site_pos):
+            idx = np.nonzero(body_types == b)[0]
+            if len(idx) == 0 or len(local) == 0:
+                continue
+            pos = np.einsum("nij,sj->nsi", rotations[idx], local) + positions[idx, None, :]
+            parts.append((pos.reshape(-1, 3),
+                          np.repeat(idx, len(local)),
+                          np.tile(np.arange(len(local)), len(idx)),
+                          np.tile(self._site_types[b], len(idx))))
+        if not parts:
+            return np.zeros((0, 3)), np.zeros(0, int), np.zeros(0, int), np.zeros(0, int)
+        return tuple(np.concatenate(arrays) for arrays in zip(*parts))
+
+    def patch_bonds(self,
+                    body_types: np.ndarray,
+                    positions: np.ndarray,
+                    rotations: np.ndarray,
+                    box: np.ndarray,
+                    bond_energy: float = 0.) -> list[tuple[int, int, int, int, float]]:
+        """
+        Finds bonded patches: pairs of sites on different particles whose patch-patch energy is below
+        `bond_energy`. The default (0) counts every attracting pair within patch_rcut, the same convention as
+        PLPSimulation.compute_scene_graph()'s bond_energy.
+        :param body_types, positions, rotations: as for site_coordinates
+        :param box: periodic box side lengths
+        :return: (particle i, site index on i, particle j, site index on j, energy) for each bonded site pair,
+            with i < j
+        """
+        from scipy.spatial import cKDTree
+        box = np.asarray(box, dtype=float)
+        sites, owner, local, site_type = self.site_coordinates(body_types, positions, rotations)
+        if len(sites) < 2:
+            return []
+        wrapped = np.mod(sites, box)
+        wrapped[wrapped >= box] = 0.
+        pairs = cKDTree(wrapped, boxsize=box).query_pairs(self.patch_rcut, output_type="ndarray")
+        if len(pairs) == 0:
+            return []
+        a, b = pairs[:, 0], pairs[:, 1]
+        eps = self.site_epsilon[site_type[a], site_type[b]]
+        keep = (owner[a] != owner[b]) & (eps != 0)
+        a, b, eps = a[keep], b[keep], eps[keep]
+        delta = sites[b] - sites[a]
+        delta -= box * np.round(delta / box)
+        energy = self.patch_well(np.einsum("ij,ij->i", delta, delta), eps)
+        bonds = []
+        for x, y, e in zip(a[energy < bond_energy], b[energy < bond_energy], energy[energy < bond_energy]):
+            if owner[x] > owner[y]:
+                x, y = y, x
+            bonds.append((int(owner[x]), int(local[x]), int(owner[y]), int(local[y]), float(e)))
+        return bonds
 
 
 class RigidPatchyEnergySession:

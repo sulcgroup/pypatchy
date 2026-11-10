@@ -1119,3 +1119,64 @@ class GraphsFromRaspberryPatchyBonds(AnalysisPipelineHead):
 
         return ObjectPipelineData(graphs)
 
+
+
+class GraphsFromGSD(AnalysisPipelineHead):
+    """
+    Reads the cluster graphs of a HOOMD-engine simulation from its GSD trajectories (one per stage), finding patch
+    bonds with the model each stage was run with (its stage.json). Needs no observable: bonds are computed after
+    the fact from particle positions and orientations.
+
+    Produces the same data as GraphsFromClusterTxt, so ClassifyClusters, ClassifyPolycubeClusters,
+    ComputeClusterSizeData etc. work on it unchanged: for each step, a list of graphs, one per cluster of two or
+    more bonded particles. Nodes are particle indices with a "particle_type" attribute (the type id); edges also
+    carry "patches" (the bonded patch pairs, one per tooth for multidentate patches) and "energy".
+
+    At a step where one stage ends and the next begins, the next stage's frame is used (after that stage's
+    particle additions).
+    """
+
+    bond_energy: float
+
+    def __init__(self,
+                 name: str,
+                 input_tstep: int,
+                 output_tstep: Union[int, None] = None,
+                 bond_energy: float = 0.):
+        """
+        :param name: name of step
+        :param input_tstep: the simulations' print_conf_interval
+        :param output_tstep: output timepoint interval (a multiple of input_tstep)
+        :param bond_energy: patch pairs with a patch-patch energy below this are bonded. The default (0) counts
+            every attracting pair within the model's patch_rcut, the same convention as
+            PLPSimulation.compute_scene_graph()
+        """
+        super().__init__(name, input_tstep, output_tstep)
+        self.bond_energy = bond_energy
+
+    load_cached_files = load_cached_object_data
+
+    def get_data_in_filenames(self) -> list[str]:
+        from .hoomd_backend.run_stage import STAGE_SPEC_FILE, TRAJECTORY_FILE
+        return [TRAJECTORY_FILE, STAGE_SPEC_FILE]
+
+    def get_output_data_type(self) -> PipelineDataType:
+        return PipelineDataType.PIPELINE_DATATYPE_GRAPH
+
+    def __call__(self, _, __, stages: list[Stage], traj_files: list[Path], spec_files: list[Path]) -> ObjectPipelineData:
+        import gsd.hoomd
+        from .hoomd_backend.gsdio import frame_cluster_graphs
+        from .hoomd_backend.model import RigidPatchyModel
+        graphs: dict[int, list[nx.Graph]] = {}
+        for stage, traj_file, spec_file in zip(stages, traj_files, spec_files):
+            if not traj_file.is_file():
+                # this stage hasn't run (yet)
+                continue
+            with spec_file.open() as f:
+                model = RigidPatchyModel.from_dict(json.load(f)["model"])
+            with gsd.hoomd.open(str(traj_file), "r") as traj:
+                for frame in traj:
+                    step = int(frame.configuration.step)
+                    if step % self.output_tstep == 0:
+                        graphs[step] = frame_cluster_graphs(frame, model, self.bond_energy)
+        return ObjectPipelineData(graphs)

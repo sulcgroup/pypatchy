@@ -10,6 +10,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Union
 
+import networkx as nx
 import numpy as np
 
 from ..pl.plparticle import PLPatchyParticle
@@ -102,6 +103,45 @@ def frame_to_scene(frame, particle_set: PLParticleSet, model: RigidPatchyModel) 
         p.L = body_angmom_from_quat(orientation[uid], angmom[uid])
         scene.add_particle(p)
     return scene
+
+
+def frame_rotations(frame, indices: np.ndarray) -> np.ndarray:
+    """
+    :return: (n, 3, 3) lab-frame rotation matrices of the given particles of a GSD frame
+    """
+    from scipy.spatial.transform import Rotation
+    q = np.asarray(frame.particles.orientation, dtype=float)[indices]
+    return Rotation.from_quat(q[:, [1, 2, 3, 0]]).as_matrix().reshape(-1, 3, 3)
+
+
+def frame_cluster_graphs(frame, model: RigidPatchyModel, bond_energy: float = 0.) -> list[nx.Graph]:
+    """
+    Finds the clusters of patch-bonded particles in a GSD frame (see RigidPatchyModel.patch_bonds for what counts
+    as a bond).
+    :return: one graph per cluster of two or more particles. Nodes are particle indices (= scene uids) with a
+        "particle_type" attribute (the pypatchy type id); edges have "patches", a list of the bonded patch pairs
+        ((particle, patch id), (particle, patch id)) - one per tooth for multidentate patches - and "energy", their
+        summed patch-patch energy
+    """
+    typeid = np.asarray(frame.particles.typeid)
+    centres = np.nonzero(typeid < len(model.bodies))[0]
+    body_types = typeid[centres]
+    positions = np.asarray(frame.particles.position, dtype=float)[centres]
+    box = np.asarray(frame.configuration.box[:3], dtype=float)
+    bonds = model.patch_bonds(body_types, positions, frame_rotations(frame, centres), box, bond_energy)
+
+    G = nx.Graph()
+    for i, site_i, j, site_j, energy in bonds:
+        pair = ((i, model.bodies[body_types[i]]["sites"][site_i].get("patch_id", site_i)),
+                (j, model.bodies[body_types[j]]["sites"][site_j].get("patch_id", site_j)))
+        if G.has_edge(i, j):
+            G.edges[i, j]["patches"].append(pair)
+            G.edges[i, j]["energy"] += energy
+        else:
+            G.add_edge(i, j, patches=[pair], energy=energy)
+    for n in G.nodes:
+        G.nodes[n]["particle_type"] = model.bodies[body_types[n]]["type_id"]
+    return [G.subgraph(component).copy() for component in nx.connected_components(G)]
 
 
 def write_frame(path: Union[str, Path], frame):

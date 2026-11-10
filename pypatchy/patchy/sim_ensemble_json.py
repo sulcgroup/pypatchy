@@ -261,6 +261,13 @@ class SimEnsembleJsonEncoder(PLJSONEncoder):
                 output_tstep=json_data["output_tstep"],
                 source=context.observables[json_data["source"]]
             )
+        elif step_type == "GraphsFromGSD":
+            return GraphsFromGSD(
+                name=json_data["name"],
+                input_tstep=json_data["input_tstep"],
+                output_tstep=json_data["output_tstep"],
+                bond_energy=json_data["bond_energy"]
+            )
         else:
             raise Exception(f"unknown step type: {step_type}")
 
@@ -294,6 +301,8 @@ class SimEnsembleJsonEncoder(PLJSONEncoder):
             step_dict["aggregate_over"] = step.aggregate_over.param_key
         elif type(step) == GraphsFromRaspberryPatchyBonds:
             step_dict["source"] = step.source_observable.file_name
+        elif type(step) == GraphsFromGSD:
+            step_dict["bond_energy"] = step.bond_energy
 
         return step_dict
 

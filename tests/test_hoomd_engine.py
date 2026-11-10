@@ -279,6 +279,30 @@ def test_new_particles_are_marked_for_thermalizing():
     assert unthermalized == [4]
 
 
+@pytest.mark.parametrize("mdt", [None, MDT], ids=["unidentate", "multidentate"])
+def test_cluster_graphs_from_gsd_frames(ducky, mdt):
+    """bonds found in a GSD frame are the scene's bonds, patch by patch (tooth by tooth)"""
+    pytest.importorskip("gsd")
+    from pypatchy.patchy.hoomd_backend import gsdio
+    scene, m = ducky_scene(ducky, mdt)
+    frame, _ = gsdio.scene_to_frame(scene, m, step=0)
+    clusters = gsdio.frame_cluster_graphs(frame, m)
+    assert len(clusters) == 1
+    (G,) = clusters
+    assert {frozenset(e) for e in G.edges} == {frozenset(e) for e in scene.compute_scene_graph().edges}
+    for n in G.nodes:
+        assert G.nodes[n]["particle_type"] == scene.get_particle(n).get_type()
+    for u, v, patches in G.edges(data="patches"):
+        assert len(patches) == (1 if mdt is None else 4)
+        for (pu, patch_u), (pv, patch_v) in patches:
+            assert {pu, pv} == {u, v}
+            gap = np.linalg.norm(scene.get_particle(pu).patch_position(scene.get_particle(pu).patch_by_id(patch_u))
+                                 - scene.get_particle(pv).patch_position(scene.get_particle(pv).patch_by_id(patch_v)))
+            assert gap == pytest.approx(0.05, abs=1e-4)
+    # a stricter bond threshold than any of these bonds: no clusters
+    assert gsdio.frame_cluster_graphs(frame, m, bond_energy=-100.) == []
+
+
 # ------------------------------------------------------------------------------------------ HOOMD
 def hoomd_potential_energy(scene: PLPSimulation, m: RigidPatchyModel, tmp_path) -> float:
     hoomd = pytest.importorskip("hoomd")
@@ -398,5 +422,23 @@ def test_two_stage_hoomd_ensemble_runs_and_continues(temp_dir):
         assert e.get_scene(sim, second, step=3000).time() == 3000
         # running again finds nothing to do
         e.start_simulations()
+
+        # post-hoc analysis from the GSD trajectories, through the ordinary analysis pipeline
+        from pypatchy.analysis.analysis_data import TIMEPOINT_KEY
+        from pypatchy.patchy.analysis_lib import ComputeClusterSizeData, GraphsFromGSD
+        from pypatchy.patchy.sim_ensemble_json import SimEnsembleJsonEncoder
+        e.add_analysis_steps(GraphsFromGSD("gsd_graphs", input_tstep=1000),
+                             ComputeClusterSizeData("cluster_sizes"),
+                             ("gsd_graphs", "cluster_sizes"))
+        graphs = e.get_data("gsd_graphs", sim).get()
+        assert sorted(graphs) == [0, 1000, 2000, 3000]
+        for clusters in graphs.values():
+            assert all(len(g) >= 2 for g in clusters)
+        sizes = e.get_data("cluster_sizes", sim).get()
+        assert sorted(sizes[TIMEPOINT_KEY]) == [0, 1000, 2000, 3000]
+        # the step survives the ensemble's metadata JSON
+        step = e.get_pipeline_step("gsd_graphs")
+        again = SimEnsembleJsonEncoder().read_analysis_step(SimEnsembleJsonEncoder().write_analysis_step(step), e)
+        assert isinstance(again, GraphsFromGSD) and again.bond_energy == 0. and again.input_tstep == 1000
     finally:
         (get_input_dir() / e.metadata_file).unlink(missing_ok=True)
