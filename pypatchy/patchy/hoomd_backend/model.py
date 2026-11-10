@@ -111,17 +111,17 @@ class RigidPatchyModel:
         self.patch_sigma = float(patch_sigma)
         self.patch_rcut = float(patch_rcut)
         self.particle_epsilon = float(particle_epsilon)
-        self._index()
+        self.build_index()
 
-    def _index(self):
+    def build_index(self):
         site_idx = {s["name"]: i for i, s in enumerate(self.sites)}
-        self._type_index = {b["type_id"]: i for i, b in enumerate(self.bodies)}
-        self._radii = np.array([b["radius"] for b in self.bodies], dtype=float)
-        self._site_types = [np.array([site_idx[s["type"]] for s in b["sites"]], dtype=int) for b in self.bodies]
-        self._site_pos = [np.array([s["position"] for s in b["sites"]], dtype=float).reshape(-1, 3)
+        self.type_index = {b["type_id"]: i for i, b in enumerate(self.bodies)}
+        self.radii = np.array([b["radius"] for b in self.bodies], dtype=float)
+        self.site_type_lists = [np.array([site_idx[s["type"]] for s in b["sites"]], dtype=int) for b in self.bodies]
+        self.site_positions = [np.array([s["position"] for s in b["sites"]], dtype=float).reshape(-1, 3)
                           for b in self.bodies]
-        self._site_reach = np.array([np.linalg.norm(p, axis=1).max() if len(p) else 0. for p in self._site_pos])
-        self._gauss_shift = math.exp(-self.patch_rcut ** 2 / (2 * self.patch_sigma ** 2))
+        self.site_reach = np.array([np.linalg.norm(p, axis=1).max() if len(p) else 0. for p in self.site_positions])
+        self.gauss_shift = math.exp(-self.patch_rcut ** 2 / (2 * self.patch_sigma ** 2))
 
     # -------------------------------------------------------------------------------------- construction
     @classmethod
@@ -215,17 +215,17 @@ class RigidPatchyModel:
         return self.body_type_names() + [s["name"] for s in self.sites]
 
     def body_index(self, type_id: int) -> int:
-        return self._type_index[type_id]
+        return self.type_index[type_id]
 
     def wca_sigma(self, i: int, j: int) -> float:
-        return float(self._radii[i] + self._radii[j])
+        return float(self.radii[i] + self.radii[j])
 
     def screen_radius(self) -> float:
         """
         largest centre-centre distance at which two particles can interact
         """
-        wca = WCA_CUTOFF_FACTOR * 2 * self._radii.max()
-        patch = 2 * self._site_reach.max() + self.patch_rcut
+        wca = WCA_CUTOFF_FACTOR * 2 * self.radii.max()
+        patch = 2 * self.site_reach.max() + self.patch_rcut
         return float(max(wca, patch))
 
     def patch_reach(self) -> float:
@@ -242,7 +242,7 @@ class RigidPatchyModel:
         return np.where(r < WCA_CUTOFF_FACTOR * sigma, e, 0.)
 
     def patch_well(self, r2: np.ndarray, eps: np.ndarray) -> np.ndarray:
-        e = -eps * (np.exp(-r2 / (2 * self.patch_sigma ** 2)) - self._gauss_shift)
+        e = -eps * (np.exp(-r2 / (2 * self.patch_sigma ** 2)) - self.gauss_shift)
         return np.where(r2 < self.patch_rcut ** 2, e, 0.)
 
     def pair_energy(self,
@@ -260,15 +260,15 @@ class RigidPatchyModel:
         d = d - box * np.round(d / box)
         r = float(np.linalg.norm(d))
         e = float(self.wca(r, self.wca_sigma(i, j)))
-        if r > self._site_reach[i] + self._site_reach[j] + self.patch_rcut:
+        if r > self.site_reach[i] + self.site_reach[j] + self.patch_rcut:
             return e
-        if len(self._site_types[i]) == 0 or len(self._site_types[j]) == 0:
+        if len(self.site_type_lists[i]) == 0 or len(self.site_type_lists[j]) == 0:
             return e
-        sites_i = self._site_pos[i] @ rot_i.T
-        sites_j = self._site_pos[j] @ rot_j.T + d
+        sites_i = self.site_positions[i] @ rot_i.T
+        sites_j = self.site_positions[j] @ rot_j.T + d
         delta = sites_j[None, :, :] - sites_i[:, None, :]
         r2 = np.einsum("abk,abk->ab", delta, delta)
-        eps = self.site_epsilon[np.ix_(self._site_types[i], self._site_types[j])]
+        eps = self.site_epsilon[np.ix_(self.site_type_lists[i], self.site_type_lists[j])]
         return e + float(self.patch_well(r2, eps).sum())
 
     def session(self,
@@ -290,7 +290,7 @@ class RigidPatchyModel:
         """
         body_types = np.asarray(body_types)
         parts = []
-        for b, local in enumerate(self._site_pos):
+        for b, local in enumerate(self.site_positions):
             idx = np.nonzero(body_types == b)[0]
             if len(idx) == 0 or len(local) == 0:
                 continue
@@ -298,7 +298,7 @@ class RigidPatchyModel:
             parts.append((pos.reshape(-1, 3),
                           np.repeat(idx, len(local)),
                           np.tile(np.arange(len(local)), len(idx)),
-                          np.tile(self._site_types[b], len(idx))))
+                          np.tile(self.site_type_lists[b], len(idx))))
         if not parts:
             return np.zeros((0, 3)), np.zeros(0, int), np.zeros(0, int), np.zeros(0, int)
         return tuple(np.concatenate(arrays) for arrays in zip(*parts))
@@ -363,27 +363,27 @@ class RigidPatchyEnergySession:
         if unoriented:
             raise ValueError(f"Particles {unoriented[:10]} have no orientation (a1/a3 unset); "
                              f"set one (e.g. set_rotation / set_random_orientation) before computing energies")
-        self._uids = uids
-        self._row = {uid: i for i, uid in enumerate(uids)}
-        self._types = np.array([self.model.body_index(p.get_type()) for p in particles], dtype=int)
-        self._pos = np.array([p.position() for p in particles], dtype=float).reshape(-1, 3)
-        self._rot = np.array([rotation_matrix(p) for p in particles]).reshape(-1, 3, 3)
-        self._box = np.asarray(self.scene.box_size(), dtype=float)
+        self.uid_list = uids
+        self.row_of = {uid: i for i, uid in enumerate(uids)}
+        self.body_type_array = np.array([self.model.body_index(p.get_type()) for p in particles], dtype=int)
+        self.pos_array = np.array([p.position() for p in particles], dtype=float).reshape(-1, 3)
+        self.rot_array = np.array([rotation_matrix(p) for p in particles]).reshape(-1, 3, 3)
+        self.box = np.asarray(self.scene.box_size(), dtype=float)
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         return False
 
     def uids(self) -> list[int]:
-        return list(self._uids)
+        return list(self.uid_list)
 
     def update_particle(self, particle: PLPatchyParticle):
-        row = self._row[particle.get_uid()]
-        self._pos[row] = particle.position()
-        self._rot[row] = rotation_matrix(particle)
+        row = self.row_of[particle.get_uid()]
+        self.pos_array[row] = particle.position()
+        self.rot_array[row] = rotation_matrix(particle)
 
     def positions(self, uids: Iterable[int]) -> np.ndarray:
-        return self._pos[[self._row[u] for u in uids]].reshape(-1, 3)
+        return self.pos_array[[self.row_of[u] for u in uids]].reshape(-1, 3)
 
     def neighbours(self, position: np.ndarray, candidates: Iterable[int]) -> list[int]:
         """
@@ -393,14 +393,14 @@ class RigidPatchyEnergySession:
         if not candidates:
             return []
         delta = self.positions(candidates) - np.asarray(position)
-        delta -= self._box * np.round(delta / self._box)
+        delta -= self.box * np.round(delta / self.box)
         close = np.einsum("ij,ij->i", delta, delta) <= self.model.screen_radius() ** 2
         return [uid for uid, c in zip(candidates, close) if c]
 
     def pair_energy(self, uid1: int, uid2: int) -> float:
-        a, b = self._row[uid1], self._row[uid2]
-        return self.model.pair_energy(self._types[a], self._pos[a], self._rot[a],
-                                      self._types[b], self._pos[b], self._rot[b], self._box)
+        a, b = self.row_of[uid1], self.row_of[uid2]
+        return self.model.pair_energy(self.body_type_array[a], self.pos_array[a], self.rot_array[a],
+                                      self.body_type_array[b], self.pos_array[b], self.rot_array[b], self.box)
 
     def energy_with(self, uid: int, others: Iterable[int]) -> float:
         return sum(self.pair_energy(uid, other) for other in others if other != uid)
@@ -410,12 +410,12 @@ class RigidPatchyEnergySession:
         :return: pairs (uid1, uid2), uid1 < uid2, of the given particles (default: all) within interaction range
         """
         from scipy.spatial import cKDTree
-        uids = sorted(self._uids if uids is None else uids)
+        uids = sorted(self.uid_list if uids is None else uids)
         if len(uids) < 2:
             return []
-        pos = np.mod(self.positions(uids), self._box)
-        pos[pos >= self._box] = 0.
-        pairs = cKDTree(pos, boxsize=self._box).query_pairs(self.model.screen_radius(), output_type="ndarray")
+        pos = np.mod(self.positions(uids), self.box)
+        pos[pos >= self.box] = 0.
+        pairs = cKDTree(pos, boxsize=self.box).query_pairs(self.model.screen_radius(), output_type="ndarray")
         return [(uids[i], uids[j]) if uids[i] < uids[j] else (uids[j], uids[i]) for i, j in pairs]
 
     def pair_energies(self, uids: Union[None, Iterable[int]] = None) -> dict[tuple[int, int], float]:

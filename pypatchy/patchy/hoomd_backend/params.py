@@ -80,7 +80,7 @@ OXDNA_HINTS = {
 }
 
 
-def _coerce(param: HOOMDParam, value: Any) -> Any:
+def coerce_value(param: HOOMDParam, value: Any) -> Any:
     """
     converts a value to the parameter's type, refusing anything that would change it (e.g. 2.5 for a step count)
     """
@@ -130,10 +130,10 @@ def resolve_hoomd_params(values: dict[str, Any],
     # explicit values first, so defaults that depend on other parameters can see them
     for name, p in HOOMD_PARAMS.items():
         if name in values:
-            resolved[name] = _coerce(p, values[name])
+            resolved[name] = coerce_value(p, values[name])
     for name, p in HOOMD_PARAMS.items():
         if name not in resolved:
-            resolved[name] = _coerce(p, p.default(resolved) if callable(p.default) else p.default)
+            resolved[name] = coerce_value(p, p.default(resolved) if callable(p.default) else p.default)
             defaulted.add(name)
 
     for name in ("kT", "dt", "patch_sigma", "patch_rcut", "print_conf_interval", "print_energy_every"):

@@ -75,10 +75,10 @@ class MPSDaemon:
 
     def __init__(self):
         self.env: dict[str, str] = {}
-        self._owned: Union[None, tuple[str, str]] = None
+        self.owned_daemon: Union[None, tuple[str, str]] = None
 
     @staticmethod
-    def _control(command: Union[str, None], pipe_dir: str, log_dir: str, **kwargs) -> subprocess.CompletedProcess:
+    def control(command: Union[str, None], pipe_dir: str, log_dir: str, **kwargs) -> subprocess.CompletedProcess:
         env = {**os.environ, "CUDA_MPS_PIPE_DIRECTORY": pipe_dir, "CUDA_MPS_LOG_DIRECTORY": log_dir}
         if command is None:
             return subprocess.run(["nvidia-cuda-mps-control", "-d"], env=env, capture_output=True, text=True,
@@ -89,7 +89,7 @@ class MPSDaemon:
     @classmethod
     def responds(cls, pipe_dir: str, log_dir: str) -> bool:
         try:
-            return cls._control("get_default_active_thread_percentage", pipe_dir, log_dir, timeout=10).returncode == 0
+            return cls.control("get_default_active_thread_percentage", pipe_dir, log_dir, timeout=10).returncode == 0
         except (subprocess.SubprocessError, OSError):
             return False
 
@@ -107,27 +107,27 @@ class MPSDaemon:
         pipe_dir, log_dir = f"/tmp/mps-pipe_{tag}", f"/tmp/mps-log_{tag}"
         os.makedirs(pipe_dir)
         os.makedirs(log_dir)
-        result = self._control(None, pipe_dir, log_dir)
+        result = self.control(None, pipe_dir, log_dir)
         # `-d` returns as soon as the daemon forks: check it's actually answering
         if result.returncode != 0 or not self.responds(pipe_dir, log_dir):
             warnings.warn(f"Couldn't start nvidia-cuda-mps-control ({result.stderr.strip() or 'not responding'}; "
                           f"see {log_dir}); running HOOMD workers without MPS")
-            self._control("quit", pipe_dir, log_dir, timeout=30)
+            self.control("quit", pipe_dir, log_dir, timeout=30)
             shutil.rmtree(pipe_dir, ignore_errors=True)
             return self
-        self._owned = (pipe_dir, log_dir)
+        self.owned_daemon = (pipe_dir, log_dir)
         self.env = {"CUDA_MPS_PIPE_DIRECTORY": pipe_dir, "CUDA_MPS_LOG_DIRECTORY": log_dir}
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        if self._owned is not None:
-            pipe_dir, log_dir = self._owned
+        if self.owned_daemon is not None:
+            pipe_dir, log_dir = self.owned_daemon
             try:
-                self._control("quit", pipe_dir, log_dir, timeout=60)
+                self.control("quit", pipe_dir, log_dir, timeout=60)
             except (subprocess.SubprocessError, OSError) as e:
                 warnings.warn(f"Failed to stop the MPS daemon in {pipe_dir}: {e}")
             shutil.rmtree(pipe_dir, ignore_errors=True)
-            self._owned = None
+            self.owned_daemon = None
         return False
 
 
@@ -199,7 +199,7 @@ def run_stage_dirs(stage_dirs: list[Path],
                             break  # every GPU is full; wait
                         job.gpu = gpu
                     queue.pop(0)
-                    _launch(job, mps_env if job.device == "gpu" else {})
+                    launch_job(job, mps_env if job.device == "gpu" else {})
                     running.append(job)
                     if job.device == "gpu":
                         launched_gpu = True
@@ -222,7 +222,7 @@ def run_stage_dirs(stage_dirs: list[Path],
     return exit_codes
 
 
-def _launch(job: StageJob, extra_env: dict[str, str]):
+def launch_job(job: StageJob, extra_env: dict[str, str]):
     env = {**os.environ, **extra_env}
     if job.gpu is not None:
         env["CUDA_VISIBLE_DEVICES"] = job.gpu
