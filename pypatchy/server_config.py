@@ -34,8 +34,10 @@ class PatchyServerConfig:
     confs with oxpy before run....
     """
     name: str = field()
-    oxdna_path: str = field()
-    patchy_format: str = field()
+    # oxDNA engine only (required there): oxDNA install directory, and the pypatchy writer
+    # (pypatchy.patchy.pl.patchyio) for the oxDNA patchy model the simulations use
+    oxdna_path: Union[str, None] = None
+    patchy_format: Union[str, None] = None
     slurm_bash_flags: dict[str, Any] = field(default_factory=dict)
     slurm_includes: list[str] = field(default_factory=list)
     input_file_params: ParamSet = field(default_factory=list)
@@ -62,6 +64,11 @@ class PatchyServerConfig:
 
     # post_init function courtesy of chatGPT
     def __post_init__(self):
+        if self.engine == "oxdna":
+            missing = [key for key in ("oxdna_path", "patchy_format") if getattr(self, key) is None]
+            if missing:
+                raise TypeError(f"Server config {self.name!r} uses the oxDNA engine but doesn't set "
+                                f"{' or '.join(missing)}")
         if not isinstance(self.input_file_params, ParamSet):
             self.input_file_params = ParamSet([
                 parameter_value(pkey, pval)

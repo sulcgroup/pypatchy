@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import os
+import subprocess
+import tempfile
 import warnings
 from pathlib import Path
 from typing import Any, Union
 
+import numpy as np
 from oxDNA_analysis_tools.file_info import file_info
-from oxpy_utils.oxdna_simulation import SimulationManager
+from oxpy_utils.oxdna_simulation import SimulationManager, write_input_file
 
 from ...util import EXTERNAL_OBSERVABLES
 from ..base_param_val import ParameterValue
@@ -205,3 +208,56 @@ class OxDNAEngine(SimulationEngine):
 
     def stage_log_file(self, ensemble: Any, sim: PatchySimulation, stage: Stage) -> Path:
         return ensemble.folder_path(sim, stage) / "log.log"
+
+    def trajectory_file(self, ensemble: Any, sim: PatchySimulation, stage: Stage) -> Path:
+        return ensemble.folder_path(sim) / stage.adjfn(ensemble.sim_get_param(sim, "trajectory_file"))
+
+    def generate_stages(self, ensemble: Any, sim: PatchySimulation) -> list[Stage]:
+        # reads each stage directory's oxDNA input file
+        return ensemble.sim_generate_stages(sim)
+
+    def place_random_particles(self,
+                               ensemble: Any,
+                               stage: Stage,
+                               scene: PLPSimulation,
+                               particles: list,
+                               extern: bool):
+        # default is now to use confGenerator, which can only generate a fresh conf (i.e. the
+        # first stage); later stages add particles to the existing scene directly
+        if not (extern and stage.idx() == 0):
+            super().place_random_particles(ensemble, stage, scene, particles, extern)
+            return
+        # we need particles to be sane for the stupid jurryrig i do later
+        for p in particles:
+            p.set_rotation(np.identity(3))
+            p.set_position(np.array([0, 0, 0]))
+        # add particles to scene so we can make top later
+        scene.add_particles(particles, strict_check=False) # strict check currently does nothing but might someday?
+        # create temporary directory within the simulation directory
+        with tempfile.TemporaryDirectory(dir=ensemble.folder_path(stage.spec())) as tmpdir:
+            # eventually this should be a context manager
+            w = ensemble.writer
+            w.set_directory(tmpdir)
+            files = w.write(scene, conf_file="dummy.dat")
+            inpdct = stage.iter_input_dict()
+            inpdct.update(dict(w.get_input_file_data(scene)))
+            inpdct.update(files)
+            write_input_file(Path(tmpdir) / "input", inpdct)
+
+            cmd = [str(Path(ensemble.server_settings.oxdna_path) / 'build' / 'bin' / 'confGenerator'),
+                   "input",
+                   f"{ensemble.sim_stage_get_param(stage.spec(), stage, 'density')}"]
+            # run and capture everything
+            result = subprocess.run(cmd, capture_output=True, text=True, cwd=tmpdir)
+            if result.returncode:
+                raise RuntimeError("Failed to generate conf!\n" + result.stderr)
+
+            # log stdout & sterr
+            for line in result.stdout.splitlines():
+                ensemble.get_logger().info(line)
+            for line in result.stderr.splitlines():
+                ensemble.get_logger().error(line)
+            gend_conf = w.read_scene(inpdct["topology"], inpdct["conf_file"],
+                                     scene.particle_types())
+            scene.clear_particles() # clear particles at the Singularity
+            scene.add_particles(gend_conf.particles(), False)

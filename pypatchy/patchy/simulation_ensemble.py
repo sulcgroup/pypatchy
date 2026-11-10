@@ -370,11 +370,6 @@ def build_ensemble(cfg: dict[str, Any],
     if isinstance(mdt[ENSEMBLE_SETUP_DATE], datetime.datetime):
         mdt[ENSEMBLE_SETUP_DATE] = setup_date.strftime("%Y-%m-%d")
 
-    # too difficult to make this one a ParamSet object
-    # todo: kill this, replace with server config
-    default_param_set_key = cfg.get(DEFAULT_PARAM_SET_KEY, "default")
-    default_param_set = get_param_set(default_param_set_key) if default_param_set_key else ParamSet([])
-
     params = []
 
     # load particles
@@ -514,7 +509,13 @@ def build_ensemble(cfg: dict[str, Any],
 
     else:
         server_settings = get_server_config()
-    # in case we need this
+
+    # too difficult to make this one a ParamSet object
+    # todo: kill this, replace with server config
+    # the default parameter set holds oxDNA input defaults (dt, steps, print_conf_interval, ...), so other engines
+    # only load one when the ensemble names it - otherwise its oxDNA values would silently stand in for theirs
+    default_param_set_key = cfg.get(DEFAULT_PARAM_SET_KEY, "default" if server_settings.engine == "oxdna" else None)
+    default_param_set = get_param_set(default_param_set_key) if default_param_set_key else ParamSet([])
 
     # load ensemble params from cfg
     # there should always be ensemble params in the cfg
@@ -647,7 +648,8 @@ class PatchySimulationEnsemble(Analyzable):
             self.set_server_settings(server_settings)
         else:
             self.server_settings = get_server_config()
-            self.writer = get_writer()
+            self.writer = get_writer(self.server_settings.patchy_format) \
+                if self.server_settings.patchy_format is not None else None
             self.engine = get_engine(self.server_settings.engine)
 
         # configure logging ASAP
@@ -804,7 +806,9 @@ class PatchySimulationEnsemble(Analyzable):
             self.server_settings = stgs
         else:
             self.server_settings = load_server_settings(stgs)
-        self.writer = get_writer(self.server_settings.patchy_format)
+        # oxDNA patchy-format reader/writer; None for engines that don't use one
+        self.writer = get_writer(self.server_settings.patchy_format) \
+            if self.server_settings.patchy_format is not None else None
         self.engine = get_engine(self.server_settings.engine)
         # todo: better?
         self.no_oxpy_check_energies = self.server_settings.no_oxpy_check
@@ -1002,7 +1006,7 @@ class PatchySimulationEnsemble(Analyzable):
         if not auto:
             return self.sim_get_spec_stages(sim)
         else:
-            return self.sim_generate_stages(sim)
+            return self.engine.generate_stages(self, sim)
 
     def sim_get_spec_stages(self, sim: PatchySimulation) -> list[Stage]:
         assert isinstance(sim, PatchySimulation), "Cannot invoke this method with a parameter list!"
@@ -1091,7 +1095,8 @@ class PatchySimulationEnsemble(Analyzable):
 
     def sim_generate_stages(self, sim: PatchySimulation) -> list[Stage]:
         """
-        generates staging information based on existing simulation data files, useful for more ad-hoc simulations
+        generates staging information based on existing simulation data files, useful for more ad-hoc simulations.
+        oxDNA simulations only (reads oxDNA input files); use sim_get_stages(sim, auto=True) for any engine
         :param sim: a PatchySimulation for which to generate a stage list
         """
         sim_subfolders = []
@@ -1265,12 +1270,10 @@ class PatchySimulationEnsemble(Analyzable):
                     # if the stage traj is empty just continue
                     pass
         # if no stage has a traj file, raise exception
-        trajpath = self.folder_path(sim) / self.sim_get_stage(sim,
-                                                              0).adjfn(self.sim_get_param(sim,
-                                                                                          "trajectory_file"))
-        raise NoStageTrajError(self.sim_get_stage(sim, 0),
+        first_stage = self.sim_get_stage(sim, 0)
+        raise NoStageTrajError(first_stage,
                                sim,
-                               str(trajpath))
+                               str(self.engine.trajectory_file(self, sim, first_stage)))
 
     def sim_num_stages(self, sim: PatchySimulation) -> int:
         """

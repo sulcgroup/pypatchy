@@ -2,15 +2,12 @@ from __future__ import annotations
 
 import itertools
 import os
-import subprocess
-import tempfile
 from collections.abc import Generator, Iterable
-from pathlib import Path
 from typing import Any, Union
 from weakref import ReferenceType, ref
 
 import numpy as np
-from oxpy_utils.oxdna_simulation import BuildSimulation, Simulation, write_input_file
+from oxpy_utils.oxdna_simulation import BuildSimulation, Simulation
 
 from ..patchy.simulation_specification import NoSuchParamError, PatchySimulation
 from .base_param_val import ParameterValue
@@ -296,48 +293,9 @@ class Stage(BuildSimulation):
             # self.particles_to_add incorporates num_assmblies
             particles = [scene.particle_types().particle(i_type).instantiate(i + start_particle_count)
                          for i, i_type in enumerate(self.particles_to_add())]
-            # default is now to use confGenerator, which can only generate a fresh conf (i.e. the
-            # first stage); later stages add particles to the existing scene directly
-            if self._param_info.add_method.extern and self.idx() == 0:
-                # we need particles to be sane for the stupid jurryrig i do later
-                for p in particles:
-                    p.set_rotation(np.identity(3))
-                    p.set_position(np.array([0, 0, 0]))
-                # add particles to scene so we can make top later
-                scene.add_particles(particles, strict_check=False) # strict check currently does nothing but might someday?
-                # create temporary directory within the simulation directory
-                with tempfile.TemporaryDirectory(dir=self.getctxt().folder_path(self.spec())) as tmpdir:
-                    # eventually this should be a context manager
-                    w = self.getctxt().writer
-                    w.set_directory(tmpdir)
-                    files = w.write(scene, conf_file="dummy.dat")
-                    inpdct = self.iter_input_dict()
-                    inpdct.update(dict(w.get_input_file_data(scene)))
-                    inpdct.update(files)
-                    write_input_file(Path(tmpdir) / "input", inpdct)
-
-                    # w.write_top(w.get_scene_top(scene), self.getctxt().sim_stage_get_param(self.spec(), self, 'topology'))
-                    # cmd = f"{str(Path(self.getctxt().server_settings.oxdna_path) / 'build' /'bin'/ 'confGenerator')} input {self.getctxt().sim_stage_get_param(self.spec(), self, 'density')}"
-                    cmd = [str(Path(self.getctxt().server_settings.oxdna_path) / 'build' /'bin'/ 'confGenerator'),
-                            "input",
-                           f"{self.getctxt().sim_stage_get_param(self.spec(), self, 'density')}"]
-                    # run and capture everything
-                    result = subprocess.run(cmd, capture_output=True, text=True, cwd=tmpdir)
-                    if result.returncode:
-                        raise RuntimeError("Failed to generate conf!\n" + result.stderr)
-
-                    # log stdout & sterr
-                    for line in result.stdout.splitlines():
-                        self.getctxt().get_logger().info(line)
-                    for line in result.stderr.splitlines():
-                        self.getctxt().get_logger().error(line)
-                    gend_conf = w.read_scene(inpdct["topology"], inpdct["conf_file"],
-                                             scene.particle_types())
-                    scene.clear_particles() # clear particles at the Singularity
-                    scene.add_particles(gend_conf.particles(), False)
-            else:
-
-                scene.add_particle_rand_positions(particles)
+            # the engine places them (the oxDNA engine uses confGenerator for a stage 0 that asks for it)
+            self.getctxt().engine.place_random_particles(self.getctxt(), self, scene, particles,
+                                                          self._param_info.add_method.extern)
 
         # TODO: merge FromPolycubeAdder into FromConfAdder
         elif isinstance(self._param_info.add_method, FromPolycubeAdder):

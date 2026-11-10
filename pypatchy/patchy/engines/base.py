@@ -126,3 +126,31 @@ class SimulationEngine(ABC):
         :return: the file to look at when a stage fails
         """
         pass
+
+    @abstractmethod
+    def trajectory_file(self, ensemble: Any, sim: PatchySimulation, stage: Stage) -> Path:
+        """
+        :return: the file a stage writes its trajectory to
+        """
+        pass
+
+    @abstractmethod
+    def generate_stages(self, ensemble: Any, sim: PatchySimulation) -> list[Stage]:
+        """
+        Works out a simulation's stages from the files it has written, rather than from the ensemble's
+        staging parameters (see PatchySimulationEnsemble.sim_get_stages(auto=True)).
+        """
+        pass
+
+    def place_random_particles(self,
+                               ensemble: Any,
+                               stage: Stage,
+                               scene: PLPSimulation,
+                               particles: list,
+                               extern: bool):
+        """
+        Adds particles to a scene at random positions and orientations (for a stage with a random add method).
+        By default uses pypatchy's own random insertion, with Boltzmann rejection by the scene's energy model.
+        :param extern: whether the stage asked for the engine's external configuration generator, if it has one
+        """
+        scene.add_particle_rand_positions(particles)

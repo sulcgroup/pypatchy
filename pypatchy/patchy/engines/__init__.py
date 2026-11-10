@@ -3,10 +3,12 @@ Simulation engines: the programs a PatchySimulationEnsemble can build, run and r
 A server config picks one with its "engine" field (default "oxdna").
 """
 from .base import SimulationEngine
+from .hoomd_engine import HOOMDEngine
 from .oxdna import OxDNAEngine
 
 ENGINES: dict[str, type[SimulationEngine]] = {
     OxDNAEngine.name: OxDNAEngine,
+    HOOMDEngine.name: HOOMDEngine,
 }
 
 
